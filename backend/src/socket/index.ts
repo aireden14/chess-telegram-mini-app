@@ -40,9 +40,9 @@ export function isOnline(userId: number) {
   return onlineUsers.has(userId);
 }
 
-export function initSocket(httpServer: HttpServer, frontendUrl: string) {
+export function initSocket(httpServer: HttpServer, _frontendUrl: string) {
   io = new IOServer(httpServer, {
-    cors: { origin: frontendUrl || true, credentials: true },
+    cors: { origin: true, credentials: true },
   });
 
   io.use((socket, next) => {
