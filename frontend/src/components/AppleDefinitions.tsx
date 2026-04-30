@@ -11,6 +11,10 @@ export const AppleDefinitions = () => (
         <stop offset="0%" style={{ stopColor: '#2a2a2a', stopOpacity: 1 }} />
         <stop offset="100%" style={{ stopColor: '#050505', stopOpacity: 1 }} />
       </linearGradient>
+      <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style={{ stopColor: '#FFD700', stopOpacity: 1 }} />
+        <stop offset="100%" style={{ stopColor: '#B8860B', stopOpacity: 1 }} />
+      </linearGradient>
       
       {/* Glow for Black Pieces - makes them pop on dark background */}
       <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">

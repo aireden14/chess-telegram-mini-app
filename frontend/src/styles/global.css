@@ -231,6 +231,12 @@ body {
 }
 
 /* Board Wrap - PURE MINIMALISM */
+.player-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Board Wrap - PURE MINIMALISM + DEPTH */
 .board-wrap {
   width: 100%;
@@ -276,16 +282,16 @@ body {
 /* Captured Pieces Shelf - GLASS SLAB */
 .captured-shelf {
   display: flex;
-  gap: 6px;
-  height: 32px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.05);
+  gap: 4px;
+  height: 28px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(10px);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
   width: fit-content;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  margin: 0 auto; /* Center horizontally */
 }
 
 .captured-piece {
@@ -391,13 +397,38 @@ body {
   z-index: 2000;
 }
 
-/* Back button in topnav */
+/* TopNav Layout */
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  height: 44px;
+  margin-bottom: 8px;
+}
+
 .topnav .back {
   background: rgba(255,255,255,0.08);
-  padding: 8px 16px;
-  border-radius: 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
   color: #fff;
   text-decoration: none;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.topnav .title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  pointer-events: none;
+  z-index: 1;
 }

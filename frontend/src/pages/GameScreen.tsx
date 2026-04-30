@@ -307,7 +307,7 @@ export function GameScreen() {
       <TopNav title="Шахматы" backTo="/" />
 
       {/* Противник */}
-      <div className="opponent-section">
+      <div className="player-section">
         <PlayerPanel
           player={myColor === "white" ? game.playerBlack : game.playerWhite}
           timer={myColor === "white" ? tickBlack : tickWhite}
@@ -347,8 +347,8 @@ export function GameScreen() {
       </div>
 
       {/* Я */}
-      <div className="me-section">
-        <div className="captured-shelf" style={{ justifyContent: 'flex-end' }}>
+      <div className="player-section">
+        <div className="captured-shelf">
           {captured[myColor === "white" ? "w" : "b"].map((p, i) => (
             <div key={i} className="captured-piece">{applePieces[`${myColor === "white" ? "w" : "b"}${p.toUpperCase()}`]({ squareWidth: 16 })}</div>
           ))}

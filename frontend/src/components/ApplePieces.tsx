@@ -4,10 +4,10 @@ const HORSE_PATH = `M 416.474 65.250 C 416.219 65.938, 415.398 73.026, 414.649 8
 
 const Piece = ({ type, color, squareWidth }: { type: string, color: 'w' | 'b', squareWidth: number }) => {
   const isWhite = color === 'w';
-  const fill = isWhite ? 'url(#whiteGradient)' : 'url(#blackGradient)';
-  const stroke = isWhite ? 'none' : 'rgba(255,255,255,0.4)';
-  const strokeWidth = isWhite ? 0 : 1;
-  const filter = isWhite ? 'none' : 'url(#glow)';
+  const fill = isWhite ? 'url(#whiteGradient)' : 'url(#goldGradient)';
+  const stroke = 'none';
+  const strokeWidth = 0;
+  const filter = 'none';
 
   const commonProps = { fill, filter, stroke, strokeWidth };
 
@@ -32,9 +32,6 @@ const Piece = ({ type, color, squareWidth }: { type: string, color: 'w' | 'b', s
     case 'n':
       return (
         <svg viewBox="-300 -300 1502 1832" width={squareWidth} height={squareWidth}>
-          {!isWhite && (
-            <path d={HORSE_PATH} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="40" filter="url(#glow)" />
-          )}
           <path d={HORSE_PATH} fill={fill} filter={filter} stroke={stroke} strokeWidth={strokeWidth} />
         </svg>
       );
@@ -54,7 +51,7 @@ const Piece = ({ type, color, squareWidth }: { type: string, color: 'w' | 'b', s
           <g {...commonProps}>
             <path d="M10 40c3-1 22-1 25 0v-4H10v4zM15 33c1-6 3-12 7.5-12s6.5 6 7.5 12h-15z" />
             <path d="M22.5 7a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
-            <path d="M11 21h23v-2l-3.5 1-2.5-6-4 5-4-5-2.5 6-3.5-1v2z" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+            <path d="M11 21h23v-2l-3.5 1-2.5-6-4 5-4-5-2.5 6-3.5-1v2z" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
           </g>
         </svg>
       );
