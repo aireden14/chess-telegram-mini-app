@@ -36,30 +36,30 @@
 
 /* Light Theme - Apple Day */
 [data-theme="light"] {
-  --apple-bg: #f5f5f7;
+  --apple-bg: radial-gradient(120% 120% at 50% -10%, #ffffff 0%, #f5f5f7 100%);
   --apple-white: #000000;
   --apple-text: #000000;
   --apple-text-dim: rgba(0, 0, 0, 0.7);
   --apple-text-faint: rgba(0, 0, 0, 0.4);
   
-  --primary-btn-bg: #000000;
+  --primary-btn-bg: #1c1c1e;
   --primary-btn-text: #ffffff;
   
   --piece-dark-1: #333333;
   --piece-dark-2: #000000;
   
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.08);
   --glass-hover: rgba(0, 0, 0, 0.05);
-  --glass-solid: rgba(0, 0, 0, 0.03);
-  --glass-blur: blur(30px);
+  --glass-solid: rgba(0, 0, 0, 0.02);
+  --glass-blur: blur(40px);
   
-  --board-light: rgba(0, 0, 0, 0.05);
-  --board-dark: rgba(0, 0, 0, 0.15);
+  --board-light: rgba(0, 0, 0, 0.03);
+  --board-dark: rgba(0, 0, 0, 0.12);
   
-  --piece-light-1: #ffffff;
-  --piece-light-2: #f0f0f0;
-  --piece-stroke: rgba(0, 0, 0, 0.3);
+  --piece-light-1: #FFD700;
+  --piece-light-2: #B8860B;
+  --piece-stroke: rgba(0, 0, 0, 0.2);
 }
 
 /* Colorful Theme - Apple Liquid Glass */
@@ -313,12 +313,13 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: #222;
+  background: var(--glass-solid);
   border: 1px solid var(--glass-border);
   display: grid;
   place-items: center;
   font-weight: 700;
   overflow: hidden;
+  color: var(--apple-text);
 }
 
 .avatar img {
