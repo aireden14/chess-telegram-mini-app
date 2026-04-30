@@ -2,11 +2,19 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuthStore } from "../store/auth";
+import { useThemeStore, ThemeType } from "../store/theme";
 import { GameStateDTO } from "../types";
+
+const THEMES: { label: string; value: ThemeType; icon: string }[] = [
+  { label: "Dark", value: "dark", icon: "🖤" },
+  { label: "Light", value: "light", icon: "🤍" },
+  { label: "Color", value: "colorful", icon: "🌈" },
+];
 
 export function HomeScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const { theme, setTheme } = useThemeStore();
   const [active, setActive] = useState<GameStateDTO[]>([]);
 
   useEffect(() => {
@@ -65,6 +73,21 @@ export function HomeScreen() {
           <div className="row-title">🏆 Таблица лидеров</div>
           <div className="row-value">›</div>
         </button>
+      </div>
+
+      <div className="menu-group">
+        <h2 className="h2">🎨 Тема оформления</h2>
+        <div className="segment">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              className={`seg-item${theme === t.value ? " active" : ""}`}
+              onClick={() => setTheme(t.value)}
+            >
+              {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {inProgress.length > 0 && (
