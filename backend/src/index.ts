@@ -23,7 +23,7 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 const port = Number(process.env.PORT || 3001);
 const httpServer = createServer(app);
-initSocket(httpServer, FRONTEND_URL);
+initSocket(httpServer, "");
 startTimerWatchdog();
 
 httpServer.listen(port, () => {
