@@ -9,6 +9,9 @@
   --primary-btn-bg: #f5f5f7;
   --primary-btn-text: #000000;
   
+  --piece-dark-1: #FFD700;
+  --piece-dark-2: #B8860B;
+  
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-hover: rgba(255, 255, 255, 0.08);
@@ -35,6 +38,9 @@
   --primary-btn-bg: #000000;
   --primary-btn-text: #ffffff;
   
+  --piece-dark-1: #FFD700;
+  --piece-dark-2: #B8860B;
+  
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.1);
   --glass-hover: rgba(0, 0, 0, 0.05);
@@ -53,6 +59,9 @@
   --primary-btn-bg: #9333ea;
   --primary-btn-text: #ffffff;
   
+  --piece-dark-1: #FFD700;
+  --piece-dark-2: #B8860B;
+  
   --glass-bg: rgba(147, 51, 234, 0.15);
   --glass-border: rgba(147, 51, 234, 0.3);
   --glass-hover: rgba(147, 51, 234, 0.25);
@@ -60,6 +69,26 @@
   --glass-blur: blur(20px);
 }
 
+/* Liquid Blue Theme */
+[data-theme="blue"] {
+  --apple-bg: #04081c;
+  --apple-white: #ffffff;
+  --apple-text: #ffffff;
+  --apple-text-dim: rgba(255, 255, 255, 0.8);
+  --apple-text-faint: rgba(255, 255, 255, 0.5);
+  
+  --primary-btn-bg: #0ea5e9;
+  --primary-btn-text: #ffffff;
+  
+  --piece-dark-1: #38bdf8;
+  --piece-dark-2: #0284c7;
+  
+  --glass-bg: rgba(14, 165, 233, 0.1);
+  --glass-border: rgba(14, 165, 233, 0.4);
+  --glass-hover: rgba(14, 165, 233, 0.2);
+  --glass-solid: rgba(14, 165, 233, 0.15);
+  --glass-blur: blur(20px);
+}
 
 * {
   box-sizing: border-box;
@@ -200,9 +229,9 @@ body {
 }
 
 .chip.active {
-  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
+  background: linear-gradient(135deg, var(--piece-dark-1) 0%, var(--piece-dark-2) 100%);
   color: #000;
-  box-shadow: 0 4px 10px rgba(218, 165, 32, 0.3);
+  box-shadow: 0 4px 10px var(--glass-border);
 }
 
 .segment {
@@ -228,9 +257,9 @@ body {
 }
 
 .seg-item.active {
-  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
+  background: linear-gradient(135deg, var(--piece-dark-1) 0%, var(--piece-dark-2) 100%);
   color: #000;
-  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.3);
+  box-shadow: 0 4px 12px var(--glass-border);
 }
 
 /* Player Panels */
@@ -397,14 +426,14 @@ body {
 }
 
 .btn-gold {
-  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%) !important;
+  background: linear-gradient(135deg, var(--piece-dark-1) 0%, var(--piece-dark-2) 100%) !important;
   color: #000 !important;
   border: none !important;
-  box-shadow: 0 4px 20px rgba(218, 165, 32, 0.4);
+  box-shadow: 0 4px 20px var(--glass-border);
 }
 
 .gold-text {
-  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
+  background: linear-gradient(135deg, var(--piece-dark-1) 0%, var(--piece-dark-2) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 800;

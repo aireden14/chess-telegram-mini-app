@@ -9,6 +9,7 @@ const THEMES: { label: string; value: ThemeType; icon: string }[] = [
   { label: "Dark", value: "dark", icon: "🖤" },
   { label: "Light", value: "light", icon: "🤍" },
   { label: "Color", value: "colorful", icon: "🌈" },
+  { label: "Ocean", value: "blue", icon: "🌊" },
 ];
 
 export function HomeScreen() {

@@ -8,6 +8,7 @@ const THEMES: { label: string; value: ThemeType; icon: string }[] = [
   { label: "Apple Dark", value: "dark", icon: "🖤" },
   { label: "Apple Light", value: "light", icon: "🤍" },
   { label: "Colorful", value: "colorful", icon: "🌈" },
+  { label: "Liquid Ocean", value: "blue", icon: "🌊" },
 ];
 
 export function ProfileScreen() {
