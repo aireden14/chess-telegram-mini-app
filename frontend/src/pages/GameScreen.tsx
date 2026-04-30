@@ -352,7 +352,7 @@ export function GameScreen() {
           customBoardStyle={{ borderRadius: 12 }}
           customDarkSquareStyle={{ backgroundColor: "rgba(255, 255, 255, 0.04)", borderRadius: '16px' }}
           customLightSquareStyle={{ backgroundColor: "rgba(255, 255, 255, 0.12)", borderRadius: '16px' }}
-          showBoardCode={false}
+          showBoardNotation={false}
         />
       </div>
 
