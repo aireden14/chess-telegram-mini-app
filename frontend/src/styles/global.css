@@ -6,6 +6,9 @@
   --apple-text-dim: rgba(255, 255, 255, 0.7);
   --apple-text-faint: rgba(255, 255, 255, 0.4);
   
+  --primary-btn-bg: #f5f5f7;
+  --primary-btn-text: #000000;
+  
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-hover: rgba(255, 255, 255, 0.08);
@@ -29,6 +32,9 @@
   --apple-text-dim: rgba(0, 0, 0, 0.7);
   --apple-text-faint: rgba(0, 0, 0, 0.4);
   
+  --primary-btn-bg: #000000;
+  --primary-btn-text: #ffffff;
+  
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.1);
   --glass-hover: rgba(0, 0, 0, 0.05);
@@ -43,6 +49,9 @@
   --apple-text: #ffffff;
   --apple-text-dim: rgba(255, 255, 255, 0.8);
   --apple-text-faint: rgba(255, 255, 255, 0.5);
+  
+  --primary-btn-bg: #9333ea;
+  --primary-btn-text: #ffffff;
   
   --glass-bg: rgba(147, 51, 234, 0.15);
   --glass-border: rgba(147, 51, 234, 0.3);
@@ -365,8 +374,8 @@ body {
 }
 
 .btn-primary {
-  background: var(--apple-white);
-  color: #000;
+  background: var(--primary-btn-bg);
+  color: var(--primary-btn-text);
   border: none;
 }
 
