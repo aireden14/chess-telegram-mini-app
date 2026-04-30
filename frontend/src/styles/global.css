@@ -1,0 +1,403 @@
+:root {
+  /* Apple Minimalism - Pure Edition 2026 */
+  --apple-bg: #000000;
+  --apple-white: #f5f5f7;
+  --apple-text: #ffffff;
+  --apple-text-dim: rgba(255, 255, 255, 0.7);
+  --apple-text-faint: rgba(255, 255, 255, 0.4);
+  
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(20px);
+  
+  --radius-xl: 40px;
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --radius-sm: 10px;
+  
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background-color: var(--apple-bg);
+  color: var(--apple-text);
+  overflow-x: hidden;
+  font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Background - PURE BLACK */
+.background-blobs {
+  display: none;
+}
+
+/* App Container */
+.app-screen {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  padding-top: calc(var(--safe-top) + 24px);
+  padding-bottom: calc(var(--safe-bottom) + 32px);
+  gap: 24px;
+}
+
+/* Typography */
+.h1 {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 0 0 4px;
+}
+
+.h2 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0 0 10px;
+  color: var(--apple-text-faint);
+  text-transform: uppercase;
+}
+
+.menu-group {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.muted {
+  color: var(--apple-text-faint);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Glass Cards */
+.card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+/* Grouped Lists */
+.card-grouped {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--apple-text);
+  text-align: left;
+  transition: background 0.2s ease;
+  font-size: 17px;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.row-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.row-value {
+  color: var(--apple-text-faint);
+}
+
+/* Chips / Segments */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.05);
+  color: var(--apple-text-dim);
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: var(--apple-white);
+  color: #000;
+}
+
+.segment {
+  display: flex;
+  background: rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.seg-item {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border-radius: 11px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--apple-text-faint);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.seg-item.active {
+  background: var(--apple-white);
+  color: #000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Player Panels */
+.player-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.player-panel.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #222;
+  border: 1px solid rgba(255,255,255,0.1);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.timer {
+  font-family: "SF Mono", monospace;
+  font-size: 22px;
+  font-weight: 700;
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  color: #fff;
+}
+
+/* Board Wrap - PURE MINIMALISM */
+/* Board Wrap - PURE MINIMALISM + DEPTH */
+.board-wrap {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 50px 100px -20px rgba(0, 0, 0, 1),
+    0 30px 60px -30px rgba(0, 0, 0, 0.8),
+    inset 0 0 1px 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  position: relative;
+  z-index: 1;
+}
+
+/* Animations */
+@keyframes pulse-soft {
+  0% { opacity: 0.4; transform: scale(0.95); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+  100% { opacity: 0.4; transform: scale(0.95); }
+}
+
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Legal Move Dots */
+[style*="radial-gradient"] {
+  animation: fade-in-scale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1.2) forwards;
+}
+
+/* Selected Square Pulse */
+[style*="rgba(0,122,255,0.25)"] {
+  animation: pulse-soft 2s infinite ease-in-out;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 16px !important;
+}
+
+/* Captured Pieces Shelf - GLASS SLAB */
+.captured-shelf {
+  display: flex;
+  gap: 6px;
+  height: 32px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  width: fit-content;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.captured-piece {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+  transition: transform 0.2s ease;
+}
+
+.captured-piece:hover {
+  transform: translateY(-2px) scale(1.1);
+  opacity: 1;
+}
+
+/* Buttons */
+.btn {
+  height: 64px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--apple-text);
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.btn-primary {
+  background: var(--apple-white);
+  color: #000;
+  border: none;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  height: auto;
+  font-size: 15px;
+  padding: 8px 12px;
+  color: var(--apple-text-dim);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* Captured shelf */
+.captured-shelf {
+  display: flex;
+  gap: 2px;
+  height: 20px;
+  opacity: 0.5;
+}
+
+/* Moves list */
+.moves-list {
+  background: rgba(255,255,255,0.04);
+  border-radius: 14px;
+  padding: 12px;
+  font-family: "SF Mono", monospace;
+  font-size: 14px;
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #1c1c1e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 32px;
+  padding: 32px;
+  width: 90%;
+  max-width: 340px;
+  text-align: center;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  color: #000;
+  padding: 14px 28px;
+  border-radius: 24px;
+  font-weight: 700;
+  z-index: 2000;
+}
+
+/* Back button in topnav */
+.topnav .back {
+  background: rgba(255,255,255,0.08);
+  padding: 8px 16px;
+  border-radius: 12px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+}

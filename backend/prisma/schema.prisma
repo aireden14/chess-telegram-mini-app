@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  telegramId    BigInt   @unique
+  username      String?
+  firstName     String
+  lastName      String?
+  photoUrl      String?
+  rating        Int      @default(1000)
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  draws         Int      @default(0)
+  totalGames    Int      @default(0)
+  isBot         Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  gamesAsWhite  Game[]   @relation("WhitePlayer")
+  gamesAsBlack  Game[]   @relation("BlackPlayer")
+}
+
+model Game {
+  id              String @id @default(uuid())
+  playerWhiteId   Int?
+  playerBlackId   Int?
+  status          String @default("WAITING")
+  fen             String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  pgn             String     @default("")
+  timerWhite      Int
+  timerBlack      Int
+  increment       Int        @default(0)
+  currentTurn     String     @default("w")
+  lastMoveAt      DateTime?
+  winner          String?
+  endReason       String?
+  pauseRequestBy  String?
+  drawOfferBy     String?
+  isBotGame       Boolean    @default(false)
+  botDifficulty   String?    // "easy" | "medium"
+  botColor        String?    // "white" | "black"
+  settings        String   @default("{}")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  playerWhite     User?      @relation("WhitePlayer", fields: [playerWhiteId], references: [id])
+  playerBlack     User?      @relation("BlackPlayer", fields: [playerBlackId], references: [id])
+}
