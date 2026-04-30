@@ -4,8 +4,8 @@ export const AppleDefinitions = () => (
   <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
     <defs>
       <linearGradient id="whiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style={{ stopColor: '#ffffff', stopOpacity: 1 }} />
-        <stop offset="100%" style={{ stopColor: '#f0f0f0', stopOpacity: 1 }} />
+        <stop offset="0%" style={{ stopColor: 'var(--piece-light-1)', stopOpacity: 1 }} />
+        <stop offset="100%" style={{ stopColor: 'var(--piece-light-2)', stopOpacity: 1 }} />
       </linearGradient>
       <linearGradient id="blackGradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" style={{ stopColor: '#2a2a2a', stopOpacity: 1 }} />

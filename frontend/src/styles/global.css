@@ -18,6 +18,13 @@
   --glass-solid: rgba(255, 255, 255, 0.03);
   --glass-blur: blur(20px);
   
+  --board-light: rgba(255, 255, 255, 0.12);
+  --board-dark: rgba(255, 255, 255, 0.04);
+  
+  --piece-light-1: #ffffff;
+  --piece-light-2: #f0f0f0;
+  --piece-stroke: none;
+  
   --radius-xl: 40px;
   --radius-lg: 24px;
   --radius-md: 18px;
@@ -38,14 +45,21 @@
   --primary-btn-bg: #000000;
   --primary-btn-text: #ffffff;
   
-  --piece-dark-1: #FFD700;
-  --piece-dark-2: #B8860B;
+  --piece-dark-1: #333333;
+  --piece-dark-2: #000000;
   
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.1);
   --glass-hover: rgba(0, 0, 0, 0.05);
   --glass-solid: rgba(0, 0, 0, 0.03);
   --glass-blur: blur(30px);
+  
+  --board-light: rgba(0, 0, 0, 0.05);
+  --board-dark: rgba(0, 0, 0, 0.15);
+  
+  --piece-light-1: #ffffff;
+  --piece-light-2: #f0f0f0;
+  --piece-stroke: rgba(0, 0, 0, 0.3);
 }
 
 /* Colorful Theme - Apple Liquid Glass */
@@ -67,6 +81,13 @@
   --glass-hover: rgba(255, 255, 255, 0.1);
   --glass-solid: rgba(255, 255, 255, 0.03);
   --glass-blur: blur(30px);
+  
+  --board-light: rgba(255, 255, 255, 0.12);
+  --board-dark: rgba(255, 255, 255, 0.04);
+  
+  --piece-light-1: #ffffff;
+  --piece-light-2: #f0f0f0;
+  --piece-stroke: none;
 }
 
 /* Liquid Blue Theme - Apple Glass */
@@ -88,6 +109,13 @@
   --glass-hover: rgba(255, 255, 255, 0.1);
   --glass-solid: rgba(255, 255, 255, 0.03);
   --glass-blur: blur(30px);
+  
+  --board-light: rgba(255, 255, 255, 0.12);
+  --board-dark: rgba(255, 255, 255, 0.04);
+  
+  --piece-light-1: #ffffff;
+  --piece-light-2: #f0f0f0;
+  --piece-stroke: none;
 }
 
 * {

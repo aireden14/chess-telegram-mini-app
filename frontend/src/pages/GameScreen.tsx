@@ -357,8 +357,8 @@ export function GameScreen() {
           customSquareStyles={legalSquares}
           customPieces={applePieces}
           customBoardStyle={{ borderRadius: 12 }}
-          customDarkSquareStyle={{ backgroundColor: "rgba(255, 255, 255, 0.04)", borderRadius: '16px' }}
-          customLightSquareStyle={{ backgroundColor: "rgba(255, 255, 255, 0.12)", borderRadius: '16px' }}
+          customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: '16px' }}
+          customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: '16px' }}
           showBoardNotation={false}
         />
       </div>
