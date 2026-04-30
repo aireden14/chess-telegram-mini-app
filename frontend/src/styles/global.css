@@ -51,7 +51,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 24px;
-  padding-top: calc(var(--safe-top) + 60px); /* Increased offset for TG buttons */
+  padding-top: calc(var(--safe-top) + 70px); /* Increased offset for TG buttons */
   padding-bottom: calc(var(--safe-bottom) + 32px);
   gap: 24px;
 }
