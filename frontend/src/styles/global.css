@@ -48,46 +48,46 @@
   --glass-blur: blur(30px);
 }
 
-/* Colorful Theme - Original Vibrant */
+/* Colorful Theme - Apple Liquid Glass */
 [data-theme="colorful"] {
-  --apple-bg: #130b29;
+  --apple-bg: radial-gradient(100% 100% at 0% 0%, #2e0854 0%, #0d0415 100%), radial-gradient(100% 100% at 100% 100%, #5b21b6 0%, transparent 100%);
   --apple-white: #ffffff;
   --apple-text: #ffffff;
   --apple-text-dim: rgba(255, 255, 255, 0.8);
   --apple-text-faint: rgba(255, 255, 255, 0.5);
   
-  --primary-btn-bg: #9333ea;
+  --primary-btn-bg: #BF5AF2;
   --primary-btn-text: #ffffff;
   
   --piece-dark-1: #d8b4fe;
   --piece-dark-2: #7e22ce;
   
-  --glass-bg: rgba(147, 51, 234, 0.15);
-  --glass-border: rgba(147, 51, 234, 0.3);
-  --glass-hover: rgba(147, 51, 234, 0.25);
-  --glass-solid: rgba(147, 51, 234, 0.1);
-  --glass-blur: blur(20px);
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --glass-solid: rgba(255, 255, 255, 0.03);
+  --glass-blur: blur(30px);
 }
 
-/* Liquid Blue Theme */
+/* Liquid Blue Theme - Apple Glass */
 [data-theme="blue"] {
-  --apple-bg: #04081c;
+  --apple-bg: radial-gradient(120% 120% at 50% -10%, #0c4a6e 0%, #020617 70%), radial-gradient(80% 80% at 100% 100%, #0ea5e9 0%, transparent 100%);
   --apple-white: #ffffff;
   --apple-text: #ffffff;
   --apple-text-dim: rgba(255, 255, 255, 0.8);
   --apple-text-faint: rgba(255, 255, 255, 0.5);
   
-  --primary-btn-bg: #0ea5e9;
+  --primary-btn-bg: #0A84FF;
   --primary-btn-text: #ffffff;
   
   --piece-dark-1: #38bdf8;
   --piece-dark-2: #0284c7;
   
-  --glass-bg: rgba(14, 165, 233, 0.1);
-  --glass-border: rgba(14, 165, 233, 0.4);
-  --glass-hover: rgba(14, 165, 233, 0.2);
-  --glass-solid: rgba(14, 165, 233, 0.15);
-  --glass-blur: blur(20px);
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --glass-solid: rgba(255, 255, 255, 0.03);
+  --glass-blur: blur(30px);
 }
 
 * {
@@ -97,7 +97,8 @@
 
 body {
   margin: 0;
-  background-color: var(--apple-bg);
+  background: var(--apple-bg);
+  background-attachment: fixed;
   color: var(--apple-text);
   overflow-x: hidden;
   font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
