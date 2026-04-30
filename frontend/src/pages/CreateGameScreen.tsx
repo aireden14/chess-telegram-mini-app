@@ -116,7 +116,7 @@ export function CreateGameScreen() {
 
       <div style={{ flex: 1 }} />
       <button
-        className="btn btn-primary btn-block"
+        className="btn btn-gold btn-block"
         disabled={busy}
         onClick={create}
       >

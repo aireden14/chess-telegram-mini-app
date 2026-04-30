@@ -158,8 +158,9 @@ body {
 }
 
 .chip.active {
-  background: var(--apple-white);
+  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
   color: #000;
+  box-shadow: 0 4px 10px rgba(218, 165, 32, 0.3);
 }
 
 .segment {
@@ -185,9 +186,9 @@ body {
 }
 
 .seg-item.active {
-  background: var(--apple-white);
+  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
   color: #000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.3);
 }
 
 /* Player Panels */
@@ -343,6 +344,20 @@ body {
 
 .btn:active {
   transform: scale(0.97);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%) !important;
+  color: #000 !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(218, 165, 32, 0.4);
+}
+
+.gold-text {
+  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
 }
 
 /* Captured shelf */
