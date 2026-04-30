@@ -11,6 +11,7 @@ import { ReplayScreen } from "./pages/ReplayScreen";
 import { LeaderboardScreen } from "./pages/LeaderboardScreen";
 import { PausedScreen } from "./pages/PausedScreen";
 import { useAuthStore } from "./store/auth";
+import { useThemeStore } from "./store/theme";
 import { AppleDefinitions } from "./components/AppleDefinitions";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ function Protected({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
+  useThemeStore(); // trigger hydration/initialization
   return (
     <BrowserRouter>
       <AppleDefinitions />

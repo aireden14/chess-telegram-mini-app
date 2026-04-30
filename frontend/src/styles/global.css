@@ -8,6 +8,8 @@
   
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.08);
+  --glass-solid: rgba(255, 255, 255, 0.03);
   --glass-blur: blur(20px);
   
   --radius-xl: 40px;
@@ -18,6 +20,37 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* Light Theme - Apple Day */
+[data-theme="light"] {
+  --apple-bg: #f5f5f7;
+  --apple-white: #000000;
+  --apple-text: #000000;
+  --apple-text-dim: rgba(0, 0, 0, 0.7);
+  --apple-text-faint: rgba(0, 0, 0, 0.4);
+  
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-hover: rgba(0, 0, 0, 0.05);
+  --glass-solid: rgba(0, 0, 0, 0.03);
+  --glass-blur: blur(30px);
+}
+
+/* Colorful Theme - Original Vibrant */
+[data-theme="colorful"] {
+  --apple-bg: #130b29;
+  --apple-white: #ffffff;
+  --apple-text: #ffffff;
+  --apple-text-dim: rgba(255, 255, 255, 0.8);
+  --apple-text-faint: rgba(255, 255, 255, 0.5);
+  
+  --glass-bg: rgba(147, 51, 234, 0.15);
+  --glass-border: rgba(147, 51, 234, 0.3);
+  --glass-hover: rgba(147, 51, 234, 0.25);
+  --glass-solid: rgba(147, 51, 234, 0.1);
+  --glass-blur: blur(20px);
+}
+
 
 * {
   box-sizing: border-box;
@@ -74,10 +107,10 @@ body {
 }
 
 .menu-group {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-solid);
   padding: 16px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
 }
 
 .muted {
@@ -126,7 +159,7 @@ body {
 }
 
 .row:active {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-hover);
 }
 
 .row-title {
@@ -148,8 +181,8 @@ body {
 .chip {
   padding: 10px 16px;
   border-radius: 12px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-border);
   color: var(--apple-text-dim);
   font-weight: 600;
   font-size: 15px;
@@ -165,7 +198,7 @@ body {
 
 .segment {
   display: flex;
-  background: rgba(255,255,255,0.06);
+  background: var(--glass-solid);
   border-radius: 14px;
   padding: 3px;
   gap: 2px;
@@ -204,8 +237,8 @@ body {
 }
 
 .player-panel.active {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--glass-hover);
+  border-color: var(--apple-text-faint);
   transform: translateY(-2px);
 }
 
@@ -214,7 +247,7 @@ body {
   height: 44px;
   border-radius: 14px;
   background: #222;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--glass-border);
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -226,10 +259,11 @@ body {
   font-size: 22px;
   font-weight: 700;
   padding: 4px 12px;
-  background: rgba(255,255,255,0.05);
+  background: var(--glass-border);
   border-radius: 10px;
-  color: #fff;
+  color: var(--apple-text);
 }
+
 
 /* Board Wrap - PURE MINIMALISM */
 .player-section {
@@ -242,14 +276,15 @@ body {
 .board-wrap {
   width: 100%;
   aspect-ratio: 1/1;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--glass-solid);
   border-radius: var(--radius-lg);
   padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
   box-shadow: 
-    0 50px 100px -20px rgba(0, 0, 0, 1),
-    0 30px 60px -30px rgba(0, 0, 0, 0.8),
-    inset 0 0 1px 1px rgba(255, 255, 255, 0.05);
+    0 50px 100px -20px rgba(0, 0, 0, 0.5),
+    0 30px 60px -30px rgba(0, 0, 0, 0.3),
+    inset 0 0 1px 1px var(--glass-border);
+
   backdrop-filter: blur(40px) saturate(150%);
   -webkit-backdrop-filter: blur(40px) saturate(150%);
   position: relative;
@@ -286,10 +321,10 @@ body {
   gap: 4px;
   height: 28px;
   padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--glass-solid);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
   width: fit-content;
   align-items: center;
   margin: 0 auto; /* Center horizontally */
@@ -311,8 +346,8 @@ body {
 .btn {
   height: 64px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass-hover);
+  border: 1px solid var(--glass-border);
   color: var(--apple-text);
   font-weight: 700;
   font-size: 18px;
@@ -370,7 +405,7 @@ body {
 
 /* Moves list */
 .moves-list {
-  background: rgba(255,255,255,0.04);
+  background: var(--glass-solid);
   border-radius: 14px;
   padding: 12px;
   font-family: "SF Mono", monospace;
@@ -389,8 +424,8 @@ body {
 }
 
 .modal {
-  background: #1c1c1e;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--apple-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 32px;
   padding: 32px;
   width: 90%;
@@ -424,10 +459,10 @@ body {
 }
 
 .topnav .back {
-  background: rgba(255,255,255,0.08);
+  background: var(--glass-hover);
   padding: 8px 14px;
   border-radius: 10px;
-  color: #fff;
+  color: var(--apple-text);
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -443,7 +478,7 @@ body {
   text-align: center;
   font-size: 17px;
   font-weight: 700;
-  color: #fff;
+  color: var(--apple-text);
   pointer-events: none;
   z-index: 1;
 }

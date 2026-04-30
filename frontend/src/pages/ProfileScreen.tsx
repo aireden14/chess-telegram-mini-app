@@ -2,9 +2,17 @@ import React, { useEffect, useState } from "react";
 import { TopNav } from "../components/TopNav";
 import { api } from "../api/client";
 import { MeUser } from "../types";
+import { useThemeStore, ThemeType } from "../store/theme";
+
+const THEMES: { label: string; value: ThemeType; icon: string }[] = [
+  { label: "Apple Dark", value: "dark", icon: "🖤" },
+  { label: "Apple Light", value: "light", icon: "🤍" },
+  { label: "Colorful", value: "colorful", icon: "🌈" },
+];
 
 export function ProfileScreen() {
   const [me, setMe] = useState<MeUser | null>(null);
+  const { theme, setTheme } = useThemeStore();
   useEffect(() => {
     api.get<MeUser>("/users/me").then((r) => setMe(r.data));
   }, []);
@@ -50,6 +58,21 @@ export function ProfileScreen() {
             <div className="row">
               <div className="row-title">🤝 Ничьих</div>
               <div className="row-value">{me.draws}</div>
+            </div>
+          </div>
+
+          <div className="menu-group">
+            <h2 className="h2">🎨 Тема оформления</h2>
+            <div className="segment">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  className={`seg-item${theme === t.value ? " active" : ""}`}
+                  onClick={() => setTheme(t.value)}
+                >
+                  {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </>
