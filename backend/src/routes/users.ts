@@ -21,9 +21,9 @@ usersRouter.get("/leaderboard", authMiddleware, async (_req, res) => {
 });
 
 usersRouter.get("/:telegramId", authMiddleware, async (req, res) => {
-  const tid = req.params.telegramId;
-  if (!tid || !/^\d+$/.test(tid)) return res.status(400).json({ error: "bad id" });
-  const user = await prisma.user.findUnique({ where: { telegramId: BigInt(tid) } });
+  const { telegramId } = req.params;
+  if (!telegramId || !/^\d+$/.test(telegramId)) return res.status(400).json({ error: "bad id" });
+  const user = await prisma.user.findUnique({ where: { telegramId: BigInt(telegramId) } });
   if (!user) return res.status(404).json({ error: "not found" });
   res.json(safeJson(user));
 });

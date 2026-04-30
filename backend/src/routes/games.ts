@@ -147,7 +147,7 @@ gamesRouter.post("/:gameId/join", async (req: AuthedRequest, res) => {
       include: { playerWhite: true, playerBlack: true },
     });
 
-    const dto = gameToDTO(updated);
+    const dto = gameToDTO(updated as GameWithPlayers);
     const io = getIO();
     if (io) io.to(`game:${gameId}`).emit("GAME_STARTED", { game: safeJson(dto) });
     return res.json({ game: safeJson(dto) });
@@ -188,7 +188,8 @@ gamesRouter.get("/my/history", async (req: AuthedRequest, res) => {
 });
 
 gamesRouter.get("/:gameId", async (req: AuthedRequest, res) => {
-  const game = await getGame(req.params.gameId);
+  const { gameId } = req.params;
+  const game = await getGame(gameId);
   if (!game) return res.status(404).json({ error: "not found" });
   res.json(safeJson(gameToDTO(game)));
 });
