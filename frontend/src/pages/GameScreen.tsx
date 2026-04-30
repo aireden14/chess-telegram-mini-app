@@ -319,7 +319,14 @@ export function GameScreen() {
       {/* Противник */}
       <div className="player-section">
         <PlayerPanel
-          player={myColor === "white" ? game.playerBlack : game.playerWhite}
+          player={(() => {
+            const op = myColor === "white" ? game.playerBlack : game.playerWhite;
+            if (!op) return null;
+            return {
+              ...op,
+              rating: game.isBotGame ? (game.botDifficulty === "easy" ? 1000 : 1500) : op.rating,
+            };
+          })()}
           timer={myColor === "white" ? tickBlack : tickWhite}
           infinite={infinite}
           active={
