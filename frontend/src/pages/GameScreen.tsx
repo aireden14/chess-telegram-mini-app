@@ -286,9 +286,10 @@ export function GameScreen() {
     for (const m of moves) {
       dots[m.to] = {
         background: m.captured
-          ? "radial-gradient(circle, rgba(255,59,48,0.4) 25%, transparent 26%)"
+          ? "rgba(255, 59, 48, 0.35)"
           : `radial-gradient(circle, ${dotColor} 22%, transparent 23%)`,
-        borderRadius: "50%",
+        border: m.captured ? "2px solid rgba(255, 59, 48, 0.5)" : "none",
+        borderRadius: m.captured ? "16px" : "50%",
       };
     }
     dots[square] = { 
