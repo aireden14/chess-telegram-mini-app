@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../utils/prisma";
 import { authMiddleware, AuthedRequest } from "../middleware/auth";
-import { gameToDTO, getGame, makeBotMoveIfNeeded } from "../services/gameService";
+import { gameToDTO, getGame, makeBotMoveIfNeeded, GameWithPlayers } from "../services/gameService";
 import { safeJson } from "../utils/json";
 import { serializeSettings, parseSettings } from "../utils/settings";
 import { getIO } from "../socket";
@@ -107,7 +107,7 @@ gamesRouter.post("/:gameId/join", async (req: AuthedRequest, res) => {
     const me = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
     if (!me) return res.status(404).json({ error: "user not found" });
 
-    const game = await getGame(gameId);
+    const game = await getGame(gameId as string);
     if (!game) return res.status(404).json({ error: "game not found" });
     if (game.status !== "WAITING") {
       // Если уже участник — просто вернуть текущее состояние
@@ -142,7 +142,7 @@ gamesRouter.post("/:gameId/join", async (req: AuthedRequest, res) => {
     }
 
     const updated = await prisma.game.update({
-      where: { id: gameId },
+      where: { id: gameId as string },
       data: updateData,
       include: { playerWhite: true, playerBlack: true },
     });
@@ -189,13 +189,14 @@ gamesRouter.get("/my/history", async (req: AuthedRequest, res) => {
 
 gamesRouter.get("/:gameId", async (req: AuthedRequest, res) => {
   const { gameId } = req.params;
-  const game = await getGame(gameId);
+  const game = await getGame(gameId as string);
   if (!game) return res.status(404).json({ error: "not found" });
   res.json(safeJson(gameToDTO(game)));
 });
 
 gamesRouter.delete("/:gameId/cancel", async (req: AuthedRequest, res) => {
-  const game = await getGame(req.params.gameId);
+  const { gameId } = req.params;
+  const game = await getGame(gameId as string);
   if (!game) return res.status(404).json({ error: "not found" });
   if (game.status !== "WAITING") return res.status(409).json({ error: "not waiting" });
   const userId = req.auth!.userId;
