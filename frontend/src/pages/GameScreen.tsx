@@ -277,16 +277,25 @@ export function GameScreen() {
   function selectSquare(square: string) {
     const chess = new Chess(game!.fen);
     const moves = chess.moves({ square: square as Square, verbose: true }) as any[];
+    
+    const dotColor = myColor === 'white' ? "rgba(255,255,255,0.5)" : "rgba(255,215,0,0.5)";
+    const selectColor = myColor === 'white' ? "rgba(255,255,255,0.15)" : "rgba(255,215,0,0.15)";
+    const borderColor = myColor === 'white' ? "rgba(255,255,255,0.3)" : "rgba(255,215,0,0.3)";
+
     const dots: Record<string, any> = {};
     for (const m of moves) {
       dots[m.to] = {
         background: m.captured
           ? "radial-gradient(circle, rgba(255,59,48,0.4) 25%, transparent 26%)"
-          : "radial-gradient(circle, rgba(0,122,255,0.45) 22%, transparent 23%)",
+          : `radial-gradient(circle, ${dotColor} 22%, transparent 23%)`,
         borderRadius: "50%",
       };
     }
-    dots[square] = { background: "rgba(0,122,255,0.25)" };
+    dots[square] = { 
+      background: selectColor,
+      border: `2px solid ${borderColor}`,
+      borderRadius: '16px'
+    };
     setPieceSelected(square);
     setLegalSquares(dots);
   }
