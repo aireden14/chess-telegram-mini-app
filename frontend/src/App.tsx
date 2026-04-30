@@ -24,6 +24,7 @@ export function App() {
   useThemeStore(); // trigger hydration/initialization
   return (
     <BrowserRouter>
+      <div className="background-blobs" />
       <AppleDefinitions />
       <Routes>
         <Route path="/loading" element={<LoadingScreen />} />

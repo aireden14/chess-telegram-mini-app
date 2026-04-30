@@ -25,6 +25,8 @@
   --piece-light-2: #f0f0f0;
   --piece-stroke: none;
   
+  --card-shadow: none;
+  
   --radius-xl: 40px;
   --radius-lg: 24px;
   --radius-md: 18px;
@@ -34,32 +36,34 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Light Theme - Apple Day */
+/* Light Theme - Apple Premium Day */
 [data-theme="light"] {
-  --apple-bg: radial-gradient(120% 120% at 50% -10%, #ffffff 0%, #f5f5f7 100%);
-  --apple-white: #000000;
-  --apple-text: #000000;
-  --apple-text-dim: rgba(0, 0, 0, 0.7);
-  --apple-text-faint: rgba(0, 0, 0, 0.4);
+  --apple-bg: radial-gradient(at 0% 0%, #ffffff 0%, #f0f2f5 100%), radial-gradient(at 100% 100%, #e0e7ff 0%, transparent 100%);
+  --apple-white: #ffffff;
+  --apple-text: #1d1d1f;
+  --apple-text-dim: #86868b;
+  --apple-text-faint: #d2d2d7;
   
-  --primary-btn-bg: #1c1c1e;
+  --primary-btn-bg: #000000;
   --primary-btn-text: #ffffff;
   
-  --piece-dark-1: #333333;
+  --piece-dark-1: #1d1d1f;
   --piece-dark-2: #000000;
   
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-hover: rgba(0, 0, 0, 0.05);
-  --glass-solid: rgba(0, 0, 0, 0.02);
-  --glass-blur: blur(40px);
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-hover: rgba(255, 255, 255, 0.6);
+  --glass-solid: rgba(255, 255, 255, 0.5);
+  --glass-blur: blur(25px);
   
-  --board-light: rgba(0, 0, 0, 0.03);
-  --board-dark: rgba(0, 0, 0, 0.12);
+  --board-light: rgba(255, 255, 255, 0.8);
+  --board-dark: rgba(0, 0, 0, 0.04);
   
   --piece-light-1: #FFD700;
   --piece-light-2: #B8860B;
-  --piece-stroke: rgba(0, 0, 0, 0.2);
+  --piece-stroke: rgba(184, 134, 11, 0.3);
+  
+  --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
 }
 
 /* Colorful Theme - Apple Liquid Glass */
@@ -139,7 +143,21 @@ body {
 
 /* Background - PURE BLACK */
 .background-blobs {
-  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background: var(--apple-bg);
+  background-size: 200% 200%;
+  animation: liquid-bg 20s ease infinite;
+}
+
+@keyframes liquid-bg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* App Container */
@@ -194,16 +212,20 @@ body {
   -webkit-backdrop-filter: var(--glass-blur);
   border-radius: var(--radius-md);
   padding: 20px;
+  box-shadow: var(--card-shadow);
 }
 
 /* Grouped Lists */
 .card-grouped {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border-radius: var(--radius-md);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--card-shadow);
 }
 
 .row {
