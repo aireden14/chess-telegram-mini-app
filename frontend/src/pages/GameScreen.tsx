@@ -16,7 +16,7 @@ import { shareInvite, copyToClipboard } from "../hooks/useTelegram";
 export function GameScreen() {
   const { gameId } = useParams();
   const nav = useNavigate();
-  const { user, token } = useAuthStore();
+  const { user, token, botUsername } = useAuthStore();
   const { socket, connect } = useSocketStore();
   const {
     game,
@@ -306,7 +306,6 @@ export function GameScreen() {
   }
 
   function inviteLink() {
-    const botUsername = (window as any).__BOT_USERNAME__ || "";
     return `https://t.me/${botUsername || "your_bot"}/app?startapp=${game!.id}`;
   }
 

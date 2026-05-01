@@ -64,7 +64,11 @@ authRouter.post("/telegram", async (req, res) => {
       telegramId: user.telegramId.toString(),
     });
 
-    return res.json({ token, user: safeJson(user) });
+    return res.json({ 
+      token, 
+      user: safeJson(user),
+      botUsername: process.env.BOT_USERNAME || ""
+    });
   } catch (e: any) {
     console.error("[auth/telegram]", e);
     return res.status(500).json({ error: e?.message || "server error" });

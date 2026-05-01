@@ -6,6 +6,7 @@ import { API_URL } from "../api/client";
 interface AuthState {
   user: MeUser | null;
   token: string | null;
+  botUsername: string;
   isLoading: boolean;
   error: string | null;
   login: (initData: string, fakeUser?: any) => Promise<void>;
@@ -16,6 +17,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
+  botUsername: "",
   isLoading: false,
   error: null,
   async login(initData, fakeUser) {
@@ -25,7 +27,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         initData,
         fakeUser,
       });
-      set({ token: res.data.token, user: res.data.user, isLoading: false });
+      set({ 
+        token: res.data.token, 
+        user: res.data.user, 
+        botUsername: res.data.botUsername || "",
+        isLoading: false 
+      });
     } catch (e: any) {
       set({
         error: e?.response?.data?.error || e?.message || "auth error",
