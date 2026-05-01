@@ -205,6 +205,22 @@ gamesRouter.get("/my/history", async (req: AuthedRequest, res) => {
   res.json(safeJson(games.map((g) => gameToDTO(g))));
 });
 
+gamesRouter.get("/public/waiting", async (req: AuthedRequest, res) => {
+  const userId = req.auth!.userId;
+  const games = await prisma.game.findMany({
+    where: {
+      status: "WAITING",
+      isBotGame: false,
+      playerWhiteId: { not: userId },
+      playerBlackId: { not: userId },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    include: { playerWhite: true, playerBlack: true },
+  });
+  res.json(safeJson(games.map((g) => gameToDTO(g))));
+});
+
 gamesRouter.get("/:gameId", async (req: AuthedRequest, res) => {
   const { gameId } = req.params;
   const game = await getGame(gameId as string);

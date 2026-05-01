@@ -17,12 +17,18 @@ export function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
   const [active, setActive] = useState<GameStateDTO[]>([]);
+  const [publicSessions, setPublicSessions] = useState<GameStateDTO[]>([]);
   const [joinCode, setJoinCode] = useState("");
 
   useEffect(() => {
     api
       .get<GameStateDTO[]>("/games/my/active")
       .then((r) => setActive(r.data))
+      .catch(() => {});
+      
+    api
+      .get<GameStateDTO[]>("/games/public/waiting")
+      .then((r) => setPublicSessions(r.data))
       .catch(() => {});
   }, []);
 
@@ -126,15 +132,27 @@ export function HomeScreen() {
             {inProgress.map((g) => (
               <button key={g.id} className="row" onClick={() => nav(`/game/${g.id}`)}>
                 <div className="row-title">
-                  {g.status === "WAITING"
-                    ? "⏳ Ожидание соперника"
-                    : `vs ${
-                        g.playerWhite?.id === user?.id
-                          ? g.playerBlack?.firstName
-                          : g.playerWhite?.firstName
-                      }`}
+                  {g.isBotGame ? "🤖 Бот" : "👤 Игрок"} ·{" "}
+                  {g.settings.timeControl === 0 ? "∞" : `${g.settings.timeControl / 60}м`}
                 </div>
-                <div className="row-value">›</div>
+                <div className="row-value">{g.status === "WAITING" ? "Ожидание..." : "Игра идёт"} ›</div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {publicSessions.length > 0 && (
+        <>
+          <h2 className="h2" style={{ marginTop: 8 }}>Открытые сессии</h2>
+          <div className="card-grouped">
+            {publicSessions.map((g) => (
+              <button key={g.id} className="row" onClick={() => nav(`/join/${g.id}`)}>
+                <div className="row-title">
+                  👤 Игрок {g.playerWhite?.firstName || g.playerBlack?.firstName} ·{" "}
+                  {g.settings.timeControl === 0 ? "∞" : `${g.settings.timeControl / 60}м`}
+                </div>
+                <div className="row-value">Присоединиться ›</div>
               </button>
             ))}
           </div>

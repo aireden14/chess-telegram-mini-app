@@ -415,6 +415,15 @@ export function GameScreen() {
               Web 🌐
             </button>
           </div>
+          
+          <div className="muted" style={{ marginTop: 16, fontSize: 12, textAlign: "left", background: "var(--glass-solid)", padding: 12, borderRadius: 8 }}>
+            <strong>💡 Как пригласить друга?</strong><br/>
+            1. Отправь ссылку Telegram.<br/>
+            2. Друг должен нажать <strong>Запустить/Играть</strong> в боте.<br/>
+            3. Если игра не открылась сразу, пусть он введёт код <strong>{game.id}</strong> на главном экране.<br/>
+            <em>Ссылка на бота просто открывает диалог с ботом, запустить мини-приложение (игру) нужно отдельно.</em>
+          </div>
+
           <button
             className="btn-ghost btn"
             style={{ marginTop: 8, width: "100%" }}
