@@ -306,7 +306,11 @@ export function GameScreen() {
   }
 
   function inviteLink() {
-    return `https://t.me/${botUsername || "your_bot"}/app?startapp=${game!.id}`;
+    return `https://t.me/${botUsername || "Liquid_Chess_bot"}/app?startapp=${game!.id}`;
+  }
+
+  function webLink() {
+    return `${window.location.origin}/join/${game!.id}`;
   }
 
   const meIsRequester = (by: string | null) => by === myColor;
@@ -388,7 +392,7 @@ export function GameScreen() {
           </p>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => shareInvite(inviteLink())}>
-              📤 Поделиться
+              📤 Telegram
             </button>
             <button
               className="btn"
@@ -396,8 +400,19 @@ export function GameScreen() {
                 copyToClipboard(inviteLink());
                 setToast("Ссылка скопирована");
               }}
+              title="Скопировать ссылку Telegram"
             >
-              📋
+              TG 📋
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                copyToClipboard(webLink());
+                setToast("Web-ссылка скопирована");
+              }}
+              title="Скопировать прямую Web-ссылку"
+            >
+              Web 🌐
             </button>
           </div>
           <button
