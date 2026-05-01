@@ -22,6 +22,7 @@ export function CreateGameScreen() {
   const [inc, setInc] = useState(0);
   const [color, setColor] = useState<"random" | "white" | "black">("random");
   const [diff, setDiff] = useState<"easy" | "medium">("medium");
+  const [customCode, setCustomCode] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function create() {
@@ -33,6 +34,7 @@ export function CreateGameScreen() {
         colorChoice: color,
         vsBot: isBot,
         botDifficulty: diff,
+        customCode: customCode.trim() || undefined,
       });
       nav(`/game/${res.data.gameId}`, { replace: true });
     } catch (e: any) {
@@ -111,6 +113,30 @@ export function CreateGameScreen() {
           <p className="muted" style={{ marginTop: 12 }}>
             Нерейтинговая партия — Elo не меняется.
           </p>
+        </div>
+      )}
+
+      {!isBot && (
+        <div className="menu-group">
+          <h2 className="h2">🔑 Код игры (по желанию)</h2>
+          <input
+            type="text"
+            className="input-text"
+            placeholder="Оставьте пустым для случайного"
+            value={customCode}
+            onChange={(e) => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+            maxLength={15}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              borderRadius: "12px",
+              border: "1px solid var(--glass-border)",
+              background: "var(--glass-bg)",
+              color: "var(--apple-text)",
+              fontSize: "16px",
+              outline: "none"
+            }}
+          />
         </div>
       )}
 

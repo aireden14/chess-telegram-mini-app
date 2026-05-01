@@ -29,7 +29,7 @@ async function getOrCreateBotUser() {
 
 gamesRouter.post("/create", async (req: AuthedRequest, res) => {
   try {
-    const { timeControl = 600, increment = 0, colorChoice = "random", vsBot, botDifficulty } =
+    const { timeControl = 600, increment = 0, colorChoice = "random", vsBot, botDifficulty, customCode } =
       req.body || {};
     if (!VALID_TIME.has(timeControl)) return res.status(400).json({ error: "bad timeControl" });
     if (!VALID_INC.has(increment)) return res.status(400).json({ error: "bad increment" });
@@ -74,18 +74,36 @@ gamesRouter.post("/create", async (req: AuthedRequest, res) => {
         game = (await getGame(game.id))!;
       }
     } else {
-      game = await prisma.game.create({
-        data: {
-          status: "WAITING",
-          playerWhiteId: myColor === "w" ? me.id : null,
-          playerBlackId: myColor === "b" ? me.id : null,
-          timerWhite: timeControl,
-          timerBlack: timeControl,
-          increment,
-          settings: serializeSettings({ timeControl, increment, colorChoice }),
-        },
-        include: { playerWhite: true, playerBlack: true },
-      });
+      let gameId = customCode?.trim();
+      if (!gameId) {
+        // Generate random 6 character alphanumeric code
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        gameId = '';
+        for (let i = 0; i < 6; i++) {
+          gameId += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+      }
+      
+      try {
+        game = await prisma.game.create({
+          data: {
+            id: gameId,
+            status: "WAITING",
+            playerWhiteId: myColor === "w" ? me.id : null,
+            playerBlackId: myColor === "b" ? me.id : null,
+            timerWhite: timeControl,
+            timerBlack: timeControl,
+            increment,
+            settings: serializeSettings({ timeControl, increment, colorChoice }),
+          },
+          include: { playerWhite: true, playerBlack: true },
+        });
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          return res.status(400).json({ error: "Этот код уже занят. Придумайте другой!" });
+        }
+        throw err;
+      }
     }
 
     const botUsername = process.env.BOT_USERNAME || "your_bot";

@@ -17,6 +17,7 @@ export function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
   const [active, setActive] = useState<GameStateDTO[]>([]);
+  const [joinCode, setJoinCode] = useState("");
 
   useEffect(() => {
     api
@@ -60,6 +61,33 @@ export function HomeScreen() {
       <button className="btn btn-block" onClick={() => nav("/create?bot=1")}>
         🤖 Играть с ботом
       </button>
+
+      <div className="menu-group" style={{ display: "flex", gap: 8, padding: 8 }}>
+        <input
+          type="text"
+          className="input-text"
+          placeholder="Код игры"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+          style={{
+            flex: 1,
+            padding: "12px 16px",
+            borderRadius: "12px",
+            border: "1px solid var(--glass-border)",
+            background: "var(--glass-bg)",
+            color: "var(--apple-text)",
+            fontSize: "16px",
+            outline: "none"
+          }}
+        />
+        <button 
+          className="btn btn-primary" 
+          disabled={!joinCode.trim()} 
+          onClick={() => nav(`/join/${joinCode.trim()}`)}
+        >
+          Вход
+        </button>
+      </div>
 
       <div className="card-grouped">
         <button className="row" onClick={() => nav("/paused")}>
