@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useSocketStore } from "../store/socket";
 import { getTelegram, tgReady, getStartParam } from "../hooks/useTelegram";
+import { wakeBackend } from "../api/client";
 
 export function LoadingScreen() {
   const nav = useNavigate();
@@ -11,6 +12,7 @@ export function LoadingScreen() {
 
   useEffect(() => {
     tgReady();
+    void wakeBackend();
     const tg = getTelegram();
     const initData = tg?.initData || "";
     const tgUser = tg?.initDataUnsafe?.user;
