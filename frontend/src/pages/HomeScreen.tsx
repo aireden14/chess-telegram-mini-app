@@ -16,6 +16,7 @@ export function HomeScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
+  const [activeMode, setActiveMode] = useState<"chess" | "sudoku">("chess");
   const [active, setActive] = useState<GameStateDTO[]>([]);
   const [publicSessions, setPublicSessions] = useState<GameStateDTO[]>([]);
   const [joinCode, setJoinCode] = useState("");
@@ -39,7 +40,7 @@ export function HomeScreen() {
 
   return (
     <div className="app-screen">
-      <h1 className="h1">♟ Шахматы</h1>
+      <h1 className="h1">Игры</h1>
 
       {user && (
         <div className="card" style={{ display: "flex", gap: 14, alignItems: "center" }}>
@@ -52,7 +53,7 @@ export function HomeScreen() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600 }}>{user.firstName}</div>
-            <div className="muted">Рейтинг: {user.rating}</div>
+            <div className="muted">Шахматный рейтинг: {user.rating}</div>
           </div>
           <button className="btn-ghost btn" onClick={() => nav("/profile")}>
             Профиль
@@ -60,70 +61,89 @@ export function HomeScreen() {
         </div>
       )}
 
-      <button className="btn btn-primary btn-block" onClick={() => nav("/create")}>
-        ✨ Создать игру
-      </button>
-
-      <button className="btn btn-block" onClick={() => nav("/create?bot=1")}>
-        🤖 Играть с ботом
-      </button>
-
-      <div className="menu-group" style={{ display: "flex", gap: 8, padding: 8 }}>
-        <input
-          type="text"
-          className="input-text"
-          placeholder="Код игры"
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
-          style={{
-            flex: 1,
-            padding: "12px 16px",
-            borderRadius: "12px",
-            border: "1px solid var(--glass-border)",
-            background: "var(--glass-bg)",
-            color: "var(--apple-text)",
-            fontSize: "16px",
-            outline: "none"
-          }}
-        />
-        <button 
-          className="btn btn-primary" 
-          disabled={!joinCode.trim()} 
-          onClick={() => nav(`/join/${joinCode.trim()}`)}
+      <div className="game-hub">
+        <button
+          className={`game-mode-card${activeMode === "chess" ? " active" : ""}`}
+          onClick={() => setActiveMode("chess")}
         >
-          Вход
+          <span className="game-mode-icon">♟</span>
+          <strong>Шахматы</strong>
+          <em>мультиплеер · бот · рейтинг</em>
+        </button>
+        <button
+          className={`game-mode-card${activeMode === "sudoku" ? " active" : ""}`}
+          onClick={() => setActiveMode("sudoku")}
+        >
+          <span className="game-mode-icon">▦</span>
+          <strong>Судоку</strong>
+          <em>ежедневная · заметки · подсказки</em>
         </button>
       </div>
 
-      <div className="card-grouped">
-        <button className="row" onClick={() => nav("/paused")}>
-          <div className="row-title">⏸ Мои паузы</div>
-          <div className="row-value">{paused.length || ""} ›</div>
-        </button>
-        <button className="row" onClick={() => nav("/history")}>
-          <div className="row-title">🕘 История партий</div>
-          <div className="row-value">›</div>
-        </button>
-        <button className="row" onClick={() => nav("/leaderboard")}>
-          <div className="row-title">🏆 Таблица лидеров</div>
-          <div className="row-value">›</div>
-        </button>
-      </div>
+      {activeMode === "chess" ? (
+        <>
+          <button className="btn btn-primary btn-block" onClick={() => nav("/create")}>
+            ✨ Создать игру
+          </button>
 
-      <div className="menu-group">
-        <h2 className="h2">🎨 Тема оформления</h2>
-        <div className="segment">
-          {THEMES.map((t) => (
+          <button className="btn btn-block" onClick={() => nav("/create?bot=1")}>
+            🤖 Играть с ботом
+          </button>
+
+          <div className="menu-group" style={{ display: "flex", gap: 8, padding: 8 }}>
+            <input
+              type="text"
+              className="input-text"
+              placeholder="Код игры"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))}
+              style={{
+                flex: 1,
+                padding: "12px 16px",
+                borderRadius: "12px",
+                border: "1px solid var(--glass-border)",
+                background: "var(--glass-bg)",
+                color: "var(--apple-text)",
+                fontSize: "16px",
+                outline: "none",
+              }}
+            />
             <button
-              key={t.value}
-              className={`seg-item${theme === t.value ? " active" : ""}`}
-              onClick={() => setTheme(t.value)}
+              className="btn btn-primary"
+              disabled={!joinCode.trim()}
+              onClick={() => nav(`/join/${joinCode.trim()}`)}
             >
-              {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+              Вход
             </button>
-          ))}
-        </div>
-      </div>
+          </div>
+
+          <div className="card-grouped">
+            <button className="row" onClick={() => nav("/paused")}>
+              <div className="row-title">⏸ Мои паузы</div>
+              <div className="row-value">{paused.length || ""} ›</div>
+            </button>
+            <button className="row" onClick={() => nav("/history")}>
+              <div className="row-title">🕘 История партий</div>
+              <div className="row-value">›</div>
+            </button>
+            <button className="row" onClick={() => nav("/leaderboard")}>
+              <div className="row-title">🏆 Таблица лидеров</div>
+              <div className="row-value">›</div>
+            </button>
+          </div>
+        </>
+      ) : (
+        <section className="card sudoku-home-card">
+          <p className="sudoku-kicker">Новый режим</p>
+          <h2>▦ Судоку в Apple-стиле</h2>
+          <p className="muted">
+            Ежедневная задачка, заметки, подсказки, локальный прогресс и мягкая Telegram-вибрация.
+          </p>
+          <button className="btn btn-primary btn-block" onClick={() => nav("/sudoku")}>
+            Играть в судоку
+          </button>
+        </section>
+      )}
 
       {inProgress.length > 0 && (
         <>
@@ -158,6 +178,21 @@ export function HomeScreen() {
           </div>
         </>
       )}
+
+      <div className="menu-group">
+        <h2 className="h2">🎨 Тема оформления</h2>
+        <div className="segment">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              className={`seg-item${theme === t.value ? " active" : ""}`}
+              onClick={() => setTheme(t.value)}
+            >
+              {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

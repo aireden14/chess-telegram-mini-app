@@ -39,3 +39,30 @@ export function shareInvite(link: string) {
 export function copyToClipboard(text: string) {
   if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
 }
+
+export function triggerHaptic(
+  type: "light" | "medium" | "heavy" | "success" | "warning" | "error" = "light",
+) {
+  const tg = getTelegram();
+  try {
+    if (type === "success" || type === "warning" || type === "error") {
+      tg?.HapticFeedback?.notificationOccurred?.(type);
+    } else {
+      tg?.HapticFeedback?.impactOccurred?.(type);
+    }
+  } catch {}
+
+  if ("vibrate" in navigator) {
+    const pattern =
+      type === "success"
+        ? [12, 24, 28]
+        : type === "warning" || type === "error"
+          ? [30, 20, 30]
+          : type === "heavy"
+            ? 50
+            : type === "medium"
+              ? 30
+              : 12;
+    navigator.vibrate(pattern);
+  }
+}
