@@ -12,11 +12,13 @@ const THEMES: { label: string; value: ThemeType; icon: string }[] = [
   { label: "Ocean", value: "blue", icon: "🌊" },
 ];
 
+type GameHubMode = "chess" | "sudoku" | "forceDeflector";
+
 export function HomeScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
-  const [activeMode, setActiveMode] = useState<"chess" | "sudoku">("chess");
+  const [activeMode, setActiveMode] = useState<GameHubMode>("chess");
   const [active, setActive] = useState<GameStateDTO[]>([]);
   const [publicSessions, setPublicSessions] = useState<GameStateDTO[]>([]);
   const [joinCode, setJoinCode] = useState("");
@@ -78,9 +80,17 @@ export function HomeScreen() {
           <strong>Судоку</strong>
           <em>ежедневная · заметки · подсказки</em>
         </button>
+        <button
+          className={`game-mode-card wide${activeMode === "forceDeflector" ? " active" : ""}`}
+          onClick={() => setActiveMode("forceDeflector")}
+        >
+          <span className="game-mode-icon">⚔</span>
+          <strong>Отражатель</strong>
+          <em>арена · клинок · iPhone-управление</em>
+        </button>
       </div>
 
-      {activeMode === "chess" ? (
+      {activeMode === "chess" && (
         <>
           <button className="btn btn-primary btn-block" onClick={() => nav("/create")}>
             ✨ Создать игру
@@ -132,7 +142,9 @@ export function HomeScreen() {
             </button>
           </div>
         </>
-      ) : (
+      )}
+
+      {activeMode === "sudoku" && (
         <section className="card sudoku-home-card">
           <p className="sudoku-kicker">Новый режим</p>
           <h2>▦ Судоку в Apple-стиле</h2>
@@ -141,6 +153,20 @@ export function HomeScreen() {
           </p>
           <button className="btn btn-primary btn-block" onClick={() => nav("/sudoku")}>
             Играть в судоку
+          </button>
+        </section>
+      )}
+
+      {activeMode === "forceDeflector" && (
+        <section className="card game-feature-card">
+          <p className="sudoku-kicker">Аркада</p>
+          <h2>⚔ Световой Отражатель</h2>
+          <p className="muted">
+            Неоновая арена: отражай болты клинком, собирай опыт, выбирай апгрейды и играй с
+            мобильным джойстиком прямо в Telegram.
+          </p>
+          <button className="btn btn-primary btn-block" onClick={() => nav("/force-deflector")}>
+            Играть в отражатель
           </button>
         </section>
       )}

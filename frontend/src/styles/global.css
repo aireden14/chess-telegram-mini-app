@@ -693,6 +693,11 @@ body {
     inset 0 0 32px rgba(255,255,255,0.04);
 }
 
+.game-mode-card.wide {
+  grid-column: 1 / -1;
+  min-height: 112px;
+}
+
 .game-mode-card strong {
   font-size: 19px;
   letter-spacing: -0.03em;
@@ -722,10 +727,75 @@ body {
   gap: 14px;
 }
 
+.game-feature-card {
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  position: relative;
+}
+
+.game-feature-card::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -60px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--piece-dark-1), transparent 62%);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.game-feature-card h2 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+}
+
 .sudoku-home-card h2 {
   margin: 0;
   font-size: 26px;
   letter-spacing: -0.04em;
+}
+
+/* Force Deflector */
+.force-deflector-screen {
+  max-width: none;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  padding: 8px;
+  padding-top: calc(var(--safe-top) + 8px);
+  padding-bottom: calc(var(--safe-bottom) + 8px);
+  gap: 8px;
+}
+
+.force-deflector-screen .topnav {
+  flex: 0 0 auto;
+  max-width: 430px;
+  margin: 0 auto;
+}
+
+.force-deflector-frame-shell {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  background: #000;
+  overflow: hidden;
+  box-shadow:
+    0 28px 90px rgba(0,0,0,0.54),
+    inset 0 0 1px 1px rgba(255,255,255,0.05);
+}
+
+.force-deflector-frame {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  background: #000;
 }
 
 /* Sudoku */
