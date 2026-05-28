@@ -61,6 +61,17 @@ export function SudokuScreen() {
 
   const hasProgress = !isComplete && entries.some((value, index) => value !== puzzle.givens[index]);
   const showErrors = checkMode === "instant" || checkedAt !== null;
+  const hasEditableSelection =
+    selectedIndex !== null && puzzle.givens[selectedIndex] === null && !isComplete;
+  const inputHint = selectedIndex === null
+    ? selectedNumber
+      ? `Цифра ${selectedNumber} выбрана для подсветки. Тап по клетке не поставит её автоматически.`
+      : "Выбери клетку, затем цифру."
+    : hasEditableSelection
+      ? notesMode
+        ? "Режим заметок: нажми цифру, чтобы добавить или убрать кандидат."
+        : "Теперь нажми цифру снизу, чтобы поставить её в выбранную клетку."
+      : "Это стартовая клетка. Выбери пустую клетку, затем цифру.";
 
   const confirmReplace = () =>
     !hasProgress ||
@@ -80,6 +91,11 @@ export function SudokuScreen() {
 
   const handleNumber = (value: number) => {
     selectNumber(selectedNumber === value ? null : value);
+    if (!hasEditableSelection) {
+      triggerHaptic("light");
+      return;
+    }
+
     const result = enterNumber(value);
     if (result === "error") triggerHaptic("warning");
     else if (result === "complete") triggerHaptic("success");
@@ -88,13 +104,6 @@ export function SudokuScreen() {
 
   const handleCell = (index: number) => {
     selectCell(index);
-    if (selectedNumber) {
-      const result = enterNumber(selectedNumber, index);
-      if (result === "error") triggerHaptic("warning");
-      else if (result === "complete") triggerHaptic("success");
-      else triggerHaptic("light");
-      return;
-    }
     triggerHaptic("light");
   };
 
@@ -195,6 +204,8 @@ export function SudokuScreen() {
           onSelect={handleCell}
         />
       </div>
+
+      <div className="sudoku-input-hint">{inputHint}</div>
 
       <SudokuNumberPad
         entries={entries}

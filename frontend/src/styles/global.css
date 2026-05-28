@@ -970,6 +970,18 @@ body {
   padding-bottom: max(14px, var(--safe-bottom));
 }
 
+.sudoku-input-hint {
+  margin-top: -6px;
+  padding: 10px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: var(--glass-solid);
+  color: var(--apple-text-dim);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .sudoku-number-grid {
   display: grid;
   grid-template-columns: repeat(9, 1fr);

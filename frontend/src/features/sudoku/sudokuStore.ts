@@ -142,7 +142,7 @@ function startFromPuzzle(
     puzzle,
     entries: [...puzzle.givens],
     notes: emptyNotes(),
-    selectedIndex: puzzle.givens.findIndex((value) => value === null),
+    selectedIndex: null,
     selectedNumber: null,
     notesMode: false,
     checkedAt: null,
@@ -204,7 +204,11 @@ export const useSudokuStore = create<SudokuStore>()(
           notes[index] = notes[index].includes(value)
             ? notes[index].filter((note) => note !== value)
             : [...notes[index], value].sort();
-          set({ notes });
+          set({
+            notes,
+            selectedIndex: index,
+            undoStack: [snapshot(state), ...state.undoStack].slice(0, 40),
+          });
           return "note";
         }
 
