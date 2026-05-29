@@ -17,6 +17,7 @@
     height: 100vh;
     height: 100dvh;
     touch-action: none;
+    -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
   }
@@ -110,6 +111,7 @@
   }
   #start-btn:hover { background: #00e5ff22; box-shadow: 0 0 30px #00e5ff44; }
   #mobile-controls {
+    --mobile-control-y: 54%;
     position: fixed;
     inset: 0;
     z-index: 20;
@@ -142,9 +144,10 @@
   #joy-zone {
     position: absolute;
     left: max(18px, env(safe-area-inset-left));
-    bottom: max(22px, env(safe-area-inset-bottom));
+    top: var(--mobile-control-y);
     width: 132px;
     height: 132px;
+    transform: translateY(-50%);
     border-radius: 50%;
     pointer-events: all;
     background: radial-gradient(circle, rgba(0,229,255,0.16), rgba(0,25,50,0.34));
@@ -166,7 +169,8 @@
   #mobile-actions {
     position: absolute;
     right: max(16px, env(safe-area-inset-right));
-    bottom: max(22px, env(safe-area-inset-bottom));
+    top: var(--mobile-control-y);
+    transform: translateY(-50%);
     display: grid;
     gap: 10px;
     pointer-events: all;
@@ -183,7 +187,8 @@
     font-weight: 700;
     letter-spacing: 1px;
     box-shadow: 0 0 26px rgba(0,229,255,0.14);
-    touch-action: manipulation;
+    touch-action: none;
+    -webkit-touch-callout: none;
   }
   .mobile-action:active {
     transform: scale(0.95);
@@ -194,6 +199,7 @@
     #startscreen-panel .controls { font-size: 11px; line-height: 1.9; }
   }
   @media (orientation: portrait) and (pointer: coarse) {
+    #mobile-controls { --mobile-control-y: 61%; }
     #rotate-hint { display: block; }
     #joy-zone { width: 116px; height: 116px; }
     #mobile-actions { grid-template-columns: repeat(3, 1fr); left: max(148px, calc(env(safe-area-inset-left) + 148px)); right: max(12px, env(safe-area-inset-right)); }
