@@ -111,7 +111,7 @@
   }
   #start-btn:hover { background: #00e5ff22; box-shadow: 0 0 30px #00e5ff44; }
   #mobile-controls {
-    --mobile-control-y: 54%;
+    --mobile-control-y: 66%;
     position: fixed;
     inset: 0;
     z-index: 20;
@@ -199,7 +199,7 @@
     #startscreen-panel .controls { font-size: 11px; line-height: 1.9; }
   }
   @media (orientation: portrait) and (pointer: coarse) {
-    #mobile-controls { --mobile-control-y: 61%; }
+    #mobile-controls { --mobile-control-y: 68%; }
     #rotate-hint { display: block; }
     #joy-zone { width: 116px; height: 116px; }
     #mobile-actions { grid-template-columns: repeat(3, 1fr); left: max(148px, calc(env(safe-area-inset-left) + 148px)); right: max(12px, env(safe-area-inset-right)); }
@@ -219,8 +219,8 @@
       <span>Клинок</span> — сам наводится на ближайший болт<br>
       <span>Ближний бой</span> — режь дронов клинком вплотную<br>
       <span>ПРОБЕЛ</span> / Импульс — волна после улучшения<br>
-      <span>M</span> — вкл/выкл музыку<br>
-      <span>iPhone</span> — лучше играть горизонтально
+      <span>M</span> — вкл/выкл звуки<br>
+      <span>iPhone</span> — вертикальный режим поддерживается
     </div>
     <button id="start-btn">ЗАЖЕЧЬ КЛИНОК</button>
   </div>
@@ -236,12 +236,12 @@
   </div>
 </div>
 <div id="mobile-controls" aria-hidden="true">
-  <div id="rotate-hint">Поверни iPhone горизонтально: так арена и кнопки будут намного удобнее.</div>
+  <div id="rotate-hint">Вертикальный режим: управление поднято выше нижнего свайпа iPhone.</div>
   <div id="joy-zone"><div id="joy-knob"></div></div>
   <div id="mobile-actions">
     <button class="mobile-action" id="mobile-dodge" type="button">РЫВОК</button>
     <button class="mobile-action" id="mobile-force" type="button">ИМПУЛЬС</button>
-    <button class="mobile-action" id="mobile-music" type="button">МУЗЫКА</button>
+    <button class="mobile-action" id="mobile-music" type="button">ЗВУК</button>
   </div>
 </div>
 
@@ -252,18 +252,21 @@
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = 1280, H = 720;
-let scale = 1, offX = 0, offY = 0;
+let scaleX = 1, scaleY = 1;
 
 function resize() {
-  const sw = window.innerWidth / W, sh = window.innerHeight / H;
-  scale = Math.min(sw, sh);
-  canvas.width  = Math.round(W * scale);
-  canvas.height = Math.round(H * scale);
-  offX = (window.innerWidth  - canvas.width)  / 2;
-  offY = (window.innerHeight - canvas.height) / 2;
+  const vw = Math.max(1, window.innerWidth);
+  const vh = Math.max(1, window.innerHeight);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(vw * dpr);
+  canvas.height = Math.round(vh * dpr);
+  scaleX = canvas.width / W;
+  scaleY = canvas.height / H;
   canvas.style.position = 'fixed';
-  canvas.style.left = offX + 'px';
-  canvas.style.top  = offY + 'px';
+  canvas.style.left = '0';
+  canvas.style.top  = '0';
+  canvas.style.width = vw + 'px';
+  canvas.style.height = vh + 'px';
 }
 window.addEventListener('resize', resize);
 resize();
@@ -356,19 +359,11 @@ function initAudio() {
   musicGain = audioCtx.createGain();
   musicGain.gain.value = 0.28;
   musicGain.connect(audioCtx.destination);
-  startProceduralPulse();
 }
 
 function toggleMusic() {
   if (!audioCtx) return;
   musicMuted = !musicMuted;
-  if (musicMuted) {
-    stopProceduralPulse();
-    stopSaberHum();
-  } else {
-    startProceduralPulse();
-    startSaberHum();
-  }
 }
 
 function beep(freq, duration, type='sine', volume=0.12, dest=musicGain) {
@@ -387,16 +382,7 @@ function beep(freq, duration, type='sine', volume=0.12, dest=musicGain) {
 }
 
 function startProceduralPulse() {
-  if (!audioCtx || musicMuted || musicTimer) return;
-  let step = 0;
-  const notes = [110, 146.8, 164.8, 196, 220, 196, 164.8, 146.8];
-  musicTimer = window.setInterval(() => {
-    if (!audioCtx || musicMuted) return;
-    const note = notes[step % notes.length];
-    beep(note, 0.18, step % 4 === 0 ? 'sawtooth' : 'triangle', step % 4 === 0 ? 0.08 : 0.045);
-    if (step % 8 === 0) beep(note / 2, 0.42, 'sine', 0.05);
-    step += 1;
-  }, 220);
+  // Background music is intentionally disabled for Telegram playback.
 }
 
 function stopProceduralPulse() {
@@ -415,15 +401,7 @@ function sndProbeShoot() { beep(300, 0.05, 'square', 0.04); }
 function sndMagnaZap() { beep(90, 0.08, 'sawtooth', 0.08); beep(1800, 0.04, 'square', 0.05); }
 
 function startSaberHum() {
-  if (!audioCtx || musicMuted || saberHumOsc) return;
-  saberHumOsc = audioCtx.createOscillator();
-  saberHumGain = audioCtx.createGain();
-  saberHumOsc.type = 'sawtooth';
-  saberHumOsc.frequency.value = 82;
-  saberHumGain.gain.value = 0.025;
-  saberHumOsc.connect(saberHumGain);
-  saberHumGain.connect(musicGain);
-  saberHumOsc.start();
+  // No continuous hum in the Mini App; keep only short action feedback sounds.
 }
 
 function stopSaberHum() {
@@ -1952,7 +1930,7 @@ function update(dt) {
 
 function render(dt) {
   ctx.save();
-  ctx.scale(scale, scale);
+  ctx.scale(scaleX, scaleY);
   ctx.translate(game.shakeX, game.shakeY);
 
   // Background
@@ -2026,7 +2004,7 @@ function loop(ts) {
   const dt=Math.min((ts-lastTime)/1000, 0.05);
   lastTime=ts;
   if (game.state==='start') {
-    ctx.save(); ctx.scale(scale,scale);
+    ctx.save(); ctx.scale(scaleX,scaleY);
     ctx.fillStyle='#000308'; ctx.fillRect(0,0,W,H);
     drawStars(dt); ctx.restore();
     return;
