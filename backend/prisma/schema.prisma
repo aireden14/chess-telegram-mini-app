@@ -20,6 +20,7 @@ model User {
   draws         Int      @default(0)
   totalGames    Int      @default(0)
   isBot         Boolean  @default(false)
+  pieceStyle    String   @default("apple")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

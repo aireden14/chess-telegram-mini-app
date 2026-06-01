@@ -5,9 +5,24 @@ import { safeJson } from "../utils/json";
 
 export const usersRouter = Router();
 
+const PIECE_STYLES = new Set(["apple", "emoji", "classic"]);
+
 usersRouter.get("/me", authMiddleware, async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
   if (!user) return res.status(404).json({ error: "not found" });
+  res.json(safeJson(user));
+});
+
+usersRouter.patch("/me/settings", authMiddleware, async (req: AuthedRequest, res) => {
+  const pieceStyle = String(req.body?.pieceStyle || "");
+  if (!PIECE_STYLES.has(pieceStyle)) {
+    return res.status(400).json({ error: "bad pieceStyle" });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.auth!.userId },
+    data: { pieceStyle },
+  });
   res.json(safeJson(user));
 });
 
