@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { useAuthStore } from "../store/auth";
 import { useThemeStore, ThemeType } from "../store/theme";
 import { GameStateDTO } from "../types";
+import { PieceStylePicker } from "../components/PieceStylePicker";
 
 const THEMES: { label: string; value: ThemeType; icon: string }[] = [
   { label: "Dark", value: "dark", icon: "🖤" },
@@ -62,6 +63,22 @@ export function HomeScreen() {
           </button>
         </div>
       )}
+
+      <div className="menu-group">
+        <h2 className="h2">🎨 Тема оформления</h2>
+        <div className="segment">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              className={`seg-item${theme === t.value ? " active" : ""}`}
+              onClick={() => setTheme(t.value)}
+            >
+              {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+            </button>
+          ))}
+        </div>
+        <PieceStylePicker embedded />
+      </div>
 
       <div className="game-hub">
         <button
@@ -205,20 +222,6 @@ export function HomeScreen() {
         </>
       )}
 
-      <div className="menu-group">
-        <h2 className="h2">🎨 Тема оформления</h2>
-        <div className="segment">
-          {THEMES.map((t) => (
-            <button
-              key={t.value}
-              className={`seg-item${theme === t.value ? " active" : ""}`}
-              onClick={() => setTheme(t.value)}
-            >
-              {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

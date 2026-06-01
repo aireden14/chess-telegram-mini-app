@@ -5,15 +5,17 @@ import { Chess } from "chess.js";
 import { TopNav } from "../components/TopNav";
 import { api } from "../api/client";
 import { GameStateDTO } from "../types";
-import { makeEmojiPieces } from "../components/EmojiPieces";
 import { useAuthStore } from "../store/auth";
+import { makePiecesForStyle } from "../components/pieceStyles";
+import { usePieceStyleStore } from "../store/pieceStyle";
 
 export function ReplayScreen() {
   const { gameId } = useParams();
   const me = useAuthStore((s) => s.user);
+  const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
   const [game, setGame] = useState<GameStateDTO | null>(null);
   const [idx, setIdx] = useState(0);
-  const emojiPieces = useMemo(() => makeEmojiPieces(), []);
+  const customPieces = useMemo(() => makePiecesForStyle(pieceStyle), [pieceStyle]);
 
   useEffect(() => {
     if (!gameId) return;
@@ -53,10 +55,10 @@ export function ReplayScreen() {
               position={positions[idx]}
               boardOrientation={orientation}
               arePiecesDraggable={false}
-              customPieces={emojiPieces}
+              customPieces={customPieces}
               customBoardStyle={{ borderRadius: 12 }}
-              customDarkSquareStyle={{ backgroundColor: "#b58863" }}
-              customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
+              customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: "16px" }}
+              customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: "16px" }}
             />
           </div>
           <div className="card" style={{ textAlign: "center" }}>

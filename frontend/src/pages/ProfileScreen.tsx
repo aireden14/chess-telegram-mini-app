@@ -3,6 +3,9 @@ import { TopNav } from "../components/TopNav";
 import { api } from "../api/client";
 import { MeUser } from "../types";
 import { useThemeStore, ThemeType } from "../store/theme";
+import { PieceStylePicker } from "../components/PieceStylePicker";
+import { usePieceStyleStore } from "../store/pieceStyle";
+import { normalizePieceStyle } from "../components/pieceStyles";
 
 const THEMES: { label: string; value: ThemeType; icon: string }[] = [
   { label: "Apple Dark", value: "dark", icon: "🖤" },
@@ -14,9 +17,16 @@ const THEMES: { label: string; value: ThemeType; icon: string }[] = [
 export function ProfileScreen() {
   const [me, setMe] = useState<MeUser | null>(null);
   const { theme, setTheme } = useThemeStore();
+  const currentPieceStyle = usePieceStyleStore((s) => s.pieceStyle);
+  const hydratePieceStyle = usePieceStyleStore((s) => s.hydratePieceStyle);
   useEffect(() => {
-    api.get<MeUser>("/users/me").then((r) => setMe(r.data));
-  }, []);
+    api.get<MeUser>("/users/me").then((r) => {
+      const pieceStyle =
+        r.data.pieceStyle === undefined ? currentPieceStyle : normalizePieceStyle(r.data.pieceStyle);
+      setMe({ ...r.data, pieceStyle });
+      if (r.data.pieceStyle !== undefined) hydratePieceStyle(pieceStyle);
+    });
+  }, [currentPieceStyle, hydratePieceStyle]);
   return (
     <div className="app-screen">
       <TopNav title="Профиль" backTo="/" />
@@ -76,6 +86,8 @@ export function ProfileScreen() {
               ))}
             </div>
           </div>
+
+          <PieceStylePicker />
         </>
       )}
     </div>

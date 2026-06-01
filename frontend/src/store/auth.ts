@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { MeUser } from "../types";
 import axios from "axios";
 import { API_URL } from "../api/client";
+import { usePieceStyleStore } from "./pieceStyle";
+import { normalizePieceStyle } from "../components/pieceStyles";
 
 interface AuthState {
   user: MeUser | null;
@@ -27,9 +29,17 @@ export const useAuthStore = create<AuthState>((set) => ({
         initData,
         fakeUser,
       });
+      const currentPieceStyle = usePieceStyleStore.getState().pieceStyle;
+      const pieceStyle =
+        res.data.user?.pieceStyle === undefined
+          ? currentPieceStyle
+          : normalizePieceStyle(res.data.user.pieceStyle);
+      if (res.data.user?.pieceStyle !== undefined) {
+        usePieceStyleStore.getState().hydratePieceStyle(pieceStyle);
+      }
       set({ 
         token: res.data.token, 
-        user: res.data.user, 
+        user: { ...res.data.user, pieceStyle },
         botUsername: res.data.botUsername || "",
         isLoading: false 
       });

@@ -10,7 +10,8 @@ import { GameStateDTO } from "../types";
 import { PlayerPanel } from "../components/PlayerPanel";
 import { Modal } from "../components/Modal";
 import { TopNav } from "../components/TopNav";
-import { makeApplePieces } from "../components/ApplePieces";
+import { makePiecesForStyle } from "../components/pieceStyles";
+import { usePieceStyleStore } from "../store/pieceStyle";
 import { shareInvite, copyToClipboard } from "../hooks/useTelegram";
 
 export function GameScreen() {
@@ -18,6 +19,7 @@ export function GameScreen() {
   const nav = useNavigate();
   const { user, token, botUsername } = useAuthStore();
   const { socket, connect } = useSocketStore();
+  const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
   const {
     game,
     myColor,
@@ -45,7 +47,7 @@ export function GameScreen() {
   const [pieceSelected, setPieceSelected] = useState<string | null>(null);
   const [legalSquares, setLegalSquares] = useState<Record<string, any>>({});
 
-  const applePieces = useMemo(() => makeApplePieces(), []);
+  const customPieces = useMemo(() => makePiecesForStyle(pieceStyle), [pieceStyle]);
 
   const captured = useMemo(() => {
     if (!game?.fen) return { w: [], b: [] };
@@ -314,6 +316,10 @@ export function GameScreen() {
   }
 
   const meIsRequester = (by: string | null) => by === myColor;
+  const renderCapturedPiece = (pieceKey: string) => {
+    const CapturedPiece = customPieces[pieceKey];
+    return CapturedPiece ? <CapturedPiece squareWidth={16} /> : null;
+  };
 
   return (
     <div className="app-screen">
@@ -345,7 +351,9 @@ export function GameScreen() {
         />
         <div className="captured-shelf">
           {captured[myColor === "white" ? "b" : "w"].map((p, i) => (
-            <div key={i} className="captured-piece">{applePieces[`${myColor === "white" ? "b" : "w"}${p.toUpperCase()}`]({ squareWidth: 16 })}</div>
+            <div key={i} className="captured-piece">
+              {renderCapturedPiece(`${myColor === "white" ? "b" : "w"}${p.toUpperCase()}`)}
+            </div>
           ))}
         </div>
       </div>
@@ -358,7 +366,7 @@ export function GameScreen() {
           onSquareClick={onSquareClick}
           arePiecesDraggable={isMyTurn}
           customSquareStyles={legalSquares}
-          customPieces={applePieces}
+          customPieces={customPieces}
           customBoardStyle={{ borderRadius: 12 }}
           customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: '16px' }}
           customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: '16px' }}
@@ -370,7 +378,9 @@ export function GameScreen() {
       <div className="player-section">
         <div className="captured-shelf">
           {captured[myColor === "white" ? "w" : "b"].map((p, i) => (
-            <div key={i} className="captured-piece">{applePieces[`${myColor === "white" ? "w" : "b"}${p.toUpperCase()}`]({ squareWidth: 16 })}</div>
+            <div key={i} className="captured-piece">
+              {renderCapturedPiece(`${myColor === "white" ? "w" : "b"}${p.toUpperCase()}`)}
+            </div>
           ))}
         </div>
         <PlayerPanel
