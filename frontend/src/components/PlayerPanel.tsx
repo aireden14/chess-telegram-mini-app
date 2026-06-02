@@ -29,7 +29,7 @@ export function PlayerPanel({ player, timer, active, infinite, online, isMe }: P
         {player?.photoUrl ? (
           <img src={player.photoUrl} alt="" />
         ) : isBot ? (
-          <span>🤖</span>
+          <span>AI</span>
         ) : (
           <span>{initial}</span>
         )}

@@ -49,7 +49,7 @@ export function CreateGameScreen() {
       <TopNav title={isBot ? "Игра с ботом" : "Новая игра"} backTo="/" />
 
       <div className="menu-group">
-        <h2 className="h2">⏱ Контроль времени</h2>
+        <h2 className="h2">Контроль времени</h2>
         <div className="chips">
           {TIMES.map((t) => (
             <button
@@ -64,7 +64,7 @@ export function CreateGameScreen() {
       </div>
 
       <div className="menu-group">
-        <h2 className="h2">➕ Инкремент</h2>
+        <h2 className="h2">Инкремент</h2>
         <div className="chips">
           {INCS.map((i) => (
             <button
@@ -79,7 +79,7 @@ export function CreateGameScreen() {
       </div>
 
       <div className="menu-group">
-        <h2 className="h2">🎨 Ваш цвет</h2>
+        <h2 className="h2">Ваш цвет</h2>
         <div className="segment">
           {(["white", "random", "black"] as const).map((c) => (
             <button
@@ -98,7 +98,7 @@ export function CreateGameScreen() {
 
       {isBot && (
         <div className="menu-group">
-          <h2 className="h2">🤖 Уровень бота</h2>
+          <h2 className="h2">Уровень бота</h2>
           <div className="segment">
             {(["easy", "medium"] as const).map((d) => (
               <button
@@ -118,7 +118,7 @@ export function CreateGameScreen() {
 
       {!isBot && (
         <div className="menu-group">
-          <h2 className="h2">🔑 Код игры (по желанию)</h2>
+          <h2 className="h2">Код игры (по желанию)</h2>
           <input
             type="text"
             className="input-text"
@@ -126,16 +126,6 @@ export function CreateGameScreen() {
             value={customCode}
             onChange={(e) => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
             maxLength={15}
-            style={{
-              width: "100%",
-              padding: "12px 16px",
-              borderRadius: "12px",
-              border: "1px solid var(--glass-border)",
-              background: "var(--glass-bg)",
-              color: "var(--apple-text)",
-              fontSize: "16px",
-              outline: "none"
-            }}
           />
         </div>
       )}

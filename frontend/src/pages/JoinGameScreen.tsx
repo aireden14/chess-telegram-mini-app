@@ -40,7 +40,7 @@ export function JoinGameScreen() {
       {game && (
         <>
           <div className="card">
-            <h2 className="h2" style={{ marginBottom: 8 }}>♟ Игра в шахматы</h2>
+            <h2 className="h2" style={{ marginBottom: 8 }}>Игра в шахматы</h2>
             <p className="muted" style={{ margin: 0 }}>
               {game.settings.timeControl === 0
                 ? "Без лимита времени"

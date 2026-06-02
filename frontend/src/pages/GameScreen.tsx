@@ -279,25 +279,23 @@ export function GameScreen() {
   function selectSquare(square: string) {
     const chess = new Chess(game!.fen);
     const moves = chess.moves({ square: square as Square, verbose: true }) as any[];
-    
-    const dotColor = myColor === 'white' ? "rgba(255,255,255,0.5)" : "rgba(255,215,0,0.5)";
-    const selectColor = myColor === 'white' ? "rgba(255,255,255,0.15)" : "rgba(255,215,0,0.15)";
-    const borderColor = myColor === 'white' ? "rgba(255,255,255,0.3)" : "rgba(255,215,0,0.3)";
 
     const dots: Record<string, any> = {};
     for (const m of moves) {
       dots[m.to] = {
         background: m.captured
-          ? "rgba(255, 59, 48, 0.35)"
-          : `radial-gradient(circle, ${dotColor} 22%, transparent 23%)`,
-        border: m.captured ? "2px solid rgba(255, 59, 48, 0.5)" : "none",
-        borderRadius: m.captured ? "16px" : "50%",
+          ? "var(--move-capture-bg)"
+          : "radial-gradient(circle, var(--move-dot) 20%, transparent 22%)",
+        border: m.captured ? "2px solid var(--move-capture-border)" : "none",
+        boxShadow: m.captured ? "inset 0 0 0 999px rgba(255,255,255,0.02)" : "none",
+        borderRadius: "10px",
       };
     }
     dots[square] = { 
-      background: selectColor,
-      border: `2px solid ${borderColor}`,
-      borderRadius: '16px'
+      background: "var(--move-selected-bg)",
+      border: "2px solid var(--move-selected-border)",
+      boxShadow: "inset 0 0 0 999px rgba(255,255,255,0.02)",
+      borderRadius: "10px",
     };
     setPieceSelected(square);
     setLegalSquares(dots);
@@ -367,9 +365,9 @@ export function GameScreen() {
           arePiecesDraggable={isMyTurn}
           customSquareStyles={legalSquares}
           customPieces={customPieces}
-          customBoardStyle={{ borderRadius: 12 }}
-          customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: '16px' }}
-          customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: '16px' }}
+          customBoardStyle={{ borderRadius: 20, overflow: "hidden" }}
+          customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: "10px" }}
+          customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: "10px" }}
           showBoardNotation={false}
         />
       </div>
@@ -396,13 +394,13 @@ export function GameScreen() {
 
       {game.status === "WAITING" && (
         <div className="card">
-          <h2 className="h2" style={{ marginBottom: 8 }}>⏳ Ожидаем соперника</h2>
+          <h2 className="h2" style={{ marginBottom: 8 }}>Ожидаем соперника</h2>
           <p className="muted" style={{ margin: "0 0 12px" }}>
             Поделитесь ссылкой, чтобы пригласить друга:
           </p>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => shareInvite(inviteLink())}>
-              📤 Telegram
+              Telegram
             </button>
             <button
               className="btn"
@@ -412,7 +410,7 @@ export function GameScreen() {
               }}
               title="Скопировать ссылку Telegram"
             >
-              TG 📋
+              TG
             </button>
             <button
               className="btn"
@@ -422,12 +420,12 @@ export function GameScreen() {
               }}
               title="Скопировать прямую Web-ссылку"
             >
-              Web 🌐
+              Web
             </button>
           </div>
           
           <div className="muted" style={{ marginTop: 16, fontSize: 12, textAlign: "left", background: "var(--glass-solid)", padding: 12, borderRadius: 8 }}>
-            <strong>💡 Как пригласить друга?</strong><br/>
+            <strong>Как пригласить друга?</strong><br/>
             1. Отправь ссылку Telegram.<br/>
             2. Друг должен нажать <strong>Запустить/Играть</strong> в боте.<br/>
             3. Если игра не открылась сразу, пусть он введёт код <strong>{game.id}</strong> на главном экране.<br/>
@@ -448,13 +446,13 @@ export function GameScreen() {
       )}
 
       {game.status === "ACTIVE" && (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className={`game-actions-row${game.isBotGame ? " single" : ""}`}>
           <button className="btn" style={{ flex: 1 }} onClick={() => setShowResign(true)}>
-            🏳 Сдаться
+            Сдаться
           </button>
           {!game.isBotGame && (
             <button className="btn" style={{ flex: 1 }} onClick={() => setShowOfferDraw(true)}>
-              🤝 Ничья
+              Ничья
             </button>
           )}
           {!game.isBotGame && (
@@ -463,7 +461,7 @@ export function GameScreen() {
               style={{ flex: 1 }}
               onClick={() => socket?.emit("REQUEST_PAUSE", { gameId: game.id })}
             >
-              ⏸ Пауза
+              Пауза
             </button>
           )}
         </div>
@@ -471,13 +469,13 @@ export function GameScreen() {
 
       {game.status === "PAUSED" && (
         <div className="card" style={{ textAlign: "center" }}>
-          <h2 className="h2">⏸ Игра на паузе</h2>
+          <h2 className="h2">Игра на паузе</h2>
           <button
             className="btn btn-primary btn-block"
             style={{ marginTop: 12 }}
             onClick={() => socket?.emit("REQUEST_RESUME", { gameId: game.id })}
           >
-            ▶ Продолжить
+            Продолжить
           </button>
         </div>
       )}
@@ -548,10 +546,10 @@ export function GameScreen() {
         <Modal
           title={
             gameOver.winner === "draw"
-              ? "🤝 Ничья"
+              ? "Ничья"
               : (gameOver.winner === "white" && myColor === "white") ||
                 (gameOver.winner === "black" && myColor === "black")
-              ? "🏆 Победа!"
+              ? "Победа!"
               : "Поражение"
           }
           description={endReasonText(gameOver.reason)}

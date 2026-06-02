@@ -5,9 +5,9 @@ const HORSE_PATH = `M 416.474 65.250 C 416.219 65.938, 415.398 73.026, 414.649 8
 const Piece = ({ type, color, squareWidth }: { type: string, color: 'w' | 'b', squareWidth: number }) => {
   const isWhite = color === 'w';
   const fill = isWhite ? 'url(#whiteGradient)' : 'url(#goldGradient)';
-  const stroke = 'var(--piece-stroke)';
-  const strokeWidth = isWhite ? 1.5 : 0;
-  const filter = 'none';
+  const stroke = isWhite ? 'var(--piece-light-stroke)' : 'var(--piece-dark-stroke)';
+  const strokeWidth = isWhite ? 1.4 : 1.1;
+  const filter = 'url(#pieceLift)';
 
   const commonProps = { fill, filter, stroke, strokeWidth };
 

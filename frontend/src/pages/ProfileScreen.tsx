@@ -8,10 +8,8 @@ import { usePieceStyleStore } from "../store/pieceStyle";
 import { normalizePieceStyle } from "../components/pieceStyles";
 
 const THEMES: { label: string; value: ThemeType; icon: string }[] = [
-  { label: "Apple Dark", value: "dark", icon: "🖤" },
-  { label: "Apple Light", value: "light", icon: "🤍" },
-  { label: "Colorful", value: "colorful", icon: "🌈" },
-  { label: "Liquid Ocean", value: "blue", icon: "🌊" },
+  { label: "Night", value: "dark", icon: "♛" },
+  { label: "Day", value: "light", icon: "♔" },
 ];
 
 export function ProfileScreen() {
@@ -55,25 +53,25 @@ export function ProfileScreen() {
           </div>
           <div className="card-grouped">
             <div className="row">
-              <div className="row-title">🎮 Всего партий</div>
+              <div className="row-title">Всего партий</div>
               <div className="row-value">{me.totalGames}</div>
             </div>
             <div className="row">
-              <div className="row-title">🏆 Побед</div>
+              <div className="row-title">Побед</div>
               <div className="row-value">{me.wins}</div>
             </div>
             <div className="row">
-              <div className="row-title">💀 Поражений</div>
+              <div className="row-title">Поражений</div>
               <div className="row-value">{me.losses}</div>
             </div>
             <div className="row">
-              <div className="row-title">🤝 Ничьих</div>
+              <div className="row-title">Ничьих</div>
               <div className="row-value">{me.draws}</div>
             </div>
           </div>
 
           <div className="menu-group">
-            <h2 className="h2">🎨 Тема оформления</h2>
+            <h2 className="h2">Тема оформления</h2>
             <div className="segment">
               {THEMES.map((t) => (
                 <button
@@ -81,7 +79,7 @@ export function ProfileScreen() {
                   className={`seg-item${theme === t.value ? " active" : ""}`}
                   onClick={() => setTheme(t.value)}
                 >
-                  {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+                  {t.icon} <span>{t.label}</span>
                 </button>
               ))}
             </div>

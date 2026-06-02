@@ -7,10 +7,8 @@ import { GameStateDTO } from "../types";
 import { PieceStylePicker } from "../components/PieceStylePicker";
 
 const THEMES: { label: string; value: ThemeType; icon: string }[] = [
-  { label: "Dark", value: "dark", icon: "🖤" },
-  { label: "Light", value: "light", icon: "🤍" },
-  { label: "Color", value: "colorful", icon: "🌈" },
-  { label: "Ocean", value: "blue", icon: "🌊" },
+  { label: "Night", value: "dark", icon: "♛" },
+  { label: "Day", value: "light", icon: "♔" },
 ];
 
 type GameHubMode = "chess" | "sudoku" | "forceDeflector";
@@ -46,7 +44,7 @@ export function HomeScreen() {
       <h1 className="h1">Игры</h1>
 
       {user && (
-        <div className="card" style={{ display: "flex", gap: 14, alignItems: "center" }}>
+        <div className="card home-profile-card">
           <div className="avatar">
             {user.photoUrl ? (
               <img src={user.photoUrl} alt="" />
@@ -54,8 +52,8 @@ export function HomeScreen() {
               user.firstName.slice(0, 1).toUpperCase()
             )}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600 }}>{user.firstName}</div>
+          <div className="home-profile-copy">
+            <div className="home-profile-name">{user.firstName}</div>
             <div className="muted">Шахматный рейтинг: {user.rating}</div>
           </div>
           <button className="btn-ghost btn" onClick={() => nav("/profile")}>
@@ -65,7 +63,7 @@ export function HomeScreen() {
       )}
 
       <div className="menu-group">
-        <h2 className="h2">🎨 Тема оформления</h2>
+        <h2 className="h2">Тема оформления</h2>
         <div className="segment">
           {THEMES.map((t) => (
             <button
@@ -73,7 +71,7 @@ export function HomeScreen() {
               className={`seg-item${theme === t.value ? " active" : ""}`}
               onClick={() => setTheme(t.value)}
             >
-              {t.icon} <span style={{ marginLeft: 4 }}>{t.label}</span>
+              {t.icon} <span>{t.label}</span>
             </button>
           ))}
         </div>
@@ -85,7 +83,7 @@ export function HomeScreen() {
           className={`game-mode-card${activeMode === "chess" ? " active" : ""}`}
           onClick={() => setActiveMode("chess")}
         >
-          <span className="game-mode-icon">♟</span>
+          <span className="game-mode-icon">♞</span>
           <strong>Шахматы</strong>
           <em>мультиплеер · бот · рейтинг</em>
         </button>
@@ -101,39 +99,29 @@ export function HomeScreen() {
           className={`game-mode-card wide${activeMode === "forceDeflector" ? " active" : ""}`}
           onClick={() => setActiveMode("forceDeflector")}
         >
-          <span className="game-mode-icon">⚔</span>
+          <span className="game-mode-icon">✦</span>
           <strong>Отражатель</strong>
           <em>арена · клинок · iPhone-управление</em>
         </button>
       </div>
 
       {activeMode === "chess" && (
-        <>
+        <div className="game-actions">
           <button className="btn btn-primary btn-block" onClick={() => nav("/create")}>
-            ✨ Создать игру
+            Создать игру
           </button>
 
           <button className="btn btn-block" onClick={() => nav("/create?bot=1")}>
-            🤖 Играть с ботом
+            Играть с ботом
           </button>
 
-          <div className="menu-group" style={{ display: "flex", gap: 8, padding: 8 }}>
+          <div className="menu-group join-code-card">
             <input
               type="text"
               className="input-text"
               placeholder="Код игры"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))}
-              style={{
-                flex: 1,
-                padding: "12px 16px",
-                borderRadius: "12px",
-                border: "1px solid var(--glass-border)",
-                background: "var(--glass-bg)",
-                color: "var(--apple-text)",
-                fontSize: "16px",
-                outline: "none",
-              }}
             />
             <button
               className="btn btn-primary"
@@ -146,19 +134,19 @@ export function HomeScreen() {
 
           <div className="card-grouped">
             <button className="row" onClick={() => nav("/paused")}>
-              <div className="row-title">⏸ Мои паузы</div>
+              <div className="row-title">Паузы</div>
               <div className="row-value">{paused.length || ""} ›</div>
             </button>
             <button className="row" onClick={() => nav("/history")}>
-              <div className="row-title">🕘 История партий</div>
+              <div className="row-title">История партий</div>
               <div className="row-value">›</div>
             </button>
             <button className="row" onClick={() => nav("/leaderboard")}>
-              <div className="row-title">🏆 Таблица лидеров</div>
+              <div className="row-title">Таблица лидеров</div>
               <div className="row-value">›</div>
             </button>
           </div>
-        </>
+        </div>
       )}
 
       {activeMode === "sudoku" && (
@@ -177,7 +165,7 @@ export function HomeScreen() {
       {activeMode === "forceDeflector" && (
         <section className="card game-feature-card">
           <p className="sudoku-kicker">Аркада</p>
-          <h2>⚔ Световой Отражатель</h2>
+          <h2>Световой Отражатель</h2>
           <p className="muted">
             Неоновая арена: отражай болты клинком, собирай опыт, выбирай апгрейды и играй с
             мобильным джойстиком прямо в Telegram.
@@ -195,7 +183,7 @@ export function HomeScreen() {
             {inProgress.map((g) => (
               <button key={g.id} className="row" onClick={() => nav(`/game/${g.id}`)}>
                 <div className="row-title">
-                  {g.isBotGame ? "🤖 Бот" : "👤 Игрок"} ·{" "}
+                  {g.isBotGame ? "Бот" : "Игрок"} ·{" "}
                   {g.settings.timeControl === 0 ? "∞" : `${g.settings.timeControl / 60}м`}
                 </div>
                 <div className="row-value">{g.status === "WAITING" ? "Ожидание..." : "Игра идёт"} ›</div>
@@ -212,7 +200,7 @@ export function HomeScreen() {
             {publicSessions.map((g) => (
               <button key={g.id} className="row" onClick={() => nav(`/join/${g.id}`)}>
                 <div className="row-title">
-                  👤 Игрок {g.playerWhite?.firstName || g.playerBlack?.firstName} ·{" "}
+                  Игрок {g.playerWhite?.firstName || g.playerBlack?.firstName} ·{" "}
                   {g.settings.timeControl === 0 ? "∞" : `${g.settings.timeControl / 60}м`}
                 </div>
                 <div className="row-value">Присоединиться ›</div>

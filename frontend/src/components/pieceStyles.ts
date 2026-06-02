@@ -12,25 +12,25 @@ export const PIECE_STYLE_OPTIONS: {
   description: string;
 }[] = [
   {
-    label: "Apple",
+    label: "Liquid",
     value: "apple",
     icon: "◈",
-    preview: "K Q R",
-    description: "Глянцевые фигуры",
-  },
-  {
-    label: "Emoji",
-    value: "emoji",
-    icon: "♟",
-    preview: "👑 👸 🏰",
-    description: "Старый emoji-стиль",
+    preview: "♔ ♕ ♖",
+    description: "Pearl & gold",
   },
   {
     label: "Unicode",
     value: "classic",
     icon: "♔",
-    preview: "♔ ♕ ♖ / ♚ ♛ ♜",
+    preview: "♔ ♕ ♖",
     description: "Классические символы",
+  },
+  {
+    label: "Playful",
+    value: "emoji",
+    icon: "♟",
+    preview: "♚ ♛ ♜",
+    description: "Фан-режим, не основной стиль",
   },
 ];
 

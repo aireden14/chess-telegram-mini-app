@@ -56,9 +56,9 @@ export function ReplayScreen() {
               boardOrientation={orientation}
               arePiecesDraggable={false}
               customPieces={customPieces}
-              customBoardStyle={{ borderRadius: 12 }}
-              customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: "16px" }}
-              customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: "16px" }}
+              customBoardStyle={{ borderRadius: 20, overflow: "hidden" }}
+              customDarkSquareStyle={{ backgroundColor: "var(--board-dark)", borderRadius: "10px" }}
+              customLightSquareStyle={{ backgroundColor: "var(--board-light)", borderRadius: "10px" }}
             />
           </div>
           <div className="card" style={{ textAlign: "center" }}>

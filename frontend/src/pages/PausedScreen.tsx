@@ -20,10 +20,10 @@ export function PausedScreen() {
   }, []);
   return (
     <div className="app-screen">
-      <TopNav title="⏸ Паузы" backTo="/" />
+      <TopNav title="Паузы" backTo="/" />
       {games.length === 0 ? (
         <div className="empty">
-          <div className="emoji">⏸</div>
+          <div className="emoji">Ⅱ</div>
           <div>Нет приостановленных партий</div>
         </div>
       ) : (

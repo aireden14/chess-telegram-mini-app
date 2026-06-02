@@ -23,7 +23,7 @@ export function HistoryScreen() {
         <div className="spinner" />
       ) : games.length === 0 ? (
         <div className="empty">
-          <div className="emoji">🕘</div>
+          <div className="emoji">♙</div>
           <div>Партий пока нет</div>
         </div>
       ) : (

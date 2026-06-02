@@ -39,8 +39,8 @@ export function LoadingScreen() {
           <svg className="logo-svg" viewBox="-50 -50 1002 1332" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="logoWhiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: "#ffffff", stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: "#d0d0d0", stopOpacity: 1 }} />
+                <stop offset="0%" style={{ stopColor: "var(--piece-light-1)", stopOpacity: 1 }} />
+                <stop offset="100%" style={{ stopColor: "var(--piece-light-2)", stopOpacity: 1 }} />
               </linearGradient>
               <filter id="logoPremiumGlow" x="-30%" y="-30%" width="160%" height="160%">
                 <feGaussianBlur stdDeviation="35" result="blur" />

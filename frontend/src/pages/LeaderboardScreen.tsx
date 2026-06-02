@@ -20,12 +20,12 @@ export function LeaderboardScreen() {
   }, []);
   return (
     <div className="app-screen">
-      <TopNav title="🏆 Лидеры" backTo="/" />
+      <TopNav title="Лидеры" backTo="/" />
       <div className="card-grouped">
         {rows.map((u, i) => (
           <div key={u.id} className="row">
             <div style={{ width: 28, fontWeight: 700 }}>
-              {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+              {i === 0 ? "I" : i === 1 ? "II" : i === 2 ? "III" : i + 1}
             </div>
             <div className="row-title">{u.firstName}</div>
             <div className="row-value" style={{ fontWeight: 600 }}>
@@ -35,7 +35,7 @@ export function LeaderboardScreen() {
         ))}
         {rows.length === 0 && (
           <div className="empty">
-            <div className="emoji">🏆</div>
+            <div className="emoji">♕</div>
             <div>Пока никто не сыграл</div>
           </div>
         )}

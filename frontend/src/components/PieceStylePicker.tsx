@@ -38,9 +38,9 @@ export function PieceStylePicker({ embedded = false }: PieceStylePickerProps) {
   const content = (
     <>
       {embedded ? (
-        <h3 className="piece-style-subtitle">♔ Какими фигурами играть</h3>
+        <h3 className="piece-style-subtitle">Какими фигурами играть</h3>
       ) : (
-        <h2 className="h2">♔ Стиль шахматных фигур</h2>
+        <h2 className="h2">Стиль шахматных фигур</h2>
       )}
       <div className="piece-style-grid">
         {PIECE_STYLE_OPTIONS.map((option) => {
