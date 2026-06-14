@@ -18,7 +18,7 @@ export function HistoryScreen() {
   }, []);
   return (
     <div className="app-screen">
-      <TopNav title="История" backTo="/" />
+      <TopNav title="История" backTo="/chess" />
       {loading ? (
         <div className="spinner" />
       ) : games.length === 0 ? (

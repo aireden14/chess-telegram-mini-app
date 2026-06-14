@@ -34,7 +34,7 @@ export function JoinGameScreen() {
 
   return (
     <div className="app-screen">
-      <TopNav title="Приглашение в игру" backTo="/" />
+      <TopNav title="Приглашение в игру" backTo="/chess" />
       {error && <div className="card" style={{ color: "var(--red)" }}>{error}</div>}
       {!game && !error && <div className="spinner" />}
       {game && (

@@ -20,7 +20,7 @@ export function LeaderboardScreen() {
   }, []);
   return (
     <div className="app-screen">
-      <TopNav title="Лидеры" backTo="/" />
+      <TopNav title="Лидеры" backTo="/chess" />
       <div className="card-grouped">
         {rows.map((u, i) => (
           <div key={u.id} className="row">

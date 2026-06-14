@@ -46,7 +46,7 @@ export function CreateGameScreen() {
 
   return (
     <div className="app-screen">
-      <TopNav title={isBot ? "Игра с ботом" : "Новая игра"} backTo="/" />
+      <TopNav title={isBot ? "Игра с ботом" : "Новая игра"} backTo="/chess" />
 
       <div className="menu-group">
         <h2 className="h2">Контроль времени</h2>

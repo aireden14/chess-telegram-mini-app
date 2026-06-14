@@ -321,7 +321,7 @@ export function GameScreen() {
 
   return (
     <div className="app-screen">
-      <TopNav title="Шахматы" backTo="/" />
+      <TopNav title="Шахматы" backTo="/chess" />
 
       {/* Противник */}
       <div className="player-section">
@@ -437,7 +437,7 @@ export function GameScreen() {
             style={{ marginTop: 8, width: "100%" }}
             onClick={async () => {
               await api.delete(`/games/${game.id}/cancel`).catch(() => {});
-              nav("/", { replace: true });
+              nav("/chess", { replace: true });
             }}
           >
             Отменить
@@ -554,7 +554,7 @@ export function GameScreen() {
           }
           description={endReasonText(gameOver.reason)}
           primaryLabel="В меню"
-          onPrimary={() => nav("/", { replace: true })}
+          onPrimary={() => nav("/chess", { replace: true })}
         />
       )}
 

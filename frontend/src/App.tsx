@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LoadingScreen } from "./pages/LoadingScreen";
-import { HomeScreen } from "./pages/HomeScreen";
+import { GamePickerScreen } from "./pages/GamePickerScreen";
+import { ChessHubScreen } from "./pages/ChessHubScreen";
 import { CreateGameScreen } from "./pages/CreateGameScreen";
 import { JoinGameScreen } from "./pages/JoinGameScreen";
 import { GameScreen } from "./pages/GameScreen";
@@ -30,7 +31,8 @@ export function App() {
       <AppleDefinitions />
       <Routes>
         <Route path="/loading" element={<LoadingScreen />} />
-        <Route path="/" element={<Protected><HomeScreen /></Protected>} />
+        <Route path="/" element={<Protected><GamePickerScreen /></Protected>} />
+        <Route path="/chess" element={<Protected><ChessHubScreen /></Protected>} />
         <Route path="/create" element={<Protected><CreateGameScreen /></Protected>} />
         <Route path="/join/:gameId" element={<Protected><JoinGameScreen /></Protected>} />
         <Route path="/game/:gameId" element={<Protected><GameScreen /></Protected>} />

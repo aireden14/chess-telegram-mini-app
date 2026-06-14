@@ -20,7 +20,7 @@ export function PausedScreen() {
   }, []);
   return (
     <div className="app-screen">
-      <TopNav title="Паузы" backTo="/" />
+      <TopNav title="Паузы" backTo="/chess" />
       {games.length === 0 ? (
         <div className="empty">
           <div className="emoji">Ⅱ</div>

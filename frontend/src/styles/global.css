@@ -167,15 +167,23 @@ body {
 /* App Container */
 .app-screen {
   width: 100%;
-  max-width: 430px;
+  max-width: 440px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  padding: 22px;
-  padding-top: calc(var(--safe-top) + 62px);
-  padding-bottom: calc(var(--safe-bottom) + 32px);
-  gap: 18px;
+  padding: 20px 18px;
+  padding-top: calc(var(--safe-top) + 60px);
+  padding-bottom: calc(var(--safe-bottom) + 28px);
+  gap: 16px;
+}
+
+.center-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
 }
 
 /* Typography */
@@ -1560,6 +1568,228 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 22px;
+}
+
+/* ===== Game picker (landing) ===== */
+.picker-screen {
+  gap: 20px;
+}
+
+.picker-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.picker-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 8px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-bg), var(--glass-solid));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--apple-text);
+  min-height: 56px;
+  max-width: 78%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.picker-id:active {
+  transform: scale(0.98);
+}
+
+.picker-id-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+}
+
+.picker-id-copy strong {
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-id-copy em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--apple-text-faint);
+}
+
+.avatar-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+
+.theme-toggle {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: linear-gradient(145deg, var(--glass-hover), var(--glass-solid));
+  border: 1px solid var(--glass-border);
+  color: var(--apple-text);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.theme-toggle:active {
+  transform: scale(0.94);
+}
+
+.picker-hero {
+  margin-top: 4px;
+}
+
+.picker-hero .h1 {
+  font-size: 38px;
+}
+
+.picker-hero .muted {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.picker-games {
+  display: grid;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.picker-game {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 92px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(145deg, var(--glass-bg), var(--glass-solid)),
+    radial-gradient(circle at 18% 0%, rgba(91, 159, 255, 0.14), transparent 46%);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--apple-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.picker-game:active {
+  transform: scale(0.98);
+}
+
+.picker-game-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 900;
+  background: var(--primary-btn-bg);
+  color: var(--primary-btn-text);
+  box-shadow: 0 14px 30px var(--accent-gold-soft);
+}
+
+.picker-game-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.picker-game-copy strong {
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.picker-game-copy em {
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--apple-text-dim);
+}
+
+.picker-game-go {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--apple-text-faint);
+}
+
+/* ===== Chess hub ===== */
+.hub-section {
+  display: block;
+}
+
+/* ===== Tap targets ===== */
+.chip {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seg-item {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+@media (max-width: 360px) {
+  .app-screen {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .h1 {
+    font-size: 30px;
+  }
+
+  .picker-hero .h1 {
+    font-size: 33px;
+  }
+
+  .picker-game {
+    min-height: 84px;
+    padding: 15px;
+    gap: 12px;
+  }
+
+  .picker-game-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 26px;
+    border-radius: 16px;
+  }
+
+  .picker-game-copy strong {
+    font-size: 18px;
+  }
 }
 
 @media (max-width: 390px) {
