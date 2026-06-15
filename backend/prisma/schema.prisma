@@ -26,6 +26,28 @@ model User {
 
   gamesAsWhite  Game[]   @relation("WhitePlayer")
   gamesAsBlack  Game[]   @relation("BlackPlayer")
+
+  sudokuProfile SudokuProfile? @relation("SudokuProfile")
+}
+
+model SudokuProfile {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  user             User     @relation("SudokuProfile", fields: [userId], references: [id], onDelete: Cascade)
+  rating           Int      @default(0)
+  xp               Int      @default(0)
+  level            Int      @default(1)
+  played           Int      @default(0)
+  completed        Int      @default(0)
+  bestTimesJson    String   @default("{}")
+  dailyStreak      Int      @default(0)
+  bestStreak       Int      @default(0)
+  lastDailyDate    String?
+  dailyTasksJson   String   @default("{}")
+  dailyRewardJson  String   @default("{}")
+  achievementsJson String   @default("[]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Game {

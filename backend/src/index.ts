@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { gamesRouter } from "./routes/games";
+import { sudokuRouter } from "./routes/sudoku";
 import { initSocket, startTimerWatchdog } from "./socket";
 
 const app = express();
@@ -15,6 +16,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, t: Date.now() }));
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/games", gamesRouter);
+app.use("/api/sudoku", sudokuRouter);
 
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error("[express error]", err);
