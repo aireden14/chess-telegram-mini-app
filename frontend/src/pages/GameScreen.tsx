@@ -13,6 +13,7 @@ import { TopNav } from "../components/TopNav";
 import { makePiecesForStyle } from "../components/pieceStyles";
 import { usePieceStyleStore } from "../store/pieceStyle";
 import { shareInvite, copyToClipboard } from "../hooks/useTelegram";
+import { celebrate } from "../hooks/celebrate";
 
 export function GameScreen() {
   const { gameId } = useParams();
@@ -216,6 +217,14 @@ export function GameScreen() {
     return () => clearInterval(id);
   }, [game?.fen, game?.status, game?.currentTurn]);
 
+  useEffect(() => {
+    if (!gameOver) return;
+    const iWon =
+      (gameOver.winner === "white" && myColor === "white") ||
+      (gameOver.winner === "black" && myColor === "black");
+    if (iWon) celebrate();
+  }, [gameOver, myColor]);
+
   if (!game || !user) {
     return (
       <div className="center-screen">
@@ -311,6 +320,24 @@ export function GameScreen() {
 
   function webLink() {
     return `${window.location.origin}/join/${game!.id}`;
+  }
+
+  async function restart() {
+    if (!game) return;
+    triggerHaptic("medium");
+    try {
+      const res = await api.post("/games/create", {
+        timeControl: game.settings?.timeControl ?? 600,
+        increment: game.settings?.increment ?? 0,
+        colorChoice: game.settings?.colorChoice ?? "random",
+        vsBot: game.isBotGame,
+        botDifficulty: game.botDifficulty ?? "medium",
+      });
+      reset();
+      nav(`/game/${res.data.gameId}`, { replace: true });
+    } catch (e: any) {
+      setToast(e?.response?.data?.error || "Не удалось перезапустить");
+    }
   }
 
   const meIsRequester = (by: string | null) => by === myColor;
@@ -446,10 +473,15 @@ export function GameScreen() {
       )}
 
       {game.status === "ACTIVE" && (
-        <div className={`game-actions-row${game.isBotGame ? " single" : ""}`}>
+        <div className={`game-actions-row${game.isBotGame ? " two" : ""}`}>
           <button className="btn" style={{ flex: 1 }} onClick={() => setShowResign(true)}>
             Сдаться
           </button>
+          {game.isBotGame && (
+            <button className="btn" style={{ flex: 1 }} onClick={restart}>
+              Заново
+            </button>
+          )}
           {!game.isBotGame && (
             <button className="btn" style={{ flex: 1 }} onClick={() => setShowOfferDraw(true)}>
               Ничья
@@ -553,8 +585,10 @@ export function GameScreen() {
               : "Поражение"
           }
           description={endReasonText(gameOver.reason)}
-          primaryLabel="В меню"
-          onPrimary={() => nav("/chess", { replace: true })}
+          primaryLabel={game.isBotGame ? "Сыграть снова" : "В меню"}
+          onPrimary={game.isBotGame ? restart : () => nav("/chess", { replace: true })}
+          secondaryLabel={game.isBotGame ? "В меню" : undefined}
+          onSecondary={game.isBotGame ? () => nav("/chess", { replace: true }) : undefined}
         />
       )}
 

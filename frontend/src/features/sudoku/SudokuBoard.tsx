@@ -48,6 +48,7 @@ export function SudokuBoard({
         const classes = [
           "sudoku-cell",
           given ? "given" : "",
+          !given && value ? "entered" : "",
           selectedNumber && isSelected && !given && !value ? "number-target" : "",
           isSelected ? "selected" : "",
           isPeer ? "peer" : "",

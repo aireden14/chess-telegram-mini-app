@@ -6,7 +6,9 @@ import { ChessHubScreen } from "./pages/ChessHubScreen";
 import { CreateGameScreen } from "./pages/CreateGameScreen";
 import { JoinGameScreen } from "./pages/JoinGameScreen";
 import { GameScreen } from "./pages/GameScreen";
+import { LocalGameScreen } from "./pages/LocalGameScreen";
 import { ProfileScreen } from "./pages/ProfileScreen";
+import { WhatsNewScreen } from "./pages/WhatsNewScreen";
 import { HistoryScreen } from "./pages/HistoryScreen";
 import { ReplayScreen } from "./pages/ReplayScreen";
 import { LeaderboardScreen } from "./pages/LeaderboardScreen";
@@ -36,7 +38,9 @@ export function App() {
         <Route path="/create" element={<Protected><CreateGameScreen /></Protected>} />
         <Route path="/join/:gameId" element={<Protected><JoinGameScreen /></Protected>} />
         <Route path="/game/:gameId" element={<Protected><GameScreen /></Protected>} />
+        <Route path="/local" element={<Protected><LocalGameScreen /></Protected>} />
         <Route path="/profile" element={<Protected><ProfileScreen /></Protected>} />
+        <Route path="/whats-new" element={<Protected><WhatsNewScreen /></Protected>} />
         <Route path="/history" element={<Protected><HistoryScreen /></Protected>} />
         <Route path="/replay/:gameId" element={<Protected><ReplayScreen /></Protected>} />
         <Route path="/leaderboard" element={<Protected><LeaderboardScreen /></Protected>} />

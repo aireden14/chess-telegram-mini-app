@@ -46,6 +46,9 @@ export function ChessHubScreen() {
         <button className="btn btn-block" onClick={() => go("/create?bot=1")}>
           Играть с ботом
         </button>
+        <button className="btn btn-block" onClick={() => go("/local")}>
+          Игра вдвоём на одном устройстве
+        </button>
         <div className="menu-group join-code-card">
           <input
             type="text"

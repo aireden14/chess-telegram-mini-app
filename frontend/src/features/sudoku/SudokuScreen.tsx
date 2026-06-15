@@ -1,8 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { TopNav } from "../../components/TopNav";
 import { triggerHaptic } from "../../hooks/useTelegram";
+import { celebrate } from "../../hooks/celebrate";
 import { SudokuDifficulty } from "./types";
 import { useSudokuStore } from "./sudokuStore";
+import { useSudokuProfile } from "./sudokuProfileStore";
 import { SudokuBoard } from "./SudokuBoard";
 import { SudokuNumberPad } from "./SudokuNumberPad";
 import { SudokuStats, difficultyLabel, formatSudokuTime } from "./SudokuStats";
@@ -41,6 +43,20 @@ export function SudokuScreen() {
     dismissVictory,
   } = useSudokuStore();
 
+  const {
+    profile,
+    achievements,
+    daily,
+    leaderboard,
+    reward,
+    fetchAll,
+    fetchLeaderboard,
+    report,
+    clearReward,
+  } = useSudokuProfile();
+  const reportedRef = useRef<string | null>(null);
+  const [showLeaders, setShowLeaders] = useState(false);
+
   useEffect(() => {
     if (!puzzle) startNew("medium");
   }, [puzzle, startNew]);
@@ -50,6 +66,30 @@ export function SudokuScreen() {
     tick();
     return () => window.clearInterval(id);
   }, [tick]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  useEffect(() => {
+    if (!victory) return;
+    const key = `${victory.mode}-${victory.difficulty}-${victory.elapsedSeconds}-${victory.mistakes}-${victory.hintsUsed}`;
+    if (reportedRef.current === key) return;
+    reportedRef.current = key;
+    celebrate();
+    report({
+      difficulty: victory.difficulty,
+      mode: victory.mode,
+      elapsedSeconds: victory.elapsedSeconds,
+      mistakes: victory.mistakes,
+      hintsUsed: victory.hintsUsed,
+      dailyDate: puzzle?.dailyDate ?? null,
+    });
+  }, [victory, report, puzzle]);
+
+  useEffect(() => {
+    if (reward?.leveledUp) celebrate();
+  }, [reward]);
 
   if (!puzzle) {
     return (
@@ -136,6 +176,49 @@ export function SudokuScreen() {
         <div className="sudoku-hero-time">{formatSudokuTime(elapsedSeconds)}</div>
       </section>
 
+      {profile && (
+        <div className="sudoku-progress card">
+          <div className="sudoku-rank">
+            <div className="sudoku-rank-item">
+              <span>Рейтинг</span>
+              <strong>{profile.rating}</strong>
+            </div>
+            <div className="sudoku-rank-item">
+              <span>Уровень</span>
+              <strong>{profile.level}</strong>
+            </div>
+            <button
+              className="sudoku-rank-item sudoku-rank-leaders"
+              onClick={() => {
+                fetchLeaderboard();
+                setShowLeaders(true);
+                triggerHaptic("light");
+              }}
+            >
+              <span>Лидеры</span>
+              <strong>›</strong>
+            </button>
+          </div>
+          <div className="sudoku-xpbar">
+            <div className="sudoku-xpbar-track">
+              <div
+                className="sudoku-xpbar-fill"
+                style={{ width: `${profile.xp % 100}%` }}
+              />
+            </div>
+            <div className="sudoku-xpbar-label">
+              <span>Ур. {profile.level}</span>
+              <span>{100 - (profile.xp % 100)} XP до {profile.level + 1} ур.</span>
+            </div>
+          </div>
+          <div className="sudoku-streak">
+            <span className="sudoku-streak-flame">🔥</span>
+            Серия {profile.dailyStreak}
+            {profile.bestStreak > 0 && <em> · рекорд {profile.bestStreak}</em>}
+          </div>
+        </div>
+      )}
+
       <div className="sudoku-mode-panel">
         <div className="segment">
           {DIFFICULTIES.map((difficulty) => (
@@ -193,6 +276,44 @@ export function SudokuScreen() {
         stats={stats}
       />
 
+      {daily && daily.tasks.length > 0 && (
+        <div className="menu-group">
+          <h2 className="h2">
+            Задания дня · {daily.tasks.filter((t) => t.done).length}/{daily.tasks.length}
+          </h2>
+          <div className="sudoku-tasks">
+            {daily.tasks.map((t) => (
+              <div key={t.id} className={`sudoku-task${t.done ? " done" : ""}`}>
+                <span className="sudoku-task-check">{t.done ? "✓" : ""}</span>
+                <span className="sudoku-task-title">{t.title}</span>
+                <span className="sudoku-task-xp">+{t.xp} XP</span>
+              </div>
+            ))}
+          </div>
+          {daily.tasks.every((t) => t.done) ? (
+            <div className="sudoku-tasks-done">Все задания выполнены! +{daily.allDoneBonus} XP 🎉</div>
+          ) : (
+            <div className="sudoku-tasks-hint">Выполни все три — бонус +{daily.allDoneBonus} XP</div>
+          )}
+        </div>
+      )}
+
+      {achievements.length > 0 && (
+        <div className="menu-group">
+          <h2 className="h2">
+            Достижения · {achievements.filter((a) => a.unlocked).length}/{achievements.length}
+          </h2>
+          <div className="sudoku-ach-grid">
+            {achievements.map((a) => (
+              <div key={a.id} className={`sudoku-ach${a.unlocked ? " unlocked" : ""}`}>
+                <strong>{a.title}</strong>
+                <span>{a.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="sudoku-board-shell">
         <SudokuBoard
           puzzle={puzzle}
@@ -248,14 +369,72 @@ export function SudokuScreen() {
             </p>
             <div className="sudoku-victory-score">
               <span>Серия дней</span>
-              <strong>{stats.dailyStreak}</strong>
+              <strong>{profile?.dailyStreak ?? stats.dailyStreak}</strong>
             </div>
+            {reward && (
+              <div className="sudoku-reward">
+                {reward.leveledUp && (
+                  <div className="sudoku-reward-levelup">⬆️ Новый уровень {reward.level}!</div>
+                )}
+                <div className="sudoku-reward-points">+{reward.points} XP</div>
+                <div className="sudoku-reward-breakdown">
+                  <span>Партия +{reward.base}</span>
+                  {reward.taskBonus > 0 && <span>Задания +{reward.taskBonus}</span>}
+                  {reward.allDoneBonus > 0 && <span>Все задания +{reward.allDoneBonus}</span>}
+                  {reward.streakBonus > 0 && <span>Серия +{reward.streakBonus}</span>}
+                </div>
+                {reward.newlyUnlocked.length > 0 && (
+                  <div className="sudoku-reward-unlocked">
+                    🏅 {reward.newlyUnlocked.map((a) => a.title).join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="sudoku-victory-actions">
-              <button className="btn btn-primary" onClick={() => startNew(victory.difficulty)}>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  clearReward();
+                  startNew(victory.difficulty);
+                }}
+              >
                 Новая
               </button>
-              <button className="btn" onClick={dismissVictory}>
+              <button
+                className="btn"
+                onClick={() => {
+                  clearReward();
+                  dismissVictory();
+                }}
+              >
                 Остаться
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showLeaders && (
+        <div className="modal-backdrop" onClick={() => setShowLeaders(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Лидеры судоку</h3>
+            <div className="card-grouped" style={{ marginTop: 12, textAlign: "left" }}>
+              {leaderboard.length === 0 ? (
+                <div className="row">
+                  <div className="row-title">Пока пусто</div>
+                </div>
+              ) : (
+                leaderboard.map((r, i) => (
+                  <div key={r.userId} className="row">
+                    <div style={{ width: 26, fontWeight: 800 }}>{i + 1}</div>
+                    <div className="row-title">{r.firstName}</div>
+                    <div className="row-value">{r.rating}</div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setShowLeaders(false)}>
+                Закрыть
               </button>
             </div>
           </div>

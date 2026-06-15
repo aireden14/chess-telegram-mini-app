@@ -1,8 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "../store/auth";
 import { useThemeStore } from "../store/theme";
 import { triggerHaptic } from "../hooks/useTelegram";
+import { hasUnseenWhatsNew } from "../data/changelog";
 
 type GameEntry = {
   key: string;
@@ -22,6 +24,7 @@ export function GamePickerScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
+  const reduce = useReducedMotion();
 
   const open = (to: string) => {
     triggerHaptic("light");
@@ -59,11 +62,23 @@ export function GamePickerScreen() {
       <header className="picker-hero">
         <h1 className="h1">Выбери игру</h1>
         <p className="muted">Три режима — одно приложение</p>
+        <button className="whats-new-pill" onClick={() => open("/whats-new")}>
+          ✨ Что нового
+          {hasUnseenWhatsNew() && <span className="whats-new-dot" aria-hidden />}
+        </button>
       </header>
 
       <div className="picker-games">
-        {GAMES.map((g) => (
-          <button key={g.key} className="picker-game" onClick={() => open(g.to)}>
+        {GAMES.map((g, i) => (
+          <motion.button
+            key={g.key}
+            className="picker-game"
+            onClick={() => open(g.to)}
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 + i * 0.07, duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
+            whileTap={reduce ? undefined : { scale: 0.98 }}
+          >
             <span className="picker-game-icon">{g.icon}</span>
             <span className="picker-game-copy">
               <strong>{g.title}</strong>
@@ -72,7 +87,7 @@ export function GamePickerScreen() {
             <span className="picker-game-go" aria-hidden>
               ›
             </span>
-          </button>
+          </motion.button>
         ))}
       </div>
     </div>
