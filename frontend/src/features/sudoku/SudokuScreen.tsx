@@ -4,12 +4,19 @@ import { triggerHaptic } from "../../hooks/useTelegram";
 import { celebrate } from "../../hooks/celebrate";
 import { SudokuDifficulty } from "./types";
 import { useSudokuStore } from "./sudokuStore";
-import { useSudokuProfile } from "./sudokuProfileStore";
+import { useSudokuProfile, SudokuReward } from "./sudokuProfileStore";
 import { SudokuBoard } from "./SudokuBoard";
 import { SudokuNumberPad } from "./SudokuNumberPad";
-import { SudokuStats, difficultyLabel, formatSudokuTime } from "./SudokuStats";
+import { difficultyLabel, formatSudokuTime } from "./SudokuStats";
 
 const DIFFICULTIES: SudokuDifficulty[] = ["easy", "medium", "hard", "expert"];
+
+type Menu = "settings" | "tasks" | "ach" | "leaders" | null;
+interface Toast {
+  id: number;
+  icon: string;
+  text: string;
+}
 
 export function SudokuScreen() {
   const {
@@ -26,7 +33,6 @@ export function SudokuScreen() {
     elapsedSeconds,
     isComplete,
     victory,
-    stats,
     undoStack,
     startNew,
     startDaily,
@@ -54,8 +60,18 @@ export function SudokuScreen() {
     report,
     clearReward,
   } = useSudokuProfile();
+
   const reportedRef = useRef<string | null>(null);
-  const [showLeaders, setShowLeaders] = useState(false);
+  const [menu, setMenu] = useState<Menu>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
+  const toastedRewardRef = useRef<SudokuReward | null>(null);
+
+  function pushToast(icon: string, text: string) {
+    const id = (toastIdRef.current += 1);
+    setToasts((t) => [...t, { id, icon, text }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800);
+  }
 
   useEffect(() => {
     if (!puzzle) startNew("medium");
@@ -87,8 +103,16 @@ export function SudokuScreen() {
     });
   }, [victory, report, puzzle]);
 
+  // Transient toasts for unlocks/tasks/level-up
   useEffect(() => {
-    if (reward?.leveledUp) celebrate();
+    if (!reward || reward === toastedRewardRef.current) return;
+    toastedRewardRef.current = reward;
+    reward.newlyCompletedTasks.forEach((t) => pushToast("🎯", `Задание: ${t.title} +${t.xp} XP`));
+    reward.newlyUnlocked.forEach((a) => pushToast("🏅", `Достижение: ${a.title}`));
+    if (reward.leveledUp) {
+      pushToast("⬆️", `Новый уровень ${reward.level}!`);
+      celebrate();
+    }
   }, [reward]);
 
   if (!puzzle) {
@@ -103,15 +127,6 @@ export function SudokuScreen() {
   const showErrors = checkMode === "instant" || checkedAt !== null;
   const hasEditableSelection =
     selectedIndex !== null && puzzle.givens[selectedIndex] === null && !isComplete;
-  const inputHint = selectedIndex === null
-    ? selectedNumber
-      ? `Цифра ${selectedNumber} выбрана для подсветки. Тап по клетке не поставит её автоматически.`
-      : "Выбери клетку, затем цифру."
-    : hasEditableSelection
-      ? notesMode
-        ? "Режим заметок: нажми цифру, чтобы добавить или убрать кандидат."
-        : "Теперь нажми цифру снизу, чтобы поставить её в выбранную клетку."
-      : "Это стартовая клетка. Выбери пустую клетку, затем цифру.";
 
   const confirmReplace = () =>
     !hasProgress ||
@@ -121,11 +136,20 @@ export function SudokuScreen() {
     if (!confirmReplace()) return;
     startNew(difficulty);
     triggerHaptic("medium");
+    setMenu(null);
   };
 
   const startToday = () => {
     if (!confirmReplace()) return;
     startDaily();
+    triggerHaptic("medium");
+    setMenu(null);
+  };
+
+  const restartPuzzle = () => {
+    if (!confirmReplace()) return;
+    if (puzzle.mode === "daily") startDaily();
+    else startNew(puzzle.difficulty);
     triggerHaptic("medium");
   };
 
@@ -135,7 +159,6 @@ export function SudokuScreen() {
       triggerHaptic("light");
       return;
     }
-
     const result = enterNumber(value);
     if (result === "error") triggerHaptic("warning");
     else if (result === "complete") triggerHaptic("success");
@@ -161,158 +184,64 @@ export function SudokuScreen() {
     else triggerHaptic("medium");
   };
 
+  const tasksDone = daily ? daily.tasks.filter((t) => t.done).length : 0;
+  const tasksTotal = daily ? daily.tasks.length : 0;
+  const achUnlocked = achievements.filter((a) => a.unlocked).length;
+  const modeLabel = puzzle.mode === "daily" ? "День" : difficultyLabel(puzzle.difficulty);
+
   return (
     <div className="app-screen sudoku-screen">
       <TopNav title="Судоку" backTo="/" />
 
-      <section className="sudoku-hero card">
-        <div>
-          <p className="sudoku-kicker">Игры · Судоку</p>
-          <h1 className="h1">▦ Судоку</h1>
-          <p className="muted">
-            Чистая логика, заметки, подсказки и ежедневная задачка внутри Telegram.
-          </p>
+      <div className="sudoku-toolbar">
+        <div className="sudoku-toolbar-left">
+          <span className="sudoku-toolbar-time">{formatSudokuTime(elapsedSeconds)}</span>
+          <span className="sudoku-toolbar-mode">{modeLabel}</span>
         </div>
-        <div className="sudoku-hero-time">{formatSudokuTime(elapsedSeconds)}</div>
-      </section>
-
-      {profile && (
-        <div className="sudoku-progress card">
-          <div className="sudoku-rank">
-            <div className="sudoku-rank-item">
-              <span>Рейтинг</span>
-              <strong>{profile.rating}</strong>
-            </div>
-            <div className="sudoku-rank-item">
-              <span>Уровень</span>
-              <strong>{profile.level}</strong>
-            </div>
-            <button
-              className="sudoku-rank-item sudoku-rank-leaders"
-              onClick={() => {
-                fetchLeaderboard();
-                setShowLeaders(true);
-                triggerHaptic("light");
-              }}
-            >
-              <span>Лидеры</span>
-              <strong>›</strong>
-            </button>
-          </div>
-          <div className="sudoku-xpbar">
-            <div className="sudoku-xpbar-track">
-              <div
-                className="sudoku-xpbar-fill"
-                style={{ width: `${profile.xp % 100}%` }}
-              />
-            </div>
-            <div className="sudoku-xpbar-label">
-              <span>Ур. {profile.level}</span>
-              <span>{100 - (profile.xp % 100)} XP до {profile.level + 1} ур.</span>
-            </div>
-          </div>
-          <div className="sudoku-streak">
-            <span className="sudoku-streak-flame">🔥</span>
-            Серия {profile.dailyStreak}
-            {profile.bestStreak > 0 && <em> · рекорд {profile.bestStreak}</em>}
-          </div>
-        </div>
-      )}
-
-      <div className="sudoku-mode-panel">
-        <div className="segment">
-          {DIFFICULTIES.map((difficulty) => (
-            <button
-              key={difficulty}
-              className={`seg-item${puzzle.mode === "classic" && puzzle.difficulty === difficulty ? " active" : ""}`}
-              onClick={() => startClassic(difficulty)}
-            >
-              {difficultyLabel(difficulty)}
-            </button>
-          ))}
-        </div>
-        <button
-          className={`sudoku-daily${puzzle.mode === "daily" ? " active" : ""}`}
-          onClick={startToday}
-        >
-          День
-        </button>
-      </div>
-
-      <div className="sudoku-check-panel">
-        <div className="segment">
-          <button
-            className={`seg-item${checkMode === "instant" ? " active" : ""}`}
-            onClick={() => {
-              setCheckMode("instant");
-              triggerHaptic("light");
-            }}
-          >
-            Проверять сразу
+        <div className="sudoku-toolbar-actions">
+          <button className="sudoku-iconbtn" onClick={restartPuzzle} aria-label="Новая партия" title="Новая партия">
+            ↻
           </button>
           <button
-            className={`seg-item${checkMode === "manual" ? " active" : ""}`}
+            className="sudoku-iconbtn"
             onClick={() => {
-              setCheckMode("manual");
+              setMenu("tasks");
               triggerHaptic("light");
             }}
+            aria-label="Задания"
+            title="Задания дня"
           >
-            Проверять в конце
+            🎯
+            {tasksTotal > 0 && tasksDone < tasksTotal && (
+              <span className="sudoku-iconbtn-badge">
+                {tasksDone}/{tasksTotal}
+              </span>
+            )}
+          </button>
+          <button
+            className="sudoku-iconbtn"
+            onClick={() => {
+              setMenu("ach");
+              triggerHaptic("light");
+            }}
+            aria-label="Достижения и прогресс"
+            title="Достижения и прогресс"
+          >
+            🏆
+          </button>
+          <button
+            className="sudoku-iconbtn"
+            onClick={() => {
+              setMenu("settings");
+              triggerHaptic("light");
+            }}
+            aria-label="Настройки"
+            title="Настройки"
+          >
+            ⚙
           </button>
         </div>
-        {checkMode === "manual" && (
-          <button className="sudoku-daily sudoku-check-button" onClick={handleCheck}>
-            Проверить
-          </button>
-        )}
       </div>
-
-      <SudokuStats
-        puzzle={puzzle}
-        elapsedSeconds={elapsedSeconds}
-        mistakes={mistakes}
-        hintsUsed={hintsUsed}
-        entries={entries}
-        stats={stats}
-      />
-
-      {daily && daily.tasks.length > 0 && (
-        <div className="menu-group">
-          <h2 className="h2">
-            Задания дня · {daily.tasks.filter((t) => t.done).length}/{daily.tasks.length}
-          </h2>
-          <div className="sudoku-tasks">
-            {daily.tasks.map((t) => (
-              <div key={t.id} className={`sudoku-task${t.done ? " done" : ""}`}>
-                <span className="sudoku-task-check">{t.done ? "✓" : ""}</span>
-                <span className="sudoku-task-title">{t.title}</span>
-                <span className="sudoku-task-xp">+{t.xp} XP</span>
-              </div>
-            ))}
-          </div>
-          {daily.tasks.every((t) => t.done) ? (
-            <div className="sudoku-tasks-done">Все задания выполнены! +{daily.allDoneBonus} XP 🎉</div>
-          ) : (
-            <div className="sudoku-tasks-hint">Выполни все три — бонус +{daily.allDoneBonus} XP</div>
-          )}
-        </div>
-      )}
-
-      {achievements.length > 0 && (
-        <div className="menu-group">
-          <h2 className="h2">
-            Достижения · {achievements.filter((a) => a.unlocked).length}/{achievements.length}
-          </h2>
-          <div className="sudoku-ach-grid">
-            {achievements.map((a) => (
-              <div key={a.id} className={`sudoku-ach${a.unlocked ? " unlocked" : ""}`}>
-                <strong>{a.title}</strong>
-                <span>{a.desc}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="sudoku-board-shell">
         <SudokuBoard
@@ -325,8 +254,6 @@ export function SudokuScreen() {
           onSelect={handleCell}
         />
       </div>
-
-      <div className="sudoku-input-hint">{inputHint}</div>
 
       <SudokuNumberPad
         entries={entries}
@@ -349,13 +276,198 @@ export function SudokuScreen() {
         }}
       />
 
-      {isComplete && !victory && (
-        <div className="card sudoku-complete-inline">
-          <strong>Пазл решён</strong>
-          <span>Можно начать новую партию или daily challenge.</span>
+      {/* ===== Toasts ===== */}
+      {toasts.length > 0 && (
+        <div className="sudoku-toasts">
+          {toasts.map((t) => (
+            <div key={t.id} className="sudoku-toast">
+              <span className="sudoku-toast-icon">{t.icon}</span>
+              <span>{t.text}</span>
+            </div>
+          ))}
         </div>
       )}
 
+      {/* ===== Settings menu ===== */}
+      {menu === "settings" && (
+        <div className="modal-backdrop" onClick={() => setMenu(null)}>
+          <div className="modal sudoku-menu" onClick={(e) => e.stopPropagation()}>
+            <h3>Настройки</h3>
+            <div className="sudoku-menu-section">
+              <span className="sudoku-menu-label">Сложность</span>
+              <div className="segment sudoku-menu-grid">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d}
+                    className={`seg-item${puzzle.mode === "classic" && puzzle.difficulty === d ? " active" : ""}`}
+                    onClick={() => startClassic(d)}
+                  >
+                    {difficultyLabel(d)}
+                  </button>
+                ))}
+              </div>
+              <button
+                className={`btn btn-block${puzzle.mode === "daily" ? " btn-primary" : ""}`}
+                style={{ marginTop: 10 }}
+                onClick={startToday}
+              >
+                Задача дня
+              </button>
+            </div>
+            <div className="sudoku-menu-section">
+              <span className="sudoku-menu-label">Проверка ошибок</span>
+              <div className="segment">
+                <button
+                  className={`seg-item${checkMode === "instant" ? " active" : ""}`}
+                  onClick={() => setCheckMode("instant")}
+                >
+                  Сразу
+                </button>
+                <button
+                  className={`seg-item${checkMode === "manual" ? " active" : ""}`}
+                  onClick={() => setCheckMode("manual")}
+                >
+                  В конце
+                </button>
+              </div>
+              {checkMode === "manual" && (
+                <button className="btn btn-block" style={{ marginTop: 10 }} onClick={handleCheck}>
+                  Проверить сейчас
+                </button>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setMenu(null)}>
+                Готово
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Daily tasks menu ===== */}
+      {menu === "tasks" && (
+        <div className="modal-backdrop" onClick={() => setMenu(null)}>
+          <div className="modal sudoku-menu" onClick={(e) => e.stopPropagation()}>
+            <h3>Задания дня · {tasksDone}/{tasksTotal}</h3>
+            <div className="sudoku-tasks" style={{ marginTop: 12 }}>
+              {daily?.tasks.map((t) => (
+                <div key={t.id} className={`sudoku-task${t.done ? " done" : ""}`}>
+                  <span className="sudoku-task-check">{t.done ? "✓" : ""}</span>
+                  <span className="sudoku-task-title">{t.title}</span>
+                  <span className="sudoku-task-xp">+{t.xp} XP</span>
+                </div>
+              ))}
+            </div>
+            {daily && (daily.tasks.every((t) => t.done) ? (
+              <div className="sudoku-tasks-done">Все задания выполнены! +{daily.allDoneBonus} XP 🎉</div>
+            ) : (
+              <div className="sudoku-tasks-hint">Выполни все — бонус +{daily.allDoneBonus} XP</div>
+            ))}
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setMenu(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Achievements + progress menu ===== */}
+      {menu === "ach" && (
+        <div className="modal-backdrop" onClick={() => setMenu(null)}>
+          <div className="modal sudoku-menu" onClick={(e) => e.stopPropagation()}>
+            <h3>Прогресс</h3>
+            {profile && (
+              <>
+                <div className="sudoku-rank" style={{ marginTop: 12 }}>
+                  <div className="sudoku-rank-item">
+                    <span>Рейтинг</span>
+                    <strong>{profile.rating}</strong>
+                  </div>
+                  <div className="sudoku-rank-item">
+                    <span>Уровень</span>
+                    <strong>{profile.level}</strong>
+                  </div>
+                  <div className="sudoku-rank-item">
+                    <span>Решено</span>
+                    <strong>{profile.completed}</strong>
+                  </div>
+                </div>
+                <div className="sudoku-xpbar" style={{ marginTop: 12 }}>
+                  <div className="sudoku-xpbar-track">
+                    <div className="sudoku-xpbar-fill" style={{ width: `${profile.xp % 100}%` }} />
+                  </div>
+                  <div className="sudoku-xpbar-label">
+                    <span>Ур. {profile.level}</span>
+                    <span>{100 - (profile.xp % 100)} XP до {profile.level + 1} ур.</span>
+                  </div>
+                </div>
+                <div className="sudoku-streak" style={{ marginTop: 10 }}>
+                  <span className="sudoku-streak-flame">🔥</span>
+                  Серия {profile.dailyStreak}
+                  {profile.bestStreak > 0 && <em> · рекорд {profile.bestStreak}</em>}
+                </div>
+                <button
+                  className="btn btn-block"
+                  style={{ marginTop: 12 }}
+                  onClick={() => {
+                    fetchLeaderboard();
+                    setMenu("leaders");
+                  }}
+                >
+                  🏆 Лидеры судоку
+                </button>
+              </>
+            )}
+            <h3 style={{ marginTop: 18 }}>Достижения · {achUnlocked}/{achievements.length}</h3>
+            <div className="sudoku-ach-grid" style={{ marginTop: 12 }}>
+              {achievements.map((a) => (
+                <div key={a.id} className={`sudoku-ach${a.unlocked ? " unlocked" : ""}`}>
+                  <strong>{a.title}</strong>
+                  <span>{a.desc}</span>
+                </div>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setMenu(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Leaderboard ===== */}
+      {menu === "leaders" && (
+        <div className="modal-backdrop" onClick={() => setMenu("ach")}>
+          <div className="modal sudoku-menu" onClick={(e) => e.stopPropagation()}>
+            <h3>Лидеры судоку</h3>
+            <div className="card-grouped" style={{ marginTop: 12, textAlign: "left" }}>
+              {leaderboard.length === 0 ? (
+                <div className="row">
+                  <div className="row-title">Пока пусто</div>
+                </div>
+              ) : (
+                leaderboard.map((r, i) => (
+                  <div key={r.userId} className="row">
+                    <div style={{ width: 26, fontWeight: 800 }}>{i + 1}</div>
+                    <div className="row-title">{r.firstName}</div>
+                    <div className="row-value">{r.rating}</div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setMenu("ach")}>
+                Назад
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Victory ===== */}
       {victory && (
         <div className="sudoku-victory" role="dialog" aria-modal="true">
           <div className="sudoku-victory-card">
@@ -367,10 +479,6 @@ export function SudokuScreen() {
               {formatSudokuTime(victory.elapsedSeconds)} · ошибок {victory.mistakes} · подсказок{" "}
               {victory.hintsUsed}
             </p>
-            <div className="sudoku-victory-score">
-              <span>Серия дней</span>
-              <strong>{profile?.dailyStreak ?? stats.dailyStreak}</strong>
-            </div>
             {reward && (
               <div className="sudoku-reward">
                 {reward.leveledUp && (
@@ -383,11 +491,6 @@ export function SudokuScreen() {
                   {reward.allDoneBonus > 0 && <span>Все задания +{reward.allDoneBonus}</span>}
                   {reward.streakBonus > 0 && <span>Серия +{reward.streakBonus}</span>}
                 </div>
-                {reward.newlyUnlocked.length > 0 && (
-                  <div className="sudoku-reward-unlocked">
-                    🏅 {reward.newlyUnlocked.map((a) => a.title).join(", ")}
-                  </div>
-                )}
               </div>
             )}
             <div className="sudoku-victory-actions">
@@ -408,33 +511,6 @@ export function SudokuScreen() {
                 }}
               >
                 Остаться
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showLeaders && (
-        <div className="modal-backdrop" onClick={() => setShowLeaders(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Лидеры судоку</h3>
-            <div className="card-grouped" style={{ marginTop: 12, textAlign: "left" }}>
-              {leaderboard.length === 0 ? (
-                <div className="row">
-                  <div className="row-title">Пока пусто</div>
-                </div>
-              ) : (
-                leaderboard.map((r, i) => (
-                  <div key={r.userId} className="row">
-                    <div style={{ width: 26, fontWeight: 800 }}>{i + 1}</div>
-                    <div className="row-title">{r.firstName}</div>
-                    <div className="row-value">{r.rating}</div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-primary" onClick={() => setShowLeaders(false)}>
-                Закрыть
               </button>
             </div>
           </div>

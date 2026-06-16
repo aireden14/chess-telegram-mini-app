@@ -54,6 +54,7 @@ export interface SudokuReward {
   xpToNext: number;
   allDailyDone: boolean;
   newlyUnlocked: Array<{ id: string; title: string; desc: string }>;
+  newlyCompletedTasks: Array<{ id: string; title: string; xp: number }>;
 }
 
 export interface CompletePayload {
@@ -125,6 +126,7 @@ export const useSudokuProfile = create<State>((set, get) => ({
           xpToNext: g.xpToNext ?? 0,
           allDailyDone: !!g.allDailyDone,
           newlyUnlocked: r.data.newlyUnlocked ?? [],
+          newlyCompletedTasks: r.data.newlyCompletedTasks ?? [],
         },
       });
       get().fetchAll();
