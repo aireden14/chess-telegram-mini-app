@@ -216,12 +216,14 @@ sudokuRouter.post(
     const rewardedSet = new Set(rewardRec.rewarded);
     const todaysTasks = dailyTasksForDate(dateKey);
     let taskBonus = 0;
+    const newlyCompletedTasks: Array<{ id: string; title: string; xp: number }> = [];
     for (const t of todaysTasks) {
       if (t.check(result)) {
         todays[t.id] = true;
         if (!rewardedSet.has(t.id)) {
           rewardedSet.add(t.id);
           taskBonus += TASK_XP;
+          newlyCompletedTasks.push({ id: t.id, title: t.title, xp: TASK_XP });
         }
       }
     }
@@ -308,6 +310,7 @@ sudokuRouter.post(
         xpToNext: XP_PER_LEVEL - (xp % XP_PER_LEVEL),
         allDailyDone: allDone,
       },
+      newlyCompletedTasks,
       newlyUnlocked: newlyUnlocked
         .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
         .filter(Boolean),
