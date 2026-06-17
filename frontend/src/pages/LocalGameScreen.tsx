@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
@@ -9,16 +9,37 @@ import { usePieceStyleStore } from "../store/pieceStyle";
 import { triggerHaptic } from "../hooks/useTelegram";
 
 const START_FEN = new Chess().fen();
+const SAVE_KEY = "chess-local-game-v1";
+
+function loadSaved(): { fen: string; autoFlip: boolean } {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.fen === "string") {
+        new Chess(parsed.fen); // throws if invalid
+        return { fen: parsed.fen, autoFlip: parsed.autoFlip !== false };
+      }
+    }
+  } catch {}
+  return { fen: START_FEN, autoFlip: true };
+}
 
 export function LocalGameScreen() {
   const nav = useNavigate();
   const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
   const customPieces = useMemo(() => makePiecesForStyle(pieceStyle), [pieceStyle]);
 
-  const [fen, setFen] = useState(START_FEN);
+  const [fen, setFen] = useState(() => loadSaved().fen);
   const [selected, setSelected] = useState<string | null>(null);
   const [legal, setLegal] = useState<Record<string, any>>({});
-  const [autoFlip, setAutoFlip] = useState(true);
+  const [autoFlip, setAutoFlip] = useState(() => loadSaved().autoFlip);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ fen, autoFlip }));
+    } catch {}
+  }, [fen, autoFlip]);
 
   const chess = useMemo(() => new Chess(fen), [fen]);
   const turn = chess.turn(); // "w" | "b"
