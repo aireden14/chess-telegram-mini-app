@@ -15,6 +15,8 @@ import { LeaderboardScreen } from "./pages/LeaderboardScreen";
 import { PausedScreen } from "./pages/PausedScreen";
 import { SudokuScreen } from "./features/sudoku/SudokuScreen";
 import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorScreen";
+import { CatanScreen } from "./features/catan/CatanScreen";
+import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { useAuthStore } from "./store/auth";
 import { useThemeStore } from "./store/theme";
 import { AppleDefinitions } from "./components/AppleDefinitions";
@@ -47,6 +49,8 @@ export function App() {
         <Route path="/paused" element={<Protected><PausedScreen /></Protected>} />
         <Route path="/sudoku" element={<Protected><SudokuScreen /></Protected>} />
         <Route path="/force-deflector" element={<Protected><ForceDeflectorScreen /></Protected>} />
+        <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
+        <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>
     </BrowserRouter>

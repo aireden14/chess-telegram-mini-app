@@ -16,7 +16,9 @@ type GameEntry = {
 
 const GAMES: GameEntry[] = [
   { key: "chess", icon: "♞", title: "Шахматы", sub: "Мультиплеер · бот · рейтинг", to: "/chess" },
-  { key: "sudoku", icon: "▦", title: "Судоку", sub: "Ежедневная · заметки · подсказки", to: "/sudoku" },
+  { key: "checkers", icon: "⛀", title: "Шашки", sub: "Вдвоём на одном устройстве", to: "/checkers" },
+  { key: "catan", icon: "⬡", title: "Катан", sub: "Колонизация · ресурсы · боты", to: "/catan" },
+  { key: "sudoku", icon: "▦", title: "Судоку", sub: "Рейтинг · задания · достижения", to: "/sudoku" },
   { key: "force", icon: "✦", title: "Отражатель", sub: "Аркада · клинок · апгрейды", to: "/force-deflector" },
 ];
 
@@ -61,7 +63,7 @@ export function GamePickerScreen() {
 
       <header className="picker-hero">
         <h1 className="h1">Выбери игру</h1>
-        <p className="muted">Три режима — одно приложение</p>
+        <p className="muted">Все игры — в одном приложении</p>
         <button className="whats-new-pill" onClick={() => open("/whats-new")}>
           ✨ Что нового
           {hasUnseenWhatsNew() && <span className="whats-new-dot" aria-hidden />}
