@@ -25,7 +25,11 @@ export function LoadingScreen() {
       connect(token);
       const start = getStartParam();
       if (start) {
-        nav(`/join/${start}`, { replace: true });
+        if (start.startsWith("checkers_")) {
+          nav(`/checkers?join=${encodeURIComponent(start.replace(/^checkers_/, ""))}`, { replace: true });
+        } else {
+          nav(`/join/${start}`, { replace: true });
+        }
       } else {
         nav("/", { replace: true });
       }

@@ -14,6 +14,14 @@ export interface Capture {
   captured: number;
 }
 
+export interface Move {
+  from: number;
+  to: number;
+  captured: number | null;
+}
+
+export type BotLevel = 1 | 2 | 3 | 4 | 5;
+
 const SIZE = 8;
 const DIRS: Array<[number, number]> = [
   [-1, -1],
@@ -138,6 +146,21 @@ export function legalForPiece(b: Board, i: number): { captures: Capture[]; moves
   return { captures: caps, moves: pieceSimpleMoves(b, i) };
 }
 
+export function allLegalMoves(b: Board, color: Color): Move[] {
+  const out: Move[] = [];
+  const mustCapture = hasAnyCapture(b, color);
+  for (let i = 0; i < 64; i += 1) {
+    if (b[i]?.color !== color) continue;
+    const captures = pieceCaptures(b, i);
+    if (mustCapture) {
+      captures.forEach((capture) => out.push({ from: i, to: capture.to, captured: capture.captured }));
+    } else {
+      pieceSimpleMoves(b, i).forEach((to) => out.push({ from: i, to, captured: null }));
+    }
+  }
+  return out;
+}
+
 function promote(b: Board, i: number) {
   const p = b[i];
   if (!p || p.king) return;
@@ -161,4 +184,94 @@ export function applyMove(
   let mustContinue = false;
   if (captured !== null && pieceCaptures(nb, to).length > 0) mustContinue = true;
   return { board: nb, mustContinue, end: to };
+}
+
+const other = (color: Color): Color => (color === "w" ? "b" : "w");
+
+function randomItem<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)]!;
+}
+
+function reachesKingRow(b: Board, move: Move): boolean {
+  const piece = b[move.from];
+  if (!piece || piece.king) return false;
+  const [r] = rc(move.to);
+  return (piece.color === "w" && r === 0) || (piece.color === "b" && r === 7);
+}
+
+function materialScore(b: Board, color: Color): number {
+  let score = 0;
+  for (let i = 0; i < 64; i += 1) {
+    const p = b[i];
+    if (!p) continue;
+    const [r, c] = rc(i);
+    const center = 3.5 - Math.max(Math.abs(3.5 - r), Math.abs(3.5 - c));
+    const advance = p.color === "w" ? 7 - r : r;
+    const value = (p.king ? 280 : 100 + advance * 6) + center * 4;
+    score += p.color === color ? value : -value;
+  }
+  score += allLegalMoves(b, color).length * 3;
+  score -= allLegalMoves(b, other(color)).length * 3;
+  return score;
+}
+
+function moveHeuristic(b: Board, color: Color, move: Move): number {
+  const before = b[move.from];
+  const applied = applyMove(b, move.from, move.to, move.captured);
+  let score = materialScore(applied.board, color);
+  if (move.captured !== null) score += 140;
+  if (applied.mustContinue) score += 90;
+  if (reachesKingRow(b, move)) score += 120;
+  if (before?.king) score += 12;
+  return score;
+}
+
+function minimax(b: Board, color: Color, root: Color, depth: number): number {
+  if (depth <= 0 || !hasAnyMove(b, color)) return materialScore(b, root);
+  const moves = allLegalMoves(b, color);
+  if (moves.length === 0) return color === root ? -99999 : 99999;
+  const maximizing = color === root;
+  let best = maximizing ? -Infinity : Infinity;
+  for (const move of moves) {
+    const applied = applyMove(b, move.from, move.to, move.captured);
+    const nextColor = applied.mustContinue ? color : other(color);
+    const score = minimax(applied.board, nextColor, root, depth - 1);
+    best = maximizing ? Math.max(best, score) : Math.min(best, score);
+  }
+  return best;
+}
+
+export function chooseBotMove(b: Board, color: Color, level: BotLevel): Move | null {
+  const moves = allLegalMoves(b, color);
+  if (moves.length === 0) return null;
+  if (level === 1) return randomItem(moves);
+
+  const ranked = moves
+    .map((move) => ({ move, score: moveHeuristic(b, color, move) }))
+    .sort((a, z) => z.score - a.score);
+
+  if (level === 2) {
+    const pool = ranked.slice(0, Math.min(3, ranked.length));
+    return randomItem(pool).move;
+  }
+
+  if (level === 3) return ranked[0]!.move;
+
+  const depth = level === 4 ? 2 : 3;
+  const searched = moves
+    .map((move) => {
+      const applied = applyMove(b, move.from, move.to, move.captured);
+      const nextColor = applied.mustContinue ? color : other(color);
+      return {
+        move,
+        score: minimax(applied.board, nextColor, color, depth),
+      };
+    })
+    .sort((a, z) => z.score - a.score);
+
+  if (level === 4) {
+    const pool = searched.slice(0, Math.min(2, searched.length));
+    return randomItem(pool).move;
+  }
+  return searched[0]!.move;
 }

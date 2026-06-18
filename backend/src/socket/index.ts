@@ -12,6 +12,7 @@ import {
 } from "../services/gameService";
 import { safeJson } from "../utils/json";
 import { parseSettings } from "../utils/settings";
+import { registerCheckersSocket } from "./checkers";
 
 let io: IOServer | null = null;
 export function getIO() {
@@ -274,6 +275,8 @@ export function initSocket(httpServer: HttpServer, _frontendUrl: string) {
       }
     });
   });
+
+  registerCheckersSocket(io);
 
   return io;
 }

@@ -16,7 +16,7 @@ type GameEntry = {
 
 const GAMES: GameEntry[] = [
   { key: "chess", icon: "♞", title: "Шахматы", sub: "Мультиплеер · бот · рейтинг", to: "/chess" },
-  { key: "checkers", icon: "⛀", title: "Шашки", sub: "Вдвоём на одном устройстве", to: "/checkers" },
+  { key: "checkers", icon: "⛀", title: "Шашки", sub: "Вдвоём · бот · онлайн", to: "/checkers" },
   { key: "catan", icon: "⬡", title: "Катан", sub: "Колонизация · ресурсы · боты", to: "/catan" },
   { key: "sudoku", icon: "▦", title: "Судоку", sub: "Рейтинг · задания · достижения", to: "/sudoku" },
   { key: "force", icon: "✦", title: "Отражатель", sub: "Аркада · клинок · апгрейды", to: "/force-deflector" },
