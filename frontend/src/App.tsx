@@ -19,6 +19,7 @@ import { CatanScreen } from "./features/catan/CatanScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { useAuthStore } from "./store/auth";
 import { useThemeStore } from "./store/theme";
+import { useVisualModeStore } from "./store/visualMode";
 import { AppleDefinitions } from "./components/AppleDefinitions";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ function Protected({ children }: { children: React.ReactNode }) {
 
 export function App() {
   useThemeStore(); // trigger hydration/initialization
+  useVisualModeStore(); // trigger hydration/initialization
   return (
     <BrowserRouter>
       <div className="background-blobs" />

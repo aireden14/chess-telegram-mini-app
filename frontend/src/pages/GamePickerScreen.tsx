@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "../store/auth";
 import { useThemeStore } from "../store/theme";
+import { useVisualModeStore } from "../store/visualMode";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
+import { GameHubLogo, GamePickerIcon, type GameIconKind } from "../components/GameHubLogo";
 
 type GameEntry = {
-  key: string;
+  key: GameIconKind;
   icon: string;
   title: string;
   sub: string;
@@ -26,7 +28,9 @@ export function GamePickerScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
+  const { mode: visualMode, toggleMode } = useVisualModeStore();
   const reduce = useReducedMotion();
+  const beta = visualMode === "beta";
 
   const open = (to: string) => {
     triggerHaptic("light");
@@ -49,21 +53,38 @@ export function GamePickerScreen() {
             <em>Рейтинг {user?.rating ?? "—"}</em>
           </span>
         </button>
-        <button
-          className="theme-toggle"
-          onClick={() => {
-            triggerHaptic("light");
-            setTheme(theme === "dark" ? "light" : "dark");
-          }}
-          aria-label="Переключить тему"
-        >
-          {theme === "dark" ? "☾" : "☀"}
-        </button>
+        <div className="picker-controls">
+          <button
+            className={`beta-toggle${beta ? " active" : ""}`}
+            onClick={() => {
+              triggerHaptic("light");
+              toggleMode();
+            }}
+            aria-pressed={beta}
+            aria-label="Переключить V2 Beta стиль"
+          >
+            <span>V2</span>
+            <strong>Beta</strong>
+          </button>
+          <button
+            className="theme-toggle"
+            onClick={() => {
+              triggerHaptic("light");
+              setTheme(theme === "dark" ? "light" : "dark");
+            }}
+            aria-label="Переключить тему"
+          >
+            {theme === "dark" ? "☾" : "☀"}
+          </button>
+        </div>
       </div>
 
       <header className="picker-hero">
+        <GameHubLogo />
         <h1 className="h1">Выбери игру</h1>
-        <p className="muted">Все игры — в одном приложении</p>
+        <p className="muted">
+          {beta ? "V2 Beta: синий стиль, новые иконки игр" : "Все игры — в одном приложении"}
+        </p>
         <button className="whats-new-pill" onClick={() => open("/whats-new")}>
           ✨ Что нового
           {hasUnseenWhatsNew() && <span className="whats-new-dot" aria-hidden />}
@@ -81,7 +102,9 @@ export function GamePickerScreen() {
             transition={{ delay: 0.05 + i * 0.07, duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
             whileTap={reduce ? undefined : { scale: 0.98 }}
           >
-            <span className="picker-game-icon">{g.icon}</span>
+            <span className="picker-game-icon">
+              <GamePickerIcon type={g.key} fallback={g.icon} />
+            </span>
             <span className="picker-game-copy">
               <strong>{g.title}</strong>
               <em>{g.sub}</em>

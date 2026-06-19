@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6",
+    date: "2026-06-19",
+    title: "V2 Beta стиль",
+    items: [
+      "Новый синий логотип игрового хаба без PDF-текста",
+      "Переключатель V2 Beta на главном экране",
+      "Перерисованные иконки шахмат, шашек и судоку",
+    ],
+  },
+  {
     version: "1.5",
     date: "2026-06-19",
     title: "Шашки: бот и онлайн",
