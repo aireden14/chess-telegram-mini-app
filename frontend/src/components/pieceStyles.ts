@@ -1,9 +1,6 @@
-import { makeApplePieces } from "./ApplePieces";
-import { makeClassicPieces } from "./ClassicPieces";
-import { makeEmojiPieces } from "./EmojiPieces";
-import { makePngPieces } from "./PngPieces";
+import { makeEmojiPngPieces, makePngPieces } from "./PngPieces";
 
-export type PieceStyleType = "apple" | "emoji" | "classic" | "v2png";
+export type PieceStyleType = "v2png" | "emojiPng";
 
 export const PIECE_STYLE_OPTIONS: {
   label: string;
@@ -20,35 +17,20 @@ export const PIECE_STYLE_OPTIONS: {
     description: "Синие PNG-фигуры",
   },
   {
-    label: "Liquid",
-    value: "apple",
-    icon: "◈",
-    preview: "♔ ♕ ♖",
-    description: "Pearl & gold",
-  },
-  {
-    label: "Unicode",
-    value: "classic",
-    icon: "♔",
-    preview: "♔ ♕ ♖",
-    description: "Классические символы",
-  },
-  {
-    label: "Playful",
-    value: "emoji",
-    icon: "♟",
+    label: "Emoji PNG",
+    value: "emojiPng",
+    icon: "●",
     preview: "♚ ♛ ♜",
-    description: "Фан-режим, не основной стиль",
+    description: "Цветные PNG-фигуры",
   },
 ];
 
 export function normalizePieceStyle(value: unknown): PieceStyleType {
-  return value === "emoji" || value === "classic" || value === "apple" || value === "v2png" ? value : "v2png";
+  return value === "emojiPng" || value === "v2png" ? value : "v2png";
 }
 
 export function makePiecesForStyle(style: PieceStyleType) {
+  if (style === "emojiPng") return makeEmojiPngPieces();
   if (style === "v2png") return makePngPieces();
-  if (style === "classic") return makeClassicPieces();
-  if (style === "emoji") return makeEmojiPieces();
-  return makeApplePieces();
+  return makePngPieces();
 }

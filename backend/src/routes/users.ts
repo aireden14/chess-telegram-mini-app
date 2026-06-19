@@ -5,7 +5,7 @@ import { safeJson } from "../utils/json";
 
 export const usersRouter = Router();
 
-const PIECE_STYLES = new Set(["apple", "emoji", "classic", "v2png"]);
+const PIECE_STYLES = new Set(["v2png", "emojiPng"]);
 
 usersRouter.get("/me", authMiddleware, async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
