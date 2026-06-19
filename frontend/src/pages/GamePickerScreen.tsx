@@ -1,11 +1,11 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { api } from "../api/client";
 import { useAuthStore } from "../store/auth";
 import { usePieceStyleStore } from "../store/pieceStyle";
 import { useThemeStore } from "../store/theme";
 import { useVisualModeStore } from "../store/visualMode";
+import { PieceStylePicker } from "../components/PieceStylePicker";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
 import { GamePickerIcon, type GameIconKind } from "../components/GameHubLogo";
@@ -29,28 +29,17 @@ const GAMES: GameEntry[] = [
 export function GamePickerScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const setUser = useAuthStore((s) => s.setUser);
   const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
-  const setPieceStyle = usePieceStyleStore((s) => s.setPieceStyle);
   const { theme, setTheme } = useThemeStore();
   const { mode: visualMode, toggleMode } = useVisualModeStore();
   const reduce = useReducedMotion();
   const beta = visualMode === "beta";
+  const classicBlack = pieceStyle === "classicBlack";
 
   const open = (to: string) => {
     triggerHaptic("light");
     nav(to);
   };
-
-  const enableBeta = () => {
-    setPieceStyle("v2png");
-    if (user) setUser({ ...user, pieceStyle: "v2png" });
-    api.patch("/users/me/settings", { pieceStyle: "v2png" }).catch(() => {});
-  };
-
-  useEffect(() => {
-    if (beta && pieceStyle !== "v2png") enableBeta();
-  }, [beta, pieceStyle]);
 
   return (
     <div className="app-screen picker-screen">
@@ -73,7 +62,6 @@ export function GamePickerScreen() {
             className={`beta-toggle${beta ? " active" : ""}`}
             onClick={() => {
               triggerHaptic("light");
-              if (!beta) enableBeta();
               toggleMode();
             }}
             aria-pressed={beta}
@@ -98,13 +86,21 @@ export function GamePickerScreen() {
       <header className="picker-hero">
         <h1 className="h1">Выбери игру</h1>
         <p className="muted">
-          {beta ? "V2 Beta: синий стиль, новые иконки игр" : "Все игры — в одном приложении"}
+          {classicBlack
+            ? "Classic black: чёрно-белый интерфейс и доска"
+            : beta
+              ? "V2 Beta: синий стиль, новые иконки игр"
+              : "Все игры — в одном приложении"}
         </p>
         <button className="whats-new-pill" onClick={() => open("/whats-new")}>
           ✨ Что нового
           {hasUnseenWhatsNew() && <span className="whats-new-dot" aria-hidden />}
         </button>
       </header>
+
+      <section className="picker-settings-panel" aria-label="Настройки оформления">
+        <PieceStylePicker embedded />
+      </section>
 
       <div className="picker-games">
         {GAMES.map((g, i) => (

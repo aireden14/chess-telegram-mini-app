@@ -18,6 +18,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "PNG-фигуры шахмат с контрастной обводкой для светлых и тёмных клеток",
       "Старые стили шахмат скрыты; доступны только Blue glass, Emoji chess и Classic black",
       "Третий стиль Classic black с чёрно-белыми PNG-фигурами",
+      "Classic black включает чёрно-белый интерфейс и чёрно-белую доску; Emoji chess теперь рендерится настоящими emoji",
     ],
   },
   {

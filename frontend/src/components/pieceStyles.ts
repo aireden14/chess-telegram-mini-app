@@ -19,15 +19,15 @@ export const PIECE_STYLE_OPTIONS: {
   {
     label: "Emoji chess",
     value: "emojiPng",
-    icon: "●",
-    preview: "♚ ♛ ♜",
-    description: "Цветные PNG-фигуры",
+    icon: "👑",
+    preview: "👑 🏰 🐴",
+    description: "Настоящие emoji PNG",
   },
   {
     label: "Classic black",
     value: "classicBlack",
     icon: "◐",
-    preview: "♚ ♛ ♜",
+    preview: "♔ ♕ ♖",
     description: "Чёрно-белая классика",
   },
 ];

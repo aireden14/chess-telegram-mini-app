@@ -14,6 +14,7 @@ FONT_PATHS = [
     Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
     Path("/System/Library/Fonts/Symbol.ttf"),
 ]
+EMOJI_FONT_PATH = Path("/System/Library/Fonts/Apple Color Emoji.ttc")
 
 PIECES = {
     "K": "♚",
@@ -22,6 +23,15 @@ PIECES = {
     "B": "♝",
     "N": "♞",
     "P": "♟",
+}
+
+EMOJI_PIECES = {
+    "K": "👑",
+    "Q": "👸",
+    "R": "🏰",
+    "B": "🐘",
+    "N": "🐴",
+    "P": {"w": "🟡", "b": "🟣"},
 }
 
 PIECE_SETS = {
@@ -89,6 +99,12 @@ def get_font(size: int) -> ImageFont.FreeTypeFont:
     raise RuntimeError("No chess-capable font found")
 
 
+def get_emoji_font() -> ImageFont.FreeTypeFont:
+    if not EMOJI_FONT_PATH.exists():
+        raise RuntimeError("Apple Color Emoji font not found")
+    return ImageFont.truetype(str(EMOJI_FONT_PATH), 160)
+
+
 def text_mask(symbol: str, font: ImageFont.FreeTypeFont, stroke_width: int = 0) -> Image.Image:
     mask = Image.new("L", (SIZE, SIZE), 0)
     draw = ImageDraw.Draw(mask)
@@ -150,6 +166,55 @@ def render_piece(symbol: str, color: str, palette: dict[str, tuple[int, ...] | i
     return img
 
 
+def render_emoji_piece(symbol: str, color: str) -> Image.Image:
+    font = get_emoji_font()
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+
+    badge_top = (255, 238, 120) if color == "w" else (204, 130, 255)
+    badge_bottom = (244, 145, 24) if color == "w" else (50, 20, 122)
+    outer = (104, 44, 0, 255) if color == "w" else (238, 250, 255, 255)
+    inner = (255, 250, 204, 255) if color == "w" else (91, 232, 255, 255)
+
+    shadow = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(shadow)
+    shadow_draw.ellipse((74, 86, 438, 450), fill=(0, 0, 0, 110))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(18))
+    img.alpha_composite(shadow, (0, 14))
+
+    outer_layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    outer_draw = ImageDraw.Draw(outer_layer)
+    outer_draw.ellipse((54, 54, 458, 458), fill=outer)
+    img.alpha_composite(outer_layer)
+
+    ring_layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    ring_draw = ImageDraw.Draw(ring_layer)
+    ring_draw.ellipse((78, 78, 434, 434), fill=inner)
+    img.alpha_composite(ring_layer)
+
+    badge = vertical_gradient(badge_top, badge_bottom)
+    badge_mask = Image.new("L", (SIZE, SIZE), 0)
+    ImageDraw.Draw(badge_mask).ellipse((96, 96, 416, 416), fill=255)
+    img.alpha_composite(Image.composite(badge, Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0)), badge_mask))
+
+    shine = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    shine_draw = ImageDraw.Draw(shine)
+    shine_draw.ellipse((132, 106, 306, 214), fill=(255, 255, 255, 64))
+    img.alpha_composite(shine.filter(ImageFilter.GaussianBlur(4)))
+
+    emoji_layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(emoji_layer)
+    bbox = draw.textbbox((0, 0), symbol, font=font, embedded_color=True)
+    width = bbox[2] - bbox[0]
+    height = bbox[3] - bbox[1]
+    x = (SIZE - width) / 2 - bbox[0]
+    y = (SIZE - height) / 2 - bbox[1] - 10
+    draw.text((x, y), symbol, font=font, embedded_color=True)
+    emoji_layer = emoji_layer.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+    img.alpha_composite(emoji_layer)
+
+    return img
+
+
 def main() -> None:
     for set_name, palettes in PIECE_SETS.items():
         out_dir = OUT_ROOT / set_name
@@ -157,6 +222,13 @@ def main() -> None:
         for color in ("w", "b"):
             for name, symbol in PIECES.items():
                 render_piece(symbol, color, palettes[color]).save(out_dir / f"{color}{name}.png")
+
+    emoji_dir = OUT_ROOT / "emoji-png"
+    emoji_dir.mkdir(parents=True, exist_ok=True)
+    for color in ("w", "b"):
+        for name, symbol in EMOJI_PIECES.items():
+            emoji = symbol[color] if isinstance(symbol, dict) else symbol
+            render_emoji_piece(emoji, color).save(emoji_dir / f"{color}{name}.png")
 
 
 if __name__ == "__main__":
