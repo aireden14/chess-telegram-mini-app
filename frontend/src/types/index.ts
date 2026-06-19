@@ -49,5 +49,5 @@ export interface MeUser {
   losses: number;
   draws: number;
   totalGames: number;
-  pieceStyle: "v2png" | "emojiPng";
+  pieceStyle: "v2png" | "emojiPng" | "classicBlack";
 }

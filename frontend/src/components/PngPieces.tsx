@@ -2,7 +2,7 @@ import React from "react";
 
 const PIECE_KEYS = ["P", "N", "B", "R", "Q", "K"] as const;
 const COLORS = ["w", "b"] as const;
-type PngPieceSet = "v2-png" | "emoji-png";
+type PngPieceSet = "v2-png" | "emoji-png" | "classic-black";
 
 function PngPiece({ pieceKey, pieceSet, squareWidth }: { pieceKey: string; pieceSet: PngPieceSet; squareWidth: number }) {
   return (
@@ -40,4 +40,8 @@ export function makePngPieces() {
 
 export function makeEmojiPngPieces() {
   return makePieces("emoji-png");
+}
+
+export function makeClassicBlackPieces() {
+  return makePieces("classic-black");
 }

@@ -764,6 +764,18 @@ body {
     drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
 }
 
+.png-piece-set--classic-black.png-piece--w {
+  filter:
+    drop-shadow(0 2px 0 rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 5px rgba(0, 0, 0, 0.18));
+}
+
+.png-piece-set--classic-black.png-piece--b {
+  filter:
+    drop-shadow(0 2px 0 rgba(255, 255, 255, 0.34))
+    drop-shadow(0 0 6px rgba(255, 255, 255, 0.22));
+}
+
 /* Buttons */
 .btn {
   min-height: 56px;
