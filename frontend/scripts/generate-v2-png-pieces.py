@@ -31,7 +31,7 @@ EMOJI_PIECES = {
     "R": "🏰",
     "B": "🐘",
     "N": "🐴",
-    "P": {"w": "🟡", "b": "🟣"},
+    "P": {"w": "♟️", "b": "♟️"},
 }
 
 PIECE_SETS = {
@@ -169,9 +169,14 @@ def render_piece(symbol: str, color: str, palette: dict[str, tuple[int, ...] | i
 def render_emoji_piece(symbol: str, color: str) -> Image.Image:
     font = get_emoji_font()
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    is_pawn = symbol.startswith("♟")
 
-    badge_top = (255, 238, 120) if color == "w" else (204, 130, 255)
-    badge_bottom = (244, 145, 24) if color == "w" else (50, 20, 122)
+    if is_pawn and color == "b":
+        badge_top = (155, 241, 255)
+        badge_bottom = (83, 140, 255)
+    else:
+        badge_top = (255, 238, 120) if color == "w" else (204, 130, 255)
+        badge_bottom = (244, 145, 24) if color == "w" else (50, 20, 122)
     outer = (104, 44, 0, 255) if color == "w" else (238, 250, 255, 255)
     inner = (255, 250, 204, 255) if color == "w" else (91, 232, 255, 255)
 
@@ -200,6 +205,12 @@ def render_emoji_piece(symbol: str, color: str) -> Image.Image:
     shine_draw = ImageDraw.Draw(shine)
     shine_draw.ellipse((132, 106, 306, 214), fill=(255, 255, 255, 64))
     img.alpha_composite(shine.filter(ImageFilter.GaussianBlur(4)))
+
+    if is_pawn:
+        pawn_halo = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+        pawn_halo_draw = ImageDraw.Draw(pawn_halo)
+        pawn_halo_draw.ellipse((132, 132, 380, 388), fill=(255, 255, 255, 112))
+        img.alpha_composite(pawn_halo.filter(ImageFilter.GaussianBlur(6)))
 
     emoji_layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(emoji_layer)

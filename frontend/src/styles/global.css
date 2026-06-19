@@ -2257,7 +2257,6 @@ body {
 [data-piece-style="classicBlack"] .app-screen {
   background: var(--apple-bg);
   background-attachment: fixed;
-  filter: grayscale(1);
 }
 
 [data-piece-style="classicBlack"] .background-blobs::before {
@@ -2346,6 +2345,158 @@ body {
 [data-piece-style="classicBlack"] .sudoku-task.done .sudoku-task-check {
   background: #D8D8D8;
   color: #050505;
+}
+
+[data-piece-style="classicBlack"] .sudoku-screen {
+  --sudoku-ink: #F7F7F7;
+  --sudoku-muted: #A8A8A8;
+  --sudoku-paper: #ECECEC;
+  --sudoku-panel: #151515;
+  --sudoku-panel-2: #222222;
+  --sudoku-line: rgba(255, 255, 255, 0.34);
+  --sudoku-heavy-line: rgba(255, 255, 255, 0.68);
+}
+
+[data-piece-style="classicBlack"] .sudoku-toolbar,
+[data-piece-style="classicBlack"] .sudoku-stat-grid,
+[data-piece-style="classicBlack"] .sudoku-pad {
+  color: var(--sudoku-ink);
+}
+
+[data-piece-style="classicBlack"] .sudoku-iconbtn,
+[data-piece-style="classicBlack"] .sudoku-stat,
+[data-piece-style="classicBlack"] .sudoku-number,
+[data-piece-style="classicBlack"] .sudoku-tool,
+[data-piece-style="classicBlack"] .sudoku-rank-item,
+[data-piece-style="classicBlack"] .sudoku-task,
+[data-piece-style="classicBlack"] .sudoku-ach,
+[data-piece-style="classicBlack"] .sudoku-toast,
+[data-piece-style="classicBlack"] .sudoku-menu {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.045));
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--sudoku-ink);
+}
+
+[data-piece-style="classicBlack"] .sudoku-board-shell {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05)),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.12), transparent 44%);
+  border-color: var(--sudoku-line);
+  box-shadow:
+    0 46px 96px -36px rgba(0, 0, 0, 0.86),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+[data-piece-style="classicBlack"] .sudoku-board {
+  gap: 2px;
+  background: #050505;
+  border: 2px solid var(--sudoku-heavy-line);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell {
+  --sudoku-block-right: transparent;
+  --sudoku-block-bottom: transparent;
+  background: var(--sudoku-panel);
+  color: var(--sudoku-ink);
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    inset -3px 0 0 var(--sudoku-block-right),
+    inset 0 -3px 0 var(--sudoku-block-bottom);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell:nth-child(3n):not(:nth-child(9n)) {
+  --sudoku-block-right: var(--sudoku-heavy-line);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell:nth-child(n + 19):nth-child(-n + 27),
+[data-piece-style="classicBlack"] .sudoku-cell:nth-child(n + 46):nth-child(-n + 54) {
+  --sudoku-block-bottom: var(--sudoku-heavy-line);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.given {
+  background: var(--sudoku-paper);
+  color: #050505;
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.entered {
+  color: #FFFFFF;
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.peer {
+  background: var(--sudoku-panel-2);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.same-value {
+  background: #343434;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset -3px 0 0 var(--sudoku-block-right),
+    inset 0 -3px 0 var(--sudoku-block-bottom);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.number-target::after {
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.selected {
+  background: linear-gradient(135deg, #FFFFFF, #CFCFCF);
+  color: #050505;
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.28);
+}
+
+[data-piece-style="classicBlack"] .sudoku-cell.error {
+  color: #FFFFFF;
+  background: #050505;
+  box-shadow:
+    inset 0 0 0 2px #FFFFFF,
+    inset -3px 0 0 var(--sudoku-block-right),
+    inset 0 -3px 0 var(--sudoku-block-bottom);
+}
+
+[data-piece-style="classicBlack"] .sudoku-notes,
+[data-piece-style="classicBlack"] .sudoku-number span,
+[data-piece-style="classicBlack"] .sudoku-toolbar-mode,
+[data-piece-style="classicBlack"] .sudoku-stat span,
+[data-piece-style="classicBlack"] .sudoku-menu-label,
+[data-piece-style="classicBlack"] .sudoku-xpbar-label {
+  color: var(--sudoku-muted);
+}
+
+[data-piece-style="classicBlack"] .sudoku-number.active,
+[data-piece-style="classicBlack"] .sudoku-tool.active,
+[data-piece-style="classicBlack"] .sudoku-tool.accent,
+[data-piece-style="classicBlack"] .sudoku-iconbtn-badge,
+[data-piece-style="classicBlack"] .sudoku-xpbar-fill,
+[data-piece-style="classicBlack"] .sudoku-ach.unlocked {
+  background: linear-gradient(135deg, #FFFFFF, #CFCFCF);
+  color: #050505;
+  border-color: transparent;
+}
+
+[data-piece-style="classicBlack"] .sudoku-number.active span {
+  color: rgba(0, 0, 0, 0.58);
+}
+
+[data-piece-style="classicBlack"] .sudoku-xpbar-track {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+[data-piece-style="classicBlack"] .sudoku-task.done,
+[data-piece-style="classicBlack"] .sudoku-tasks-done,
+[data-piece-style="classicBlack"] .sudoku-task.done .sudoku-task-xp {
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.68);
+}
+
+[data-piece-style="classicBlack"] .sudoku-reward-points,
+[data-piece-style="classicBlack"] .sudoku-reward-levelup,
+[data-piece-style="classicBlack"] .sudoku-task-xp {
+  color: #FFFFFF;
 }
 
 .whats-new {

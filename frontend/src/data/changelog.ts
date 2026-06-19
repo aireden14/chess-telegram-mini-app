@@ -19,6 +19,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Старые стили шахмат скрыты; доступны только Blue glass, Emoji chess и Classic black",
       "Третий стиль Classic black с чёрно-белыми PNG-фигурами",
       "Classic black включает чёрно-белый интерфейс и чёрно-белую доску; Emoji chess теперь рендерится настоящими emoji",
+      "В Emoji chess пешки заменены на настоящий pawn emoji, а судоку получило чёрно-белый Classic black вариант",
     ],
   },
   {
