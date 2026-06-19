@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
+import { api } from "../api/client";
 import { useAuthStore } from "../store/auth";
+import { usePieceStyleStore } from "../store/pieceStyle";
 import { useThemeStore } from "../store/theme";
 import { useVisualModeStore } from "../store/visualMode";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
-import { GameHubLogo, GamePickerIcon, type GameIconKind } from "../components/GameHubLogo";
+import { GamePickerIcon, type GameIconKind } from "../components/GameHubLogo";
 
 type GameEntry = {
   key: GameIconKind;
@@ -27,6 +29,9 @@ const GAMES: GameEntry[] = [
 export function GamePickerScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
+  const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
+  const setPieceStyle = usePieceStyleStore((s) => s.setPieceStyle);
   const { theme, setTheme } = useThemeStore();
   const { mode: visualMode, toggleMode } = useVisualModeStore();
   const reduce = useReducedMotion();
@@ -36,6 +41,16 @@ export function GamePickerScreen() {
     triggerHaptic("light");
     nav(to);
   };
+
+  const enableBeta = () => {
+    setPieceStyle("v2png");
+    if (user) setUser({ ...user, pieceStyle: "v2png" });
+    api.patch("/users/me/settings", { pieceStyle: "v2png" }).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (beta && pieceStyle !== "v2png") enableBeta();
+  }, [beta, pieceStyle]);
 
   return (
     <div className="app-screen picker-screen">
@@ -58,6 +73,7 @@ export function GamePickerScreen() {
             className={`beta-toggle${beta ? " active" : ""}`}
             onClick={() => {
               triggerHaptic("light");
+              if (!beta) enableBeta();
               toggleMode();
             }}
             aria-pressed={beta}
@@ -80,7 +96,6 @@ export function GamePickerScreen() {
       </div>
 
       <header className="picker-hero">
-        <GameHubLogo />
         <h1 className="h1">Выбери игру</h1>
         <p className="muted">
           {beta ? "V2 Beta: синий стиль, новые иконки игр" : "Все игры — в одном приложении"}

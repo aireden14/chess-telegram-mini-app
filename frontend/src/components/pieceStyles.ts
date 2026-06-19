@@ -1,8 +1,9 @@
 import { makeApplePieces } from "./ApplePieces";
 import { makeClassicPieces } from "./ClassicPieces";
 import { makeEmojiPieces } from "./EmojiPieces";
+import { makePngPieces } from "./PngPieces";
 
-export type PieceStyleType = "apple" | "emoji" | "classic";
+export type PieceStyleType = "apple" | "emoji" | "classic" | "v2png";
 
 export const PIECE_STYLE_OPTIONS: {
   label: string;
@@ -11,6 +12,13 @@ export const PIECE_STYLE_OPTIONS: {
   preview: string;
   description: string;
 }[] = [
+  {
+    label: "V2 PNG",
+    value: "v2png",
+    icon: "◆",
+    preview: "♚ ♛ ♜",
+    description: "Синие PNG-фигуры",
+  },
   {
     label: "Liquid",
     value: "apple",
@@ -35,10 +43,11 @@ export const PIECE_STYLE_OPTIONS: {
 ];
 
 export function normalizePieceStyle(value: unknown): PieceStyleType {
-  return value === "emoji" || value === "classic" || value === "apple" ? value : "apple";
+  return value === "emoji" || value === "classic" || value === "apple" || value === "v2png" ? value : "v2png";
 }
 
 export function makePiecesForStyle(style: PieceStyleType) {
+  if (style === "v2png") return makePngPieces();
   if (style === "classic") return makeClassicPieces();
   if (style === "emoji") return makeEmojiPieces();
   return makeApplePieces();

@@ -11,7 +11,7 @@ interface PieceStyleState {
 export const usePieceStyleStore = create<PieceStyleState>()(
   persist(
     (set) => ({
-      pieceStyle: "apple",
+      pieceStyle: "v2png",
       setPieceStyle: (pieceStyle) => set({ pieceStyle }),
       hydratePieceStyle: (style) => set({ pieceStyle: normalizePieceStyle(style) }),
     }),

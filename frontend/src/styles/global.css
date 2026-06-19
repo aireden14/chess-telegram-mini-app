@@ -539,11 +539,6 @@ body {
   white-space: nowrap;
 }
 
-.piece-style-card:nth-child(3) {
-  grid-column: 1 / -1;
-  min-height: 86px;
-}
-
 .setting-error {
   margin-top: 8px;
   color: var(--red);
@@ -746,6 +741,27 @@ body {
 .captured-piece:hover {
   transform: translateY(-2px) scale(1.1);
   opacity: 1;
+}
+
+.png-piece {
+  display: block;
+  object-fit: contain;
+  padding: 2%;
+  user-select: none;
+  pointer-events: none;
+  transform: scale(1.08);
+}
+
+.png-piece--w {
+  filter:
+    drop-shadow(0 2px 0 rgba(7, 20, 65, 0.38))
+    drop-shadow(0 0 5px rgba(49, 87, 246, 0.34));
+}
+
+.png-piece--b {
+  filter:
+    drop-shadow(0 2px 0 rgba(255, 255, 255, 0.28))
+    drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
 }
 
 /* Buttons */
@@ -1847,20 +1863,6 @@ body {
   gap: 7px;
 }
 
-.game-hub-logo {
-  width: 96px;
-  height: 96px;
-  display: inline-grid;
-  place-items: center;
-  filter: drop-shadow(0 22px 38px rgba(49, 87, 246, 0.22));
-}
-
-.game-hub-logo svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
 .picker-hero .h1 {
   font-size: 38px;
 }
@@ -2078,15 +2080,6 @@ body {
   text-align: center;
   gap: 8px;
   margin-top: 0;
-}
-
-[data-ui-mode="beta"] .picker-hero .game-hub-logo {
-  width: 116px;
-  height: 116px;
-  margin-bottom: 2px;
-  filter:
-    drop-shadow(0 24px 34px rgba(3, 11, 55, 0.28))
-    drop-shadow(0 9px 18px rgba(168, 201, 255, 0.18));
 }
 
 [data-ui-mode="beta"] .picker-hero .muted {
@@ -2821,9 +2814,6 @@ body {
     grid-column: 1 / -1;
   }
 
-  .piece-style-card:nth-child(3) {
-    min-height: 96px;
-  }
 }
 
 @media (min-width: 1024px) {
