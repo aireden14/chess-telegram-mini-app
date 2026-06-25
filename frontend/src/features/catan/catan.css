@@ -1,26 +1,78 @@
-/* Переключатель версий Катана (Новая / Классика). */
-.catan-ver-bar {
+/* Полноэкранный Катан: iframe занимает весь экран, без «карточки в карточке». */
+.catan-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
   display: flex;
-  gap: 6px;
-  padding: 8px 12px;
-  justify-content: center;
+  flex-direction: column;
+  background: #000;
 }
-.catan-ver-btn {
-  flex: 0 1 160px;
-  min-height: 38px;
-  border-radius: 12px;
-  border: 1px solid var(--line, rgba(120, 120, 140, 0.25));
-  background: var(--surface-2, rgba(125, 125, 150, 0.12));
-  color: var(--text, inherit);
-  font-size: 13px;
+
+/* Тонкая управляющая полоса хаба поверх тёмного фона. Минимальная высота. */
+.catan-fs-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(var(--safe-top) + 5px) 10px 5px;
+  background: rgba(8, 8, 12, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.catan-fs-back {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
+  padding-bottom: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.catan-fs-back:active { transform: scale(0.9); }
+
+.catan-fs-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.catan-fs-seg button {
+  min-height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.catan-ver-btn:active { transform: scale(0.96); }
-.catan-ver-btn.active {
+.catan-fs-seg button.on {
   background: var(--accent, #4b7be1);
   color: #fff;
-  border-color: transparent;
-  box-shadow: 0 6px 16px rgba(75, 123, 225, 0.32);
 }
+
+.catan-fs-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: block;
+  border: 0;
+  background: #000;
+}
+
+/* На время полноэкранного Катана убираем фоновые блобы хаба под iframe. */
+body.catan-fs-open .background-blobs { display: none; }
