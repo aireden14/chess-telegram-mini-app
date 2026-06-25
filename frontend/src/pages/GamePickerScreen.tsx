@@ -2,39 +2,36 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "../store/auth";
-import { usePieceStyleStore } from "../store/pieceStyle";
 import { useThemeStore } from "../store/theme";
 import { useVisualModeStore } from "../store/visualMode";
-import { PieceStylePicker } from "../components/PieceStylePicker";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
 import { GamePickerIcon, type GameIconKind } from "../components/GameHubLogo";
 
-type GameEntry = {
-  key: GameIconKind;
+type AppEntry = {
+  key: GameIconKind | "card";
   icon: string;
   title: string;
-  sub: string;
   to: string;
 };
 
-const GAMES: GameEntry[] = [
-  { key: "chess", icon: "♞", title: "Шахматы", sub: "Мультиплеер · бот · рейтинг", to: "/chess" },
-  { key: "checkers", icon: "⛀", title: "Шашки", sub: "Вдвоём · бот · онлайн", to: "/checkers" },
-  { key: "catan", icon: "⬡", title: "Катан", sub: "Колонизация · ресурсы · боты", to: "/catan" },
-  { key: "sudoku", icon: "▦", title: "Судоку", sub: "Рейтинг · задания · достижения", to: "/sudoku" },
-  { key: "force", icon: "✦", title: "Отражатель", sub: "Аркада · клинок · апгрейды", to: "/force-deflector" },
+// iOS-style app grid: каждая игра — иконка-плитка с подписью, как ярлык на домашнем экране iPhone.
+const APPS: AppEntry[] = [
+  { key: "chess", icon: "♞", title: "Шахматы", to: "/chess" },
+  { key: "checkers", icon: "⛀", title: "Шашки", to: "/checkers" },
+  { key: "catan", icon: "⬡", title: "Катан", to: "/catan" },
+  { key: "sudoku", icon: "▦", title: "Судоку", to: "/sudoku" },
+  { key: "force", icon: "✦", title: "Отражатель", to: "/force-deflector" },
+  { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day" },
 ];
 
 export function GamePickerScreen() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
   const { theme, setTheme } = useThemeStore();
   const { mode: visualMode, toggleMode } = useVisualModeStore();
   const reduce = useReducedMotion();
   const beta = visualMode === "beta";
-  const classicBlack = pieceStyle === "classicBlack";
 
   const open = (to: string) => {
     triggerHaptic("light");
@@ -42,9 +39,38 @@ export function GamePickerScreen() {
   };
 
   return (
-    <div className="app-screen picker-screen">
-      <div className="picker-topbar">
-        <button className="picker-id" onClick={() => open("/profile")}>
+    <div className="app-screen home-screen">
+      <header className="home-head">
+        <p className="home-greet">Привет, {user?.firstName ?? "Игрок"} 👋</p>
+        <h1 className="home-title">Игры</h1>
+      </header>
+
+      <div className="home-grid">
+        {APPS.map((a, i) => (
+          <motion.button
+            key={a.key}
+            className="home-app"
+            onClick={() => open(a.to)}
+            initial={reduce ? false : { opacity: 0, scale: 0.86 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.03 + i * 0.05, duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+            whileTap={reduce ? undefined : { scale: 0.9 }}
+          >
+            <span className={`home-app-icon home-app-icon--${a.key}`}>
+              {a.key === "card" ? (
+                <span className="home-app-emoji" aria-hidden>{a.icon}</span>
+              ) : (
+                <GamePickerIcon type={a.key as GameIconKind} fallback={a.icon} />
+              )}
+            </span>
+            <span className="home-app-label">{a.title}</span>
+          </motion.button>
+        ))}
+      </div>
+
+      {/* Док снизу: профиль («домой» / аккаунт) слева, переключатели справа. Как dock на iPhone. */}
+      <nav className="home-dock" aria-label="Профиль и настройки">
+        <button className="home-dock-profile" onClick={() => open("/profile")}>
           <span className="avatar avatar-sm">
             {user?.photoUrl ? (
               <img src={user.photoUrl} alt="" />
@@ -52,14 +78,23 @@ export function GamePickerScreen() {
               (user?.firstName?.slice(0, 1).toUpperCase() ?? "♟")
             )}
           </span>
-          <span className="picker-id-copy">
+          <span className="home-dock-copy">
             <strong>{user?.firstName ?? "Игрок"}</strong>
             <em>Рейтинг {user?.rating ?? "—"}</em>
           </span>
         </button>
-        <div className="picker-controls">
+
+        <div className="home-dock-actions">
           <button
-            className={`beta-toggle${beta ? " active" : ""}`}
+            className="home-dock-btn whats"
+            onClick={() => open("/whats-new")}
+            aria-label="Что нового"
+          >
+            ✨
+            {hasUnseenWhatsNew() && <span className="home-dock-dot" aria-hidden />}
+          </button>
+          <button
+            className={`home-dock-btn${beta ? " active" : ""}`}
             onClick={() => {
               triggerHaptic("light");
               toggleMode();
@@ -67,11 +102,10 @@ export function GamePickerScreen() {
             aria-pressed={beta}
             aria-label="Переключить V2 Beta стиль"
           >
-            <span>V2</span>
-            <strong>Beta</strong>
+            <span className="home-dock-beta">V2</span>
           </button>
           <button
-            className="theme-toggle"
+            className="home-dock-btn"
             onClick={() => {
               triggerHaptic("light");
               setTheme(theme === "dark" ? "light" : "dark");
@@ -81,69 +115,7 @@ export function GamePickerScreen() {
             {theme === "dark" ? "☾" : "☀"}
           </button>
         </div>
-      </div>
-
-      <header className="picker-hero">
-        <h1 className="h1">Выбери игру</h1>
-        <p className="muted">
-          {classicBlack
-            ? "Classic black: чёрно-белый интерфейс и доска"
-            : beta
-              ? "V2 Beta: синий стиль, новые иконки игр"
-              : "Все игры — в одном приложении"}
-        </p>
-        <button className="whats-new-pill" onClick={() => open("/whats-new")}>
-          ✨ Что нового
-          {hasUnseenWhatsNew() && <span className="whats-new-dot" aria-hidden />}
-        </button>
-      </header>
-
-      <section className="picker-settings-panel" aria-label="Настройки оформления">
-        <PieceStylePicker embedded />
-      </section>
-
-      <div className="picker-games">
-        {GAMES.map((g, i) => (
-          <motion.button
-            key={g.key}
-            className="picker-game"
-            onClick={() => open(g.to)}
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 + i * 0.07, duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
-            whileTap={reduce ? undefined : { scale: 0.98 }}
-          >
-            <span className="picker-game-icon">
-              <GamePickerIcon type={g.key} fallback={g.icon} />
-            </span>
-            <span className="picker-game-copy">
-              <strong>{g.title}</strong>
-              <em>{g.sub}</em>
-            </span>
-            <span className="picker-game-go" aria-hidden>
-              ›
-            </span>
-          </motion.button>
-        ))}
-
-        <motion.button
-          className="picker-game"
-          onClick={() => open("/card-of-day")}
-          initial={reduce ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 + GAMES.length * 0.07, duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
-          whileTap={reduce ? undefined : { scale: 0.98 }}
-        >
-          <span className="picker-game-icon" aria-hidden>🔮</span>
-          <span className="picker-game-copy">
-            <strong>Карта дня</strong>
-            <em>Таро · предсказание · раз в 24ч</em>
-          </span>
-          <span className="picker-game-go" aria-hidden>
-            ›
-          </span>
-        </motion.button>
-      </div>
+      </nav>
     </div>
   );
 }
