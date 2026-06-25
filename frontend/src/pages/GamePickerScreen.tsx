@@ -125,6 +125,24 @@ export function GamePickerScreen() {
             </span>
           </motion.button>
         ))}
+
+        <motion.button
+          className="picker-game"
+          onClick={() => open("/card-of-day")}
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 + GAMES.length * 0.07, duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
+          whileTap={reduce ? undefined : { scale: 0.98 }}
+        >
+          <span className="picker-game-icon" aria-hidden>🔮</span>
+          <span className="picker-game-copy">
+            <strong>Карта дня</strong>
+            <em>Таро · предсказание · раз в 24ч</em>
+          </span>
+          <span className="picker-game-go" aria-hidden>
+            ›
+          </span>
+        </motion.button>
       </div>
     </div>
   );

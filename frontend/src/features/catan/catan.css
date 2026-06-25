@@ -1,0 +1,26 @@
+/* Переключатель версий Катана (Новая / Классика). */
+.catan-ver-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  justify-content: center;
+}
+.catan-ver-btn {
+  flex: 0 1 160px;
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--line, rgba(120, 120, 140, 0.25));
+  background: var(--surface-2, rgba(125, 125, 150, 0.12));
+  color: var(--text, inherit);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.catan-ver-btn:active { transform: scale(0.96); }
+.catan-ver-btn.active {
+  background: var(--accent, #4b7be1);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(75, 123, 225, 0.32);
+}

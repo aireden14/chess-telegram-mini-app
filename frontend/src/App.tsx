@@ -17,6 +17,7 @@ import { SudokuScreen } from "./features/sudoku/SudokuScreen";
 import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
+import { CardOfDayScreen } from "./features/cardOfDay/CardOfDayScreen";
 import { useAuthStore } from "./store/auth";
 import { usePieceStyleStore } from "./store/pieceStyle";
 import { useThemeStore } from "./store/theme";
@@ -55,6 +56,7 @@ export function App() {
         <Route path="/force-deflector" element={<Protected><ForceDeflectorScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
         <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />
+        <Route path="/card-of-day" element={<Protected><CardOfDayScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>
     </BrowserRouter>
