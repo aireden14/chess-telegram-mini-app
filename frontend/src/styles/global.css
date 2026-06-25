@@ -2116,6 +2116,19 @@ body {
   background: none;
   color: var(--apple-text);
   cursor: pointer;
+  /* Вход через CSS (а не framer): fill-mode both гарантирует, что по истечении
+     анимации иконка ВИДНА (opacity:1) даже если таб был в фоне и rAF тормозил. */
+  opacity: 1;
+  animation: homeAppIn 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes homeAppIn {
+  from { opacity: 0; transform: scale(0.86); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-app { animation: none; }
 }
 
 .home-app-icon {

@@ -51,9 +51,7 @@ export function GamePickerScreen() {
             key={a.key}
             className="home-app"
             onClick={() => open(a.to)}
-            initial={reduce ? false : { opacity: 0, scale: 0.86 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.03 + i * 0.05, duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+            style={{ animationDelay: `${0.03 + i * 0.05}s` }}
             whileTap={reduce ? undefined : { scale: 0.9 }}
           >
             <span className={`home-app-icon home-app-icon--${a.key}`}>
