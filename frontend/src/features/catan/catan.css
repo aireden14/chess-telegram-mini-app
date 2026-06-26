@@ -1,74 +1,14 @@
-/* Полноэкранный Катан: iframe занимает весь экран, без «карточки в карточке». */
+/* Катан — на весь экран, без хаб-хрома. Управление (режим/выход) внутри игры. */
 .catan-fs {
   position: fixed;
   inset: 0;
   z-index: 60;
-  display: flex;
-  flex-direction: column;
   background: #000;
 }
 
-/* Тонкая управляющая полоса хаба поверх тёмного фона. Минимальная высота. */
-.catan-fs-bar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: calc(var(--safe-top) + 5px) 10px 5px;
-  background: rgba(8, 8, 12, 0.72);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.catan-fs-back {
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-  line-height: 1;
-  padding-bottom: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-.catan-fs-back:active { transform: scale(0.9); }
-
-.catan-fs-seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.catan-fs-seg button {
-  min-height: 28px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.catan-fs-seg button.on {
-  background: var(--accent, #4b7be1);
-  color: #fff;
-}
-
 .catan-fs-frame {
-  flex: 1;
   width: 100%;
-  min-height: 0;
+  height: 100%;
   display: block;
   border: 0;
   background: #000;
