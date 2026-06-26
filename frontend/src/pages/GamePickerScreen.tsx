@@ -6,7 +6,7 @@ import { useThemeStore } from "../store/theme";
 import { useVisualModeStore } from "../store/visualMode";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
-import { GamePickerIcon, type GameIconKind } from "../components/GameHubLogo";
+import { type GameIconKind } from "../components/GameHubLogo";
 
 type AppEntry = {
   key: GameIconKind | "card";
@@ -17,11 +17,11 @@ type AppEntry = {
 
 // iOS-style app grid: каждая игра — иконка-плитка с подписью, как ярлык на домашнем экране iPhone.
 const APPS: AppEntry[] = [
-  { key: "chess", icon: "♞", title: "Шахматы", to: "/chess" },
-  { key: "checkers", icon: "⛀", title: "Шашки", to: "/checkers" },
-  { key: "catan", icon: "⬡", title: "Катан", to: "/catan" },
-  { key: "sudoku", icon: "▦", title: "Судоку", to: "/sudoku" },
-  { key: "force", icon: "✦", title: "Отражатель", to: "/force-deflector" },
+  { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess" },
+  { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers" },
+  { key: "catan", icon: "🏝️", title: "Катан", to: "/catan" },
+  { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku" },
+  { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector" },
   { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day" },
 ];
 
@@ -55,11 +55,7 @@ export function GamePickerScreen() {
             whileTap={reduce ? undefined : { scale: 0.9 }}
           >
             <span className={`home-app-icon home-app-icon--${a.key}`}>
-              {a.key === "card" ? (
-                <span className="home-app-emoji" aria-hidden>{a.icon}</span>
-              ) : (
-                <GamePickerIcon type={a.key as GameIconKind} fallback={a.icon} />
-              )}
+              <span className="home-app-emoji" aria-hidden>{a.icon}</span>
             </span>
             <span className="home-app-label">{a.title}</span>
           </motion.button>
