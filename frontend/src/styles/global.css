@@ -81,8 +81,11 @@
   --radius-md: 18px;
   --radius-sm: 12px;
 
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Include Telegram's own chrome (Close / collapse buttons) so app content never
+     sits under them. --tg-content-safe-area-inset-top is set by Telegram (Bot API 8.0+),
+     falls back to 0 outside Telegram. */
+  --safe-top: calc(env(safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+  --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px));
 }
 
 [data-theme="light"] {

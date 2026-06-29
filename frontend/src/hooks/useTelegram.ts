@@ -15,6 +15,9 @@ export function tgReady() {
       tg.ready();
       tg.expand?.();
       tg.setHeaderColor?.("secondary_bg_color");
+      // Prevent the mini app from being minimized by an accidental vertical swipe;
+      // it can still be collapsed via Telegram's own top-right button. (Bot API 8.0+)
+      tg.disableVerticalSwipes?.();
     } catch {}
   }
 }

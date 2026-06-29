@@ -9,6 +9,7 @@ export function LoadingScreen() {
   const nav = useNavigate();
   const { login, isLoading, error, token } = useAuthStore();
   const { connect } = useSocketStore();
+  const [minElapsed, setMinElapsed] = React.useState(false);
 
   useEffect(() => {
     tgReady();
@@ -18,10 +19,13 @@ export function LoadingScreen() {
     const tgUser = tg?.initDataUnsafe?.user;
 
     login(initData, tgUser).catch(() => {});
+    // Always show the branded GamePass splash for at least a moment on launch.
+    const t = setTimeout(() => setMinElapsed(true), 1200);
+    return () => clearTimeout(t);
   }, [login]);
 
   useEffect(() => {
-    if (token) {
+    if (token && minElapsed) {
       connect(token);
       const start = getStartParam();
       if (start) {
@@ -34,7 +38,7 @@ export function LoadingScreen() {
         nav("/", { replace: true });
       }
     }
-  }, [token, connect, nav]);
+  }, [token, minElapsed, connect, nav]);
 
   return (
     <div className="loading-page">
