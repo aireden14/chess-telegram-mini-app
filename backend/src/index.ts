@@ -8,6 +8,7 @@ import { gamesRouter } from "./routes/games";
 import { sudokuRouter } from "./routes/sudoku";
 import { catanRouter } from "./routes/catan";
 import { telegramWebhookRouter } from "./routes/telegramWebhook";
+import { prisma } from "./utils/prisma";
 import { initSocket, startTimerWatchdog } from "./socket";
 
 const app = express();
