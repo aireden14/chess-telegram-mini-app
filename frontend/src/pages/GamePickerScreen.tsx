@@ -42,19 +42,7 @@ export function GamePickerScreen() {
     <div className="app-screen home-screen">
       <header className="home-head">
         <p className="home-greet">Привет, {user?.firstName ?? "Игрок"} 👋</p>
-        <div className="brand">
-          <span className="brand-die" aria-hidden>
-            <svg viewBox="0 0 100 100" width="36" height="36" role="img" aria-label="GamePass">
-              <rect x="6" y="6" width="88" height="88" rx="22" fill="#fff" stroke="rgba(0,0,0,.12)" strokeWidth="3" />
-              <circle cx="30" cy="30" r="8" fill="#1c1c1e" />
-              <circle cx="70" cy="30" r="8" fill="#1c1c1e" />
-              <circle cx="50" cy="50" r="8" fill="#1c1c1e" />
-              <circle cx="30" cy="70" r="8" fill="#1c1c1e" />
-              <circle cx="70" cy="70" r="8" fill="#1c1c1e" />
-            </svg>
-          </span>
-          <h1 className="home-title brand-title">GamePass</h1>
-        </div>
+        <h1 className="home-title">Игры</h1>
       </header>
 
       <div className="home-grid">
