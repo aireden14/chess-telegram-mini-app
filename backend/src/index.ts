@@ -6,17 +6,33 @@ import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { gamesRouter } from "./routes/games";
 import { sudokuRouter } from "./routes/sudoku";
+import { catanRouter } from "./routes/catan";
+import { telegramWebhookRouter } from "./routes/telegramWebhook";
 import { initSocket, startTimerWatchdog } from "./socket";
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, t: Date.now() }));
+app.get("/", (_req, res) => {
+  res
+    .type("text/plain")
+    .send(`Chess backend is running! ${process.env.RENDER_GIT_COMMIT || "local"} ${new Date().toISOString()}`);
+});
+app.get("/api/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, db: "connected", t: Date.now() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/games", gamesRouter);
 app.use("/api/sudoku", sudokuRouter);
+app.use("/api/catan", catanRouter);
+app.use("/api/telegram", telegramWebhookRouter);
 
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error("[express error]", err);
