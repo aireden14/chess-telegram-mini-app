@@ -9,17 +9,17 @@ import { hasUnseenWhatsNew } from "../data/changelog";
 import { type GameIconKind } from "../components/GameHubLogo";
 
 type AppEntry = {
-  key: GameIconKind | "card";
+  key: GameIconKind | "card" | "catan_beta";
   icon: string;
   title: string;
   to: string;
 };
 
 // iOS-style app grid: каждая игра — иконка-плитка с подписью, как ярлык на домашнем экране iPhone.
-const APPS: AppEntry[] = [
   { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess" },
   { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers" },
   { key: "catan", icon: "🏝️", title: "Катан", to: "/catan" },
+  { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета тест", to: "/catan-beta" },
   { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku" },
   { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector" },
   { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day" },
@@ -55,7 +55,11 @@ export function GamePickerScreen() {
             whileTap={reduce ? undefined : { scale: 0.9 }}
           >
             <span className={`home-app-icon home-app-icon--${a.key}`}>
-              <span className="home-app-emoji" aria-hidden>{a.icon}</span>
+              {a.icon.includes(".png") || a.icon.includes(".jpg") ? (
+                <img src={`/images/${a.icon}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
+              ) : (
+                <span className="home-app-emoji" aria-hidden>{a.icon}</span>
+              )}
             </span>
             <span className="home-app-label">{a.title}</span>
           </motion.button>
