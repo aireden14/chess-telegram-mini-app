@@ -79,3 +79,58 @@
   transition: transform .16s ease, filter .16s ease;
 }
 .cod-draw-btn:active { transform: scale(.97); filter: brightness(1.05); }
+
+/* ── Настройка часового пояса (сброс карты в локальную полночь) ── */
+.cod-tz {
+  margin: 14px auto 8px;
+  width: min(420px, 92%);
+  position: relative;
+  z-index: 2;
+}
+.cod-tz-toggle {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .9);
+  border-radius: 14px;
+  padding: 11px 14px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background .16s ease;
+}
+.cod-tz-toggle:active { background: rgba(255, 255, 255, .12); }
+.cod-tz-toggle strong { color: #ffd87a; font-weight: 600; }
+.cod-tz-caret { float: right; opacity: .7; }
+.cod-tz-panel {
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(20, 16, 40, .6);
+  border-radius: 14px;
+  padding: 12px 14px;
+  backdrop-filter: blur(8px);
+}
+.cod-tz-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, .75);
+}
+.cod-tz-select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  background: rgba(255, 255, 255, .95);
+  color: #1a1330;
+  padding: 9px 10px;
+  font-size: 14px;
+}
+.cod-tz-hint {
+  margin: 9px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, .55);
+}
+.cod-tz-hint b { color: rgba(255, 255, 255, .8); }
