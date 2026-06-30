@@ -16,10 +16,13 @@ type AppEntry = {
 };
 
 // iOS-style app grid: каждая игра — иконка-плитка с подписью, как ярлык на домашнем экране iPhone.
+const APPS: AppEntry[] = [
   { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess" },
   { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers" },
   { key: "catan", icon: "🏝️", title: "Катан", to: "/catan" },
   { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета тест", to: "/catan-beta" },
+  { key: "catan_beta" as any, icon: "catan-beta.png", title: "Выживание V2", to: "/catan-v2" },
+  { key: "catan_beta" as any, icon: "📚", title: "Читалка", to: "/reader" },
   { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku" },
   { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector" },
   { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day" },
