@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.0",
+    date: "2026-07-01",
+    title: "HexForge: гексовая автоматизация",
+    items: [
+      "Добавлена новая игра HexForge в GamePass: гексовая стратегия про добычу, конвейеры, переработку, энергию и лабораторный прогресс",
+      "Интерфейс сделан под горизонтальный Mac/iPad экран: карта занимает первый слой, а постройки, склад, боты, инспектор и лог закреплены прямо поверх карты",
+      "Есть первый потоковый цикл: конвейер → бур → печь → сборщик → лаборатория; боты параллельно расширяют свои линии и видны на карте",
+      "HexForge запускается как standalone iframe из `public/games/hexforge/index.html`, без подключения незавершённого backend-online слоя Катана",
+    ],
+  },
+  {
     version: "1.8",
     date: "2026-06-20",
     title: "Катан: dev-карты, PNG и iPad",

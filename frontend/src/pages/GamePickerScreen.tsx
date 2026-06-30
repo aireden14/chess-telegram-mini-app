@@ -9,7 +9,7 @@ import { hasUnseenWhatsNew } from "../data/changelog";
 import { type GameIconKind } from "../components/GameHubLogo";
 
 type AppEntry = {
-  key: GameIconKind | "card" | "catan_beta";
+  key: GameIconKind | "card" | "catan_beta" | "hexforge";
   icon: string;
   title: string;
   to: string;
@@ -20,6 +20,7 @@ const APPS: AppEntry[] = [
   { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess" },
   { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers" },
   { key: "catan", icon: "🏝️", title: "Катан", to: "/catan" },
+  { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge" },
   { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета тест", to: "/catan-beta" },
   { key: "catan_beta" as any, icon: "catan-beta.png", title: "Выживание V2", to: "/catan-v2" },
   { key: "catan_beta" as any, icon: "📚", title: "Читалка", to: "/reader" },
