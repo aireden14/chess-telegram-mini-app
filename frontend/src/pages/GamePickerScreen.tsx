@@ -9,26 +9,50 @@ import { hasUnseenWhatsNew } from "../data/changelog";
 import { type GameIconKind } from "../components/GameHubLogo";
 
 type AppEntry = {
-  key: GameIconKind | "card" | "catan_beta" | "hexforge";
+  key: GameIconKind | "card" | "catan_beta" | "hexforge" | "icebreakers";
   icon: string;
   title: string;
   to: string;
+  grad: [string, string];        // цвет иконки-плитки
+  badge?: "NEW" | "BETA";        // угловой бейдж
 };
 
-// iOS-style app grid: каждая игра — иконка-плитка с подписью, как ярлык на домашнем экране iPhone.
-const APPS: AppEntry[] = [
-  { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess" },
-  { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers" },
-  { key: "catan", icon: "🏝️", title: "Катан", to: "/catan" },
-  { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge" },
-  { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета тест", to: "/catan-beta" },
-  { key: "catan_beta" as any, icon: "catan-beta.png", title: "Выживание V2", to: "/catan-v2" },
-  { key: "catan_beta" as any, icon: "🌊", title: "Мореходы", to: "/seafarers" },
-  { key: "catan_beta" as any, icon: "📚", title: "Читалка", to: "/reader" },
-  { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku" },
-  { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector" },
-  { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day" },
-  { key: "icebreakers" as any, icon: "💞", title: "Знакомства", to: "/icebreakers" },
+type Section = { title: string; apps: AppEntry[] };
+
+// iOS-style: игры сгруппированы по секциям, каждая — иконка-плитка с подписью.
+const SECTIONS: Section[] = [
+  {
+    title: "Настолки",
+    apps: [
+      { key: "catan", icon: "🏝️", title: "Катан", to: "/catan", grad: ["#f3b04b", "#e8762b"] },
+      { key: "catan_beta", icon: "🌊", title: "Мореходы", to: "/seafarers", grad: ["#3aa0e0", "#1b6fb8"], badge: "NEW" },
+      { key: "catan_beta", icon: "catan-beta.png", title: "Выживание V2", to: "/catan-v2", grad: ["#2f8f6b", "#1c6b4a"], badge: "BETA" },
+      { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета", to: "/catan-beta", grad: ["#7a8f57", "#566b34"], badge: "BETA" },
+      { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge", grad: ["#2f3f46", "#4dbb72"], badge: "BETA" },
+    ],
+  },
+  {
+    title: "Классика",
+    apps: [
+      { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess", grad: ["#5b7bff", "#3a5adf"] },
+      { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers", grad: ["#ff8a5b", "#ff5e7d"] },
+    ],
+  },
+  {
+    title: "Для пары",
+    apps: [
+      { key: "icebreakers", icon: "💞", title: "Знакомства", to: "/icebreakers", grad: ["#ff8ec0", "#c98cff"], badge: "NEW" },
+      { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day", grad: ["#a86bff", "#6b3bff"] },
+    ],
+  },
+  {
+    title: "Соло",
+    apps: [
+      { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku", grad: ["#4ad0a8", "#2aa6c9"] },
+      { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector", grad: ["#8b6cff", "#5b7bff"] },
+      { key: "catan_beta", icon: "📚", title: "Читалка", to: "/reader", grad: ["#d7a86b", "#a9743e"] },
+    ],
+  },
 ];
 
 export function GamePickerScreen() {
@@ -51,24 +75,38 @@ export function GamePickerScreen() {
         <h1 className="home-title">Игры</h1>
       </header>
 
-      <div className="home-grid">
-        {APPS.map((a, i) => (
-          <motion.button
-            key={a.key}
-            className="home-app"
-            onClick={() => open(a.to)}
-            style={{ animationDelay: `${0.03 + i * 0.05}s` }}
-            whileTap={reduce ? undefined : { scale: 0.9 }}
-          >
-            <span className={`home-app-icon home-app-icon--${a.key}`}>
-              {a.icon.includes(".png") || a.icon.includes(".jpg") ? (
-                <img src={`/images/${a.icon}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
-              ) : (
-                <span className="home-app-emoji" aria-hidden>{a.icon}</span>
-              )}
-            </span>
-            <span className="home-app-label">{a.title}</span>
-          </motion.button>
+      <div className="home-sections">
+        {SECTIONS.map((section) => (
+          <section className="home-section" key={section.title}>
+            <h2 className="home-section-title">{section.title}</h2>
+            <div className="home-grid">
+              {section.apps.map((a, i) => {
+                const isImg = a.icon.includes(".png") || a.icon.includes(".jpg");
+                return (
+                  <motion.button
+                    key={a.title}
+                    className="home-app"
+                    onClick={() => open(a.to)}
+                    style={{ animationDelay: `${0.03 + i * 0.04}s` }}
+                    whileTap={reduce ? undefined : { scale: 0.9 }}
+                  >
+                    <span
+                      className="home-app-icon"
+                      style={{ background: `linear-gradient(150deg, ${a.grad[0]}, ${a.grad[1]})` }}
+                    >
+                      {isImg ? (
+                        <img src={`/images/${a.icon}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
+                      ) : (
+                        <span className="home-app-emoji" aria-hidden>{a.icon}</span>
+                      )}
+                      {a.badge && <span className={`home-app-badge home-app-badge--${a.badge.toLowerCase()}`}>{a.badge}</span>}
+                    </span>
+                    <span className="home-app-label">{a.title}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </section>
         ))}
       </div>
 

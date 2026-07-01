@@ -2203,6 +2203,39 @@ body {
   color: var(--apple-text);
 }
 
+/* ── Секции хаба (категории игр) ── */
+.home-sections {
+  display: grid;
+  gap: 22px;
+  margin-top: 4px;
+}
+.home-section-title {
+  margin: 0 2px 12px;
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -0.015em;
+  color: var(--apple-text-faint);
+}
+
+/* Бейджи NEW / BETA на иконке */
+.home-app-icon { position: relative; overflow: visible; }
+.home-app-badge {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #fff;
+  border-radius: 999px;
+  border: 2px solid var(--apple-bg, #fff);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.32);
+  line-height: 1.2;
+}
+.home-app-badge--new { background: linear-gradient(135deg, #ff6ea6, #ff8f4d); }
+.home-app-badge--beta { background: linear-gradient(135deg, #8a94a6, #5b6474); }
+
 /* Док снизу — садится на низ экрана (flex margin-top:auto), как dock iPhone. */
 .home-dock {
   margin-top: auto;
