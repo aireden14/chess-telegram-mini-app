@@ -27,6 +27,7 @@ const APPS: AppEntry[] = [
   { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku" },
   { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector" },
   { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day" },
+  { key: "icebreakers" as any, icon: "💞", title: "Знакомства", to: "/icebreakers" },
 ];
 
 export function GamePickerScreen() {

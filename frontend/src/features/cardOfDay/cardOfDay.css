@@ -134,3 +134,37 @@
   color: rgba(255, 255, 255, .55);
 }
 .cod-tz-hint b { color: rgba(255, 255, 255, .8); }
+
+/* ── Выбор колоды «Карты дня» ── */
+.cod-decks {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 4px 12px 0;
+  position: relative;
+  z-index: 2;
+}
+.cod-deck-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .08);
+  color: rgba(255, 255, 255, .82);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.cod-deck-chip:active { transform: scale(.95); }
+.cod-deck-chip.on {
+  background: rgba(255, 216, 122, .22);
+  border-color: rgba(255, 216, 122, .6);
+  color: #ffe7ad;
+  box-shadow: 0 0 18px rgba(255, 200, 90, .25);
+}
+.cod-deck-emoji { font-size: 16px; }

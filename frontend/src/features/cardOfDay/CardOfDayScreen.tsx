@@ -1,13 +1,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { TopNav } from "../../components/TopNav";
 import { triggerHaptic } from "../../hooks/useTelegram";
-import { TAROT_DECK, type TarotCard } from "../../data/tarot";
+import { type TarotCard } from "../../data/tarot";
+import { CARD_DECKS, getDeck } from "../../data/cardDecks";
 import "./cardOfDay.css";
 
 const KEY = "card-of-day-v1";
 const TZ_KEY = "card-of-day-tz"; // "" / отсутствует => авто (часовой пояс устройства)
+const DECK_KEY = "card-of-day-deck"; // выбранная колода
 
-type Stored = { cardId: string; dayKey: string; tz: string };
+type Stored = { cardId: string; dayKey: string; tz: string; deckId: string };
+
+function getDeckSetting(): string {
+  try {
+    const v = localStorage.getItem(DECK_KEY);
+    return v && CARD_DECKS.some((d) => d.id === v) ? v : CARD_DECKS[0]!.id;
+  } catch {
+    return CARD_DECKS[0]!.id;
+  }
+}
 
 // Популярные пояса (с упором на СНГ) для быстрой ручной настройки.
 const TZ_OPTIONS: { id: string; label: string }[] = [
@@ -104,13 +115,14 @@ function readStored(): Stored | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Stored> & { drawnAt?: number };
     if (!parsed?.cardId) return null;
+    const deckId = parsed.deckId ?? "tarot"; // старые сейвы — мистическая колода
     // Миграция со старого формата (rolling 24h по drawnAt): считаем картой "сегодня" того пояса.
     if (!parsed.dayKey && parsed.drawnAt) {
       const tz = resolveTz(getTzSetting());
-      return { cardId: parsed.cardId, dayKey: dayKeyIn(tz, new Date(parsed.drawnAt)), tz };
+      return { cardId: parsed.cardId, dayKey: dayKeyIn(tz, new Date(parsed.drawnAt)), tz, deckId };
     }
     if (!parsed.dayKey) return null;
-    return { cardId: parsed.cardId, dayKey: parsed.dayKey, tz: parsed.tz ?? "" };
+    return { cardId: parsed.cardId, dayKey: parsed.dayKey, tz: parsed.tz ?? "", deckId };
   } catch {
     return null;
   }
@@ -128,6 +140,7 @@ function fmtRemaining(ms: number): string {
 export function CardOfDayScreen() {
   const [stored, setStored] = useState<Stored | null>(() => readStored());
   const [tzSetting, setTzSetting] = useState<string>(() => getTzSetting());
+  const [deckId, setDeckId] = useState<string>(() => getDeckSetting());
   const [now, setNow] = useState<Date>(() => new Date());
   const [revealing, setRevealing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -138,9 +151,10 @@ export function CardOfDayScreen() {
   // Карта действительна, пока идёт тот же календарный день в выбранном поясе.
   const active = stored && stored.dayKey === todayKey ? stored : null;
   const card: TarotCard | undefined = useMemo(
-    () => (active ? TAROT_DECK.find((c) => c.id === active.cardId) : undefined),
+    () => (active ? getDeck(active.deckId).cards.find((c) => c.id === active.cardId) : undefined),
     [active],
   );
+  const deck = getDeck(deckId);
   const remaining = active ? msUntilMidnight(tz, now) : 0;
 
   // Тикаем каждую секунду, пока карта вытянута — обновляем таймер до полуночи.
@@ -153,13 +167,26 @@ export function CardOfDayScreen() {
   const draw = () => {
     if (active) return;
     triggerHaptic("medium");
-    const pick = TAROT_DECK[Math.floor(Math.random() * TAROT_DECK.length)];
-    const next: Stored = { cardId: pick.id, dayKey: todayKey, tz: tzSetting };
+    const cards = deck.cards;
+    const pick = cards[Math.floor(Math.random() * cards.length)]!;
+    const next: Stored = { cardId: pick.id, dayKey: todayKey, tz: tzSetting, deckId };
     localStorage.setItem(KEY, JSON.stringify(next));
     setRevealing(true);
     setStored(next);
     setNow(new Date());
     window.setTimeout(() => setRevealing(false), 900);
+  };
+
+  // Смена колоды: сохраняем выбор. Если карта на сегодня из ДРУГОЙ колоды — сбрасываем,
+  // чтобы можно было вытянуть из новой (одна активная карта за раз).
+  const changeDeck = (id: string) => {
+    setDeckId(id);
+    try { localStorage.setItem(DECK_KEY, id); } catch { /* noop */ }
+    if (stored && stored.deckId !== id) {
+      try { localStorage.removeItem(KEY); } catch { /* noop */ }
+      setStored(null);
+    }
+    triggerHaptic("light");
   };
 
   const changeTz = (value: string) => {
@@ -185,6 +212,19 @@ export function CardOfDayScreen() {
       <div className="cod-stars" aria-hidden>
         {["✨", "⭐", "🌟", "💫", "✦", "✧", "⋆", "✩"].map((s, i) => (
           <span key={i} className={`cod-star cod-star-${i}`}>{s}</span>
+        ))}
+      </div>
+
+      <div className="cod-decks" role="group" aria-label="Колода">
+        {CARD_DECKS.map((d) => (
+          <button
+            key={d.id}
+            className={`cod-deck-chip${d.id === deckId ? " on" : ""}`}
+            onClick={() => changeDeck(d.id)}
+          >
+            <span className="cod-deck-emoji">{d.emoji}</span>
+            <span className="cod-deck-name">{d.name}</span>
+          </button>
         ))}
       </div>
 

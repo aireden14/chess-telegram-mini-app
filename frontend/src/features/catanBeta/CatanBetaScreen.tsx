@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./catan.css";
+import "../catan/catan.css";
 
 // Катан открывается на весь экран без хаб-хрома. Переключение режимов (База/Мореходы)
 // и выход «← В меню игр» — внутри самой игры, в самом низу (листать до них).

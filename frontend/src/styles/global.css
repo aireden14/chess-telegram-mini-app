@@ -2190,6 +2190,7 @@ body {
 /* Лёгкая разница оттенков иконок, чтобы сетка не выглядела одинаковой. */
 .home-app-icon--checkers { background: linear-gradient(150deg, #ff8a5b, #ff5e7d); }
 .home-app-icon--catan { background: linear-gradient(150deg, #f3b04b, #e8762b); }
+.home-app-icon--hexforge { background: linear-gradient(150deg, #2f3f46, #4dbb72 52%, #f2a84b); }
 .home-app-icon--sudoku { background: linear-gradient(150deg, #4ad0a8, #2aa6c9); }
 .home-app-icon--force { background: linear-gradient(150deg, #8b6cff, #5b7bff); }
 .home-app-icon--card { background: linear-gradient(150deg, #a86bff, #6b3bff); }

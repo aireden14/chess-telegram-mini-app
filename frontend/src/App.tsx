@@ -22,6 +22,7 @@ import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
 import { ReaderScreen } from "./features/reader/ReaderScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { CardOfDayScreen } from "./features/cardOfDay/CardOfDayScreen";
+import { IcebreakerScreen } from "./features/icebreakers/IcebreakerScreen";
 import { useAuthStore } from "./store/auth";
 import { usePieceStyleStore } from "./store/pieceStyle";
 import { useThemeStore } from "./store/theme";
@@ -65,6 +66,7 @@ export function App() {
         <Route path="/reader" element={<Protected><ReaderScreen /></Protected>} />
         <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />
         <Route path="/card-of-day" element={<Protected><CardOfDayScreen /></Protected>} />
+        <Route path="/icebreakers" element={<Protected><IcebreakerScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>
     </BrowserRouter>
