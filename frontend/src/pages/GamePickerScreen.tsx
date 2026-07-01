@@ -23,6 +23,7 @@ const APPS: AppEntry[] = [
   { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge" },
   { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета тест", to: "/catan-beta" },
   { key: "catan_beta" as any, icon: "catan-beta.png", title: "Выживание V2", to: "/catan-v2" },
+  { key: "catan_beta" as any, icon: "🌊", title: "Мореходы", to: "/seafarers" },
   { key: "catan_beta" as any, icon: "📚", title: "Читалка", to: "/reader" },
   { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku" },
   { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector" },
