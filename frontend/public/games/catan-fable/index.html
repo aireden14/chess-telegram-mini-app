@@ -24,15 +24,15 @@
   #board-wrap{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
   #board{flex:1;min-height:0}
   svg{width:100%;height:100%;display:block;touch-action:manipulation}
-  #turnBanner{position:absolute;top:8px;left:8px;background:rgba(22,29,39,.92);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:.85rem;pointer-events:none}
+  #turnBanner{position:absolute;top:10px;left:10px;background:rgba(22,29,39,.66);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border:.5px solid rgba(255,255,255,.1);border-radius:999px;padding:7px 14px;font-size:.85rem;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}
   #turnBanner b{color:var(--gold)}
   #log{height:92px;overflow-y:auto;padding:6px 10px;font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
   #log b{color:var(--ink)}
   #log .me b{color:var(--gold)}
 
-  #side{width:300px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
-  .sec{padding:10px 12px;border-bottom:1px solid var(--line)}
-  .sec h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
+  #side{width:300px;flex-shrink:0;background:rgba(22,29,39,.72);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border-left:.5px solid rgba(255,255,255,.08);display:flex;flex-direction:column;overflow-y:auto}
+  .sec{padding:11px 14px;border-bottom:.5px solid rgba(255,255,255,.07)}
+  .sec h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin-bottom:8px;font-weight:600}
 
   .pl{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;font-size:.85rem}
   .pl.turn{background:var(--panel2);outline:1px solid var(--line)}
@@ -50,15 +50,37 @@
 
   #actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   button{
-    font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);
-    border-radius:12px;padding:10px 8px;cursor:pointer;font-size:.85rem;transition:.15s;
+    font:inherit;color:var(--ink);background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.1);
+    border-radius:14px;padding:10px 8px;cursor:pointer;font-size:.85rem;font-weight:500;
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s;
+    box-shadow:0 1px 2px rgba(0,0,0,.2);
   }
-  button:disabled{opacity:.35;cursor:default}
-  button.primary{background:linear-gradient(135deg,#e8b04b,#d08a2c);color:#241a08;font-weight:700;border:none}
-  button.armed{outline:2px solid var(--accent)}
-  button:active:not(:disabled){transform:scale(.97)}
+  button:disabled{opacity:.3;cursor:default;box-shadow:none}
+  button.primary{background:linear-gradient(180deg,#f0bc5e,#d08a2c);color:#241a08;font-weight:700;border:none;box-shadow:0 2px 10px rgba(232,176,75,.25),inset 0 1px 0 rgba(255,255,255,.35)}
+  button.armed{outline:2px solid var(--accent);background:rgba(122,162,255,.14)}
+  button:active:not(:disabled){transform:scale(.95)}
   #dice{display:flex;align-items:center;gap:10px}
-  .die{width:40px;height:40px;border-radius:10px;background:#f4efe4;color:#222;display:grid;place-items:center;font-size:1.3rem;font-weight:800}
+  /* кости с реальными точками */
+  .die,.bigDie{background:linear-gradient(160deg,#fdfaf2,#e7e0cf);border-radius:11px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    padding:6px;box-shadow:0 2px 6px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.8)}
+  .die{width:40px;height:40px}
+  .die i,.bigDie i{border-radius:50%;background:transparent;margin:14%}
+  .die i.p,.bigDie i.p{background:#26221a;box-shadow:inset 0 1.5px 2px rgba(0,0,0,.55)}
+  #diceStage{position:absolute;inset:0;display:none;place-items:center;pointer-events:none;z-index:40}
+  #diceStage.on{display:grid}
+  #diceStage .wrap{display:flex;gap:22px}
+  .bigDie{width:72px;height:72px;border-radius:16px;padding:10px;animation:tumble .68s cubic-bezier(.3,1.4,.4,1) both}
+  .bigDie:nth-child(2){animation-delay:.07s}
+  .bigDie.settle{animation:settle .3s cubic-bezier(.3,1.6,.4,1) both}
+  @keyframes tumble{
+    0%{transform:translateY(-46vh) rotate(-320deg) scale(.7);opacity:0}
+    12%{opacity:1}
+    62%{transform:translateY(14px) rotate(14deg) scale(1.04)}
+    82%{transform:translateY(-8px) rotate(-5deg)}
+    100%{transform:translateY(0) rotate(0)}
+  }
+  @keyframes settle{0%{transform:scale(1.14)}100%{transform:scale(1)}}
 
   #devhand{display:flex;flex-wrap:wrap;gap:6px}
   .dev{font-size:.78rem;padding:6px 10px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);cursor:pointer}
@@ -70,14 +92,15 @@
 
   #modal{position:fixed;inset:0;background:rgba(5,8,12,.7);display:none;place-items:center;z-index:50}
   #modal.on{display:grid}
-  #modal .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:360px;width:92%}
+  #modal .card{background:rgba(22,29,39,.82);backdrop-filter:blur(28px) saturate(1.6);-webkit-backdrop-filter:blur(28px) saturate(1.6);border:.5px solid rgba(255,255,255,.12);border-radius:22px;padding:20px;max-width:360px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:cardIn .35s cubic-bezier(.2,1.2,.3,1) both}
+  @keyframes cardIn{0%{transform:scale(.92) translateY(10px);opacity:0}100%{transform:scale(1) translateY(0);opacity:1}}
   #modal h2{font-size:1.05rem;margin-bottom:10px}
   #modal p{color:var(--dim);font-size:.85rem;margin-bottom:4px}
   #modal .card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   #modal button{flex:1}
 
-  #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:8px 16px;border-radius:12px;font-size:.85rem;opacity:0;transition:.25s;pointer-events:none;z-index:60}
-  #toast.on{opacity:1}
+  #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-8px) scale(.96);background:rgba(29,39,53,.78);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:.5px solid rgba(255,255,255,.12);padding:9px 18px;border-radius:999px;font-size:.85rem;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 
   .hex{stroke:#0a0e14;stroke-width:2.5}
   .hex.wtr{stroke:#0e2735}
@@ -90,7 +113,9 @@
   .edge{stroke:transparent;stroke-width:14;cursor:pointer;stroke-linecap:round}
   .edge.hint{stroke:rgba(122,162,255,.45)}
   .edge.hintShip{stroke:rgba(77,187,114,.5)}
-  .road{stroke-width:7;stroke-linecap:round;pointer-events:none}
+  .road{stroke-width:7;stroke-linecap:round;pointer-events:none;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.5))}
+  .stl,.robber{filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}
+  .chip{filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
   .shipTx{font-size:11px;text-anchor:middle;pointer-events:none}
   .stl{stroke:#0a0e14;stroke-width:1.5;pointer-events:none}
   .robber{fill:#1b1f27;stroke:#000;pointer-events:none}
@@ -109,6 +134,7 @@
 <div id="board-wrap">
   <div id="board"></div>
   <div id="turnBanner">…</div>
+  <div id="diceStage"><div class="wrap"><div class="bigDie" id="bd1"></div><div class="bigDie" id="bd2"></div></div></div>
   <div id="log"></div>
 </div>
 <div id="side">
@@ -396,7 +422,7 @@ function ui(){
     S.phase==="setup"?`<b>Расстановка</b> · ${players[S.setupOrder[S.setupIdx]]?.name??""}`:
     S.winner>=0?`<b>Игра окончена</b>`:
     `Ход: <b>${cur.name}</b>${S.turn===0?(S.rolled?" · строй/меняйся":" · бросай кубики"):""}${SEA?" · Мореходы":""}`;
-  const myTurn=S.turn===0&&S.phase==="play"&&S.winner<0;
+  const myTurn=S.turn===0&&S.phase==="play"&&S.winner<0&&!S.rolling;
   document.getElementById("rollBtn").disabled=!myTurn||S.rolled;
   document.getElementById("endBtn").disabled=!myTurn||!S.rolled;
   const act=(id,cost,extra=true,m)=>{const b=document.getElementById(id);b.disabled=!myTurn||!S.rolled||!canPay(me,cost)||!extra;b.classList.toggle("armed",mode===m)};
@@ -500,11 +526,35 @@ function clickLink(e,asShip){
 function afterAction(){draw();ui()}
 
 /* ---------- кубики / ресурсы / разбойник ---------- */
+// кости с настоящими точками
+const PIP=[[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8]];
+function setDie(el,n){el.innerHTML=Array.from({length:9},(_,i)=>`<i class="${n&&PIP[n-1].includes(i)?"p":""}"></i>`).join("")}
+setDie(document.getElementById("d1"),0);setDie(document.getElementById("d2"),0);
+function animateRoll(d1,d2,done){
+  const stage=document.getElementById("diceStage");
+  const b1=document.getElementById("bd1"),b2=document.getElementById("bd2");
+  b1.classList.remove("settle");b2.classList.remove("settle");
+  // перезапуск CSS-анимации падения
+  b1.style.animation="none";b2.style.animation="none";void b1.offsetWidth;
+  b1.style.animation="";b2.style.animation="";
+  stage.classList.add("on");
+  const iv=setInterval(()=>{setDie(b1,1+Math.floor(Math.random()*6));setDie(b2,1+Math.floor(Math.random()*6))},85);
+  setTimeout(()=>{
+    clearInterval(iv);
+    setDie(b1,d1);setDie(b2,d2);
+    b1.classList.add("settle");b2.classList.add("settle");
+    setDie(document.getElementById("d1"),d1);setDie(document.getElementById("d2"),d2);
+    setTimeout(()=>{stage.classList.remove("on");done()},600);
+  },700);
+}
 document.getElementById("rollBtn").onclick=()=>doRoll(players[0]);
 function doRoll(p){
   const d1=1+Math.floor(Math.random()*6),d2=1+Math.floor(Math.random()*6),n=d1+d2;
-  document.getElementById("d1").textContent=d1;document.getElementById("d2").textContent=d2;
-  S.rolled=true;
+  S.rolled=true;S.rolling=true;ui();
+  animateRoll(d1,d2,()=>{S.rolling=false;applyRoll(p,d1,d2)});
+}
+function applyRoll(p,d1,d2){
+  const n=d1+d2;
   say(`<b>${p.name}</b> ${p.bot?"бросает":"бросаешь"}: <b>${n}</b>`,p);
   if(n===7){robberTime(p);return}
   const myGain={};
