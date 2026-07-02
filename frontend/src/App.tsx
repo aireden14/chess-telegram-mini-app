@@ -19,6 +19,8 @@ import { CatanScreen } from "./features/catan/CatanScreen";
 import { CatanBetaScreen } from "./features/catanBeta/CatanBetaScreen";
 import { CatanV2Screen } from "./features/catanV2/CatanV2Screen";
 import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
+import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
+import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
 import { ReaderScreen } from "./features/reader/ReaderScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { CardOfDayScreen } from "./features/cardOfDay/CardOfDayScreen";
@@ -64,6 +66,8 @@ export function App() {
         <Route path="/catan-beta" element={<Protected><CatanBetaScreen /></Protected>} />
         <Route path="/catan-v2" element={<Protected><CatanV2Screen /></Protected>} />
         <Route path="/hexforge" element={<Protected><HexForgeScreen /></Protected>} />
+        <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
+        <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
         <Route path="/reader" element={<Protected><ReaderScreen /></Protected>} />
         <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />
         <Route path="/card-of-day" element={<Protected><CardOfDayScreen /></Protected>} />

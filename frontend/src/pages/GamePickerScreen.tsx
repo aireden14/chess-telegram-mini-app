@@ -28,6 +28,8 @@ const SECTIONS: Section[] = [
       { key: "catan_beta", icon: "🌊", title: "Мореходы", to: "/seafarers", grad: ["#3aa0e0", "#1b6fb8"], badge: "NEW" },
       { key: "catan_beta", icon: "catan-beta.png", title: "Выживание V2", to: "/catan-v2", grad: ["#2f8f6b", "#1c6b4a"], badge: "BETA" },
       { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета", to: "/catan-beta", grad: ["#7a8f57", "#566b34"], badge: "BETA" },
+      { key: "hexforge", icon: "🪄", title: "Катан Fable", to: "/catan-fable", grad: ["#8a5bd0", "#5b3a9e"], badge: "NEW" },
+      { key: "hexforge", icon: "🏭", title: "Fable Factory", to: "/fable-factory", grad: ["#d0a75b", "#9e6f2a"], badge: "NEW" },
       { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge", grad: ["#2f3f46", "#4dbb72"], badge: "BETA" },
     ],
   },

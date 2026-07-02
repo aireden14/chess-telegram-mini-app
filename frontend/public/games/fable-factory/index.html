@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Fable Factory</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#141b24; --panel2:#1b2532; --line:#2a3646;
+    --ink:#e8eef7; --dim:#8b9bb0; --gold:#e8b04b; --accent:#7aa2ff; --ok:#4dbb72; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif;display:flex;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  #main{flex:1;min-width:0;display:flex;flex-direction:column}
+  #canvasWrap{flex:1;min-height:0;position:relative}
+  canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
+  #hud{position:absolute;top:8px;left:8px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+  .pill{background:rgba(20,27,36,.9);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:.8rem;font-variant-numeric:tabular-nums}
+  .pill.bad{color:var(--bad)}
+  #goal{position:absolute;top:8px;right:8px;background:rgba(20,27,36,.92);border:1px solid var(--gold);border-radius:12px;padding:8px 12px;font-size:.8rem;max-width:230px}
+  #goal b{color:var(--gold)}
+  #side{width:270px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
+  .sec{padding:10px 12px;border-bottom:1px solid var(--line)}
+  .sec h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
+  #build{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  button{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 6px;cursor:pointer;font-size:.78rem;text-align:left}
+  button:disabled{opacity:.32;cursor:default}
+  button.armed{outline:2px solid var(--accent)}
+  button:active:not(:disabled){transform:scale(.97)}
+  button small{color:var(--dim);display:block;font-size:.68rem}
+  #inv{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:.8rem}
+  #inv div{display:flex;justify-content:space-between;background:var(--panel2);border-radius:8px;padding:4px 8px}
+  #inv .n{font-variant-numeric:tabular-nums;font-weight:700}
+  #tech button{width:100%;margin-bottom:6px}
+  #tech button.done{border-color:var(--ok);opacity:.6}
+  #log{height:74px;overflow-y:auto;padding:5px 10px;font-size:.75rem;color:var(--dim);border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
+  #toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--gold);padding:8px 16px;border-radius:12px;font-size:.85rem;opacity:0;transition:.25s;pointer-events:none;z-index:60}
+  #toast.on{opacity:1}
+  @media(max-width:820px){
+    body{flex-direction:column}
+    #side{width:100%;height:42%;border-left:none;border-top:1px solid var(--line);flex-direction:row;flex-wrap:wrap}
+    .sec{flex:1 1 46%}
+  }
+</style>
+</head>
+<body>
+<div id="main">
+  <div id="canvasWrap">
+    <canvas id="cv"></canvas>
+    <div id="hud"></div>
+    <div id="goal"></div>
+  </div>
+  <div id="log"></div>
+</div>
+<div id="side">
+  <div class="sec"><h3>Постройки <small style="color:var(--dim)">(повторный тап по конвейеру — поворот, тап по своей постройке инструментом ✖ — снос)</small></h3><div id="build"></div></div>
+  <div class="sec"><h3>Склад</h3><div id="inv"></div></div>
+  <div class="sec"><h3>Исследования</h3><div id="tech"></div></div>
+  <div class="sec"><button id="exitBtn" style="width:100%;text-align:center">← В меню игр</button></div>
+</div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* ============ Fable Factory — automation с нуля ============ */
+const W=36,H=24,TS=26;
+const cv=document.getElementById("cv"),cx=cv.getContext("2d");
+const ORE={iron:"#9fb0c4",copper:"#d08a5b",coal:"#3c4450",stone:"#7d8471"};
+const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",
+  ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука"};
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+
+/* карта: залежи руды пятнами */
+const ore=Array.from({length:H},()=>Array(W).fill(null));
+function blob(kind,n){let x=rnd(2,W-3),y=rnd(2,H-3);for(let i=0;i<n;i++){if(x>0&&y>0&&x<W-1&&y<H-1)ore[y][x]=kind;x+=rnd(-1,1);y+=rnd(-1,1)}}
+["iron","iron","copper","copper","coal","coal","stone"].forEach(k=>blob(k,22));
+
+/* здания */
+const DEFS={
+  belt:  {nm:"Конвейер",ic:"➡️",cost:{ironPlate:1},power:0,unlock:null},
+  miner: {nm:"Бур",ic:"🛠",cost:{ironPlate:5,gear:2},power:2,unlock:null},
+  furnace:{nm:"Плавильня",ic:"🔥",cost:{stone:5},power:0,unlock:null},
+  gen:   {nm:"Генератор",ic:"⚡️",cost:{ironPlate:4,stone:4},power:-8,unlock:null},
+  asm:   {nm:"Сборщик",ic:"🏭",cost:{ironPlate:8,gear:4},power:3,unlock:"t_asm"},
+  lab:   {nm:"Лаборатория",ic:"🧪",cost:{ironPlate:10,circuit:2},power:4,unlock:"t_lab"},
+  del:   {nm:"Снос",ic:"✖",cost:{},power:0,unlock:null},
+};
+const RECIPES={ // furnace: in->out ; asm выбирает по входу
+  furnace:[{in:{iron:1,coal:1},out:"ironPlate",t:60},{in:{copper:1,coal:1},out:"copperPlate",t:60},],
+  asm:[{in:{ironPlate:2},out:"gear",t:80},{in:{copperPlate:1},out:"wire",t:50},{in:{wire:2,ironPlate:1},out:"circuit",t:110}],
+  lab:[{in:{circuit:1,gear:1},out:"science",t:140}],
+};
+const TECHS=[
+  {id:"t_asm",nm:"Сборка (10 ⚙️)",cost:{gear:10},done:false,desc:"Открывает Сборщик"},
+  {id:"t_lab",nm:"Наука (8 🟩)",cost:{circuit:8},done:false,desc:"Открывает Лабораторию"},
+  {id:"t_speed",nm:"Турбо-буры (5 🧪)",cost:{science:5},done:false,desc:"Буры ×2 быстрее"},
+  {id:"t_win",nm:"Fable-ядро (25 🧪)",cost:{science:25},done:false,desc:"ПОБЕДА"},
+];
+const GOALS=[
+  {txt:"Скрафти 10 жел.листов",chk:s=>s.made.ironPlate>=10},
+  {txt:"Исследуй «Сборку» и поставь Сборщик",chk:s=>TECHS[0].done&&grid.flat().some(c=>c&&c.t==="asm")},
+  {txt:"Собери 8 плат и открой «Науку»",chk:s=>TECHS[1].done},
+  {txt:"Произведи 25 🧪 и собери Fable-ядро",chk:s=>TECHS[3].done},
+];
+
+/* состояние */
+const grid=Array.from({length:H},()=>Array(W).fill(null)); // {t,dir,item,prog,buf:{}}
+const inv={iron:0,copper:0,coal:8,stone:10,ironPlate:12,copperPlate:0,gear:4,wire:0,circuit:0,science:0};
+const S={tool:"belt",goal:0,made:{},tick:0,win:false};
+Object.keys(ITEM).forEach(k=>S.made[k]=0);
+
+const logEl=document.getElementById("log");
+function say(t){const d=document.createElement("div");d.textContent=t;logEl.appendChild(d);logEl.scrollTop=1e9}
+let toastT;function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),2400)}
+
+/* ---------- построение UI ---------- */
+const buildEl=document.getElementById("build");
+function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" ")[0]).join(" ")||"—"}
+function drawBuild(){
+  buildEl.innerHTML="";
+  for(const [t,d] of Object.entries(DEFS)){
+    if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)continue;
+    const b=document.createElement("button");
+    b.innerHTML=`${d.ic} ${d.nm}<small>${costStr(d.cost)}</small>`;
+    b.className=S.tool===t?"armed":"";
+    b.disabled=t!=="del"&&!canPay(d.cost);
+    b.onclick=()=>{S.tool=t;drawBuild()};
+    buildEl.appendChild(b);
+  }
+}
+function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
+function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
+function drawInv(){
+  document.getElementById("inv").innerHTML=Object.entries(ITEM)
+    .filter(([k])=>inv[k]>0||["ironPlate","gear","circuit","science"].includes(k))
+    .map(([k,nm])=>`<div><span>${nm}</span><span class="n">${inv[k]}</span></div>`).join("");
+}
+function drawTech(){
+  document.getElementById("tech").innerHTML="";
+  TECHS.forEach(t=>{
+    const b=document.createElement("button");
+    b.className=t.done?"done":"";
+    b.innerHTML=`${t.done?"✅":"🔬"} ${t.nm}<small>${t.desc}</small>`;
+    b.disabled=t.done||!canPay(t.cost);
+    b.onclick=()=>{pay(t.cost);t.done=true;say("Исследовано: "+t.nm);toast("🔬 "+t.nm);
+      if(t.id==="t_win")winGame();
+      drawTech();drawBuild();drawInv()};
+    document.getElementById("tech").appendChild(b);
+  });
+}
+function drawGoal(){
+  const g=GOALS[S.goal];
+  document.getElementById("goal").innerHTML=g?`<b>Цель ${S.goal+1}/${GOALS.length}:</b><br>${g.txt}`:"<b>Все цели выполнены!</b>";
+}
+function drawHud(){
+  let gen=0,use=0;
+  grid.flat().forEach(c=>{if(!c)return;const p=DEFS[c.t].power;if(p<0)gen-=p;else use+=p});
+  const ok=gen>=use;
+  document.getElementById("hud").innerHTML=
+    `<div class="pill ${ok?"":"bad"}">⚡️ ${gen}/${use}${ok?"":" — не хватает энергии!"}</div>`;
+  S.powerOk=ok;
+}
+document.getElementById("exitBtn").onclick=()=>parent.postMessage("hexland:exit","*");
+
+/* ---------- размещение ---------- */
+const DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
+function canvasPos(e){
+  const r=cv.getBoundingClientRect();
+  const p=e.touches?e.touches[0]:e;
+  const scale=Math.min(r.width/(W*TS),r.height/(H*TS));
+  const ox=(r.width-W*TS*scale)/2, oy=(r.height-H*TS*scale)/2;
+  return [Math.floor((p.clientX-r.left-ox)/(TS*scale)),Math.floor((p.clientY-r.top-oy)/(TS*scale))];
+}
+cv.addEventListener("pointerdown",e=>{
+  const [x,y]=canvasPos(e);
+  if(x<0||y<0||x>=W||y>=H)return;
+  const c=grid[y][x];
+  if(S.tool==="del"){if(c){grid[y][x]=null;say("Снесено: "+DEFS[c.t].nm)}return}
+  if(c){
+    if(c.t==="belt"&&S.tool==="belt"){c.dir=(c.dir+1)%4;return} // поворот
+    // тап по перерабатывающему зданию — ручная загрузка входов со склада
+    if(RECIPES[c.t]){
+      let fed=[];
+      const needs=new Set();RECIPES[c.t].forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
+      needs.forEach(k=>{const take=Math.min(inv[k],3);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
+      if(fed.length){toast("Загружено: "+fed.join(", "));drawInv()}else toast("На складе нет нужных входов");
+      return;
+    }
+    return toast("Клетка занята");
+  }
+  const d=DEFS[S.tool];
+  if(!canPay(d.cost))return toast("Не хватает ресурсов");
+  if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь");
+  if(S.tool!=="miner"&&S.tool!=="belt"&&ore[y][x])return toast("Тут залежь — только бур/конвейер");
+  pay(d.cost);
+  grid[y][x]={t:S.tool,dir:0,item:null,prog:0,buf:{}};
+  drawBuild();drawInv();drawHud();
+});
+
+/* ---------- симуляция ---------- */
+function neighborsInto(x,y){ // клетки-конвейеры, чей dir указывает в (x,y)
+  const res=[];
+  DIRS.forEach(([dx,dy],di)=>{
+    const nx=x-dx,ny=y-dy;
+    if(nx<0||ny<0||nx>=W||ny>=H)return;
+    const c=grid[ny][nx];
+    if(c&&c.t==="belt"&&c.dir===di&&c.item)res.push(c);
+  });
+  return res;
+}
+function outputTo(x,y,item){ // положить item на соседний конвейер, НЕ смотрящий обратно в здание
+  for(let di=0;di<4;di++){
+    const [dx,dy]=DIRS[di];
+    const nx=x+dx,ny=y+dy;
+    if(nx<0||ny<0||nx>=W||ny>=H)continue;
+    const c=grid[ny][nx];
+    if(!c||c.t!=="belt"||c.item)continue;
+    const [bdx,bdy]=DIRS[c.dir];
+    if(nx+bdx===x&&ny+bdy===y)continue; // этот конвейер везёт В здание — не наш выход
+    c.item=item;return true;
+  }
+  return false;
+}
+function step(){
+  S.tick++;
+  const speed=TECHS[2].done?2:1;
+  // конвейеры двигают предметы (с конца, чтобы не телепортировались)
+  const belts=[];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=grid[y][x];if(c&&c.t==="belt")belts.push([x,y,c])}
+  if(S.tick%12===0){
+    belts.forEach(([x,y,c])=>{
+      if(!c.item)return;
+      const [dx,dy]=DIRS[c.dir],nx=x+dx,ny=y+dy;
+      if(nx<0||ny<0||nx>=W||ny>=H)return;
+      const t=grid[ny][nx];
+      if(!t)return;
+      if(t.t==="belt"&&!t.item){t.item=c.item;c.item=null}
+      else if(t.t==="furnace"||t.t==="asm"||t.t==="lab"){t.buf[c.item]=(t.buf[c.item]||0)+1;c.item=null}
+      else if(t.t==="gen"&&c.item==="coal"){t.buf.coal=(t.buf.coal||0)+1;c.item=null}
+    });
+  }
+  // здания
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const c=grid[y][x];if(!c)continue;
+    if(c.t==="miner"){
+      if(!S.powerOk)continue;
+      c.prog+=speed;
+      if(c.prog>=90){c.prog=0;
+        const k=ore[y][x];
+        if(k&&!outputTo(x,y,k)){inv[k]++;S.made[k]++} // если некуда — сразу на склад (упрощение старта)
+        else if(k)S.made[k]++;
+      }
+    }
+    if(c.t==="furnace"||c.t==="asm"||c.t==="lab"){
+      if(DEFS[c.t].power>0&&!S.powerOk)continue;
+      const recs=RECIPES[c.t];
+      if(!c.rec){c.rec=recs.find(r=>Object.entries(r.in).every(([k,n])=>(c.buf[k]||0)>=n))||null}
+      if(c.rec){
+        if(c.prog===0){
+          if(!Object.entries(c.rec.in).every(([k,n])=>(c.buf[k]||0)>=n)){c.rec=null;continue}
+          Object.entries(c.rec.in).forEach(([k,n])=>c.buf[k]-=n);
+        }
+        c.prog+=speed;
+        if(c.prog>=c.rec.t){
+          const out=c.rec.out;
+          if(!outputTo(x,y,out)){inv[out]++}
+          S.made[out]++;c.prog=0;c.rec=null;
+        }
+      }
+    }
+  }
+  // подбор с конвейеров, ведущих «в никуда» у края — на склад
+  belts.forEach(([x,y,c])=>{
+    if(!c.item)return;
+    const [dx,dy]=DIRS[c.dir],nx=x+dx,ny=y+dy;
+    if(nx<0||ny<0||nx>=W||ny>=H){inv[c.item]++;S.made[c.item]++;c.item=null}
+  });
+  // цели
+  const g=GOALS[S.goal];
+  if(g&&g.chk(S)){say("✅ Цель выполнена: "+g.txt);toast("✅ "+g.txt);S.goal++;drawGoal()}
+  if(S.tick%30===0){drawInv();drawTech();drawBuild();drawHud()}
+}
+function winGame(){
+  S.win=true;
+  toast("🏆 Fable-ядро собрано — победа!");
+  say("🏆 ПОБЕДА: Fable-ядро собрано за "+Math.round(S.tick/60)+" сек!");
+}
+
+/* ---------- рендер ---------- */
+function render(){
+  const r=cv.getBoundingClientRect();
+  if(cv.width!==r.width*devicePixelRatio){cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio}
+  cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  cx.clearRect(0,0,r.width,r.height);
+  const scale=Math.min(r.width/(W*TS),r.height/(H*TS));
+  const ox=(r.width-W*TS*scale)/2, oy=(r.height-H*TS*scale)/2;
+  cx.save();cx.translate(ox,oy);cx.scale(scale,scale);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    cx.fillStyle=(x+y)%2?"#101720":"#0e141c";
+    cx.fillRect(x*TS,y*TS,TS,TS);
+    if(ore[y][x]){cx.fillStyle=ORE[ore[y][x]];cx.globalAlpha=.55;
+      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,TS/3,0,7);cx.fill();cx.globalAlpha=1}
+  }
+  cx.font="16px sans-serif";cx.textAlign="center";cx.textBaseline="middle";
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const c=grid[y][x];if(!c)continue;
+    const px=x*TS+TS/2,py=y*TS+TS/2;
+    if(c.t==="belt"){
+      cx.fillStyle="#22303f";cx.fillRect(x*TS+2,y*TS+2,TS-4,TS-4);
+      cx.fillStyle="#5b7080";
+      cx.save();cx.translate(px,py);cx.rotate(c.dir*Math.PI/2);
+      cx.beginPath();cx.moveTo(6,0);cx.lineTo(-3,-5);cx.lineTo(-3,5);cx.fill();cx.restore();
+      if(c.item){cx.fillStyle=ORE[c.item]||"#c9d4e0";cx.beginPath();cx.arc(px,py,5,0,7);cx.fill()}
+    } else {
+      cx.fillStyle="#1d2836";cx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2);
+      cx.strokeStyle=DEFS[c.t].power<0?"#e8b04b":"#3a4a5e";cx.strokeRect(x*TS+1,y*TS+1,TS-2,TS-2);
+      cx.fillText(DEFS[c.t].ic,px,py);
+      if(c.prog>0&&c.rec){cx.fillStyle="var(--ok)";cx.fillStyle="#4dbb72";
+        cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/c.rec.t,2)}
+      if(c.t==="miner"&&c.prog>0){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/90,2)}
+    }
+  }
+  cx.restore();
+}
+// симуляция по реальному времени: 60 тиков/сек, догоняет после троттлинга таймеров
+let last=performance.now();
+setInterval(()=>{
+  const now=performance.now();
+  const steps=Math.min(120,Math.floor((now-last)/(1000/60)));
+  for(let i=0;i<steps;i++)step();
+  if(steps>0)last+=steps*(1000/60);
+},50);
+(function raf(){render();requestAnimationFrame(raf)})();
+drawBuild();drawInv();drawTech();drawGoal();drawHud();
+say("Fable Factory: поставь бур на залежь, кинь уголь в генератор, тяни конвейеры к плавильне.");
+toast("Начни с бура на залежи ⛏");
+</script>
+</body>
+</html>
