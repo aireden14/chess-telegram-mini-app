@@ -78,13 +78,16 @@ function blob(kind,n){let x=rnd(2,W-3),y=rnd(2,H-3);for(let i=0;i<n;i++){if(x>0&
 
 /* здания */
 const DEFS={
-  belt:  {nm:"Конвейер",ic:"➡️",cost:{ironPlate:1},power:0,unlock:null},
-  miner: {nm:"Бур",ic:"🛠",cost:{ironPlate:5,gear:2},power:2,unlock:null},
-  furnace:{nm:"Плавильня",ic:"🔥",cost:{stone:5},power:0,unlock:null},
-  gen:   {nm:"Генератор",ic:"⚡️",cost:{ironPlate:4,stone:4},power:-8,unlock:null},
-  asm:   {nm:"Сборщик",ic:"🏭",cost:{ironPlate:8,gear:4},power:3,unlock:"t_asm"},
-  lab:   {nm:"Лаборатория",ic:"🧪",cost:{ironPlate:10,circuit:2},power:4,unlock:"t_lab"},
-  del:   {nm:"Снос",ic:"✖",cost:{},power:0,unlock:null},
+  belt:  {nm:"Конвейер",ic:"➡️",cost:{ironPlate:1},power:0,unlock:null,hp:40},
+  miner: {nm:"Бур",ic:"🛠",cost:{ironPlate:5,gear:2},power:2,unlock:null,hp:120},
+  furnace:{nm:"Плавильня",ic:"🔥",cost:{stone:5},power:0,unlock:null,hp:150},
+  gen:   {nm:"Генератор",ic:"⚡️",cost:{ironPlate:4,stone:4},power:-8,unlock:null,hp:150},
+  asm:   {nm:"Сборщик",ic:"🏭",cost:{ironPlate:8,gear:4},power:3,unlock:"t_asm",hp:150},
+  lab:   {nm:"Лаборатория",ic:"🧪",cost:{ironPlate:10,circuit:2},power:4,unlock:"t_lab",hp:150},
+  turret:{nm:"Турель",ic:"🗼",cost:{ironPlate:6,gear:4},power:2,unlock:"t_def",hp:220},
+  wall:  {nm:"Стена",ic:"🧿",cost:{stone:2},power:0,unlock:"t_def",hp:420},
+  core:  {nm:"Ядро",ic:"💠",cost:{},power:0,unlock:"hidden",hp:600},
+  del:   {nm:"Снос",ic:"✖",cost:{},power:0,unlock:null,hp:0},
 };
 const RECIPES={ // furnace: in->out ; asm выбирает по входу
   furnace:[{in:{iron:1,coal:1},out:"ironPlate",t:60},{in:{copper:1,coal:1},out:"copperPlate",t:60},],
@@ -93,7 +96,9 @@ const RECIPES={ // furnace: in->out ; asm выбирает по входу
 };
 const TECHS=[
   {id:"t_asm",nm:"Сборка (10 ⚙️)",cost:{gear:10},done:false,desc:"Открывает Сборщик"},
+  {id:"t_def",nm:"Оборона (8 ⚙️)",cost:{gear:8},done:false,desc:"Турель и стена"},
   {id:"t_lab",nm:"Наука (8 🟩)",cost:{circuit:8},done:false,desc:"Открывает Лабораторию"},
+  {id:"t_belt",nm:"Быстрые конвейеры (4 🧪)",cost:{science:4},done:false,desc:"Конвейеры ×2"},
   {id:"t_speed",nm:"Турбо-буры (5 🧪)",cost:{science:5},done:false,desc:"Буры ×2 быстрее"},
   {id:"t_win",nm:"Fable-ядро (25 🧪)",cost:{science:25},done:false,desc:"ПОБЕДА"},
 ];
@@ -107,8 +112,9 @@ const GOALS=[
 /* состояние */
 const grid=Array.from({length:H},()=>Array(W).fill(null)); // {t,dir,item,prog,buf:{}}
 const inv={iron:0,copper:0,coal:8,stone:10,ironPlate:12,copperPlate:0,gear:4,wire:0,circuit:0,science:0};
-const S={tool:"belt",goal:0,made:{},tick:0,win:false};
+const S={tool:"belt",goal:0,made:{},tick:0,win:false,over:false,mode:"peace",wave:0,nextWave:3600};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
+let enemies=[]; // {x,y,hp,maxHp} — координаты в тайлах (float)
 
 const logEl=document.getElementById("log");
 function say(t){const d=document.createElement("div");d.textContent=t;logEl.appendChild(d);logEl.scrollTop=1e9}
@@ -120,7 +126,9 @@ function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" 
 function drawBuild(){
   buildEl.innerHTML="";
   for(const [t,d] of Object.entries(DEFS)){
+    if(d.unlock==="hidden")continue;
     if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)continue;
+    if((t==="turret"||t==="wall")&&S.mode!=="survival")continue;
     const b=document.createElement("button");
     b.innerHTML=`${d.ic} ${d.nm}<small>${costStr(d.cost)}</small>`;
     b.className=S.tool===t?"armed":"";
@@ -157,8 +165,13 @@ function drawHud(){
   let gen=0,use=0;
   grid.flat().forEach(c=>{if(!c)return;const p=DEFS[c.t].power;if(p<0)gen-=p;else use+=p});
   const ok=gen>=use;
+  let wavePill="";
+  if(S.mode==="survival"){
+    const secs=Math.max(0,Math.ceil((S.nextWave-S.tick)/60));
+    wavePill=`<div class="pill ${enemies.length?"bad":""}">🌊 волна ${S.wave+1} через ${secs}с${enemies.length?` · врагов: ${enemies.length}`:""}</div>`;
+  }
   document.getElementById("hud").innerHTML=
-    `<div class="pill ${ok?"":"bad"}">⚡️ ${gen}/${use}${ok?"":" — не хватает энергии!"}</div>`;
+    `<div class="pill ${ok?"":"bad"}">⚡️ ${gen}/${use}${ok?"":" — не хватает энергии!"}</div>`+wavePill;
   S.powerOk=ok;
 }
 document.getElementById("exitBtn").onclick=()=>parent.postMessage("hexland:exit","*");
@@ -176,7 +189,10 @@ cv.addEventListener("pointerdown",e=>{
   const [x,y]=canvasPos(e);
   if(x<0||y<0||x>=W||y>=H)return;
   const c=grid[y][x];
-  if(S.tool==="del"){if(c){grid[y][x]=null;say("Снесено: "+DEFS[c.t].nm)}return}
+  if(S.tool==="del"){if(c){
+    if(c.t==="core")return toast("Ядро сносить нельзя");
+    Object.entries(DEFS[c.t].cost).forEach(([k,n])=>inv[k]+=Math.floor(n/2)); // возврат 50%
+    grid[y][x]=null;say("Снесено: "+DEFS[c.t].nm+" (возврат 50%)");drawInv();drawBuild();drawHud()}return}
   if(c){
     if(c.t==="belt"&&S.tool==="belt"){c.dir=(c.dir+1)%4;return} // поворот
     // тап по перерабатывающему зданию — ручная загрузка входов со склада
@@ -194,7 +210,7 @@ cv.addEventListener("pointerdown",e=>{
   if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь");
   if(S.tool!=="miner"&&S.tool!=="belt"&&ore[y][x])return toast("Тут залежь — только бур/конвейер");
   pay(d.cost);
-  grid[y][x]={t:S.tool,dir:0,item:null,prog:0,buf:{}};
+  grid[y][x]={t:S.tool,dir:0,item:null,prog:0,buf:{},hp:d.hp};
   drawBuild();drawInv();drawHud();
 });
 
@@ -222,13 +238,16 @@ function outputTo(x,y,item){ // положить item на соседний ко
   }
   return false;
 }
+const tech=id=>TECHS.find(t=>t.id===id).done;
 function step(){
+  if(S.over||!S.started)return;
   S.tick++;
-  const speed=TECHS[2].done?2:1;
+  const speed=tech("t_speed")?2:1;
+  const beltPeriod=tech("t_belt")?6:12;
   // конвейеры двигают предметы (с конца, чтобы не телепортировались)
   const belts=[];
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=grid[y][x];if(c&&c.t==="belt")belts.push([x,y,c])}
-  if(S.tick%12===0){
+  if(S.tick%beltPeriod===0){
     belts.forEach(([x,y,c])=>{
       if(!c.item)return;
       const [dx,dy]=DIRS[c.dir],nx=x+dx,ny=y+dy;
@@ -276,15 +295,62 @@ function step(){
     const [dx,dy]=DIRS[c.dir],nx=x+dx,ny=y+dy;
     if(nx<0||ny<0||nx>=W||ny>=H){inv[c.item]++;S.made[c.item]++;c.item=null}
   });
+  // === выживание: волны, враги, турели ===
+  if(S.mode==="survival"){
+    if(S.tick>=S.nextWave){
+      S.wave++;S.nextWave+=3000; // следующая через 50с
+      const n=2+S.wave, hp=25+6*S.wave;
+      for(let i=0;i<n;i++){
+        const side=Math.floor(Math.random()*4);
+        const ex=side===0?0:side===1?W-1:Math.random()*W;
+        const ey=side===2?0:side===3?H-1:Math.random()*H;
+        enemies.push({x:ex,y:ey,hp,maxHp:hp});
+      }
+      toast(`🌊 Волна ${S.wave}: ${n} рейдеров!`);say(`🌊 Волна ${S.wave} (${n} врагов)`);
+    }
+    // список зданий (цели врагов)
+    const bl=[];
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x])bl.push([x,y]);
+    enemies.forEach(en=>{
+      let bx=-1,by=-1,bd=1e9;
+      bl.forEach(([x,y])=>{const d=Math.abs(x+0.5-en.x)+Math.abs(y+0.5-en.y);if(d<bd){bd=d;bx=x;by=y}});
+      if(bx<0)return;
+      if(bd>0.9){ // идём к цели
+        const dx=bx+0.5-en.x,dy=by+0.5-en.y,L=Math.hypot(dx,dy)||1;
+        en.x+=dx/L*0.028;en.y+=dy/L*0.028;
+      } else if(S.tick%30===0){ // грызём здание
+        const b=grid[by][bx];b.hp-=8;
+        if(b.hp<=0){
+          if(b.t==="core"){grid[by][bx]=null;gameOver();return}
+          grid[by][bx]=null;say("💥 Разрушено: "+DEFS[b.t].nm);
+        }
+      }
+    });
+    // турели
+    if(S.tick%20===0&&S.powerOk){
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+        const c=grid[y][x];if(!c||c.t!=="turret")continue;
+        let tgt=null,td=4.5;
+        enemies.forEach(en=>{const d=Math.hypot(en.x-(x+0.5),en.y-(y+0.5));if(d<td){td=d;tgt=en}});
+        if(tgt){tgt.hp-=7;c.shot=S.tick; // для отрисовки луча
+          if(tgt.hp<=0)enemies=enemies.filter(e=>e!==tgt)}
+      }
+    }
+    enemies=enemies.filter(e=>e.hp>0);
+  }
   // цели
   const g=GOALS[S.goal];
   if(g&&g.chk(S)){say("✅ Цель выполнена: "+g.txt);toast("✅ "+g.txt);S.goal++;drawGoal()}
   if(S.tick%30===0){drawInv();drawTech();drawBuild();drawHud()}
 }
 function winGame(){
-  S.win=true;
-  toast("🏆 Fable-ядро собрано — победа!");
+  S.win=true;localStorage.removeItem(SAVE_KEY);
   say("🏆 ПОБЕДА: Fable-ядро собрано за "+Math.round(S.tick/60)+" сек!");
+  overlay(`<h2 style="margin-bottom:8px">🏆 Победа!</h2>
+    <p style="color:var(--dim);font-size:.85rem">Fable-ядро собрано за ${Math.round(S.tick/60)} сек${S.mode==="survival"?`, отбито волн: ${S.wave}`:""}.</p>
+    <div style="display:flex;gap:8px;margin-top:14px">
+    <button style="flex:1" onclick="location.reload()">Заново</button>
+    <button style="flex:1" onclick="parent.postMessage('hexland:exit','*')">В меню</button></div>`);
 }
 
 /* ---------- рендер ---------- */
@@ -320,9 +386,69 @@ function render(){
         cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/c.rec.t,2)}
       if(c.t==="miner"&&c.prog>0){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/90,2)}
     }
+    // полоска HP у повреждённых зданий
+    if(c.hp!==undefined&&c.hp<DEFS[c.t].hp){
+      cx.fillStyle="#000";cx.fillRect(x*TS+2,y*TS+1,TS-4,3);
+      cx.fillStyle="#ff6b6b";cx.fillRect(x*TS+2,y*TS+1,(TS-4)*Math.max(0,c.hp)/DEFS[c.t].hp,3);
+    }
   }
+  // враги
+  enemies.forEach(en=>{
+    cx.fillStyle="#c03a3a";cx.beginPath();cx.arc(en.x*TS,en.y*TS,6,0,7);cx.fill();
+    cx.strokeStyle="#5c1010";cx.stroke();
+    cx.fillStyle="#000";cx.fillRect(en.x*TS-7,en.y*TS-11,14,3);
+    cx.fillStyle="#ffb14b";cx.fillRect(en.x*TS-7,en.y*TS-11,14*en.hp/en.maxHp,3);
+  });
   cx.restore();
 }
+/* ---------- оверлеи / старт / сейв ---------- */
+function overlay(html){
+  let o=document.getElementById("ovl");
+  if(!o){o=document.createElement("div");o.id="ovl";
+    o.style.cssText="position:fixed;inset:0;background:rgba(5,8,12,.78);display:grid;place-items:center;z-index:70";
+    document.body.appendChild(o)}
+  o.innerHTML=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:340px;width:92%">${html}</div>`;
+  o.style.display="grid";
+  return o;
+}
+function hideOverlay(){const o=document.getElementById("ovl");if(o)o.style.display="none"}
+function gameOver(){
+  S.over=true;localStorage.removeItem(SAVE_KEY);
+  overlay(`<h2 style="margin-bottom:8px">💥 Ядро разрушено</h2>
+    <p style="color:var(--dim);font-size:.85rem">Ты продержался ${S.wave} волн(ы).</p>
+    <div style="display:flex;gap:8px;margin-top:14px">
+    <button style="flex:1" onclick="location.reload()">Заново</button>
+    <button style="flex:1" onclick="parent.postMessage('hexland:exit','*')">В меню</button></div>`);
+}
+const SAVE_KEY="fableFactory.v2.save";
+function saveGame(){
+  if(!S.started||S.over||S.win)return;
+  const gridSer=grid.map(row=>row.map(c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp}:null));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({ore,grid:gridSer,inv,made:S.made,goal:S.goal,tick:S.tick,
+    mode:S.mode,wave:S.wave,nextWave:S.nextWave,techs:TECHS.map(t=>t.done)}));
+}
+function loadGame(d){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){ore[y][x]=d.ore[y][x];grid[y][x]=d.grid[y][x]?{...d.grid[y][x],rec:null}:null}
+  Object.assign(inv,d.inv);Object.assign(S.made,d.made);
+  S.goal=d.goal;S.tick=d.tick;S.mode=d.mode;S.wave=d.wave;S.nextWave=d.nextWave;
+  TECHS.forEach((t,i)=>t.done=!!d.techs[i]);
+}
+function startGame(mode,saved){
+  S.started=true;S.mode=mode;
+  if(saved)loadGame(saved);
+  else if(mode==="survival"){
+    const cx0=Math.floor(W/2),cy0=Math.floor(H/2);
+    ore[cy0][cx0]=null;
+    grid[cy0][cx0]={t:"core",dir:0,item:null,prog:0,buf:{},hp:DEFS.core.hp};
+    S.nextWave=S.tick+5400; // 90с на подготовку
+    say("Выживание: защищай 💠 Ядро! Первая волна через 90 сек. Исследуй Оборону для турелей.");
+  }
+  hideOverlay();
+  drawBuild();drawInv();drawTech();drawGoal();drawHud();
+  say("Fable Factory: поставь бур на залежь, кинь уголь в генератор, тяни конвейеры к плавильне. Тап по зданию — загрузка со склада.");
+  toast(saved?"Игра продолжена 💾":mode==="survival"?"Выживание: 60с до волны!":"Начни с бура на залежи ⛏");
+}
+setInterval(saveGame,5000);
 // симуляция по реальному времени: 60 тиков/сек, догоняет после троттлинга таймеров
 let last=performance.now();
 setInterval(()=>{
@@ -332,9 +458,21 @@ setInterval(()=>{
   if(steps>0)last+=steps*(1000/60);
 },50);
 (function raf(){render();requestAnimationFrame(raf)})();
-drawBuild();drawInv();drawTech();drawGoal();drawHud();
-say("Fable Factory: поставь бур на залежь, кинь уголь в генератор, тяни конвейеры к плавильне.");
-toast("Начни с бура на залежи ⛏");
+/* стартовое меню: режим или продолжение */
+(function(){
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(SAVE_KEY))}catch(e){}
+  const o=overlay(`<h2 style="margin-bottom:8px">🏭 Fable Factory</h2>
+    <p style="color:var(--dim);font-size:.85rem;margin-bottom:12px">Построй автоматическую фабрику и собери Fable-ядро.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${saved?`<button id="sCont">💾 Продолжить (${saved.mode==="survival"?"выживание, волна "+saved.wave:"мирный"})</button>`:""}
+      <button id="sPeace">🌿 Мирный режим<br><small>только автоматизация</small></button>
+      <button id="sSurv">⚔️ Выживание<br><small>волны рейдеров, турели, защита Ядра</small></button>
+    </div>`);
+  if(saved)o.querySelector("#sCont").onclick=()=>startGame(saved.mode,saved);
+  o.querySelector("#sPeace").onclick=()=>startGame("peace",null);
+  o.querySelector("#sSurv").onclick=()=>startGame("survival",null);
+})();
 </script>
 </body>
 </html>

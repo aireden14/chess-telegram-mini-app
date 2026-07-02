@@ -8,7 +8,7 @@
   :root{
     --bg:#0d1117; --panel:#161d27; --panel2:#1d2735; --line:#2c3a4d;
     --ink:#e8eef7; --dim:#8b9bb0; --gold:#e8b04b; --accent:#7aa2ff;
-    --wood:#3f7d44; --brick:#c05b3a; --sheep:#8fbf5a; --wheat:#e0b34a; --ore:#8a93a6; --desert:#c9b280;
+    --wood:#3f7d44; --brick:#c05b3a; --sheep:#8fbf5a; --wheat:#e0b34a; --ore:#8a93a6; --desert:#c9b280; --water:#1d4e6b;
     --danger:#ff6b6b; --ok:#4dbb72;
     font-size:15px;
   }
@@ -21,9 +21,11 @@
     display:flex;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  #board-wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+  #board-wrap{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
   #board{flex:1;min-height:0}
   svg{width:100%;height:100%;display:block;touch-action:manipulation}
+  #turnBanner{position:absolute;top:8px;left:8px;background:rgba(22,29,39,.92);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:.85rem;pointer-events:none}
+  #turnBanner b{color:var(--gold)}
   #log{height:92px;overflow-y:auto;padding:6px 10px;font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
   #log b{color:var(--ink)}
   #log .me b{color:var(--gold)}
@@ -32,22 +34,20 @@
   .sec{padding:10px 12px;border-bottom:1px solid var(--line)}
   .sec h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
 
-  /* игроки */
   .pl{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;font-size:.85rem}
   .pl.turn{background:var(--panel2);outline:1px solid var(--line)}
   .pl .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
   .pl .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pl .st{color:var(--dim);font-size:.75rem;font-variant-numeric:tabular-nums}
   .pl .vp{font-weight:700;color:var(--gold);min-width:2.2em;text-align:right}
+  .vpbar{height:3px;border-radius:2px;background:var(--panel2);margin:0 6px 2px 26px;overflow:hidden}
+  .vpbar i{display:block;height:100%;background:var(--gold)}
 
-  /* ресурсы */
   #res{display:flex;gap:6px}
   .rc{flex:1;text-align:center;border-radius:10px;padding:6px 0 4px;background:var(--panel2);border:1px solid var(--line)}
   .rc .ic{font-size:1.05rem}
   .rc .n{font-weight:700;font-variant-numeric:tabular-nums}
-  .rc.up .n{color:var(--ok)}
 
-  /* действия */
   #actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   button{
     font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);
@@ -60,29 +60,27 @@
   #dice{display:flex;align-items:center;gap:10px}
   .die{width:40px;height:40px;border-radius:10px;background:#f4efe4;color:#222;display:grid;place-items:center;font-size:1.3rem;font-weight:800}
 
-  /* дев-карты в руке */
   #devhand{display:flex;flex-wrap:wrap;gap:6px}
   .dev{font-size:.78rem;padding:6px 10px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);cursor:pointer}
   .dev.new{opacity:.5;cursor:default}
 
-  /* торговля */
-  #trade{display:flex;flex-direction:column;gap:6px}
+  #trade,#ptrade{display:flex;flex-direction:column;gap:6px}
   .trow{display:flex;align-items:center;gap:6px;font-size:.85rem}
   .trow select{flex:1;font:inherit;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px}
 
-  /* модалки */
   #modal{position:fixed;inset:0;background:rgba(5,8,12,.7);display:none;place-items:center;z-index:50}
   #modal.on{display:grid}
-  #modal .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:340px;width:92%}
+  #modal .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:360px;width:92%}
   #modal h2{font-size:1.05rem;margin-bottom:10px}
+  #modal p{color:var(--dim);font-size:.85rem;margin-bottom:4px}
   #modal .card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   #modal button{flex:1}
 
   #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:8px 16px;border-radius:12px;font-size:.85rem;opacity:0;transition:.25s;pointer-events:none;z-index:60}
   #toast.on{opacity:1}
 
-  /* SVG-элементы */
   .hex{stroke:#0a0e14;stroke-width:2.5}
+  .hex.wtr{stroke:#0e2735}
   .chip{fill:#f4efe4}
   .chipTx{font-weight:800;text-anchor:middle;fill:#333}
   .chipTx.hot{fill:#c0392b}
@@ -91,7 +89,9 @@
   .vtx.hint{fill:rgba(122,162,255,.5);stroke:var(--accent);stroke-width:1.5}
   .edge{stroke:transparent;stroke-width:14;cursor:pointer;stroke-linecap:round}
   .edge.hint{stroke:rgba(122,162,255,.45)}
+  .edge.hintShip{stroke:rgba(77,187,114,.5)}
   .road{stroke-width:7;stroke-linecap:round;pointer-events:none}
+  .shipTx{font-size:11px;text-anchor:middle;pointer-events:none}
   .stl{stroke:#0a0e14;stroke-width:1.5;pointer-events:none}
   .robber{fill:#1b1f27;stroke:#000;pointer-events:none}
   .hexHit{fill:transparent;cursor:pointer}
@@ -108,6 +108,7 @@
 <body>
 <div id="board-wrap">
   <div id="board"></div>
+  <div id="turnBanner">…</div>
   <div id="log"></div>
 </div>
 <div id="side">
@@ -121,6 +122,7 @@
     </div>
     <div id="actions">
       <button id="bRoad">Дорога<br><small>🌲🧱</small></button>
+      <button id="bShip" style="display:none">Корабль ⛵<br><small>🌲🐑</small></button>
       <button id="bStl">Поселение<br><small>🌲🧱🐑🌾</small></button>
       <button id="bCity">Город<br><small>🌾🌾⛰️⛰️⛰️</small></button>
       <button id="bDev">Дев-карта<br><small>🐑🌾⛰️</small></button>
@@ -128,6 +130,13 @@
     </div>
   </div>
   <div class="sec"><h3>Дев-карты</h3><div id="devhand"><span style="color:var(--dim);font-size:.8rem">пусто</span></div></div>
+  <div class="sec"><h3>Обмен с игроками (1:1)</h3>
+    <div id="ptrade">
+      <div class="trow">Отдаю <select id="pGive"></select></div>
+      <div class="trow">Получаю <select id="pGet"></select></div>
+      <button id="pGo">Предложить ботам</button>
+    </div>
+  </div>
   <div class="sec"><h3>Обмен с банком</h3>
     <div id="trade">
       <div class="trow">Отдаю <select id="tGive"></select></div>
@@ -142,13 +151,14 @@
 
 <script>
 "use strict";
-/* ============ Катан Fable — полный ремейк с нуля ============ */
+/* ============ Катан Fable v2 — База + Мореходы, торговля с ботами ============ */
 const R = {wood:"🌲",brick:"🧱",sheep:"🐑",wheat:"🌾",ore:"⛰️"};
 const RKEYS = Object.keys(R);
 const RNAME = {wood:"дерево",brick:"кирпич",sheep:"овцы",wheat:"пшеница",ore:"руда"};
-const HEXFILL = {wood:"var(--wood)",brick:"var(--brick)",sheep:"var(--sheep)",wheat:"var(--wheat)",ore:"var(--ore)",desert:"var(--desert)"};
+const HEXFILL = {wood:"var(--wood)",brick:"var(--brick)",sheep:"var(--sheep)",wheat:"var(--wheat)",ore:"var(--ore)",desert:"var(--desert)",water:"var(--water)"};
 const COST = {
   road:{wood:1,brick:1},
+  ship:{wood:1,sheep:1},
   settlement:{wood:1,brick:1,sheep:1,wheat:1},
   city:{wheat:2,ore:3},
   dev:{sheep:1,wheat:1,ore:1},
@@ -156,63 +166,88 @@ const COST = {
 const rnd = a=>a[Math.floor(Math.random()*a.length)];
 const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 
-/* ---------- геометрия: 19 гексов, вершины, рёбра ---------- */
-const SZ=46, CX=310, CY=290;
-const hexes=[]; // {q,r,x,y,res,num,id}
-{
-  const coords=[];
-  for(let q=-2;q<=2;q++)for(let r=-2;r<=2;r++)if(Math.abs(q+r)<=2)coords.push([q,r]);
-  const bag=shuffle(["wood","wood","wood","wood","brick","brick","brick","sheep","sheep","sheep","sheep","wheat","wheat","wheat","wheat","ore","ore","ore","desert"]);
-  const nums=shuffle([2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12]);
-  let ni=0;
-  coords.forEach(([q,r],i)=>{
-    const x=CX+SZ*Math.sqrt(3)*(q+r/2), y=CY+SZ*1.5*r;
-    const res=bag[i];
-    hexes.push({id:i,q,r,x,y,res,num:res==="desert"?0:nums[ni++]});
-  });
-}
+/* ---------- геометрия (строится по выбранному режиму) ---------- */
+let SZ=46; const CX=310, CY=290;
+let hexes=[], verts=new Map(), edges=new Map();
+let SEA=false;
 const corner=(h,i)=>{const a=Math.PI/180*(60*i-30);return [h.x+SZ*Math.cos(a),h.y+SZ*Math.sin(a)]};
 const vk=(x,y)=>Math.round(x)+","+Math.round(y);
-const verts=new Map(); // key -> {x,y,hexes:[],adj:Set(edgeIdx? no, vert keys),owner:-1,city:false,port:null}
-hexes.forEach(h=>{for(let i=0;i<6;i++){const [x,y]=corner(h,i);const k=vk(x,y);
-  if(!verts.has(k))verts.set(k,{k,x,y,hexes:[],adj:new Set(),owner:-1,city:false,port:null});
-  verts.get(k).hexes.push(h);
-}});
-const edges=new Map(); // key "a|b" sorted -> {a,b,owner:-1}
 const ek=(a,b)=>a<b?a+"|"+b:b+"|"+a;
-hexes.forEach(h=>{for(let i=0;i<6;i++){
-  const a=vk(...corner(h,i)), b=vk(...corner(h,(i+1)%6));
-  verts.get(a).adj.add(b); verts.get(b).adj.add(a);
-  if(!edges.has(ek(a,b)))edges.set(ek(a,b),{k:ek(a,b),a,b,owner:-1});
-}});
-// порты: 9 штук на прибрежных вершинах (парами)
-const portDefs=shuffle(["3:1","3:1","3:1","3:1","wood","brick","sheep","wheat","ore"]);
-{
-  const coastal=[...verts.values()].filter(v=>v.hexes.length<3);
-  // берём пары соседних прибрежных вершин, равномерно
+const isLand=h=>h.res!=="water";
+
+function buildBoard(sea){
+  SEA=sea; SZ=sea?34:46;
+  hexes=[];verts=new Map();edges=new Map();
+  const coords=[];
+  for(let q=-2;q<=2;q++)for(let r=-2;r<=2;r++)if(Math.abs(q+r)<=2)coords.push([q,r,"base"]);
+  if(sea){
+    const ring=[];
+    for(let q=-3;q<=3;q++)for(let r=-3;r<=3;r++)if(Math.abs(q+r)<=3&&Math.max(Math.abs(q),Math.abs(r),Math.abs(q+r))===3)ring.push([q,r]);
+    const islandIdx=new Set(shuffle(ring.map((_,i)=>i)).slice(0,6));
+    ring.forEach(([q,r],i)=>coords.push([q,r,islandIdx.has(i)?"isl":"water"]));
+  }
+  const bag=shuffle(["wood","wood","wood","wood","brick","brick","brick","sheep","sheep","sheep","sheep","wheat","wheat","wheat","wheat","ore","ore","ore","desert"]);
+  const nums=shuffle([2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12]);
+  const islNums=shuffle([3,4,5,6,8,9,10,11]);
+  let bi=0,ni=0,ii=0;
+  coords.forEach(([q,r,zone],idx)=>{
+    const x=CX+SZ*Math.sqrt(3)*(q+r/2), y=CY+SZ*1.5*r;
+    let res,num=0,isl=false;
+    if(zone==="base"){res=bag[bi++];if(res!=="desert")num=nums[ni++]}
+    else if(zone==="isl"){res=rnd(RKEYS);num=islNums[ii++%islNums.length];isl=true}
+    else res="water";
+    hexes.push({id:idx,q,r,x,y,res,num,isl});
+  });
+  hexes.forEach(h=>{for(let i=0;i<6;i++){const [x,y]=corner(h,i);const k=vk(x,y);
+    if(!verts.has(k))verts.set(k,{k,x,y,hexes:[],adj:new Set(),owner:-1,city:false,port:null});
+    verts.get(k).hexes.push(h);
+  }});
+  hexes.forEach(h=>{for(let i=0;i<6;i++){
+    const a=vk(...corner(h,i)), b=vk(...corner(h,(i+1)%6));
+    verts.get(a).adj.add(b); verts.get(b).adj.add(a);
+    const key=ek(a,b);
+    if(!edges.has(key))edges.set(key,{k:key,a,b,owner:-1,ship:false,hexes:[]});
+    edges.get(key).hexes.push(h);
+  }});
+  // остров-флаг вершины: касается острова и не касается базовой земли
+  verts.forEach(v=>{
+    const land=v.hexes.filter(isLand);
+    v.island=land.length>0&&land.every(h=>h.isl);
+    v.baseLand=land.some(h=>!h.isl);
+  });
+  // порты — на побережье базового острова
+  const portDefs=shuffle(["3:1","3:1","3:1","3:1","wood","brick","sheep","wheat","ore"]);
+  const coastal=[...verts.values()].filter(v=>v.baseLand&&(v.hexes.length<3||v.hexes.some(h=>h.res==="water")));
   const used=new Set(); let pi=0;
   const sorted=coastal.slice().sort((u,v)=>Math.atan2(u.y-CY,u.x-CX)-Math.atan2(v.y-CY,v.x-CX));
   for(let i=0;i<sorted.length&&pi<9;i+=Math.ceil(sorted.length/9)){
     const v1=sorted[i];
-    const v2=[...v1.adj].map(k=>verts.get(k)).find(v=>v.hexes.length<3&&!used.has(v.k));
+    const v2=[...v1.adj].map(k=>verts.get(k)).find(v=>v&&v.baseLand&&(v.hexes.length<3||v.hexes.some(h=>h.res==="water"))&&!used.has(v.k));
     if(!v2||used.has(v1.k))continue;
     used.add(v1.k);used.add(v2.k);
     v1.port=v2.port=portDefs[pi++];
   }
+  S.robber=hexes.find(h=>h.res==="desert").id;
+}
+// типы ребра: дорога/корабль
+function edgeKinds(e){
+  const hasBase=e.hexes.some(h=>isLand(h)&&!h.isl), hasIsl=e.hexes.some(h=>h.isl), hasWater=e.hexes.some(h=>h.res==="water");
+  const strait=hasBase&&hasIsl; // пролив база↔остров — только корабль
+  return {road:!strait&&e.hexes.some(isLand), ship:hasWater||strait};
 }
 
 /* ---------- игроки и боты ---------- */
 const players=[
   {i:0,name:"Ты",color:"#e8b04b",bot:false},
-  {i:1,name:"Барон Грач",color:"#c05b6b",bot:true, persona:"builder"}, // строит города
-  {i:2,name:"Магистр Тис",color:"#6b8fc0",bot:true, persona:"scholar"}, // любит дев-карты
-  {i:3,name:"Лиса Вельда",color:"#7fbf7a",bot:true, persona:"trader"},  // активно меняется
+  {i:1,name:"Барон Грач",color:"#c05b6b",bot:true, persona:"builder"},
+  {i:2,name:"Магистр Тис",color:"#6b8fc0",bot:true, persona:"scholar"},
+  {i:3,name:"Лиса Вельда",color:"#7fbf7a",bot:true, persona:"trader"},
 ];
-players.forEach(p=>{p.res={wood:0,brick:0,sheep:0,wheat:0,ore:0};p.dev=[];p.devNew=[];p.knights=0;p.vpCards=0;p.roads=15;p.stls=5;p.cities=4;});
+players.forEach(p=>{p.res={wood:0,brick:0,sheep:0,wheat:0,ore:0};p.dev=[];p.devNew=[];p.knights=0;p.vpCards=0;p.roads=15;p.ships=15;p.stls=5;p.cities=4;});
 const devDeck=shuffle([..."k".repeat(14),..."v".repeat(5),"r","r","y","y","m","m"].join("").split(""));
 const DEVNAME={k:"Рыцарь ⚔️",v:"Очко 🏆",r:"Две дороги 🛣️",y:"Изобилие 🎁",m:"Монополия 💰"};
 
-const S={turn:0,phase:"setup",setupIdx:0,setupOrder:[0,1,2,3,3,2,1,0],rolled:false,robber:hexes.find(h=>h.res==="desert").id,
+const S={turn:0,phase:"setup",setupIdx:0,setupOrder:[0,1,2,3,3,2,1,0],rolled:false,robber:-1,
   longestRoad:{owner:-1,len:4},largestArmy:{owner:-1,n:2},winner:-1,pendingRoads:0,setupStl:null};
 
 const total=p=>RKEYS.reduce((s,k)=>s+p.res[k],0);
@@ -220,7 +255,7 @@ const canPay=(p,c)=>RKEYS.every(k=>p.res[k]>=(c[k]||0));
 const pay=(p,c)=>RKEYS.forEach(k=>p.res[k]-=(c[k]||0));
 const vp=p=>{
   let v=0;
-  verts.forEach(x=>{if(x.owner===p.i)v+=x.city?2:1});
+  verts.forEach(x=>{if(x.owner===p.i){v+=x.city?2:1;if(x.island)v+=1}}); // остров: +1 бонус
   v+=p.vpCards;
   if(S.longestRoad.owner===p.i)v+=2;
   if(S.largestArmy.owner===p.i)v+=2;
@@ -230,14 +265,16 @@ const vp=p=>{
 /* ---------- правила размещения ---------- */
 const canPlaceStl=(p,v,setup)=>{
   if(v.owner!==-1)return false;
-  for(const nk of v.adj)if(verts.get(nk).owner!==-1)return false; // правило расстояния
+  if(!v.hexes.some(isLand))return false;
+  if(setup&&!v.baseLand)return false; // сетап только на главном острове
+  for(const nk of v.adj)if(verts.get(nk).owner!==-1)return false;
   if(setup)return true;
   for(const nk of v.adj){const e=edges.get(ek(v.k,nk));if(e&&e.owner===p.i)return true}
   return false;
 };
-const canPlaceRoad=(p,e,anchorVk)=>{
+const canPlaceLink=(p,e,anchorVk)=>{
   if(e.owner!==-1)return false;
-  if(anchorVk)return e.a===anchorVk||e.b===anchorVk; // сетап: только от поселения
+  if(anchorVk)return e.a===anchorVk||e.b===anchorVk;
   for(const k of [e.a,e.b]){
     const v=verts.get(k);
     if(v.owner===p.i)return true;
@@ -245,7 +282,6 @@ const canPlaceRoad=(p,e,anchorVk)=>{
   }
   return false;
 };
-// длиннейшая дорога (DFS по рёбрам игрока)
 const roadLen=pi=>{
   const mine=[...edges.values()].filter(e=>e.owner===pi);
   let best=0;
@@ -255,7 +291,7 @@ const roadLen=pi=>{
       const e=edges.get(ek(vkey,nk));
       if(!e||e.owner!==pi||used.has(e.k))continue;
       const v2=verts.get(nk);
-      if(v2.owner!==-1&&v2.owner!==pi)continue; // чужое поселение рвёт дорогу
+      if(v2.owner!==-1&&v2.owner!==pi)continue;
       used.add(e.k); m=Math.max(m,1+walk(nk,used)); used.delete(e.k);
     }
     return m;
@@ -265,7 +301,7 @@ const roadLen=pi=>{
 };
 const checkAwards=p=>{
   const rl=roadLen(p.i);
-  if(rl>=5&&rl>S.longestRoad.len){S.longestRoad={owner:p.i,len:rl};say(`<b>${p.name}</b> — длиннейшая дорога (${rl})! +2 🏆`,p)}
+  if(rl>=5&&rl>S.longestRoad.len){S.longestRoad={owner:p.i,len:rl};say(`<b>${p.name}</b> — длиннейший путь (${rl})! +2 🏆`,p)}
   if(p.knights>=3&&p.knights>S.largestArmy.n){S.largestArmy={owner:p.i,n:p.knights};say(`<b>${p.name}</b> — величайшая армия (${p.knights})! +2 🏆`,p)}
 };
 
@@ -283,45 +319,45 @@ document.getElementById("board").appendChild(svg);
 const el=(t,at)=>{const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);return e};
 const gHex=el("g",{}),gPiece=el("g",{}),gHint=el("g",{});
 svg.append(gHex,gPiece,gHint);
-let mode=null; // "road"|"stl"|"city"|"robber"|null
+let mode=null; // "road"|"ship"|"stl"|"city"|"robber"|null
 
 function draw(){
   gHex.innerHTML="";gPiece.innerHTML="";gHint.innerHTML="";
   hexes.forEach(h=>{
     const pts=Array.from({length:6},(_,i)=>corner(h,i).join(",")).join(" ");
-    gHex.append(el("polygon",{points:pts,class:"hex",fill:HEXFILL[h.res]}));
+    gHex.append(el("polygon",{points:pts,class:"hex"+(h.res==="water"?" wtr":""),fill:HEXFILL[h.res]}));
     if(h.num){
-      gHex.append(el("circle",{cx:h.x,cy:h.y,r:14,class:"chip"}));
-      const t=el("text",{x:h.x,y:h.y+4,class:"chipTx"+(h.num===6||h.num===8?" hot":""),"font-size":"13"});
+      const cr=SEA?11:14, fs=SEA?11:13;
+      gHex.append(el("circle",{cx:h.x,cy:h.y,r:cr,class:"chip"}));
+      const t=el("text",{x:h.x,y:h.y+4,class:"chipTx"+(h.num===6||h.num===8?" hot":""),"font-size":fs});
       t.textContent=h.num;gHex.append(t);
       const pips=6-Math.abs(7-h.num);
-      const pt=el("text",{x:h.x,y:h.y+11,class:"pips"});pt.textContent="•".repeat(pips);gHex.append(pt);
+      const pt=el("text",{x:h.x,y:h.y+(SEA?9:11),class:"pips"});pt.textContent="•".repeat(pips);gHex.append(pt);
     }
+    if(h.isl){const t=el("text",{x:h.x,y:h.y-SZ*0.55,class:"port"});t.textContent="+1🏆";gHex.append(t)}
     if(S.robber===h.id){
       gPiece.append(el("circle",{cx:h.x,cy:h.y-4,r:9,class:"robber"}));
       gPiece.append(el("circle",{cx:h.x,cy:h.y-15,r:5,class:"robber"}));
     }
-    if(mode==="robber"&&S.robber!==h.id){
+    if(mode==="robber"&&S.robber!==h.id&&h.res!=="water"){
       const hit=el("polygon",{points:pts,class:"hexHit",stroke:"var(--accent)","stroke-width":3,"stroke-dasharray":"6 4",fill:"rgba(122,162,255,.12)"});
       hit.onclick=()=>placeRobber(h,players[0]);
       gHint.append(hit);
     }
   });
-  // порты
   const seen=new Set();
   verts.forEach(v=>{if(v.port&&!seen.has(v.k)){seen.add(v.k);
-    const dx=(v.x-CX),dy=(v.y-CY),L=Math.hypot(dx,dy);
-    const t=el("text",{x:v.x+dx/L*16,y:v.y+dy/L*16+3,class:"port"});
+    const dx=(v.x-CX),dy=(v.y-CY),L=Math.hypot(dx,dy)||1;
+    const t=el("text",{x:v.x+dx/L*14,y:v.y+dy/L*14+3,class:"port"});
     t.textContent=v.port==="3:1"?"3:1":R[v.port]+"2:1";gHex.append(t);
   }});
-  // дороги
   edges.forEach(e=>{
     if(e.owner!==-1){
       const a=verts.get(e.a),b=verts.get(e.b);
-      gPiece.append(el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:"road",stroke:players[e.owner].color}));
+      gPiece.append(el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:"road",stroke:players[e.owner].color,"stroke-dasharray":e.ship?"4 4":"none"}));
+      if(e.ship){const t=el("text",{x:(a.x+b.x)/2,y:(a.y+b.y)/2+4,class:"shipTx"});t.textContent="⛵";gPiece.append(t)}
     }
   });
-  // поселения/города
   verts.forEach(v=>{
     if(v.owner!==-1){
       const c=players[v.owner].color;
@@ -329,15 +365,21 @@ function draw(){
       else gPiece.append(el("polygon",{points:`${v.x},${v.y-8} ${v.x+7},${v.y+6} ${v.x-7},${v.y+6}`,class:"stl",fill:c}));
     }
   });
-  // подсказки размещения
   const me=players[0];
   if(mode==="stl"){verts.forEach(v=>{if(canPlaceStl(me,v,S.phase==="setup")){
     const c=el("circle",{cx:v.x,cy:v.y,r:10,class:"vtx hint"});c.onclick=()=>clickStl(v);gHint.append(c)}})}
   if(mode==="city"){verts.forEach(v=>{if(v.owner===0&&!v.city){
     const c=el("circle",{cx:v.x,cy:v.y,r:11,class:"vtx hint"});c.onclick=()=>clickCity(v);gHint.append(c)}})}
-  if(mode==="road"){edges.forEach(e=>{if(canPlaceRoad(me,e,S.phase==="setup"?S.setupStl:null)){
-    const a=verts.get(e.a),b=verts.get(e.b);
-    const l=el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:"edge hint"});l.onclick=()=>clickRoad(e);gHint.append(l)}})}
+  if(mode==="road"||mode==="ship"){
+    edges.forEach(e=>{
+      const kinds=edgeKinds(e);
+      if(!kinds[mode==="ship"?"ship":"road"])return;
+      if(!canPlaceLink(me,e,S.phase==="setup"?S.setupStl:null))return;
+      const a=verts.get(e.a),b=verts.get(e.b);
+      const l=el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:"edge "+(mode==="ship"?"hintShip":"hint")});
+      l.onclick=()=>clickLink(e,mode==="ship");gHint.append(l);
+    });
+  }
 }
 
 function ui(){
@@ -345,18 +387,25 @@ function ui(){
   document.getElementById("players").innerHTML=players.map(p=>
     `<div class="pl ${S.turn===p.i?"turn":""}"><span class="dot" style="background:${p.color}"></span>
      <span class="nm">${p.name}${S.longestRoad.owner===p.i?" 🛣️":""}${S.largestArmy.owner===p.i?" ⚔️":""}</span>
-     <span class="st">✋${total(p)} 🎴${p.dev.length+p.devNew.length}</span><span class="vp">${vp(p)}🏆</span></div>`).join("");
+     <span class="st">✋${total(p)} 🎴${p.dev.length+p.devNew.length}</span><span class="vp">${vp(p)}🏆</span></div>
+     <div class="vpbar"><i style="width:${Math.min(100,vp(p)*10)}%"></i></div>`).join("");
   document.getElementById("res").innerHTML=RKEYS.map(k=>
     `<div class="rc" id="rc_${k}"><div class="ic">${R[k]}</div><div class="n">${me.res[k]}</div></div>`).join("");
+  const cur=players[S.turn];
+  document.getElementById("turnBanner").innerHTML=
+    S.phase==="setup"?`<b>Расстановка</b> · ${players[S.setupOrder[S.setupIdx]]?.name??""}`:
+    S.winner>=0?`<b>Игра окончена</b>`:
+    `Ход: <b>${cur.name}</b>${S.turn===0?(S.rolled?" · строй/меняйся":" · бросай кубики"):""}${SEA?" · Мореходы":""}`;
   const myTurn=S.turn===0&&S.phase==="play"&&S.winner<0;
   document.getElementById("rollBtn").disabled=!myTurn||S.rolled;
   document.getElementById("endBtn").disabled=!myTurn||!S.rolled;
-  const act=(id,cost,extra=true)=>{const b=document.getElementById(id);b.disabled=!myTurn||!S.rolled||!canPay(me,cost)||!extra;b.classList.toggle("armed",mode===id.slice(1).toLowerCase())};
-  act("bRoad",COST.road,me.roads>0);
-  act("bStl",COST.settlement,me.stls>0);
-  act("bCity",COST.city,me.cities>0&&[...verts.values()].some(v=>v.owner===0&&!v.city));
-  act("bDev",COST.dev,devDeck.length>0);
-  // дев-рука
+  const act=(id,cost,extra=true,m)=>{const b=document.getElementById(id);b.disabled=!myTurn||!S.rolled||!canPay(me,cost)||!extra;b.classList.toggle("armed",mode===m)};
+  act("bRoad",COST.road,me.roads>0,"road");
+  act("bShip",COST.ship,me.ships>0,"ship");
+  act("bStl",COST.settlement,me.stls>0,"stl");
+  act("bCity",COST.city,me.cities>0&&[...verts.values()].some(v=>v.owner===0&&!v.city),"city");
+  act("bDev",COST.dev,devDeck.length>0,"none");
+  document.getElementById("bShip").style.display=SEA?"":"none";
   const dh=document.getElementById("devhand");
   const cards=[...me.dev.map(d=>({d,ok:true})),...me.devNew.map(d=>({d,ok:false}))];
   dh.innerHTML=cards.length?"":'<span style="color:var(--dim);font-size:.8rem">пусто</span>';
@@ -365,9 +414,9 @@ function ui(){
     if(ok&&myTurn&&d!=="v")b.onclick=()=>playDev(d);
     dh.appendChild(b);
   });
-  // ставка обмена
   const give=document.getElementById("tGive").value||"wood";
   document.getElementById("tRate").textContent=tradeRate(me,give);
+  document.getElementById("pGo").disabled=!myTurn||!S.rolled;
 }
 function tradeRate(p,give){
   let r=4;
@@ -375,9 +424,10 @@ function tradeRate(p,give){
   return r;
 }
 
-/* ---------- ходы игрока ---------- */
+/* ---------- действия игрока ---------- */
 const arm=m=>{mode=mode===m?null:m;draw();ui()};
 document.getElementById("bRoad").onclick=()=>arm("road");
+document.getElementById("bShip").onclick=()=>arm("ship");
 document.getElementById("bStl").onclick=()=>arm("stl");
 document.getElementById("bCity").onclick=()=>arm("city");
 document.getElementById("bDev").onclick=()=>{
@@ -387,8 +437,9 @@ document.getElementById("bDev").onclick=()=>{
   if(d==="v"){me.vpCards++;toast("Победное очко! 🏆")}
   afterAction();
 };
-document.getElementById("tGive").innerHTML=document.getElementById("tGet").innerHTML=
-  RKEYS.map(k=>`<option value="${k}">${R[k]} ${RNAME[k]}</option>`).join("");
+["tGive","tGet","pGive","pGet"].forEach(id=>{
+  document.getElementById(id).innerHTML=RKEYS.map(k=>`<option value="${k}">${R[k]} ${RNAME[k]}</option>`).join("");
+});
 document.getElementById("tGive").onchange=ui;
 document.getElementById("tGo").onclick=()=>{
   const me=players[0],g=document.getElementById("tGive").value,w=document.getElementById("tGet").value;
@@ -397,17 +448,32 @@ document.getElementById("tGo").onclick=()=>{
   if(me.res[g]<r)return toast(`Нужно ${r} ${R[g]}`);
   me.res[g]-=r;me.res[w]++;say(`Ты обменял ${r}${R[g]} → 1${R[w]}`,me);afterAction();
 };
+// торговля с ботами 1:1 — принимают по характеру
+document.getElementById("pGo").onclick=()=>{
+  const me=players[0],g=document.getElementById("pGive").value,w=document.getElementById("pGet").value;
+  if(g===w)return toast("Выбери разные ресурсы");
+  if(me.res[g]<1)return toast(`У тебя нет ${R[g]}`);
+  const wants={builder:["ore","wheat","brick"],scholar:["sheep","wheat","ore"],trader:RKEYS};
+  const takers=shuffle(players.filter(p=>p.bot)).filter(b=>
+    b.res[w]>=2&&(b.res[g]<=1||wants[b.persona].includes(g))&&(b.persona==="trader"||Math.random()<.75));
+  if(!takers.length){say(`Никто не согласился на ${R[g]}→${R[w]}`,me);toast("Боты отказались 🙅");return}
+  const b=takers[0];
+  me.res[g]--;b.res[g]++;b.res[w]--;me.res[w]++;
+  say(`<b>${b.name}</b> согласился: твой ${R[g]} за его ${R[w]}`,me);toast(`${b.name} меняется ✅`);
+  afterAction();
+};
 document.getElementById("exitBtn").onclick=()=>parent.postMessage("hexland:exit","*");
 
 function clickStl(v){
   const me=players[0];
   if(S.phase==="setup"){v.owner=0;me.stls--;S.setupStl=v.k;mode="road";
     say(`Ты поставил поселение.`,me);
-    if(S.setupIdx>=4)RKEYS.forEach(()=>{});
-    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(h.res!=="desert")me.res[h.res]++}); // 2-е поселение даёт ресурсы
+    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert")me.res[h.res]++});
     draw();ui();return}
   if(!canPay(me,COST.settlement))return;
-  pay(me,COST.settlement);v.owner=0;me.stls--;say(`Ты построил поселение 🏠`,me);
+  pay(me,COST.settlement);v.owner=0;me.stls--;
+  say(`Ты построил поселение 🏠${v.island?" на новом острове +1🏆":""}`,me);
+  if(v.island)toast("Новый остров: +1 очко! 🏝");
   mode=null;afterAction();checkWin(me);
 }
 function clickCity(v){
@@ -415,14 +481,20 @@ function clickCity(v){
   pay(me,COST.city);v.city=true;me.cities--;me.stls++;say(`Ты построил город 🏰`,me);
   mode=null;afterAction();checkWin(me);
 }
-function clickRoad(e){
+function clickLink(e,asShip){
   const me=players[0];
-  if(S.phase==="setup"){e.owner=0;me.roads--;S.setupStl=null;mode=null;draw();ui();nextSetup();return}
-  if(S.pendingRoads>0){e.owner=0;me.roads--;S.pendingRoads--;
+  if(S.phase==="setup"){
+    e.owner=0;e.ship=asShip;
+    if(asShip)me.ships--;else me.roads--;
+    S.setupStl=null;mode=null;draw();ui();nextSetup();return}
+  if(S.pendingRoads>0&&!asShip){e.owner=0;me.roads--;S.pendingRoads--;
     if(S.pendingRoads===0)mode=null;
     checkAwards(me);afterAction();return}
-  if(!canPay(me,COST.road))return;
-  pay(me,COST.road);e.owner=0;me.roads--;say(`Ты построил дорогу`,me);
+  const cost=asShip?COST.ship:COST.road;
+  if(!canPay(me,cost))return;
+  pay(me,cost);e.owner=0;e.ship=asShip;
+  if(asShip)me.ships--;else me.roads--;
+  say(asShip?`Ты спустил корабль ⛵`:`Ты построил дорогу`,me);
   checkAwards(me);mode=null;afterAction();checkWin(me);
 }
 function afterAction(){draw();ui()}
@@ -435,27 +507,28 @@ function doRoll(p){
   S.rolled=true;
   say(`<b>${p.name}</b> ${p.bot?"бросает":"бросаешь"}: <b>${n}</b>`,p);
   if(n===7){robberTime(p);return}
+  const myGain={};
   hexes.forEach(h=>{
     if(h.num!==n||S.robber===h.id)return;
     for(let i=0;i<6;i++){
       const v=verts.get(vk(...corner(h,i)));
       if(v.owner!==-1){const owner=players[v.owner];const amt=v.city?2:1;owner.res[h.res]+=amt;
-        if(v.owner===0){const rc=document.getElementById("rc_"+h.res);}}
+        if(v.owner===0)myGain[h.res]=(myGain[h.res]||0)+amt}
     }
   });
-  const gains=players.map(pp=>({p:pp,g:""}));
+  const gainStr=Object.entries(myGain).map(([k,n])=>"+"+n+R[k]).join(" ");
+  if(gainStr)toast("Тебе: "+gainStr);
   ui();draw();
   if(p.bot)setTimeout(()=>botTurn(p),500);
 }
 function robberTime(active){
-  // все с >7 карт сбрасывают половину
   players.forEach(p=>{
     const t=total(p);
     if(t>7){let drop=Math.floor(t/2);
-      if(p.bot){while(drop>0){const k=RKEYS.filter(k=>p.res[k]>0).sort((a,b)=>p.res[b]-p.res[a])[0];p.res[k]--;drop--}
-        say(`${p.name} сбрасывает ${Math.floor(t/2)} карт`)}
-      else{let d2=drop;while(d2>0){const k=RKEYS.filter(k=>p.res[k]>0).sort((a,b)=>p.res[b]-p.res[a])[0];p.res[k]--;d2--}
-        say(`У тебя было ${t} карт — сброшена половина (${drop})`,p);toast(`Разбойник! Сброшено ${drop} карт`)}
+      const d0=drop;
+      while(drop>0){const k=RKEYS.filter(k=>p.res[k]>0).sort((a,b)=>p.res[b]-p.res[a])[0];p.res[k]--;drop--}
+      if(p.bot)say(`${p.name} сбрасывает ${d0} карт`);
+      else{say(`У тебя было ${t} карт — сброшена половина (${d0})`,p);toast(`Разбойник! Сброшено ${d0} карт`)}
     }
   });
   if(active.bot){botRobber(active);ui();draw();setTimeout(()=>botTurn(active),500)}
@@ -463,7 +536,6 @@ function robberTime(active){
 }
 function placeRobber(h,by){
   S.robber=h.id;mode=null;
-  // украсть у соседа
   const victims=[];
   for(let i=0;i<6;i++){const v=verts.get(vk(...corner(h,i)));
     if(v.owner!==-1&&v.owner!==by.i&&total(players[v.owner])>0&&!victims.includes(v.owner))victims.push(v.owner)}
@@ -471,14 +543,13 @@ function placeRobber(h,by){
     const vi=rnd(victims),vict=players[vi];
     const k=rnd(RKEYS.filter(k=>vict.res[k]>0));
     vict.res[k]--;by.res[k]++;
-    say(`<b>${by.name}</b> ставит разбойника и крадёт карту у ${vict.name}`,by);
+    say(`<b>${by.name}</b> ${by.bot?"ставит":"ставишь"} разбойника и ${by.bot?"крадёт":"крадёшь"} карту у ${vict.name}`,by);
     if(vi===0)toast(`${by.name} украл у тебя ${R[k]}!`);
     if(by.i===0)toast(`Ты украл ${R[k]} у ${vict.name}`);
-  } else say(`<b>${by.name}</b> ставит разбойника`,by);
+  } else say(`<b>${by.name}</b> ${by.bot?"ставит":"ставишь"} разбойника`,by);
   draw();ui();
 }
 function botRobber(p){
-  // ставим на самый жирный гекс лидера
   const lead=players.filter(x=>x.i!==p.i).sort((a,b)=>vp(b)-vp(a))[0];
   let best=null,bs=-1;
   hexes.forEach(h=>{
@@ -529,7 +600,7 @@ function checkWin(p){
     S.winner=p.i;
     const m=document.getElementById("modal"),c=document.getElementById("modalCard");
     c.innerHTML=`<h2>${p.i===0?"🏆 Победа!":"Победил "+p.name}</h2>
-      <p style="color:var(--dim)">${vp(p)} победных очков.</p>
+      <p>${vp(p)} победных очков${SEA?" · Мореходы":""}.</p>
       <div class="row"><button onclick="location.reload()">Новая партия</button>
       <button onclick="parent.postMessage('hexland:exit','*')">В меню</button></div>`;
     m.classList.add("on");
@@ -545,6 +616,7 @@ function botBestVertex(p,setup){
     v.hexes.forEach(h=>{if(h.num){s+=6-Math.abs(7-h.num);kinds.add(h.res)}});
     s+=kinds.size*1.5;
     if(v.port)s+=1;
+    if(v.island)s+=2.5; // остров даёт бонусное очко
     if(p.persona==="builder")v.hexes.forEach(h=>{if(h.res==="ore"||h.res==="wheat")s+=1.2});
     if(p.persona==="scholar")v.hexes.forEach(h=>{if(h.res==="sheep"||h.res==="ore")s+=1});
     if(s>bs){bs=s;best=v}
@@ -553,36 +625,39 @@ function botBestVertex(p,setup){
 }
 function botTurn(p){
   if(S.winner>=0)return;
-  // 1. играем рыцаря если разбойник на нас
   const onUs=(()=>{const h=hexes[S.robber];for(let i=0;i<6;i++)if(verts.get(vk(...corner(h,i))).owner===p.i)return true;return false})();
   if(onUs&&p.dev.includes("k")){p.dev.splice(p.dev.indexOf("k"),1);p.knights++;checkAwards(p);botRobber(p);say(`${p.name} играет Рыцаря ⚔️`)}
-  // 2. стройка по приоритету персоны
   let acted=true,guard=0;
   while(acted&&guard++<12){
     acted=false;
-    // город
     const cityV=[...verts.values()].find(v=>v.owner===p.i&&!v.city);
     if(p.cities>0&&cityV&&canPay(p,COST.city)){pay(p,COST.city);cityV.city=true;p.cities--;p.stls++;say(`${p.name} строит город 🏰`);acted=true;checkWin(p);continue}
-    // поселение
     if(p.stls>0&&canPay(p,COST.settlement)){const v=botBestVertex(p,false);
-      if(v){pay(p,COST.settlement);v.owner=p.i;p.stls--;say(`${p.name} строит поселение 🏠`);acted=true;checkWin(p);continue}}
-    // дев-карта (scholar приоритетно)
+      if(v){pay(p,COST.settlement);v.owner=p.i;p.stls--;
+        say(`${p.name} строит поселение 🏠${v.island?" на острове +1🏆":""}`);acted=true;checkWin(p);continue}}
     if(devDeck.length&&canPay(p,COST.dev)&&(p.persona==="scholar"||Math.random()<.35)){
       pay(p,COST.dev);const d=devDeck.pop();
       if(d==="v"){p.vpCards++;checkWin(p)}else p.devNew.push(d);
       say(`${p.name} покупает дев-карту 🎴`);acted=true;continue}
-    // дорога к лучшей будущей точке
-    if(p.roads>0&&canPay(p,COST.road)){
-      const cand=[...edges.values()].filter(e=>canPlaceRoad(p,e,null));
-      if(cand.length){
-        const scoreE=e=>{let s=0;[e.a,e.b].forEach(k=>{const v=verts.get(k);if(v.owner===-1){let t=0;v.hexes.forEach(h=>{if(h.num)t+=6-Math.abs(7-h.num)});let ok=true;for(const nk of v.adj)if(verts.get(nk).owner!==-1)ok=false;if(ok)s=Math.max(s,t)}});return s+Math.random()};
-        const e=cand.sort((a,b)=>scoreE(b)-scoreE(a))[0];
-        pay(p,COST.road);e.owner=p.i;p.roads--;checkAwards(p);say(`${p.name} строит дорогу`);acted=true;checkWin(p);continue}}
-    // обмен с банком (trader — активнее, до 3:1 не ждёт)
-    const thr=p.persona==="trader"?tradeRate(p,"wood"):4;
+    // дорога или корабль к лучшей будущей точке
+    const linkCand=[];
+    edges.forEach(e=>{
+      if(!canPlaceLink(p,e,null))return;
+      const kinds=edgeKinds(e);
+      if(kinds.road&&p.roads>0&&canPay(p,COST.road))linkCand.push({e,ship:false});
+      else if(kinds.ship&&p.ships>0&&canPay(p,COST.ship))linkCand.push({e,ship:true});
+    });
+    if(linkCand.length){
+      const scoreE=({e,ship})=>{let s=ship?-0.5:0;[e.a,e.b].forEach(k=>{const v=verts.get(k);if(v.owner===-1&&v.hexes.some(isLand)){let t=0;v.hexes.forEach(h=>{if(h.num)t+=6-Math.abs(7-h.num)});if(v.island)t+=3;let ok=true;for(const nk of v.adj)if(verts.get(nk).owner!==-1)ok=false;if(ok)s=Math.max(s,t)}});return s+Math.random()};
+      const c=linkCand.sort((a,b)=>scoreE(b)-scoreE(a))[0];
+      if(scoreE(c)>0.2){
+        pay(p,c.ship?COST.ship:COST.road);c.e.owner=p.i;c.e.ship=c.ship;
+        if(c.ship)p.ships--;else p.roads--;
+        checkAwards(p);say(`${p.name} строит ${c.ship?"корабль ⛵":"дорогу"}`);acted=true;checkWin(p);continue}
+    }
     for(const g of RKEYS){
       const r=tradeRate(p,g);
-      if(p.res[g]>=r+ (p.persona==="trader"?0:2)){
+      if(p.res[g]>=r+(p.persona==="trader"?0:2)){
         const need=RKEYS.filter(k=>k!==g).sort((a,b)=>p.res[a]-p.res[b])[0];
         p.res[g]-=r;p.res[need]++;say(`${p.name} меняет ${r}${R[g]} → 1${R[need]}`);acted=true;break}
     }
@@ -595,7 +670,7 @@ function botTurn(p){
   },400);
 }
 
-/* ---------- сетап (змейкой) ---------- */
+/* ---------- сетап ---------- */
 function nextSetup(){
   S.setupIdx++;
   if(S.setupIdx>=S.setupOrder.length){
@@ -605,19 +680,38 @@ function nextSetup(){
   if(p.bot){
     const v=botBestVertex(p,true);
     v.owner=p.i;p.stls--;
-    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(h.res!=="desert")p.res[h.res]++});
-    const e=[...v.adj].map(k=>edges.get(ek(v.k,k))).filter(e=>e.owner===-1)[0];
-    e.owner=p.i;p.roads--;
-    say(`${p.name} ставит поселение и дорогу`);
+    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert")p.res[h.res]++});
+    const cand=[...v.adj].map(k=>edges.get(ek(v.k,k))).filter(e=>e&&e.owner===-1&&edgeKinds(e).road);
+    const e=cand[0]||[...v.adj].map(k=>edges.get(ek(v.k,k))).find(e=>e&&e.owner===-1);
+    e.owner=p.i;e.ship=!edgeKinds(e).road;
+    if(e.ship)p.ships--;else p.roads--;
+    say(`${p.name} ставит поселение и ${e.ship?"корабль":"дорогу"}`);
     draw();ui();setTimeout(nextSetup,450);
   } else {
     mode="stl";toast(S.setupIdx<4?"Поставь 1-е поселение":"Поставь 2-е поселение (даст ресурсы)");draw();ui();
   }
 }
 
-say("<b>Катан Fable.</b> Расстановка: поселение + дорога, змейкой.");
-toast("Поставь первое поселение");
-mode="stl";draw();ui();
+/* ---------- выбор режима на старте ---------- */
+(function start(){
+  const m=document.getElementById("modal"),c=document.getElementById("modalCard");
+  c.innerHTML=`<h2>Катан Fable</h2>
+    <p>Выбери режим партии:</p>
+    <div class="row">
+      <button id="mBase">🏝 База<br><small>классические 19 гексов</small></button>
+      <button id="mSea">⛵ Мореходы<br><small>море, корабли, новые острова +1🏆</small></button>
+    </div>`;
+  m.classList.add("on");
+  const go=sea=>{
+    m.classList.remove("on");
+    buildBoard(sea);
+    say(`<b>Катан Fable${sea?" · Мореходы":""}.</b> Расстановка: поселение + дорога, змейкой.`);
+    toast("Поставь первое поселение");
+    mode="stl";draw();ui();
+  };
+  document.getElementById("mBase").onclick=()=>go(false);
+  document.getElementById("mSea").onclick=()=>go(true);
+})();
 </script>
 </body>
 </html>
