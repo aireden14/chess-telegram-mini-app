@@ -152,6 +152,7 @@
       <button id="bStl">Поселение<br><small>🌲🧱🐑🌾</small></button>
       <button id="bCity">Город<br><small>🌾🌾⛰️⛰️⛰️</small></button>
       <button id="bDev">Дев-карта<br><small>🐑🌾⛰️</small></button>
+      <button id="undoBtn">↩️ Отменить</button>
       <button id="endBtn" class="primary" style="grid-column:1/-1">Завершить ход</button>
     </div>
   </div>
@@ -343,15 +344,45 @@ const svg=document.createElementNS(NS,"svg");
 svg.setAttribute("viewBox","0 0 620 580");
 document.getElementById("board").appendChild(svg);
 const el=(t,at)=>{const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);return e};
-const gHex=el("g",{}),gPiece=el("g",{}),gHint=el("g",{});
-svg.append(gHex,gPiece,gHint);
+// градиенты гексов — живая объёмная карта
+const defs=el("defs",{});
+[["wood","#4a9151","#2c5c33"],["brick","#d1704c","#9e4527"],["sheep","#a8d16e","#6f9c41"],
+ ["wheat","#edc35e","#bd8f2b"],["ore","#a0abbe","#697487"],["desert","#dcc795","#ac9a68"],
+ ["water","#2f7aa5","#123449"]].forEach(([k,c1,c2])=>{
+  const g=el("radialGradient",{id:"g-"+k,cx:"50%",cy:"40%",r:"80%"});
+  g.append(el("stop",{offset:"0%","stop-color":c1}),el("stop",{offset:"100%","stop-color":c2}));
+  defs.append(g);
+});
+svg.append(defs);
+const HEXICON={wood:"🌲",brick:"🧱",sheep:"🐑",wheat:"🌾",ore:"⛰️",desert:"🌵",water:""};
+const gSea=el("g",{}),gHex=el("g",{}),gPiece=el("g",{}),gHint=el("g",{});
+svg.append(gSea,gHex,gPiece,gHint);
 let mode=null; // "road"|"ship"|"stl"|"city"|"robber"|null
 
 function draw(){
-  gHex.innerHTML="";gPiece.innerHTML="";gHint.innerHTML="";
+  gSea.innerHTML="";gHex.innerHTML="";gPiece.innerHTML="";gHint.innerHTML="";
+  // море под островом — доска выглядит как остров в океане
+  if(hexes.length){
+    const xs=hexes.map(h=>h.x),ys=hexes.map(h=>h.y);
+    const pad=SZ*1.35;
+    gSea.append(el("rect",{x:Math.min(...xs)-pad,y:Math.min(...ys)-pad,
+      width:Math.max(...xs)-Math.min(...xs)+pad*2,height:Math.max(...ys)-Math.min(...ys)+pad*2,
+      rx:34,fill:"url(#g-water)",opacity:SEA?0.55:0.9}));
+  }
   hexes.forEach(h=>{
     const pts=Array.from({length:6},(_,i)=>corner(h,i).join(",")).join(" ");
-    gHex.append(el("polygon",{points:pts,class:"hex"+(h.res==="water"?" wtr":""),fill:HEXFILL[h.res]}));
+    gHex.append(el("polygon",{points:pts,class:"hex"+(h.res==="water"?" wtr":""),fill:`url(#g-${h.res})`}));
+    // эмодзи-текстура ресурса
+    if(HEXICON[h.res]){
+      const big=!h.num; // пустыня — крупнее и по центру
+      const t=el("text",{x:h.x,y:big?h.y+SZ*0.14:h.y-SZ*0.36,"font-size":SZ*(big?0.62:0.44),
+        "text-anchor":"middle",opacity:big?0.9:0.85,style:"pointer-events:none"});
+      t.textContent=HEXICON[h.res];gHex.append(t);
+    }
+    // свечение гексов, давших ресурсы на последнем броске
+    if(S.lastYield&&S.lastYield.has(h.id)){
+      gHex.append(el("polygon",{points:pts,fill:"rgba(255,215,107,.18)",stroke:"#ffd76b","stroke-width":3.5,style:"pointer-events:none"}));
+    }
     if(h.num){
       const cr=SEA?11:14, fs=SEA?11:13;
       gHex.append(el("circle",{cx:h.x,cy:h.y,r:cr,class:"chip"}));
@@ -375,7 +406,7 @@ function draw(){
   verts.forEach(v=>{if(v.port&&!seen.has(v.k)){seen.add(v.k);
     const dx=(v.x-CX),dy=(v.y-CY),L=Math.hypot(dx,dy)||1;
     const t=el("text",{x:v.x+dx/L*14,y:v.y+dy/L*14+3,class:"port"});
-    t.textContent=v.port==="3:1"?"3:1":R[v.port]+"2:1";gHex.append(t);
+    t.textContent=v.port==="3:1"?"⚓3:1":"⚓"+R[v.port]+"2:1";gHex.append(t);
   }});
   edges.forEach(e=>{
     if(e.owner!==-1){
@@ -415,8 +446,22 @@ function ui(){
      <span class="nm">${p.name}${S.longestRoad.owner===p.i?" 🛣️":""}${S.largestArmy.owner===p.i?" ⚔️":""}</span>
      <span class="st">✋${total(p)} 🎴${p.dev.length+p.devNew.length}</span><span class="vp">${vp(p)}🏆</span></div>
      <div class="vpbar"><i style="width:${Math.min(100,vp(p)*10)}%"></i></div>`).join("");
-  document.getElementById("res").innerHTML=RKEYS.map(k=>
-    `<div class="rc" id="rc_${k}"><div class="ic">${R[k]}</div><div class="n">${me.res[k]}</div></div>`).join("");
+  // показываем только те ресурсы, которые есть
+  const owned=RKEYS.filter(k=>me.res[k]>0);
+  document.getElementById("res").innerHTML=owned.length?owned.map(k=>
+    `<div class="rc" id="rc_${k}"><div class="ic">${R[k]}</div><div class="n">${me.res[k]}</div></div>`).join("")
+    :'<span style="color:var(--dim);font-size:.8rem">пока пусто</span>';
+  // в «Отдаю» — только свои ресурсы
+  const rebuild=(id,keys)=>{const s=document.getElementById(id);const cur=s.value;
+    s.innerHTML=keys.map(k=>`<option value="${k}">${R[k]} ${RNAME[k]}</option>`).join("");
+    if(keys.includes(cur))s.value=cur};
+  rebuild("tGive",owned.length?owned:[]);rebuild("pGive",owned.length?owned:[]);
+  // счётчики оставшихся фигур
+  document.getElementById("bRoad").innerHTML=`Дорога<br><small>🌲🧱 · ×${me.roads}</small>`;
+  document.getElementById("bShip").innerHTML=`Корабль ⛵<br><small>🌲🐑 · ×${me.ships}</small>`;
+  document.getElementById("bStl").innerHTML=`Поселение<br><small>🌲🧱🐑🌾 · ×${me.stls}</small>`;
+  document.getElementById("bCity").innerHTML=`Город<br><small>🌾🌾⛰️×3 · ×${me.cities}</small>`;
+  document.getElementById("bDev").innerHTML=`Дев-карта<br><small>🐑🌾⛰️ · 🎴${devDeck.length}</small>`;
   const cur=players[S.turn];
   document.getElementById("turnBanner").innerHTML=
     S.phase==="setup"?`<b>Расстановка</b> · ${players[S.setupOrder[S.setupIdx]]?.name??""}`:
@@ -443,12 +488,35 @@ function ui(){
   const give=document.getElementById("tGive").value||"wood";
   document.getElementById("tRate").textContent=tradeRate(me,give);
   document.getElementById("pGo").disabled=!myTurn||!S.rolled;
+  document.getElementById("undoBtn").disabled=!myTurn||!S.rolled||!undoStack.length;
 }
 function tradeRate(p,give){
   let r=4;
   verts.forEach(v=>{if(v.owner===p.i&&v.port){if(v.port==="3:1")r=Math.min(r,3);if(v.port===give)r=Math.min(r,2)}});
   return r;
 }
+
+/* ---------- отмена хода (стройки и обмены до конца хода) ---------- */
+let undoStack=[];
+function snap(){
+  return {
+    players:players.map(p=>({res:{...p.res},roads:p.roads,ships:p.ships,stls:p.stls,cities:p.cities})),
+    verts:[...verts.values()].map(v=>[v.k,v.owner,v.city]),
+    edges:[...edges.values()].map(e=>[e.k,e.owner,e.ship]),
+    lr:{...S.longestRoad},la:{...S.largestArmy},
+  };
+}
+function pushUndo(){undoStack.push(snap());if(undoStack.length>20)undoStack.shift()}
+function clearUndo(){undoStack=[]}
+function undo(){
+  const s=undoStack.pop();if(!s)return;
+  s.players.forEach((sp,i)=>{Object.assign(players[i].res,sp.res);players[i].roads=sp.roads;players[i].ships=sp.ships;players[i].stls=sp.stls;players[i].cities=sp.cities});
+  s.verts.forEach(([k,o,c])=>{const v=verts.get(k);v.owner=o;v.city=c});
+  s.edges.forEach(([k,o,sh])=>{const e=edges.get(k);e.owner=o;e.ship=sh});
+  S.longestRoad=s.lr;S.largestArmy=s.la;
+  mode=null;say("↩️ Действие отменено",players[0]);toast("Отменено ↩️");draw();ui();
+}
+document.getElementById("undoBtn").onclick=undo;
 
 /* ---------- действия игрока ---------- */
 const arm=m=>{mode=mode===m?null:m;draw();ui()};
@@ -457,6 +525,7 @@ document.getElementById("bShip").onclick=()=>arm("ship");
 document.getElementById("bStl").onclick=()=>arm("stl");
 document.getElementById("bCity").onclick=()=>arm("city");
 document.getElementById("bDev").onclick=()=>{
+  clearUndo(); // покупка вскрывает карту — назад нельзя
   const me=players[0];pay(me,COST.dev);
   const d=devDeck.pop();me.devNew.push(d);
   say(`Ты купил дев-карту.`,me);
@@ -470,8 +539,10 @@ document.getElementById("tGive").onchange=ui;
 document.getElementById("tGo").onclick=()=>{
   const me=players[0],g=document.getElementById("tGive").value,w=document.getElementById("tGet").value;
   const r=tradeRate(me,g);
+  if(!g)return toast("Нечего отдавать");
   if(g===w)return toast("Выбери разные ресурсы");
   if(me.res[g]<r)return toast(`Нужно ${r} ${R[g]}`);
+  pushUndo();
   me.res[g]-=r;me.res[w]++;say(`Ты обменял ${r}${R[g]} → 1${R[w]}`,me);afterAction();
 };
 // торговля с ботами 1:1 — принимают по характеру
@@ -484,6 +555,7 @@ document.getElementById("pGo").onclick=()=>{
     b.res[w]>=2&&(b.res[g]<=1||wants[b.persona].includes(g))&&(b.persona==="trader"||Math.random()<.75));
   if(!takers.length){say(`Никто не согласился на ${R[g]}→${R[w]}`,me);toast("Боты отказались 🙅");return}
   const b=takers[0];
+  pushUndo();
   me.res[g]--;b.res[g]++;b.res[w]--;me.res[w]++;
   say(`<b>${b.name}</b> согласился: твой ${R[g]} за его ${R[w]}`,me);toast(`${b.name} меняется ✅`);
   afterAction();
@@ -497,6 +569,7 @@ function clickStl(v){
     if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert")me.res[h.res]++});
     draw();ui();return}
   if(!canPay(me,COST.settlement))return;
+  pushUndo();
   pay(me,COST.settlement);v.owner=0;me.stls--;
   say(`Ты построил поселение 🏠${v.island?" на новом острове +1🏆":""}`,me);
   if(v.island)toast("Новый остров: +1 очко! 🏝");
@@ -504,6 +577,7 @@ function clickStl(v){
 }
 function clickCity(v){
   const me=players[0];if(!canPay(me,COST.city))return;
+  pushUndo();
   pay(me,COST.city);v.city=true;me.cities--;me.stls++;say(`Ты построил город 🏰`,me);
   mode=null;afterAction();checkWin(me);
 }
@@ -518,6 +592,7 @@ function clickLink(e,asShip){
     checkAwards(me);afterAction();return}
   const cost=asShip?COST.ship:COST.road;
   if(!canPay(me,cost))return;
+  pushUndo();
   pay(me,cost);e.owner=0;e.ship=asShip;
   if(asShip)me.ships--;else me.roads--;
   say(asShip?`Ты спустил корабль ⛵`:`Ты построил дорогу`,me);
@@ -550,6 +625,7 @@ function animateRoll(d1,d2,done){
 document.getElementById("rollBtn").onclick=()=>doRoll(players[0]);
 function doRoll(p){
   const d1=1+Math.floor(Math.random()*6),d2=1+Math.floor(Math.random()*6),n=d1+d2;
+  clearUndo();
   S.rolled=true;S.rolling=true;ui();
   animateRoll(d1,d2,()=>{S.rolling=false;applyRoll(p,d1,d2)});
 }
@@ -558,14 +634,17 @@ function applyRoll(p,d1,d2){
   say(`<b>${p.name}</b> ${p.bot?"бросает":"бросаешь"}: <b>${n}</b>`,p);
   if(n===7){robberTime(p);return}
   const myGain={};
+  const yielded=new Set();
   hexes.forEach(h=>{
     if(h.num!==n||S.robber===h.id)return;
     for(let i=0;i<6;i++){
       const v=verts.get(vk(...corner(h,i)));
       if(v.owner!==-1){const owner=players[v.owner];const amt=v.city?2:1;owner.res[h.res]+=amt;
+        yielded.add(h.id);
         if(v.owner===0)myGain[h.res]=(myGain[h.res]||0)+amt}
     }
   });
+  if(yielded.size){S.lastYield=yielded;setTimeout(()=>{S.lastYield=null;draw()},1800)}
   const gainStr=Object.entries(myGain).map(([k,n])=>"+"+n+R[k]).join(" ");
   if(gainStr)toast("Тебе: "+gainStr);
   ui();draw();
@@ -615,6 +694,7 @@ function botRobber(p){
 
 /* ---------- дев-карты ---------- */
 function playDev(d){
+  clearUndo();
   const me=players[0];
   me.dev.splice(me.dev.indexOf(d),1);
   if(d==="k"){me.knights++;checkAwards(me);say(`Ты играешь Рыцаря ⚔️`,me);mode="robber";toast("Передвинь разбойника");draw();ui()}
@@ -637,6 +717,7 @@ function modalPick(title,n,each,done){
 /* ---------- конец хода / победа ---------- */
 document.getElementById("endBtn").onclick=endTurn;
 function endTurn(){
+  clearUndo();
   const p=players[S.turn];
   p.dev.push(...p.devNew);p.devNew=[];
   mode=null;S.rolled=false;S.pendingRoads=0;
