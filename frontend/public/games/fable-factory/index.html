@@ -82,19 +82,22 @@
 /* ============ Fable Factory v3 — карты, камера, обучение, энергия на угле ============ */
 const W=56,H=36,TS=26;
 const cv=document.getElementById("cv"),cx=cv.getContext("2d");
-const ORE={iron:"#9fb0c4",copper:"#d08a5b",coal:"#3c4450",stone:"#7d8471"};
-const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",
+const ORE={iron:"#aec4e2",copper:"#e0854a",coal:"#23272f",stone:"#9a9c86"};
+const ORE_L={iron:"Ж",copper:"М",coal:"У",stone:"К"};          // буква на залежи
+const ORE_LC={iron:"#1d2b3f",copper:"#3d1f0c",coal:"#cfd6e2",stone:"#2c2e22"}; // цвет буквы
+const ORE_NM={iron:"⛏ Железная руда",copper:"⛏ Медная руда",coal:"⚫ Уголь",stone:"🪨 Камень"};
+const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",wood:"🌲 древесина",
   ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука"};
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 
 /* ---------- карты ---------- */
 const MAPS={
-  valley:{nm:"🌿 Долина",desc:"классика: ровная земля",oreMul:1,water:false},
-  desert:{nm:"🏜 Пустошь",desc:"руды больше, волны злее",oreMul:1.6,water:false},
-  isles: {nm:"🏝 Архипелаг",desc:"озёра мешают строить",oreMul:1.2,water:true},
+  valley:{nm:"🌿 Долина",desc:"зелёная долина: леса и луга",oreMul:1,water:false,trees:16,ground:["#101f16","#0d1b13"]},
+  desert:{nm:"🏜 Пустошь",desc:"руды больше, волны злее, лесов почти нет",oreMul:1.6,water:false,trees:3,ground:["#1d1a12","#191710"]},
+  isles: {nm:"🏝 Архипелаг",desc:"озёра и рощи мешают строить",oreMul:1.2,water:true,trees:9,ground:["#101f16","#0d1b13"]},
 };
 const ore=Array.from({length:H},()=>Array(W).fill(null));
-const terr=Array.from({length:H},()=>Array(W).fill(null)); // "water"|null
+const terr=Array.from({length:H},()=>Array(W).fill(null)); // "water"|"tree"|null
 function genMap(mapId){
   const m=MAPS[mapId];
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){ore[y][x]=null;terr[y][x]=null}
@@ -107,10 +110,14 @@ function genMap(mapId){
     for(let i=0;i<n;i++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x])ore[y][x]=kind;x+=rnd(-1,1);y+=rnd(-1,1)}};
   const base=Math.round(34*m.oreMul);
   ["iron","iron","iron","copper","copper","coal","coal","coal","stone","stone"].forEach(k=>blob(k,base));
+  // леса: живой мир; дерево рубится Сносом → 🌲 древесина (топливо)
+  for(let i=0;i<(m.trees||0);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
+    for(let j=0;j<26;j++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
 }
 
 /* ---------- здания / рецепты / технологии ---------- */
 const DEFS={
+  info:  {nm:"Инфо",ic:"ℹ️",cost:{},power:0,unlock:null,hp:0},
   belt:  {nm:"Конвейер",ic:"➡️",cost:{ironPlate:1},power:0,unlock:null,hp:40},
   miner: {nm:"Бур",ic:"🛠",cost:{ironPlate:5,gear:2},power:2,unlock:null,hp:120},
   furnace:{nm:"Плавильня",ic:"🔥",cost:{stone:5},power:0,unlock:null,hp:150},
@@ -145,7 +152,7 @@ const GOALS=[
 
 /* ---------- состояние ---------- */
 const grid=Array.from({length:H},()=>Array(W).fill(null));
-const inv={iron:0,copper:0,coal:25,stone:12,ironPlate:14,copperPlate:0,steelPlate:0,gear:4,wire:0,circuit:0,science:0};
+const inv={iron:0,copper:0,coal:25,stone:12,wood:0,ironPlate:14,copperPlate:0,steelPlate:0,gear:4,wire:0,circuit:0,science:0};
 const S={tool:"belt",goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
@@ -297,12 +304,41 @@ function drawHud(){
 document.getElementById("exitBtn").onclick=()=>parent.postMessage("hexland:exit","*");
 
 /* ---------- тап: постройка / поворот / загрузка / снос ---------- */
+/* ℹ️ инспектор: тап по чему угодно объясняет, что это */
+function describe(x,y){
+  const c=grid[y][x];
+  let msg;
+  if(c){
+    const d=DEFS[c.t];
+    msg=`${d.ic} ${d.nm}`;
+    if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}`;
+    if(c.t==="gen")msg+=` — топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}`;
+    if(c.t==="belt")msg+=" — везёт предметы по стрелке; повторный тап (инструментом Конвейер) — поворот";
+    if(RECIPES[c.t])msg+=` — рецепты: ${RECIPES[c.t].map(r=>recipeStr(r)).join("; ")}`;
+    if(c.t==="turret")msg+=" — стреляет по рейдерам рядом (нужна энергия)";
+    if(c.t==="wall")msg+=" — прочная преграда для рейдеров";
+    if(c.t==="core")msg+=" — сердце базы: потеряешь его — конец";
+    const buf=Object.entries(c.buf||{}).filter(([,n])=>n>0).map(([k,n])=>n+" "+ITEM[k]).join(", ");
+    if(buf&&c.t!=="gen")msg+=` · внутри: ${buf}`;
+    if(c.hp<DEFS[c.t].hp)msg+=` · HP ${c.hp}/${DEFS[c.t].hp}`;
+  }
+  else if(ore[y][x])msg=`${ORE_NM[ore[y][x]]} — поставь на неё 🛠 Бур, и он будет добывать`;
+  else if(terr[y][x]==="water")msg="🌊 Вода — строить нельзя, обходи";
+  else if(terr[y][x]==="tree")msg="🌲 Дерево — сруби ✖ Сносом: даст древесину (горит в генераторе)";
+  else msg="Пустая земля — можно строить";
+  toast(msg.slice(0,140));say("ℹ️ "+msg);
+}
 function tapAt(clientX,clientY){
   if(!S.started||S.over||S.win)return;
   const [x,y]=tileAt(clientX,clientY);
   if(x<0||y<0||x>=W||y>=H)return;
   const c=grid[y][x];
-  if(S.tool==="del"){if(c){
+  if(S.tool==="info")return describe(x,y);
+  if(S.tool==="del"){
+    if(terr[y][x]==="tree"&&!c){ // рубим дерево
+      pushU(x,y);terr[y][x]=null;inv.wood+=3;
+      toast("🌲 +3 древесины");snd("boom");puff(x,y,"#4dbb72",4);drawInv();return}
+    if(c){
     if(c.t==="core")return toast("Ядро сносить нельзя");
     pushU(x,y);
     Object.entries(DEFS[c.t].cost).forEach(([k,n])=>inv[k]+=Math.floor(n/2));
@@ -310,10 +346,11 @@ function tapAt(clientX,clientY){
     drawInv();drawBuild();drawHud()}return}
   if(c){
     if(c.t==="belt"&&S.tool==="belt"){pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate");return}
-    if(c.t==="gen"){ // ручная заправка углём
-      const take=Math.min(inv.coal,3);
+    if(c.t==="gen"){ // ручная заправка: уголь, затем древесина
+      const take=Math.min(inv.coal,3), tw=take>0?0:Math.min(inv.wood,4);
       if(take>0){pushU(x,y);inv.coal-=take;c.buf.coal=(c.buf.coal||0)+take;toast("⚫ Уголь в генератор: "+take);snd("place");drawInv()}
-      else toast("На складе нет угля");
+      else if(tw>0){pushU(x,y);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;toast("🌲 Древесина в генератор: "+tw);snd("place");drawInv()}
+      else toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
       return;
     }
     if(RECIPES[c.t]){
@@ -326,13 +363,14 @@ function tapAt(clientX,clientY){
       else toast(`${DEFS[c.t].nm}: нужно ${RECIPES[c.t].map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖`);
       return;
     }
-    return toast("Клетка занята");
+    return describe(x,y); // «занятая» клетка = рассказать, что это
   }
-  if(terr[y][x]==="water")return toast("Тут вода 🌊");
+  if(terr[y][x]==="water")return describe(x,y);
+  if(terr[y][x]==="tree")return toast("🌲 Тут дерево — сначала сруби его ✖ Сносом (+3 древесины)");
   const d=DEFS[S.tool];
   if(!canPay(d.cost))return toast("Не хватает ресурсов");
-  if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь");
-  if(S.tool!=="miner"&&S.tool!=="belt"&&ore[y][x])return toast("Тут залежь — только бур/конвейер");
+  if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь (клетки с буквами Ж/М/У/К)");
+  if(S.tool!=="miner"&&S.tool!=="belt"&&ore[y][x])return describe(x,y);
   pushU(x,y);
   pay(d.cost);
   grid[y][x]={t:S.tool,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0};
@@ -371,7 +409,7 @@ function step(){
       if(!t)return;
       if(t.t==="belt"&&!t.item){t.item=c.item;t.itemAge=S.tick;c.item=null}
       else if(t.t==="furnace"||t.t==="asm"||t.t==="lab"){t.buf[c.item]=(t.buf[c.item]||0)+1;c.item=null}
-      else if(t.t==="gen"&&c.item==="coal"){t.buf.coal=(t.buf.coal||0)+1;c.item=null}
+      else if(t.t==="gen"&&(c.item==="coal"||c.item==="wood")){t.buf[c.item]=(t.buf[c.item]||0)+1;c.item=null}
     });
   }
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
@@ -379,6 +417,7 @@ function step(){
     if(c.t==="gen"){ // генератор жрёт уголь: 1 уголь = 12 сек света
       if(c.fuel>0)c.fuel--;
       if(c.fuel<=0&&(c.buf.coal||0)>0){c.buf.coal--;c.fuel=1500;puff(x,y,"#5c6a7d",1)} // 1 уголь ≈ 25с
+      else if(c.fuel<=0&&(c.buf.wood||0)>0){c.buf.wood--;c.fuel=600;puff(x,y,"#4dbb72",1)} // 1 древесина ≈ 10с
       continue;
     }
     if(c.t==="miner"){
@@ -469,7 +508,7 @@ function findB(t){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x]&&grid[y]
 function findOre(kind){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(ore[y][x]===kind&&!grid[y][x])return [x,y];return null}
 const minerOn=kind=>{for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x]&&grid[y][x].t==="miner"&&ore[y][x]===kind)return true;return false};
 const TUT=[
-  {txt:"Выбери 🛠 Бур в панели и поставь его на железную залежь (голубые точки). Карту можно таскать пальцем и зумить ＋/－.",
+  {txt:"Выбери 🛠 Бур в панели и поставь его на железную залежь — светлые кружки с буквой Ж. Карту можно таскать пальцем и зумить ＋/－. Инструмент ℹ️ объясняет любую клетку.",
    chk:()=>minerOn("iron"),
    target:()=>findOre("iron")},
   {txt:"Поставь ⚡️ Генератор на пустую клетку и тапни по нему — закинется уголь со склада (1 уголь ≈ 25 сек). Без энергии буры стоят!",
@@ -605,7 +644,9 @@ function showBook(){
         <div style="font-size:.82rem">ставится на залежь → добывает её ресурс (⛏ железо, медь, ⚫ уголь, 🪨 камень)</div></div>
       ${rows}
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
-        <div style="font-size:.82rem">ест ⚫ уголь: 1 шт ≈ 25 сек. Заправка: тап по нему или конвейер с углём</div></div>
+        <div style="font-size:.82rem">ест топливо: ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с). Заправка: тап по нему или конвейер</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
+        <div style="font-size:.82rem">Дерево рубится ✖ Сносом (+3 древесины). Залежи подписаны буквами: <b>Ж</b> железо, <b>М</b> медь, <b>У</b> уголь, <b>К</b> камень. Тапни ℹ️ Инфо по чему угодно — расскажу, что это</div></div>
       <div style="color:var(--dim);font-size:.78rem">Доставка входов: конвейером в здание или тапом по зданию (возьмёт со склада). Готовое уходит на конвейер рядом или на склад.</div>
     </div>
     <button style="width:100%;margin-top:12px;text-align:center" onclick="hideOverlay()">Понятно</button>`);
@@ -627,10 +668,29 @@ function render(){
     if(terr[y][x]==="water"){cx.fillStyle="#153245";cx.fillRect(x*TS,y*TS,TS,TS);
       cx.fillStyle="rgba(255,255,255,.05)";if((x+y+Math.floor(S.tick/40))%5===0)cx.fillRect(x*TS+4,y*TS+TS/2,TS-8,1.5);
       continue}
-    cx.fillStyle=(x+y)%2?"#101720":"#0e141c";
+    // живая земля: тон по карте + «трава»-пятна (детерминированный шум, не мерцает)
+    const g=(MAPS[S.map]||MAPS.valley).ground;
+    cx.fillStyle=(x+y)%2?g[0]:g[1];
     cx.fillRect(x*TS,y*TS,TS,TS);
-    if(ore[y][x]){cx.fillStyle=ORE[ore[y][x]];cx.globalAlpha=.55;
-      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,TS/3,0,7);cx.fill();cx.globalAlpha=1}
+    const h=(x*73+y*151)%97;
+    if(h<14&&!ore[y][x]&&terr[y][x]!=="tree"){cx.fillStyle="rgba(120,200,120,.06)";
+      cx.fillRect(x*TS+(h%5)*4,y*TS+(h%3)*6,5,5)}
+    if(ore[y][x]){
+      const k=ore[y][x];
+      cx.fillStyle=ORE[k];cx.globalAlpha=.9;
+      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,TS/2.6,0,7);cx.fill();cx.globalAlpha=1;
+      if(k==="coal"){cx.strokeStyle="#4a5261";cx.stroke()} // уголь: тёмный с ободком
+      cx.fillStyle=ORE_LC[k];cx.font=`700 ${Math.round(TS*0.5)}px -apple-system,sans-serif`;
+      cx.textAlign="center";cx.textBaseline="middle";
+      cx.fillText(ORE_L[k],x*TS+TS/2,y*TS+TS/2+1);
+      cx.font="16px sans-serif";
+    }
+    if(terr[y][x]==="tree"&&!grid[y][x]){
+      const j=(x*37+y*61)%7;
+      cx.font=`${TS*0.72}px sans-serif`;cx.textAlign="center";cx.textBaseline="middle";
+      cx.fillText("🌲",x*TS+TS/2+(j%3-1)*2,y*TS+TS/2+(j%2)*2);
+      cx.font="16px sans-serif";
+    }
   }
   cx.font="16px sans-serif";cx.textAlign="center";cx.textBaseline="middle";
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
@@ -777,6 +837,7 @@ function startGame(opts){
     }
   }
   hideOverlay();fitAll();cam.z=1;clampCam();
+  S.tool="info"; // старт с инспектора: тапай и изучай мир, стройка — по выбору инструмента
   // камера на стартовую точку: ядро или первая железная залежь
   const tgt=findB("core")||(()=>{for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(ore[y][x]==="iron")return[x,y];return [W/2,H/2]})();
   cam.x=tgt[0]*TS;cam.y=tgt[1]*TS;clampCam();
