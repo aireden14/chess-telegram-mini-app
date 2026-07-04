@@ -19,7 +19,8 @@ export function FableFactoryScreen() {
   }, [nav]);
 
   return (
-    <div className="catan-fs">
+    // Telegram рисует ✕/⌄ поверх верхней полосы — опускаем игру ниже (правило TG mini app)
+    <div className="catan-fs" style={{ paddingTop: "var(--safe-top, 0px)" }}>
       <iframe
         className="catan-fs-frame"
         title="Fable Factory"

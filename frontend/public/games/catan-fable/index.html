@@ -193,38 +193,98 @@ const COST = {
 const rnd = a=>a[Math.floor(Math.random()*a.length)];
 const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 
-/* ---------- геометрия (строится по выбранному режиму) ---------- */
+/* ---------- сценарии Мореходов (раскладки из catan-v2/engine/board.ts) ---------- */
+const std19=()=>{const c=[];for(let q=-2;q<=2;q++)for(let r=-2;r<=2;r++)if(Math.abs(q+r)<=2)c.push([q,r]);return c};
+const cl4=(q,r)=>[[q,r],[q+1,r],[q,r+1],[q+1,r-1]];
+const SCN=[
+  {id:"new-shores",nm:"К новым берегам",blurb:"Главный остров + малые вокруг. Доплыви и колонизируй.",
+   targetVP:14,colonyVP:2,desert:1,start:[0],
+   islands:[std19(),[[5,0],[5,-1],[6,-1]],[[-5,4],[-4,4],[-5,3]],[[0,-5],[1,-5],[-1,-4]]]},
+  {id:"four-islands",nm:"Четыре острова",blurb:"Четыре равных острова. Стартуй на своих, колонизируй чужие.",
+   targetVP:13,colonyVP:2,desert:0,start:[0,1,2,3],
+   islands:[cl4(-3,-1),cl4(2,-3),cl4(-2,3),cl4(3,0)]},
+  {id:"six-pearls",nm:"Жемчужное ожерелье",blurb:"Главный остров и кольцо жемчужин — гонка за плацдармы.",
+   targetVP:13,colonyVP:2,desert:1,start:[0],
+   islands:[std19(),[[5,-2]],[[5,1]],[[0,4]],[[-5,2]],[[2,-5]]]},
+  {id:"through-the-strait",nm:"Через пролив",blurb:"Два материка и золотые островки в проливе между ними.",
+   targetVP:13,colonyVP:2,desert:1,start:[0,1],gold:[2,3],
+   islands:[[[-4,0],[-3,0],[-4,1],[-3,1],[-2,0],[-3,-1],[-4,2]],
+            [[2,0],[3,0],[2,1],[3,-1],[4,-1],[2,-1],[4,0]],[[-1,-1]],[[0,1]]]},
+  {id:"gold-rush",nm:"Золотая лихорадка",blurb:"Центральный остров и золото по периметру. Кто первый — тот богат.",
+   targetVP:14,colonyVP:2,desert:0,start:[0,2,4],gold:[1,3,5],
+   islands:[cl4(-1,-1),[[4,-2],[4,-1]],[[-5,2],[-5,1]],[[1,3],[2,3]],[[-3,-2],[-2,-2]],[[3,1],[3,2]]]},
+  {id:"new-world",nm:"Новый мир",blurb:"Случайный архипелаг. Свободная игра.",
+   targetVP:12,colonyVP:1,desert:1,start:"all",islands:null},
+];
+
+/* ---------- геометрия (строится по выбранному режиму/сценарию) ---------- */
 let SZ=46; const CX=310, CY=290;
 let hexes=[], verts=new Map(), edges=new Map();
-let SEA=false;
+let SEA=false, SCEN=null, TARGETVP=10;
 const corner=(h,i)=>{const a=Math.PI/180*(60*i-30);return [h.x+SZ*Math.cos(a),h.y+SZ*Math.sin(a)]};
 const vk=(x,y)=>Math.round(x)+","+Math.round(y);
 const ek=(a,b)=>a<b?a+"|"+b:b+"|"+a;
 const isLand=h=>h.res!=="water";
+const hring=(q,r)=>Math.max(Math.abs(q),Math.abs(r),Math.abs(q+r));
 
-function buildBoard(sea){
-  SEA=sea; SZ=sea?34:46;
+function buildBoard(scn){
+  SEA=!!scn; SCEN=scn||null; TARGETVP=scn?scn.targetVP:10;
   hexes=[];verts=new Map();edges=new Map();
-  const coords=[];
-  for(let q=-2;q<=2;q++)for(let r=-2;r<=2;r++)if(Math.abs(q+r)<=2)coords.push([q,r,"base"]);
-  if(sea){
-    const ring=[];
-    for(let q=-3;q<=3;q++)for(let r=-3;r<=3;r++)if(Math.abs(q+r)<=3&&Math.max(Math.abs(q),Math.abs(r),Math.abs(q+r))===3)ring.push([q,r]);
-    const islandIdx=new Set(shuffle(ring.map((_,i)=>i)).slice(0,6));
-    ring.forEach(([q,r],i)=>coords.push([q,r,islandIdx.has(i)?"isl":"water"]));
+  let coords=[]; // [q,r,zone,islandId]
+  if(!scn){
+    std19().forEach(([q,r])=>coords.push([q,r,"land",0]));
+  } else {
+    let islands=scn.islands;
+    if(!islands){ // «Новый мир»: процедурный архипелаг
+      islands=[];const used=new Set();
+      for(let i=0;i<5;i++){
+        const cq=rnd([-3,-2,2,3,0]),cr=rnd([-3,3,-2,2,0]);
+        const isl=(i%2?cl4(cq,cr):[[cq,cr],[cq+1,cr],[cq,cr+1]]).filter(([q,r])=>hring(q,r)<=5&&!used.has(q+","+r));
+        if(isl.length<2)continue;
+        isl.forEach(([q,r])=>used.add(q+","+r));islands.push(isl);
+      }
+      if(!islands.length)islands=[cl4(0,0)];
+    }
+    const land=new Map(); // "q,r" -> islandId
+    islands.forEach((isl,ii)=>isl.forEach(([q,r])=>land.set(q+","+r,ii)));
+    const R=Math.max(...[...land.keys()].map(k=>{const [q,r]=k.split(",").map(Number);return hring(q,r)}))+1;
+    for(let q=-R;q<=R;q++)for(let r=-R;r<=R;r++){
+      if(hring(q,r)>R)continue;
+      const key=q+","+r;
+      if(land.has(key))coords.push([q,r,(scn.gold||[]).includes(land.get(key))?"gold":"land",land.get(key)]);
+      else coords.push([q,r,"water",-1]);
+    }
   }
+  // масштаб под viewBox: вписываем доску целиком
+  const xs=coords.map(([q,r])=>Math.sqrt(3)*(q+r/2)), ys=coords.map(([q,r])=>1.5*r);
+  const spanX=Math.max(...xs)-Math.min(...xs)+2, spanY=Math.max(...ys)-Math.min(...ys)+2.2;
+  SZ=Math.min(46,560/spanX,500/spanY);
+  const offX=(Math.max(...xs)+Math.min(...xs))/2, offY=(Math.max(...ys)+Math.min(...ys))/2;
+  // ресурсы и номера
   const bag=shuffle(["wood","wood","wood","wood","brick","brick","brick","sheep","sheep","sheep","sheep","wheat","wheat","wheat","wheat","ore","ore","ore","desert"]);
   const nums=shuffle([2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12]);
-  const islNums=shuffle([3,4,5,6,8,9,10,11]);
+  const islNums=shuffle([3,4,5,6,8,9,10,11,3,4,5,6,8,9,10,11]);
+  const landCells=coords.filter(c=>c[2]!=="water");
+  let desertLeft=scn?(scn.desert??1):1;
   let bi=0,ni=0,ii=0;
-  coords.forEach(([q,r,zone],idx)=>{
-    const x=CX+SZ*Math.sqrt(3)*(q+r/2), y=CY+SZ*1.5*r;
-    let res,num=0,isl=false;
-    if(zone==="base"){res=bag[bi++];if(res!=="desert")num=nums[ni++]}
-    else if(zone==="isl"){res=rnd(RKEYS);num=islNums[ii++%islNums.length];isl=true}
-    else res="water";
-    hexes.push({id:idx,q,r,x,y,res,num,isl});
+  coords.forEach(([q,r,zone,islandId],idx)=>{
+    const x=CX+SZ*(Math.sqrt(3)*(q+r/2)-offX), y=CY+SZ*(1.5*r-offY);
+    let res,num=0;
+    if(zone==="water")res="water";
+    else if(zone==="gold"){res="gold";num=islNums[ii++%islNums.length]}
+    else if(!scn||islandId===0&&scn.islands&&scn.islands[0].length>=19){ // главный остров — стандартный набор
+      res=bag[bi++%bag.length];if(res==="desert"&&desertLeft<=0)res="wheat";
+      if(res==="desert")desertLeft--;else num=nums[ni++%nums.length];
+    } else {
+      res=desertLeft>0&&Math.random()<(1/Math.max(6,landCells.length))?(desertLeft--,"desert"):rnd(RKEYS);
+      if(res!=="desert")num=islNums[ii++%islNums.length];
+    }
+    hexes.push({id:idx,q,r,x,y,res,num,islandId:zone==="water"?-1:islandId});
   });
+  // гарантируем пустыню для разбойника
+  if(!hexes.some(h=>h.res==="desert")){
+    const h=hexes.find(h=>isLand(h)&&h.res!=="gold");h.res="desert";h.num=0;
+  }
   hexes.forEach(h=>{for(let i=0;i<6;i++){const [x,y]=corner(h,i);const k=vk(x,y);
     if(!verts.has(k))verts.set(k,{k,x,y,hexes:[],adj:new Set(),owner:-1,city:false,port:null});
     verts.get(k).hexes.push(h);
@@ -236,31 +296,31 @@ function buildBoard(sea){
     if(!edges.has(key))edges.set(key,{k:key,a,b,owner:-1,ship:false,hexes:[]});
     edges.get(key).hexes.push(h);
   }});
-  // остров-флаг вершины: касается острова и не касается базовой земли
+  // вершины: список островов, которых касается вершина; стартовая ли земля
   verts.forEach(v=>{
-    const land=v.hexes.filter(isLand);
-    v.island=land.length>0&&land.every(h=>h.isl);
-    v.baseLand=land.some(h=>!h.isl);
+    v.islandIds=[...new Set(v.hexes.filter(isLand).map(h=>h.islandId))];
+    v.startLand=v.islandIds.some(ii=>!SCEN||SCEN.start==="all"||SCEN.start.includes(ii));
   });
-  // порты — на побережье базового острова
+  // порты — на побережье стартовых островов
   const portDefs=shuffle(["3:1","3:1","3:1","3:1","wood","brick","sheep","wheat","ore"]);
-  const coastal=[...verts.values()].filter(v=>v.baseLand&&(v.hexes.length<3||v.hexes.some(h=>h.res==="water")));
+  const coastal=[...verts.values()].filter(v=>v.startLand&&(v.hexes.length<3||v.hexes.some(h=>h.res==="water")));
   const used=new Set(); let pi=0;
   const sorted=coastal.slice().sort((u,v)=>Math.atan2(u.y-CY,u.x-CX)-Math.atan2(v.y-CY,v.x-CX));
   for(let i=0;i<sorted.length&&pi<9;i+=Math.ceil(sorted.length/9)){
     const v1=sorted[i];
-    const v2=[...v1.adj].map(k=>verts.get(k)).find(v=>v&&v.baseLand&&(v.hexes.length<3||v.hexes.some(h=>h.res==="water"))&&!used.has(v.k));
+    const v2=[...v1.adj].map(k=>verts.get(k)).find(v=>v&&v.startLand&&(v.hexes.length<3||v.hexes.some(h=>h.res==="water"))&&!used.has(v.k));
     if(!v2||used.has(v1.k))continue;
     used.add(v1.k);used.add(v2.k);
     v1.port=v2.port=portDefs[pi++];
   }
   S.robber=hexes.find(h=>h.res==="desert").id;
 }
-// типы ребра: дорога/корабль
+// типы ребра: дорога/корабль (пролив между разными островами — только корабль)
 function edgeKinds(e){
-  const hasBase=e.hexes.some(h=>isLand(h)&&!h.isl), hasIsl=e.hexes.some(h=>h.isl), hasWater=e.hexes.some(h=>h.res==="water");
-  const strait=hasBase&&hasIsl; // пролив база↔остров — только корабль
-  return {road:!strait&&e.hexes.some(isLand), ship:hasWater||strait};
+  const landIds=[...new Set(e.hexes.filter(isLand).map(h=>h.islandId))];
+  const hasWater=e.hexes.some(h=>h.res==="water");
+  const strait=landIds.length>1;
+  return {road:!strait&&landIds.length>0, ship:hasWater||strait};
 }
 
 /* ---------- игроки и боты ---------- */
@@ -282,7 +342,12 @@ const canPay=(p,c)=>RKEYS.every(k=>p.res[k]>=(c[k]||0));
 const pay=(p,c)=>RKEYS.forEach(k=>p.res[k]-=(c[k]||0));
 const vp=p=>{
   let v=0;
-  verts.forEach(x=>{if(x.owner===p.i){v+=x.city?2:1;if(x.island)v+=1}}); // остров: +1 бонус
+  const isles=new Set();
+  verts.forEach(x=>{if(x.owner===p.i){v+=x.city?2:1;(x.islandIds||[]).forEach(ii=>isles.add(ii))}});
+  // спец-ПО за колонии на чужих островах (как в catan-v2)
+  if(SCEN){
+    isles.forEach(ii=>{if(!(p.homeIslands||new Set()).has(ii))v+=SCEN.colonyVP});
+  }
   v+=p.vpCards;
   if(S.longestRoad.owner===p.i)v+=2;
   if(S.largestArmy.owner===p.i)v+=2;
@@ -293,7 +358,7 @@ const vp=p=>{
 const canPlaceStl=(p,v,setup)=>{
   if(v.owner!==-1)return false;
   if(!v.hexes.some(isLand))return false;
-  if(setup&&!v.baseLand)return false; // сетап только на главном острове
+  if(setup&&!v.startLand)return false; // сетап только на стартовых островах сценария
   for(const nk of v.adj)if(verts.get(nk).owner!==-1)return false;
   if(setup)return true;
   for(const nk of v.adj){const e=edges.get(ek(v.k,nk));if(e&&e.owner===p.i)return true}
@@ -348,13 +413,13 @@ const el=(t,at)=>{const e=document.createElementNS(NS,t);for(const k in at)e.set
 const defs=el("defs",{});
 [["wood","#4a9151","#2c5c33"],["brick","#d1704c","#9e4527"],["sheep","#a8d16e","#6f9c41"],
  ["wheat","#edc35e","#bd8f2b"],["ore","#a0abbe","#697487"],["desert","#dcc795","#ac9a68"],
- ["water","#2f7aa5","#123449"]].forEach(([k,c1,c2])=>{
+ ["water","#2f7aa5","#123449"],["gold","#f0d060","#b8860b"]].forEach(([k,c1,c2])=>{
   const g=el("radialGradient",{id:"g-"+k,cx:"50%",cy:"40%",r:"80%"});
   g.append(el("stop",{offset:"0%","stop-color":c1}),el("stop",{offset:"100%","stop-color":c2}));
   defs.append(g);
 });
 svg.append(defs);
-const HEXICON={wood:"🌲",brick:"🧱",sheep:"🐑",wheat:"🌾",ore:"⛰️",desert:"🌵",water:""};
+const HEXICON={wood:"🌲",brick:"🧱",sheep:"🐑",wheat:"🌾",ore:"⛰️",desert:"🌵",gold:"🪙",water:""};
 const gSea=el("g",{}),gHex=el("g",{}),gPiece=el("g",{}),gHint=el("g",{});
 svg.append(gSea,gHex,gPiece,gHint);
 let mode=null; // "road"|"ship"|"stl"|"city"|"robber"|null
@@ -384,14 +449,13 @@ function draw(){
       gHex.append(el("polygon",{points:pts,fill:"rgba(255,215,107,.18)",stroke:"#ffd76b","stroke-width":3.5,style:"pointer-events:none"}));
     }
     if(h.num){
-      const cr=SEA?11:14, fs=SEA?11:13;
+      const cr=Math.max(8.5,SZ*0.3), fs=Math.max(9,SZ*0.28);
       gHex.append(el("circle",{cx:h.x,cy:h.y,r:cr,class:"chip"}));
       const t=el("text",{x:h.x,y:h.y+4,class:"chipTx"+(h.num===6||h.num===8?" hot":""),"font-size":fs});
       t.textContent=h.num;gHex.append(t);
       const pips=6-Math.abs(7-h.num);
       const pt=el("text",{x:h.x,y:h.y+(SEA?9:11),class:"pips"});pt.textContent="•".repeat(pips);gHex.append(pt);
     }
-    if(h.isl){const t=el("text",{x:h.x,y:h.y-SZ*0.55,class:"port"});t.textContent="+1🏆";gHex.append(t)}
     if(S.robber===h.id){
       gPiece.append(el("circle",{cx:h.x,cy:h.y-4,r:9,class:"robber"}));
       gPiece.append(el("circle",{cx:h.x,cy:h.y-15,r:5,class:"robber"}));
@@ -406,7 +470,7 @@ function draw(){
   verts.forEach(v=>{if(v.port&&!seen.has(v.k)){seen.add(v.k);
     const dx=(v.x-CX),dy=(v.y-CY),L=Math.hypot(dx,dy)||1;
     const t=el("text",{x:v.x+dx/L*14,y:v.y+dy/L*14+3,class:"port"});
-    t.textContent=v.port==="3:1"?"⚓3:1":"⚓"+R[v.port]+"2:1";gHex.append(t);
+    t.textContent=v.port==="3:1"?"3:1":R[v.port]+"2:1";gHex.append(t);
   }});
   edges.forEach(e=>{
     if(e.owner!==-1){
@@ -445,7 +509,7 @@ function ui(){
     `<div class="pl ${S.turn===p.i?"turn":""}"><span class="dot" style="background:${p.color}"></span>
      <span class="nm">${p.name}${S.longestRoad.owner===p.i?" 🛣️":""}${S.largestArmy.owner===p.i?" ⚔️":""}</span>
      <span class="st">✋${total(p)} 🎴${p.dev.length+p.devNew.length}</span><span class="vp">${vp(p)}🏆</span></div>
-     <div class="vpbar"><i style="width:${Math.min(100,vp(p)*10)}%"></i></div>`).join("");
+     <div class="vpbar"><i style="width:${Math.min(100,vp(p)*100/TARGETVP)}%"></i></div>`).join("");
   // показываем только те ресурсы, которые есть
   const owned=RKEYS.filter(k=>me.res[k]>0);
   document.getElementById("res").innerHTML=owned.length?owned.map(k=>
@@ -466,7 +530,7 @@ function ui(){
   document.getElementById("turnBanner").innerHTML=
     S.phase==="setup"?`<b>Расстановка</b> · ${players[S.setupOrder[S.setupIdx]]?.name??""}`:
     S.winner>=0?`<b>Игра окончена</b>`:
-    `Ход: <b>${cur.name}</b>${S.turn===0?(S.rolled?" · строй/меняйся":" · бросай кубики"):""}${SEA?" · Мореходы":""}`;
+    `Ход: <b>${cur.name}</b>${S.turn===0?(S.rolled?" · строй/меняйся":" · бросай кубики"):""}${SCEN?` · ${SCEN.nm} · до ${TARGETVP}🏆`:""}`;
   const myTurn=S.turn===0&&S.phase==="play"&&S.winner<0&&!S.rolling;
   document.getElementById("rollBtn").disabled=!myTurn||S.rolled;
   document.getElementById("endBtn").disabled=!myTurn||!S.rolled;
@@ -566,13 +630,14 @@ function clickStl(v){
   const me=players[0];
   if(S.phase==="setup"){v.owner=0;me.stls--;S.setupStl=v.k;mode="road";
     say(`Ты поставил поселение.`,me);
-    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert")me.res[h.res]++});
+    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert"&&h.res!=="gold")me.res[h.res]++});
     draw();ui();return}
   if(!canPay(me,COST.settlement))return;
   pushUndo();
+  const colony=SCEN&&(v.islandIds||[]).some(ii=>!me.homeIslands.has(ii));
   pay(me,COST.settlement);v.owner=0;me.stls--;
-  say(`Ты построил поселение 🏠${v.island?" на новом острове +1🏆":""}`,me);
-  if(v.island)toast("Новый остров: +1 очко! 🏝");
+  say(`Ты построил поселение 🏠${colony?` — колония! +${SCEN.colonyVP}🏆`:""}`,me);
+  if(colony)toast(`Колония на новом острове: +${SCEN.colonyVP} 🏆`);
   mode=null;afterAction();checkWin(me);
 }
 function clickCity(v){
@@ -635,15 +700,26 @@ function applyRoll(p,d1,d2){
   if(n===7){robberTime(p);return}
   const myGain={};
   const yielded=new Set();
+  let myGoldPicks=0;
   hexes.forEach(h=>{
     if(h.num!==n||S.robber===h.id)return;
     for(let i=0;i<6;i++){
       const v=verts.get(vk(...corner(h,i)));
-      if(v.owner!==-1){const owner=players[v.owner];const amt=v.city?2:1;owner.res[h.res]+=amt;
-        yielded.add(h.id);
-        if(v.owner===0)myGain[h.res]=(myGain[h.res]||0)+amt}
+      if(v.owner===-1)continue;
+      const owner=players[v.owner];const amt=v.city?2:1;
+      yielded.add(h.id);
+      if(h.res==="gold"){ // золото: любой ресурс на выбор
+        if(v.owner===0)myGoldPicks+=amt;
+        else for(let g=0;g<amt;g++){const k=[...RKEYS].sort((a,b)=>owner.res[a]-owner.res[b])[0];owner.res[k]++}
+      } else {
+        owner.res[h.res]+=amt;
+        if(v.owner===0)myGain[h.res]=(myGain[h.res]||0)+amt;
+      }
     }
   });
+  if(myGoldPicks>0){
+    modalPick(`Золотая река: выбери ${myGoldPicks} любых ресурса 🪙`,myGoldPicks,k=>{players[0].res[k]++},()=>{afterAction()});
+  }
   if(yielded.size){S.lastYield=yielded;setTimeout(()=>{S.lastYield=null;draw()},1800)}
   const gainStr=Object.entries(myGain).map(([k,n])=>"+"+n+R[k]).join(" ");
   if(gainStr)toast("Тебе: "+gainStr);
@@ -727,7 +803,7 @@ function endTurn(){
   if(np.bot&&S.winner<0)setTimeout(()=>doRoll(np),600);
 }
 function checkWin(p){
-  if(vp(p)>=10&&S.winner<0){
+  if(vp(p)>=TARGETVP&&S.winner<0){
     S.winner=p.i;
     const m=document.getElementById("modal"),c=document.getElementById("modalCard");
     c.innerHTML=`<h2>${p.i===0?"🏆 Победа!":"Победил "+p.name}</h2>
@@ -747,7 +823,7 @@ function botBestVertex(p,setup){
     v.hexes.forEach(h=>{if(h.num){s+=6-Math.abs(7-h.num);kinds.add(h.res)}});
     s+=kinds.size*1.5;
     if(v.port)s+=1;
-    if(v.island)s+=2.5; // остров даёт бонусное очко
+    if(SCEN&&p.homeIslands&&(v.islandIds||[]).some(ii=>!p.homeIslands.has(ii)))s+=3; // колония = спец-ПО
     if(p.persona==="builder")v.hexes.forEach(h=>{if(h.res==="ore"||h.res==="wheat")s+=1.2});
     if(p.persona==="scholar")v.hexes.forEach(h=>{if(h.res==="sheep"||h.res==="ore")s+=1});
     if(s>bs){bs=s;best=v}
@@ -765,7 +841,8 @@ function botTurn(p){
     if(p.cities>0&&cityV&&canPay(p,COST.city)){pay(p,COST.city);cityV.city=true;p.cities--;p.stls++;say(`${p.name} строит город 🏰`);acted=true;checkWin(p);continue}
     if(p.stls>0&&canPay(p,COST.settlement)){const v=botBestVertex(p,false);
       if(v){pay(p,COST.settlement);v.owner=p.i;p.stls--;
-        say(`${p.name} строит поселение 🏠${v.island?" на острове +1🏆":""}`);acted=true;checkWin(p);continue}}
+        const col=SCEN&&(v.islandIds||[]).some(ii=>!p.homeIslands.has(ii));
+        say(`${p.name} строит поселение 🏠${col?` — колония +${SCEN.colonyVP}🏆`:""}`);acted=true;checkWin(p);continue}}
     if(devDeck.length&&canPay(p,COST.dev)&&(p.persona==="scholar"||Math.random()<.35)){
       pay(p,COST.dev);const d=devDeck.pop();
       if(d==="v"){p.vpCards++;checkWin(p)}else p.devNew.push(d);
@@ -779,7 +856,7 @@ function botTurn(p){
       else if(kinds.ship&&p.ships>0&&canPay(p,COST.ship))linkCand.push({e,ship:true});
     });
     if(linkCand.length){
-      const scoreE=({e,ship})=>{let s=ship?-0.5:0;[e.a,e.b].forEach(k=>{const v=verts.get(k);if(v.owner===-1&&v.hexes.some(isLand)){let t=0;v.hexes.forEach(h=>{if(h.num)t+=6-Math.abs(7-h.num)});if(v.island)t+=3;let ok=true;for(const nk of v.adj)if(verts.get(nk).owner!==-1)ok=false;if(ok)s=Math.max(s,t)}});return s+Math.random()};
+      const scoreE=({e,ship})=>{let s=ship?-0.5:0;[e.a,e.b].forEach(k=>{const v=verts.get(k);if(v.owner===-1&&v.hexes.some(isLand)){let t=0;v.hexes.forEach(h=>{if(h.num)t+=6-Math.abs(7-h.num)});if(SCEN&&p.homeIslands&&(v.islandIds||[]).some(ii=>!p.homeIslands.has(ii)))t+=3;let ok=true;for(const nk of v.adj)if(verts.get(nk).owner!==-1)ok=false;if(ok)s=Math.max(s,t)}});return s+Math.random()};
       const c=linkCand.sort((a,b)=>scoreE(b)-scoreE(a))[0];
       if(scoreE(c)>0.2){
         pay(p,c.ship?COST.ship:COST.road);c.e.owner=p.i;c.e.ship=c.ship;
@@ -805,13 +882,19 @@ function botTurn(p){
 function nextSetup(){
   S.setupIdx++;
   if(S.setupIdx>=S.setupOrder.length){
-    S.phase="play";S.turn=0;say("<b>Партия начинается!</b> Твой ход — бросай кубики.");toast("Твой ход!");draw();ui();return;
+    // фиксируем домашние острова — дальше новые острова дают колониальные ПО
+    players.forEach(p=>{p.homeIslands=new Set();
+      verts.forEach(v=>{if(v.owner===p.i)(v.islandIds||[]).forEach(ii=>p.homeIslands.add(ii))})});
+    S.phase="play";S.turn=0;say(`<b>Партия начинается!</b> Цель: ${TARGETVP} 🏆. Твой ход — бросай кубики.`);toast("Твой ход!");draw();ui();return;
   }
   const p=players[S.setupOrder[S.setupIdx]];
   if(p.bot){
-    const v=botBestVertex(p,true);
+    let v=botBestVertex(p,true);
+    if(!v){ // страховка: на стартовых островах не осталось места — разрешаем любую сушу
+      v=[...verts.values()].find(vv=>vv.owner===-1&&vv.hexes.some(isLand)&&[...vv.adj].every(nk=>verts.get(nk).owner===-1));
+    }
     v.owner=p.i;p.stls--;
-    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert")p.res[h.res]++});
+    if(S.setupIdx>=4)v.hexes.forEach(h=>{if(isLand(h)&&h.res!=="desert"&&h.res!=="gold")p.res[h.res]++});
     const cand=[...v.adj].map(k=>edges.get(ek(v.k,k))).filter(e=>e&&e.owner===-1&&edgeKinds(e).road);
     const e=cand[0]||[...v.adj].map(k=>edges.get(ek(v.k,k))).find(e=>e&&e.owner===-1);
     e.owner=p.i;e.ship=!edgeKinds(e).road;
@@ -823,25 +906,37 @@ function nextSetup(){
   }
 }
 
-/* ---------- выбор режима на старте ---------- */
+/* ---------- выбор режима и сценария на старте ---------- */
 (function start(){
   const m=document.getElementById("modal"),c=document.getElementById("modalCard");
-  c.innerHTML=`<h2>Катан Fable</h2>
-    <p>Выбери режим партии:</p>
-    <div class="row">
-      <button id="mBase">🏝 База<br><small>классические 19 гексов</small></button>
-      <button id="mSea">⛵ Мореходы<br><small>море, корабли, новые острова +1🏆</small></button>
-    </div>`;
-  m.classList.add("on");
-  const go=sea=>{
+  const go=scn=>{
     m.classList.remove("on");
-    buildBoard(sea);
-    say(`<b>Катан Fable${sea?" · Мореходы":""}.</b> Расстановка: поселение + дорога, змейкой.`);
+    buildBoard(scn);
+    say(`<b>Катан Fable${scn?` · ${scn.nm} (до ${scn.targetVP}🏆)`:""}.</b> Расстановка: поселение + дорога, змейкой.`);
     toast("Поставь первое поселение");
     mode="stl";draw();ui();
   };
-  document.getElementById("mBase").onclick=()=>go(false);
-  document.getElementById("mSea").onclick=()=>go(true);
+  const showScenarios=()=>{
+    c.innerHTML=`<h2>⛵ Мореходы — сценарий</h2>
+      <div class="row" style="flex-direction:column">
+        ${SCN.map((s,i)=>`<button data-i="${i}" style="text-align:left">${s.nm} <small style="color:var(--gold)">до ${s.targetVP}🏆</small><br><small>${s.blurb}</small></button>`).join("")}
+        <button id="backBtn"><small>← назад</small></button>
+      </div>`;
+    c.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>go(SCN[+b.dataset.i]));
+    c.querySelector("#backBtn").onclick=showModes;
+  };
+  const showModes=()=>{
+    c.innerHTML=`<h2>Катан Fable</h2>
+      <p>Выбери режим партии:</p>
+      <div class="row">
+        <button id="mBase">🏝 База<br><small>классические 19 гексов · до 10🏆</small></button>
+        <button id="mSea">⛵ Мореходы<br><small>6 сценариев: острова, корабли, золото, колонии</small></button>
+      </div>`;
+    c.querySelector("#mBase").onclick=()=>go(null);
+    c.querySelector("#mSea").onclick=showScenarios;
+  };
+  showModes();
+  m.classList.add("on");
 })();
 </script>
 </body>
