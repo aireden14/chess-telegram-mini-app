@@ -82,19 +82,22 @@
 /* ============ Fable Factory v3 — карты, камера, обучение, энергия на угле ============ */
 const W=56,H=36,TS=26;
 const cv=document.getElementById("cv"),cx=cv.getContext("2d");
-const ORE={iron:"#aec4e2",copper:"#e0854a",coal:"#23272f",stone:"#9a9c86"};
-const ORE_L={iron:"Ж",copper:"М",coal:"У",stone:"К"};          // буква на залежи
-const ORE_LC={iron:"#1d2b3f",copper:"#3d1f0c",coal:"#cfd6e2",stone:"#2c2e22"}; // цвет буквы
+const ORE={iron:"#9fb9d4",copper:"#d9813f",coal:"#23262d",stone:"#a09b8a"};
 const ORE_NM={iron:"⛏ Железная руда",copper:"⛏ Медная руда",coal:"⚫ Уголь",stone:"🪨 Камень"};
+const ITEM_COL={iron:"#9fb9d4",copper:"#d9813f",coal:"#2a2e36",stone:"#a09b8a",wood:"#8a6a3d",
+  ironPlate:"#c8d4e2",copperPlate:"#e8955a",steelPlate:"#93a0b4",gear:"#b9c2cf",wire:"#d9813f",circuit:"#4dbb72",science:"#7aa2ff"};
 const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",wood:"🌲 древесина",
   ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука"};
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 
 /* ---------- карты ---------- */
 const MAPS={
-  valley:{nm:"🌿 Долина",desc:"зелёная долина: леса и луга",oreMul:1,water:false,trees:16,ground:["#101f16","#0d1b13"]},
-  desert:{nm:"🏜 Пустошь",desc:"руды больше, волны злее, лесов почти нет",oreMul:1.6,water:false,trees:3,ground:["#1d1a12","#191710"]},
-  isles: {nm:"🏝 Архипелаг",desc:"озёра и рощи мешают строить",oreMul:1.2,water:true,trees:9,ground:["#101f16","#0d1b13"]},
+  valley:{nm:"🌿 Долина",desc:"зелёная долина: леса и луга",oreMul:1,water:false,trees:16,
+    pal:["#4a6138","#465c35","#4f6a3d","#435832"],dirt:"#6b5a3d",grass:true},
+  desert:{nm:"🏜 Пустошь",desc:"руды больше, волны злее, лесов почти нет",oreMul:1.6,water:false,trees:3,
+    pal:["#8a7852","#84724d","#7d6c49","#907e58"],dirt:"#6e5f42",grass:false},
+  isles: {nm:"🏝 Архипелаг",desc:"озёра и рощи мешают строить",oreMul:1.2,water:true,trees:9,
+    pal:["#4a6138","#465c35","#4f6a3d","#435832"],dirt:"#6b5a3d",grass:true},
 };
 const ore=Array.from({length:H},()=>Array(W).fill(null));
 const terr=Array.from({length:H},()=>Array(W).fill(null)); // "water"|"tree"|null
@@ -113,6 +116,7 @@ function genMap(mapId){
   // леса: живой мир; дерево рубится Сносом → 🌲 древесина (топливо)
   for(let i=0;i<(m.trees||0);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<26;j++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
+  terrDirty=true;
 }
 
 /* ---------- здания / рецепты / технологии ---------- */
@@ -336,7 +340,7 @@ function tapAt(clientX,clientY){
   if(S.tool==="info")return describe(x,y);
   if(S.tool==="del"){
     if(terr[y][x]==="tree"&&!c){ // рубим дерево
-      pushU(x,y);terr[y][x]=null;inv.wood+=3;
+      pushU(x,y);terr[y][x]=null;inv.wood+=3;terrDirty=true;
       toast("🌲 +3 древесины");snd("boom");puff(x,y,"#4dbb72",4);drawInv();return}
     if(c){
     if(c.t==="core")return toast("Ядро сносить нельзя");
@@ -369,7 +373,7 @@ function tapAt(clientX,clientY){
   if(terr[y][x]==="tree")return toast("🌲 Тут дерево — сначала сруби его ✖ Сносом (+3 древесины)");
   const d=DEFS[S.tool];
   if(!canPay(d.cost))return toast("Не хватает ресурсов");
-  if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь (клетки с буквами Ж/М/У/К)");
+  if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь — кучки камней на земле");
   if(S.tool!=="miner"&&S.tool!=="belt"&&ore[y][x])return describe(x,y);
   pushU(x,y);
   pay(d.cost);
@@ -508,13 +512,13 @@ function findB(t){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x]&&grid[y]
 function findOre(kind){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(ore[y][x]===kind&&!grid[y][x])return [x,y];return null}
 const minerOn=kind=>{for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x]&&grid[y][x].t==="miner"&&ore[y][x]===kind)return true;return false};
 const TUT=[
-  {txt:"Выбери 🛠 Бур в панели и поставь его на железную залежь — светлые кружки с буквой Ж. Карту можно таскать пальцем и зумить ＋/－. Инструмент ℹ️ объясняет любую клетку.",
+  {txt:"Выбери 🛠 Бур в панели и поставь его на железную залежь — кучки голубовато-серых камней. Карту можно таскать пальцем и зумить ＋/－. Инструмент ℹ️ объясняет любую клетку.",
    chk:()=>minerOn("iron"),
    target:()=>findOre("iron")},
   {txt:"Поставь ⚡️ Генератор на пустую клетку и тапни по нему — закинется уголь со склада (1 уголь ≈ 25 сек). Без энергии буры стоят!",
    chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&c.fuel>0),
    target:()=>findB("gen")},
-  {txt:"Уголь догорает! Поставь второй 🛠 Бур на угольную залежь (тёмные точки) — уголь нужен постоянно.",
+  {txt:"Уголь догорает! Поставь второй 🛠 Бур на угольную залежь (чёрные блестящие кучки) — уголь нужен постоянно.",
    chk:()=>minerOn("coal"),
    target:()=>findOre("coal")},
   {txt:"Поставь 🔥 Плавильню в паре клеток от железного бура.",
@@ -646,12 +650,97 @@ function showBook(){
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
         <div style="font-size:.82rem">ест топливо: ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с). Заправка: тап по нему или конвейер</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
-        <div style="font-size:.82rem">Дерево рубится ✖ Сносом (+3 древесины). Залежи подписаны буквами: <b>Ж</b> железо, <b>М</b> медь, <b>У</b> уголь, <b>К</b> камень. Тапни ℹ️ Инфо по чему угодно — расскажу, что это</div></div>
+        <div style="font-size:.82rem">Дерево рубится ✖ Сносом (+3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень. Тапни ℹ️ Инфо по чему угодно — расскажу, что это</div></div>
       <div style="color:var(--dim);font-size:.78rem">Доставка входов: конвейером в здание или тапом по зданию (возьмёт со склада). Готовое уходит на конвейер рядом или на склад.</div>
     </div>
     <button style="width:100%;margin-top:12px;text-align:center" onclick="hideOverlay()">Понятно</button>`);
 }
 document.getElementById("bookBtn").onclick=()=>{if(S.started)showBook()};
+
+/* ---------- статичный слой мира: земля, залежи, деревья (кэш ×2, перерисовка только при изменении) ---------- */
+const SS=2;
+const terrCv=document.createElement("canvas");
+terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;
+let terrDirty=true;
+const hash=(x,y)=>{let h=Math.imul(x+31,0x9E3779B1)^Math.imul(y+17,0x85EBCA6B);
+  h^=h>>>13;h=Math.imul(h,0xC2B2AE35);return (h^h>>>16)>>>0};
+function lcg(seed){let s=(seed|1)>>>0;return()=>((s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff)}
+const ORE_FACES={ // [светлая грань, тело, тёмная грань, блик]
+  iron:  ["#c7d8ea","#93aecb","#5e7a99","#eef5fc"],
+  copper:["#e8955a","#c26a2e","#8a4318","#ffd9ae"],
+  coal:  ["#3a3f4a","#22262e","#0f1216","#8b97ad"],
+  stone: ["#c4b99c","#9c9075","#6f6550","#e5dbc0"],
+};
+function drawOreSprite(g,k,x,y){
+  const C=ORE_FACES[k],rn=lcg(hash(x,y));
+  g.save();g.translate(x*TS+TS/2,y*TS+TS/2);
+  g.fillStyle="rgba(48,38,26,.5)"; // вытоптанная земля под рудой
+  g.beginPath();g.ellipse(0,1.5,TS*.46,TS*.36,0,0,7);g.fill();
+  const n=4+Math.floor(rn()*3);
+  for(let i=0;i<n;i++){
+    const a=rn()*6.28,d=rn()*TS*.26;
+    const ox=Math.cos(a)*d,oy=Math.sin(a)*d*.75;
+    const r=TS*(.15+rn()*.12);
+    g.beginPath(); // неровный кусок породы
+    const v=5+Math.floor(rn()*2);
+    for(let j=0;j<v;j++){const aa=j/v*6.28+rn()*.5,rr=r*(.75+rn()*.5);
+      const X=ox+Math.cos(aa)*rr,Y=oy+Math.sin(aa)*rr*.85;
+      j?g.lineTo(X,Y):g.moveTo(X,Y)}
+    g.closePath();
+    g.fillStyle=C[1];g.fill();
+    g.strokeStyle=C[2];g.lineWidth=1;g.stroke();
+    g.beginPath();g.moveTo(ox-r*.4,oy-r*.1);g.lineTo(ox+r*.1,oy-r*.6);g.lineTo(ox+r*.45,oy-r*.15);g.closePath();
+    g.fillStyle=C[0];g.fill();
+    g.fillStyle=C[3];g.fillRect(ox-r*.15,oy-r*.35,Math.max(1.2,r*.2),Math.max(1.2,r*.2));
+  }
+  g.restore();g.lineWidth=1;
+}
+function drawTreeSprite(g,x,y){
+  const rn=lcg(hash(x,y)^0x5eed);
+  const cx0=x*TS+TS/2+(rn()-.5)*5,cy0=y*TS+TS/2+(rn()-.5)*4,h=.85+rn()*.35;
+  g.fillStyle="rgba(0,0,0,.28)";g.beginPath();g.ellipse(cx0+2,cy0+TS*.32,TS*.3,TS*.1,0,0,7);g.fill();
+  g.fillStyle="#4a3826";g.fillRect(cx0-2,cy0+TS*.08,4,TS*.28); // ствол видно под кроной
+  // хвойная крона: три яруса-треугольника, свет слева-сверху
+  const tier=(w,yy,col)=>{g.fillStyle=col;g.beginPath();
+    g.moveTo(cx0,yy-w*1.15);g.lineTo(cx0+w,yy);g.lineTo(cx0-w,yy);g.closePath();g.fill()};
+  tier(TS*.4*h, cy0+TS*.14,"#274423");
+  tier(TS*.33*h,cy0-TS*.02,"#37582c");
+  tier(TS*.25*h,cy0-TS*.17,"#4a7238");
+  g.fillStyle="#5f8f46";g.beginPath(); // блик
+  g.moveTo(cx0,cy0-TS*.17-TS*.25*h*1.15);g.lineTo(cx0-TS*.14*h,cy0-TS*.17);g.lineTo(cx0-TS*.04,cy0-TS*.17);g.closePath();g.fill();
+}
+function drawGround(g,x,y){
+  const m=MAPS[S.map]||MAPS.valley,h=hash(x,y);
+  g.fillStyle=m.pal[h%m.pal.length];
+  g.fillRect(x*TS,y*TS,TS,TS);
+  if(h%7===0){g.fillStyle="rgba(0,0,0,.07)";g.fillRect(x*TS+(h>>3)%10,y*TS+(h>>5)%10,TS*.6,TS*.45)}
+  if(h%11===3){g.fillStyle="rgba(255,250,220,.06)";g.fillRect(x*TS+(h>>4)%14,y*TS+(h>>6)%14,5,4)}
+  if(h%13===5){g.fillStyle=m.dirt;g.globalAlpha=.22;
+    g.beginPath();g.ellipse(x*TS+TS/2,y*TS+TS/2,TS*.5,TS*.34,(h%314)/100,0,7);g.fill();g.globalAlpha=1}
+  if(m.grass&&h%5<2){g.strokeStyle="rgba(200,235,150,.2)";g.lineWidth=1;
+    for(let i=0;i<3;i++){const gx=x*TS+3+((h>>i)%(TS-6)),gy=y*TS+3+((h>>(i+3))%(TS-6));
+      g.beginPath();g.moveTo(gx,gy+3);g.lineTo(gx+1.2,gy);g.stroke()}}
+}
+function drawWater(g,x,y){
+  g.fillStyle="#1b4a63";g.fillRect(x*TS,y*TS,TS,TS);
+  const shore=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{
+    const nx=x+dx,ny=y+dy;return nx>=0&&ny>=0&&nx<W&&ny<H&&terr[ny][nx]!=="water"});
+  if(shore){g.fillStyle="rgba(120,205,235,.16)";g.fillRect(x*TS,y*TS,TS,TS)}
+  const h=hash(x,y);
+  if(h%6===0){g.fillStyle="rgba(255,255,255,.07)";g.fillRect(x*TS+3+h%9,y*TS+5+(h>>4)%12,7,1.5)}
+}
+function redrawTerrain(){
+  const g=terrCv.getContext("2d");
+  g.setTransform(SS,0,0,SS,0,0);
+  g.clearRect(0,0,W*TS,H*TS);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(terr[y][x]==="water"){drawWater(g,x,y);continue}
+    drawGround(g,x,y);
+    if(ore[y][x])drawOreSprite(g,ore[y][x],x,y);
+  }
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(terr[y][x]==="tree")drawTreeSprite(g,x,y);
+  terrDirty=false;
+}
 
 /* ---------- рендер ---------- */
 function render(){
@@ -664,53 +753,39 @@ function render(){
   const x0=Math.max(0,Math.floor((cam.x-r.width/2/cam.z)/TS)),x1=Math.min(W-1,Math.ceil((cam.x+r.width/2/cam.z)/TS));
   const y0=Math.max(0,Math.floor((cam.y-r.height/2/cam.z)/TS)),y1=Math.min(H-1,Math.ceil((cam.y+r.height/2/cam.z)/TS));
   const beltPeriod=tech("t_belt")?6:12;
-  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
-    if(terr[y][x]==="water"){cx.fillStyle="#153245";cx.fillRect(x*TS,y*TS,TS,TS);
-      cx.fillStyle="rgba(255,255,255,.05)";if((x+y+Math.floor(S.tick/40))%5===0)cx.fillRect(x*TS+4,y*TS+TS/2,TS-8,1.5);
-      continue}
-    // живая земля: тон по карте + «трава»-пятна (детерминированный шум, не мерцает)
-    const g=(MAPS[S.map]||MAPS.valley).ground;
-    cx.fillStyle=(x+y)%2?g[0]:g[1];
-    cx.fillRect(x*TS,y*TS,TS,TS);
-    const h=(x*73+y*151)%97;
-    if(h<14&&!ore[y][x]&&terr[y][x]!=="tree"){cx.fillStyle="rgba(120,200,120,.06)";
-      cx.fillRect(x*TS+(h%5)*4,y*TS+(h%3)*6,5,5)}
-    if(ore[y][x]){
-      const k=ore[y][x];
-      cx.fillStyle=ORE[k];cx.globalAlpha=.9;
-      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,TS/2.6,0,7);cx.fill();cx.globalAlpha=1;
-      if(k==="coal"){cx.strokeStyle="#4a5261";cx.stroke()} // уголь: тёмный с ободком
-      cx.fillStyle=ORE_LC[k];cx.font=`700 ${Math.round(TS*0.5)}px -apple-system,sans-serif`;
-      cx.textAlign="center";cx.textBaseline="middle";
-      cx.fillText(ORE_L[k],x*TS+TS/2,y*TS+TS/2+1);
-      cx.font="16px sans-serif";
-    }
-    if(terr[y][x]==="tree"&&!grid[y][x]){
-      const j=(x*37+y*61)%7;
-      cx.font=`${TS*0.72}px sans-serif`;cx.textAlign="center";cx.textBaseline="middle";
-      cx.fillText("🌲",x*TS+TS/2+(j%3-1)*2,y*TS+TS/2+(j%2)*2);
-      cx.font="16px sans-serif";
-    }
+  if(terrDirty)redrawTerrain();
+  cx.drawImage(terrCv,0,0,terrCv.width,terrCv.height,0,0,W*TS,H*TS);
+  // живая вода: бегущие блики поверх кэша
+  if((MAPS[S.map]||{}).water){
+    cx.fillStyle="rgba(255,255,255,.06)";
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)
+      if(terr[y][x]==="water"&&(x+y+Math.floor(S.tick/40))%5===0)cx.fillRect(x*TS+4,y*TS+TS/2,TS-8,1.5);
   }
   cx.font="16px sans-serif";cx.textAlign="center";cx.textBaseline="middle";
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
     const c=grid[y][x];if(!c)continue;
     const px=x*TS+TS/2,py=y*TS+TS/2;
     if(c.t==="belt"){
-      cx.fillStyle="#22303f";cx.fillRect(x*TS+2,y*TS+2,TS-4,TS-4);
-      cx.fillStyle="#5b7080";
       cx.save();cx.translate(px,py);cx.rotate(c.dir*Math.PI/2);
-      cx.beginPath();cx.moveTo(6,0);cx.lineTo(-3,-5);cx.lineTo(-3,5);cx.fill();cx.restore();
+      cx.fillStyle="#1d2127";cx.fillRect(-TS/2+2,-TS/2+2,TS-4,TS-4); // полотно
+      cx.fillStyle="#454c58";cx.fillRect(-TS/2+2,-TS/2+2,TS-4,2.5);cx.fillRect(-TS/2+2,TS/2-4.5,TS-4,2.5); // борта
+      cx.strokeStyle="#39404c";cx.lineWidth=1.5; // бегущие поперечины ленты
+      const off=(S.tick*TS/beltPeriod)%7;
+      for(let sx=-TS/2+2+off;sx<TS/2-2;sx+=7){cx.beginPath();cx.moveTo(sx,-TS/2+6);cx.lineTo(sx,TS/2-6);cx.stroke()}
+      cx.lineWidth=1;
+      cx.fillStyle="#8fa3b8";cx.beginPath();cx.moveTo(6.5,0);cx.lineTo(-2,-4.5);cx.lineTo(-2,4.5);cx.fill();
+      cx.restore();
       if(c.item){ // плавное движение к следующей клетке
         const f=Math.min(1,((S.tick%beltPeriod)+1)/beltPeriod)*0.55;
         const [dx,dy]=DIRS[c.dir];
-        cx.fillStyle=ORE[c.item]||"#c9d4e0";
+        cx.fillStyle=ITEM_COL[c.item]||"#c9d4e0";
         cx.beginPath();cx.arc(px+dx*TS*f*0.5,py+dy*TS*f*0.5,5,0,7);cx.fill();
-        cx.strokeStyle="rgba(0,0,0,.4)";cx.stroke();
+        cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
       }
     } else {
-      cx.fillStyle="#1d2836";cx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2);
-      cx.strokeStyle=DEFS[c.t].power<0?(c.fuel>0?"#e8b04b":"#7d3535"):"#3a4a5e";cx.strokeRect(x*TS+1,y*TS+1,TS-2,TS-2);
+      cx.fillStyle="#3a414c";cx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2); // металлическая рама
+      cx.fillStyle="#232932";cx.fillRect(x*TS+3,y*TS+3,TS-6,TS-6);
+      cx.strokeStyle=DEFS[c.t].power<0?(c.fuel>0?"#e8b04b":"#7d3535"):"#4c5560";cx.strokeRect(x*TS+1.5,y*TS+1.5,TS-3,TS-3);
       cx.fillText(DEFS[c.t].ic,px,py);
       if(c.prog>0&&c.rec){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/c.rec.t,2)}
       if(c.t==="miner"&&c.prog>0){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/90,2)}
@@ -816,6 +891,7 @@ function loadGame(d){
   // завершённые партии можно продолжать строить (song-of-factorio); рейтинг уже записан
   S.win=false;S.over=false;
   TECHS.forEach((t,i)=>t.done=!!d.techs[i]);
+  terrDirty=true;
 }
 function startGame(opts){
   S.started=true;S.mode=opts.mode;
