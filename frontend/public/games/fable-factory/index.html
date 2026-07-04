@@ -63,7 +63,8 @@
     <div id="tut"><div class="step"></div><div class="txt"></div><div class="skip">пропустить обучение</div></div>
     <div id="zoomCtl">
       <button id="zIn">＋</button><button id="zOut">－</button><button id="zFit" title="вся карта">🗺</button>
-      <button id="undoBtn" title="отменить">↩️</button><button id="hintBtn" title="подсказка">💡</button><button id="sndBtn">🔊</button>
+      <button id="undoBtn" title="отменить">↩️</button><button id="hintBtn" title="подсказка">💡</button>
+      <button id="bookBtn" title="рецепты">📖</button><button id="sndBtn">🔊</button>
     </div>
   </div>
   <div id="log"></div>
@@ -144,7 +145,7 @@ const GOALS=[
 
 /* ---------- состояние ---------- */
 const grid=Array.from({length:H},()=>Array(W).fill(null));
-const inv={iron:0,copper:0,coal:10,stone:12,ironPlate:14,copperPlate:0,steelPlate:0,gear:4,wire:0,circuit:0,science:0};
+const inv={iron:0,copper:0,coal:25,stone:12,ironPlate:14,copperPlate:0,steelPlate:0,gear:4,wire:0,circuit:0,science:0};
 const S={tool:"belt",goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
@@ -321,7 +322,8 @@ function tapAt(clientX,clientY){
       if(c.t==="furnace"&&S.goal<2)needs.delete("ironPlate"); // сталь кормим руками только когда дошли до цели о стали
       pushU(x,y);
       needs.forEach(k=>{const take=Math.min(inv[k],3);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
-      if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}else toast("На складе нет нужных входов");
+      if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}
+      else toast(`${DEFS[c.t].nm}: нужно ${RECIPES[c.t].map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖`);
       return;
     }
     return toast("Клетка занята");
@@ -376,7 +378,7 @@ function step(){
     const c=grid[y][x];if(!c)continue;
     if(c.t==="gen"){ // генератор жрёт уголь: 1 уголь = 12 сек света
       if(c.fuel>0)c.fuel--;
-      if(c.fuel<=0&&(c.buf.coal||0)>0){c.buf.coal--;c.fuel=720;puff(x,y,"#5c6a7d",1)}
+      if(c.fuel<=0&&(c.buf.coal||0)>0){c.buf.coal--;c.fuel=1500;puff(x,y,"#5c6a7d",1)} // 1 уголь ≈ 25с
       continue;
     }
     if(c.t==="miner"){
@@ -470,7 +472,7 @@ const TUT=[
   {txt:"Выбери 🛠 Бур в панели и поставь его на железную залежь (голубые точки). Карту можно таскать пальцем и зумить ＋/－.",
    chk:()=>minerOn("iron"),
    target:()=>findOre("iron")},
-  {txt:"Поставь ⚡️ Генератор на пустую клетку и тапни по нему — закинется уголь со склада. Без энергии буры стоят!",
+  {txt:"Поставь ⚡️ Генератор на пустую клетку и тапни по нему — закинется уголь со склада (1 уголь ≈ 25 сек). Без энергии буры стоят!",
    chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&c.fuel>0),
    target:()=>findB("gen")},
   {txt:"Уголь догорает! Поставь второй 🛠 Бур на угольную залежь (тёмные точки) — уголь нужен постоянно.",
@@ -590,6 +592,26 @@ document.getElementById("hintBtn").onclick=()=>{
   toast("💡 "+h.txt.slice(0,120));say("💡 "+h.txt);
 };
 
+/* ---------- 📖 справочник производства (генерится из RECIPES) ---------- */
+const recipeStr=r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")+" → "+ITEM[r.out];
+function showBook(){
+  const bl={furnace:"🔥 Плавильня",asm:"🏭 Сборщик",lab:"🧪 Лаборатория"};
+  const rows=Object.entries(RECIPES).map(([b,recs])=>
+    `<div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">${bl[b]}</div>
+     ${recs.map(r=>`<div style="font-size:.82rem;padding:2px 0">${recipeStr(r)}</div>`).join("")}</div>`).join("");
+  overlay(`<h2 style="margin-bottom:10px">📖 Производство</h2>
+    <div style="max-height:46vh;overflow-y:auto">
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🛠 Бур</div>
+        <div style="font-size:.82rem">ставится на залежь → добывает её ресурс (⛏ железо, медь, ⚫ уголь, 🪨 камень)</div></div>
+      ${rows}
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
+        <div style="font-size:.82rem">ест ⚫ уголь: 1 шт ≈ 25 сек. Заправка: тап по нему или конвейер с углём</div></div>
+      <div style="color:var(--dim);font-size:.78rem">Доставка входов: конвейером в здание или тапом по зданию (возьмёт со склада). Готовое уходит на конвейер рядом или на склад.</div>
+    </div>
+    <button style="width:100%;margin-top:12px;text-align:center" onclick="hideOverlay()">Понятно</button>`);
+}
+document.getElementById("bookBtn").onclick=()=>{if(S.started)showBook()};
+
 /* ---------- рендер ---------- */
 function render(){
   const r=cv.getBoundingClientRect();
@@ -632,7 +654,7 @@ function render(){
       cx.fillText(DEFS[c.t].ic,px,py);
       if(c.prog>0&&c.rec){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/c.rec.t,2)}
       if(c.t==="miner"&&c.prog>0){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/90,2)}
-      if(c.t==="gen"&&c.fuel>0){cx.fillStyle="#e8b04b";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*Math.min(1,c.fuel/720),2)}
+      if(c.t==="gen"&&c.fuel>0){cx.fillStyle="#e8b04b";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*Math.min(1,c.fuel/1500),2)}
       if(c.t==="turret"&&c.shotAt&&S.tick-c.shotAt.t<8){
         cx.strokeStyle="#ffd76b";cx.lineWidth=1.5;
         cx.beginPath();cx.moveTo(px,py);cx.lineTo(c.shotAt.x*TS,c.shotAt.y*TS);cx.stroke();cx.lineWidth=1;
