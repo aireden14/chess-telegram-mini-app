@@ -55,6 +55,12 @@ const SECTIONS: Section[] = [
       { key: "catan_beta", icon: "📚", title: "Читалка", to: "/reader", grad: ["#d7a86b", "#a9743e"] },
     ],
   },
+  {
+    title: "Инструменты",
+    apps: [
+      { key: "catan_beta", icon: "📄", title: "PDF Studio", to: "/pdf-studio", grad: ["#4c8dff", "#2a5fd0"], badge: "NEW" },
+    ],
+  },
 ];
 
 export function GamePickerScreen() {

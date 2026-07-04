@@ -22,6 +22,7 @@ import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
 import { ReaderScreen } from "./features/reader/ReaderScreen";
+import { PdfStudioScreen } from "./features/pdfStudio/PdfStudioScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { CardOfDayScreen } from "./features/cardOfDay/CardOfDayScreen";
 import { IcebreakerScreen } from "./features/icebreakers/IcebreakerScreen";
@@ -69,6 +70,7 @@ export function App() {
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
         <Route path="/reader" element={<Protected><ReaderScreen /></Protected>} />
+        <Route path="/pdf-studio" element={<Protected><PdfStudioScreen /></Protected>} />
         <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />
         <Route path="/card-of-day" element={<Protected><CardOfDayScreen /></Protected>} />
         <Route path="/icebreakers" element={<Protected><IcebreakerScreen /></Protected>} />
