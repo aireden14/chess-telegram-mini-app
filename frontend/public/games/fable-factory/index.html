@@ -7,22 +7,26 @@
 <style>
   :root{
     --bg:#0b0f14; --panel:#141b24; --panel2:#1b2532; --line:#2a3646;
-    --ink:#e8eef7; --dim:#8b9bb0; --gold:#e8b04b; --accent:#7aa2ff; --ok:#4dbb72; --bad:#ff6b6b;
-    --glass:rgba(19,26,35,.82);
+    --ink:#e8eef7; --dim:#a7b6c9; --gold:#e8b04b; --accent:#7aa2ff; --ok:#4dbb72; --bad:#ff6b6b;
+    --glass:rgba(12,17,24,.93);
   }
   *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
   html,body{height:100%;overflow:hidden}
   body{background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif}
   #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-  .glass{background:var(--glass);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:.5px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.42)}
-  button{font:inherit;color:var(--ink);background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.12);border-radius:13px;padding:8px 10px;cursor:pointer;font-size:.82rem;font-weight:500;transition:transform .16s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s}
+  .glass{background:var(--glass);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:.5px solid rgba(255,255,255,.16);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  button{font:inherit;color:var(--ink);background:rgba(255,255,255,.11);border:.5px solid rgba(255,255,255,.18);border-radius:13px;padding:8px 10px;cursor:pointer;font-size:.82rem;font-weight:500;transition:transform .16s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s}
   button:disabled{opacity:.32;cursor:default}
   button:active:not(:disabled){transform:scale(.93)}
   button small{color:var(--dim);display:block;font-size:.68rem;font-weight:400}
   /* верхний HUD */
   #hud{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;max-width:58vw;z-index:20}
-  .pill{background:var(--glass);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);border:.5px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 11px;font-size:.78rem;font-variant-numeric:tabular-nums;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .pill{background:var(--glass);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);border:.5px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 11px;font-size:.78rem;font-variant-numeric:tabular-nums;box-shadow:0 4px 16px rgba(0,0,0,.35)}
   .pill.bad{color:var(--bad)}
+  #resline{width:100%;display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;scrollbar-width:none}
+  #resline::-webkit-scrollbar{display:none}
+  #resline .rpill{flex:0 0 auto;background:var(--glass);border:.5px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 9px;font-size:.72rem;display:flex;gap:4px;align-items:center;font-variant-numeric:tabular-nums;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+  #resline .rpill b{font-weight:700;color:var(--ink)}
   #goal{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;border-radius:14px;padding:8px 12px;font-size:.78rem;max-width:210px;cursor:pointer;z-index:20;border-color:rgba(232,176,75,.45)}
   #goal b{color:var(--gold)}
   #goal.min .gtxt{display:none}
@@ -48,8 +52,8 @@
   #ctx button{text-align:left;display:flex;flex-direction:column;gap:1px;min-height:46px;justify-content:center;line-height:1.15}
   #ctx button.wide{grid-column:1 / -1}
   #ctx button.bad{color:var(--bad);border-color:rgba(255,107,107,.3)}
-  /* быстрая укладка */
-  #quick{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:35;display:none;align-items:center;gap:10px;border-radius:999px;padding:7px 8px 7px 15px;font-size:.82rem}
+  /* быстрая укладка — левый край, чтобы не наезжать на умную кнопку справа */
+  #quick{position:fixed;left:8px;max-width:calc(100vw - 82px);bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:35;display:none;align-items:center;gap:10px;border-radius:999px;padding:7px 8px 7px 15px;font-size:.82rem}
   #quick.on{display:flex}
   #quick button{border-radius:50%;width:30px;height:30px;padding:0;display:grid;place-items:center;font-size:.8rem}
   /* нижний лист */
@@ -64,7 +68,7 @@
   .invGrid .n{font-variant-numeric:tabular-nums;font-weight:700}
   #sheetBody .techBtn{width:100%;margin-bottom:7px;text-align:left}
   #sheetBody .techBtn.done{border-color:var(--ok);opacity:.6}
-  #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 46px);transform:translateX(-50%) translateY(-8px) scale(.96);background:rgba(27,37,50,.85);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:.5px solid rgba(232,176,75,.5);padding:9px 18px;border-radius:999px;font-size:.85rem;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:86vw;text-align:center}
+  #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 132px);transform:translateX(-50%) translateY(-8px) scale(.96);background:rgba(27,37,50,.85);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:.5px solid rgba(232,176,75,.5);padding:9px 18px;border-radius:999px;font-size:.85rem;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:86vw;text-align:center}
   #toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 </style>
 </head>
@@ -163,7 +167,7 @@ function expandWorld(margin){
 const DEFS={
   info:  {nm:"Инфо",ic:"ℹ️",cost:{},power:0,unlock:null,hp:0},
   belt:  {nm:"Конвейер",ic:"➡️",cost:{ironPlate:1},power:0,unlock:null,hp:40},
-  miner: {nm:"Бур",ic:"🛠",cost:{ironPlate:5,gear:2},power:2,unlock:null,hp:120},
+  miner: {nm:"Бур",ic:"🛠",cost:{ironPlate:5,gear:1},power:2,unlock:null,hp:120},
   furnace:{nm:"Плавильня",ic:"🔥",cost:{stone:5},power:0,unlock:null,hp:150},
   gen:   {nm:"Генератор",ic:"⚡️",cost:{ironPlate:4,stone:4},power:-8,unlock:null,hp:150},
   asm:   {nm:"Сборщик",ic:"🏭",cost:{ironPlate:8,gear:4},power:3,unlock:"t_asm",hp:150},
@@ -179,7 +183,7 @@ const RECIPES={
   lab:[{in:{circuit:1,gear:1},out:"science",t:140}],
 };
 const TECHS=[
-  {id:"t_asm",nm:"Сборка (15 ▪️)",cost:{ironPlate:15},done:false,desc:"Открывает Сборщик"},
+  {id:"t_asm",nm:"Сборка (9 ▪️)",cost:{ironPlate:9},done:false,desc:"Открывает Сборщик"},
   {id:"t_def",nm:"Оборона (8 ⚙️)",cost:{gear:8},done:false,desc:"Турель и стена"},
   {id:"t_lab",nm:"Наука (8 🟩)",cost:{circuit:8},done:false,desc:"Открывает Лабораторию"},
   {id:"t_belt",nm:"Быстрые конвейеры (4 🧪)",cost:{science:4},done:false,desc:"Конвейеры ×2"},
@@ -196,7 +200,14 @@ const GOALS=[
 
 /* ---------- состояние ---------- */
 let grid=mk();
-const inv={iron:0,copper:0,coal:30,stone:18,wood:0,ironPlate:22,copperPlate:0,steelPlate:0,gear:6,wire:0,circuit:0,science:0};
+const inv={iron:0,copper:0,coal:30,stone:18,wood:0,ironPlate:22,copperPlate:0,steelPlate:0,gear:10,wire:0,circuit:0,science:0};
+/* ручной крафт: страховка от тупика (нет шестерён/листов — производи руками, пока не встал конвейер) */
+const HAND=[
+  {out:"ironPlate",in:{iron:1,coal:1}},
+  {out:"copperPlate",in:{copper:1,coal:1}},
+  {out:"gear",in:{ironPlate:2}},
+  {out:"wire",in:{copperPlate:1}},
+];
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
@@ -317,9 +328,14 @@ function drawHud(){
     wavePill=`<div class="pill ${enemies.length?"bad":""}">🌊 волна ${S.wave+1} через ${secs}с${enemies.length?` · врагов: ${enemies.length}`:""}</div>`;
   }
   const noFuel=grid.flat().some(c=>c&&c.t==="gen"&&c.fuel<=0);
+  const idle=grid.flat().filter(c=>c&&RECIPES[c.t]&&(DEFS[c.t].power<=0||S.powerOk)
+    &&!RECIPES[c.t].some(r=>Object.entries(r.in).every(([k,n])=>(c.buf[k]||0)>=n))).length;
+  const idlePill=idle>0?`<div class="pill bad">⏸ простаивает: ${idle} — нет сырья</div>`:"";
+  const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0);
+  const resPill=rows.length?`<div id="resline" onclick="openSheet('inv')">${rows.map(([k,nm])=>`<span class="rpill">${nm.split(" ")[0]}<b>${inv[k]}</b></span>`).join("")}</div>`:"";
   document.getElementById("hud").innerHTML=
     `<div class="pill ${ok?"":"bad"}">⚡️ ${gen}/${use}${ok?"":" — не хватает энергии!"}</div>`+
-    (noFuel?`<div class="pill bad">⚫ генератор без угля!</div>`:"")+wavePill;
+    (noFuel?`<div class="pill bad">⚫ генератор без угля!</div>`:"")+wavePill+idlePill+resPill;
   S.powerOk=ok;
 }
 function exitGame(){parent.postMessage("hexland:exit","*")}
@@ -416,7 +432,7 @@ function openCtx(x,y,sx,sy){
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -428,6 +444,16 @@ function renderSheet(){
   else if(S.sheet==="quest")sheetBody.innerHTML=questSheetHtml();
   else if(S.sheet==="tech")techSheet();
   else if(S.sheet==="map")mapSheet();
+  else if(S.sheet==="hand")handSheet();
+}
+function handSheet(){
+  sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Пока нет конвейеров или не хватает построек — крафти руками из того, что на складе. Медленнее автоматики, зато не застрянешь.</div>`;
+  HAND.forEach(r=>{const b=document.createElement("button");
+    b.className="techBtn";b.style.display="flex";b.style.justifyContent="space-between";b.style.alignItems="center";
+    b.innerHTML=`<span>${ITEM[r.out]}</span><span style="color:var(--dim);font-size:.78rem">${costStr(r.in)} →</span>`;
+    b.disabled=!canPay(r.in);
+    b.onclick=()=>{pay(r.in);inv[r.out]++;S.made[r.out]++;snd("craft");toast("✋ +1 "+ITEM[r.out].split(" ")[0]);drawInv();drawHud();handSheet()};
+    sheetBody.appendChild(b);});
 }
 function invHtml(){
   const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0||["coal","ironPlate","steelPlate","gear","circuit","science"].includes(k))
@@ -461,6 +487,7 @@ function mapSheet(){
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
   {k:"📦",l:"Склад",f:()=>openSheet("inv")},
+  {k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
   {k:"🔬",l:"Наука",f:()=>openSheet("tech")},
   {k:"📜",l:"Задания",f:()=>openSheet("quest")},
   {k:"📖",l:"Рецепты",f:()=>showBook()},
@@ -974,7 +1001,7 @@ function overlay(html){
   if(!o){o=document.createElement("div");o.id="ovl";
     o.style.cssText="position:fixed;inset:0;background:rgba(5,8,12,.78);display:grid;place-items:center;z-index:70";
     document.body.appendChild(o)}
-  o.innerHTML=`<div style="background:rgba(20,27,36,.82);backdrop-filter:blur(28px) saturate(1.6);-webkit-backdrop-filter:blur(28px) saturate(1.6);border:.5px solid rgba(255,255,255,.12);border-radius:22px;padding:20px;max-width:360px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.5)">${html}</div>`;
+  o.innerHTML=`<div style="background:rgba(13,18,25,.95);backdrop-filter:blur(28px) saturate(1.6);-webkit-backdrop-filter:blur(28px) saturate(1.6);border:.5px solid rgba(255,255,255,.16);border-radius:22px;padding:20px;max-width:360px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.55)">${html}</div>`;
   o.style.display="grid";
   return o;
 }
