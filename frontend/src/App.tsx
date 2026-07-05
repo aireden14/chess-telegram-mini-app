@@ -16,6 +16,7 @@ import { PausedScreen } from "./pages/PausedScreen";
 import { SudokuScreen } from "./features/sudoku/SudokuScreen";
 import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorScreen";
 import { NeurogridScreen } from "./features/neurogrid/NeurogridScreen";
+import { WebgridScreen } from "./features/webgrid/WebgridScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
 import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
@@ -63,6 +64,7 @@ export function App() {
         <Route path="/sudoku" element={<Protected><SudokuScreen /></Protected>} />
         <Route path="/force-deflector" element={<Protected><ForceDeflectorScreen /></Protected>} />
         <Route path="/neurogrid" element={<Protected><NeurogridScreen /></Protected>} />
+        <Route path="/webgrid" element={<Protected><WebgridScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
         <Route path="/hexforge" element={<Protected><HexForgeScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />

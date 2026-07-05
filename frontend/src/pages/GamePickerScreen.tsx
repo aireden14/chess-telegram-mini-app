@@ -51,6 +51,7 @@ const SECTIONS: Section[] = [
       { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku", grad: ["#4ad0a8", "#2aa6c9"] },
       { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector", grad: ["#8b6cff", "#5b7bff"] },
       { key: "force", icon: "🧠", title: "Neurogrid", to: "/neurogrid", grad: ["#7ff2ff", "#5b8dff"], badge: "NEW" },
+      { key: "force", icon: "🟩", title: "WebGrid", to: "/webgrid", grad: ["#22ff9e", "#1aa66b"], badge: "NEW" },
       { key: "catan_beta", icon: "📚", title: "Читалка", to: "/reader", grad: ["#d7a86b", "#a9743e"] },
     ],
   },

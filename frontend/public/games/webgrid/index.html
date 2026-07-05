@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>WebGrid</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overscroll-behavior: none; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  body {
+    background: radial-gradient(ellipse at 50% -10%, #0a1224 0%, #030509 55%, #000 100%);
+    color: #d7e6ff;
+    font-family: 'SF Mono', 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+    width: 100vw; height: 100vh; height: 100dvh;
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  #stage {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 18px;
+    position: relative;
+  }
+
+  #wires {
+    position: absolute; inset: 0; z-index: 0; opacity: 0.35; pointer-events: none;
+  }
+
+  .corner-stat {
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px);
+    z-index: 3; display: flex; flex-direction: column; gap: 2px;
+    opacity: 0.3; transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+  }
+  #time-corner { left: 16px; align-items: flex-start; }
+  #hits-corner { right: 16px; align-items: flex-end; }
+  .corner-stat.pulse { opacity: 1; transform: scale(1.08); }
+  .corner-stat.urgent { opacity: 1; }
+  .corner-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #4d6a9e; }
+  .corner-value {
+    font-size: 16px; font-weight: 700; color: #7ff2ff;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 10px rgba(127,242,255,0.4);
+  }
+  #hits-corner .corner-value { color: #22ff9e; text-shadow: 0 0 10px rgba(34,255,158,0.4); }
+  #time-corner.urgent .corner-value { color: #ff5d7a; text-shadow: 0 0 12px rgba(255,93,122,0.5); }
+
+  #grid-frame {
+    position: relative; z-index: 2;
+    padding: 10px;
+    border-radius: 24px;
+    border: 1px solid rgba(120,160,255,0.08);
+    transition: box-shadow 0.5s ease, border-color 0.5s ease, opacity 0.4s ease;
+  }
+  #grid-frame.phase-running {
+    border-color: rgba(34,255,158,0.28);
+    box-shadow: 0 0 0 1px rgba(34,255,158,0.2), 0 0 44px rgba(34,255,158,0.14);
+  }
+  #grid-frame.dimmed { opacity: 0.22; }
+
+  #grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: clamp(5px, 1.6vw, 10px);
+    width: min(88vw, 380px);
+    aspect-ratio: 1 / 1;
+  }
+
+  .cell {
+    position: relative;
+    border-radius: 22%;
+    background: linear-gradient(160deg, #0d1730 0%, #060b17 100%);
+    border: 1px solid rgba(120,160,255,0.12);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .cell.target {
+    transform: scale(0.94);
+    border-color: #22ff9e;
+    background: linear-gradient(160deg, rgba(34,255,158,0.32) 0%, #04150d 100%);
+    box-shadow: 0 0 22px 3px #22ff9e, 0 0 54px 8px rgba(34,255,158,0.4), inset 0 0 18px rgba(255,255,255,0.08);
+  }
+  .cell.hit { transform: scale(0.84); }
+
+  #panel {
+    position: relative; z-index: 2;
+    margin-top: clamp(18px, 5vh, 30px);
+    min-height: 48px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  #intro-caption {
+    text-align: center; font-size: 12px; line-height: 1.6; letter-spacing: 0.5px;
+    color: #6a80ac; max-width: 280px;
+  }
+  .ghost-btn {
+    font-family: inherit; letter-spacing: 3px; text-transform: uppercase;
+    font-size: 12px; font-weight: 700; color: #9fd8ff;
+    background: transparent; border: 1px solid rgba(127,242,255,0.35);
+    border-radius: 999px; padding: 13px 32px; cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease, border-color 0.2s ease;
+  }
+  .ghost-btn:active {
+    transform: scale(0.95);
+    background: rgba(127,242,255,0.12);
+    box-shadow: 0 0 24px rgba(127,242,255,0.25);
+    border-color: rgba(127,242,255,0.6);
+  }
+
+  #overlay {
+    position: absolute; inset: 0; z-index: 5;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    background: rgba(2,4,10,0);
+    transition: background 0.4s ease;
+  }
+  #overlay.show {
+    display: flex;
+    background: rgba(2,4,10,0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    animation: fadein 0.3s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  #overlay-title {
+    font-size: 13px; letter-spacing: 6px; text-transform: uppercase;
+    color: #9fe8c2; text-shadow: 0 0 18px rgba(34,255,158,0.4);
+  }
+  #overlay-stats { display: flex; gap: 30px; }
+  .stat-num {
+    font-size: 30px; font-weight: 700; color: #7ff2ff; text-align: center;
+    text-shadow: 0 0 16px rgba(127,242,255,0.4);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-lbl { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #4d6a9e; text-align: center; margin-top: 2px; }
+  .stat-num.new-best { color: #ffd166; text-shadow: 0 0 18px rgba(255,209,102,0.55); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="wires"></canvas>
+
+  <div class="corner-stat" id="time-corner">
+    <span class="corner-label">Time</span>
+    <span class="corner-value" id="time-val">60</span>
+  </div>
+  <div class="corner-stat" id="hits-corner">
+    <span class="corner-label">Hits</span>
+    <span class="corner-value" id="hits-val">0</span>
+  </div>
+
+  <span class="sr-only" id="sr-status" aria-live="polite"></span>
+
+  <div id="grid-frame">
+    <div id="grid"></div>
+  </div>
+
+  <div id="panel">
+    <p id="intro-caption">Тапай зелёную клетку — она мгновенно перескакивает на новое место. 60 секунд, сколько успеешь?</p>
+    <button id="start-btn" class="ghost-btn">Начать</button>
+  </div>
+
+  <div id="overlay">
+    <div id="overlay-title">Время вышло</div>
+    <div id="overlay-stats">
+      <div>
+        <div class="stat-num" id="final-hits">0</div>
+        <div class="stat-lbl">Hits</div>
+      </div>
+      <div>
+        <div class="stat-num" id="final-bps">0.0</div>
+        <div class="stat-lbl">Bits/s</div>
+      </div>
+      <div>
+        <div class="stat-num" id="final-best">0.0</div>
+        <div class="stat-lbl">Best</div>
+      </div>
+    </div>
+    <button id="retry-btn" class="ghost-btn">Ещё раз</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COLS = 6, ROWS = 6;
+  var SESSION_MS = 60000;
+  var BEST_KEY = "webgrid_best_bps_v1";
+
+  var gridFrame = document.getElementById("grid-frame");
+  var grid = document.getElementById("grid");
+  var startBtn = document.getElementById("start-btn");
+  var retryBtn = document.getElementById("retry-btn");
+  var overlay = document.getElementById("overlay");
+  var srStatus = document.getElementById("sr-status");
+  var timeVal = document.getElementById("time-val");
+  var hitsVal = document.getElementById("hits-val");
+  var timeCorner = document.getElementById("time-corner");
+  var hitsCorner = document.getElementById("hits-corner");
+  var finalHits = document.getElementById("final-hits");
+  var finalBps = document.getElementById("final-bps");
+  var finalBest = document.getElementById("final-best");
+  var panel = document.getElementById("panel");
+
+  var best = parseFloat(localStorage.getItem(BEST_KEY) || "0");
+
+  var cells = [];
+  var targetIdx = -1;
+  var spawnTime = 0;
+  var hits = 0;
+  var bitsPerHit = Math.log2(COLS * ROWS);
+  var bpsSum = 0;
+  var playing = false;
+  var endTime = 0;
+  var tickHandle = null;
+
+  // --- audio ---
+  var audioCtx = null;
+  function ctx() {
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+    }
+    return audioCtx;
+  }
+  function unlockAudio() {
+    try {
+      var c = ctx();
+      if (c.state === "suspended") c.resume();
+    } catch (e) { /* ignore */ }
+  }
+  document.addEventListener("pointerdown", unlockAudio, { once: true });
+
+  function beep(freq, dur, type) {
+    try {
+      var c = ctx();
+      var osc = c.createOscillator();
+      var gain = c.createGain();
+      osc.type = type || "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, c.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start();
+      osc.stop(c.currentTime + dur + 0.02);
+    } catch (e) { /* audio unsupported, ignore */ }
+  }
+
+  function haptic(style) {
+    try {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+        var h = window.Telegram.WebApp.HapticFeedback;
+        if (style === "success") h.notificationOccurred("success");
+        else h.impactOccurred(style || "light");
+      } else if (navigator.vibrate) {
+        navigator.vibrate(12);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function buildGrid() {
+    grid.innerHTML = "";
+    cells = [];
+    var total = COLS * ROWS;
+    for (var i = 0; i < total; i++) {
+      var c = document.createElement("div");
+      c.className = "cell";
+      c.dataset.idx = i;
+      c.addEventListener("pointerdown", onCellTap);
+      grid.appendChild(c);
+      cells.push(c);
+    }
+  }
+
+  function bumpCorner(el, timerHolder) {
+    el.classList.add("pulse");
+    clearTimeout(timerHolder.id);
+    timerHolder.id = setTimeout(function () { el.classList.remove("pulse"); }, 350);
+  }
+  var hitsBumpHolder = { id: null };
+
+  function spawnTarget() {
+    var next;
+    do {
+      next = Math.floor(Math.random() * cells.length);
+    } while (next === targetIdx && cells.length > 1);
+    if (targetIdx >= 0) cells[targetIdx].classList.remove("target");
+    targetIdx = next;
+    cells[targetIdx].classList.add("target");
+    spawnTime = performance.now();
+  }
+
+  function onCellTap(e) {
+    if (!playing) return;
+    var idx = parseInt(e.currentTarget.dataset.idx, 10);
+    if (idx !== targetIdx) return;
+    var reactionMs = performance.now() - spawnTime;
+    var cell = e.currentTarget;
+    cell.classList.add("hit");
+    setTimeout(function () { cell.classList.remove("hit"); }, 110);
+    hits += 1;
+    var bps = bitsPerHit / Math.max(0.08, reactionMs / 1000);
+    bpsSum += bps;
+    hitsVal.textContent = hits;
+    bumpCorner(hitsCorner, hitsBumpHolder);
+    beep(520 + Math.min(reactionMs, 400), 0.08, "triangle");
+    haptic("light");
+    spawnTarget();
+  }
+
+  function tick() {
+    var remainingMs = endTime - performance.now();
+    if (remainingMs <= 0) {
+      timeVal.textContent = "0";
+      endSession();
+      return;
+    }
+    var remainingSec = Math.ceil(remainingMs / 1000);
+    timeVal.textContent = remainingSec;
+    timeCorner.classList.toggle("urgent", remainingSec <= 10);
+    tickHandle = requestAnimationFrame(tick);
+  }
+
+  function endSession() {
+    playing = false;
+    cancelAnimationFrame(tickHandle);
+    if (targetIdx >= 0) cells[targetIdx].classList.remove("target");
+    gridFrame.classList.remove("phase-running");
+    gridFrame.classList.add("dimmed");
+    var avgBps = hits > 0 ? bpsSum / hits : 0;
+    if (avgBps > best) {
+      best = avgBps;
+      localStorage.setItem(BEST_KEY, String(best));
+    }
+    finalHits.textContent = hits;
+    finalBps.textContent = avgBps.toFixed(1);
+    finalBest.textContent = best.toFixed(1);
+    document.getElementById("final-best").classList.toggle("new-best", avgBps >= best && hits > 0);
+    srStatus.textContent = "Время вышло. " + hits + " попаданий.";
+    overlay.classList.add("show");
+  }
+
+  function startGame() {
+    ctx();
+    overlay.classList.remove("show");
+    gridFrame.classList.remove("dimmed");
+    gridFrame.classList.add("phase-running");
+    panel.style.display = "none";
+    buildGrid();
+    hits = 0;
+    bpsSum = 0;
+    hitsVal.textContent = "0";
+    timeVal.textContent = Math.ceil(SESSION_MS / 1000);
+    timeCorner.classList.remove("urgent");
+    targetIdx = -1;
+    playing = true;
+    endTime = performance.now() + SESSION_MS;
+    spawnTarget();
+    tickHandle = requestAnimationFrame(tick);
+  }
+
+  buildGrid();
+  startBtn.addEventListener("click", function () { panel.style.display = "none"; startGame(); });
+  retryBtn.addEventListener("click", function () { panel.style.display = "none"; startGame(); });
+
+  // --- фоновые нейро-нити на canvas ---
+  var wiresCanvas = document.getElementById("wires");
+  var wctx = wiresCanvas.getContext("2d");
+  var nodes = [];
+  function resizeWires() {
+    wiresCanvas.width = window.innerWidth;
+    wiresCanvas.height = window.innerHeight;
+  }
+  function initNodes() {
+    nodes = [];
+    var n = 22;
+    for (var i = 0; i < n; i++) {
+      nodes.push({
+        x: Math.random() * wiresCanvas.width,
+        y: Math.random() * wiresCanvas.height,
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25
+      });
+    }
+  }
+  function drawWires() {
+    wctx.clearRect(0, 0, wiresCanvas.width, wiresCanvas.height);
+    nodes.forEach(function (p) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > wiresCanvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > wiresCanvas.height) p.vy *= -1;
+    });
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        var a = nodes[i], b = nodes[j];
+        var dx = a.x - b.x, dy = a.y - b.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          wctx.strokeStyle = "rgba(127,242,255," + (0.12 * (1 - dist / 150)) + ")";
+          wctx.lineWidth = 1;
+          wctx.beginPath();
+          wctx.moveTo(a.x, a.y);
+          wctx.lineTo(b.x, b.y);
+          wctx.stroke();
+        }
+      }
+      wctx.fillStyle = "rgba(127,242,255,0.5)";
+      wctx.beginPath();
+      wctx.arc(nodes[i].x, nodes[i].y, 1.6, 0, Math.PI * 2);
+      wctx.fill();
+    }
+    requestAnimationFrame(drawWires);
+  }
+  window.addEventListener("resize", function () { resizeWires(); initNodes(); });
+  resizeWires();
+  initNodes();
+  drawWires();
+})();
+</script>
+</body>
+</html>
