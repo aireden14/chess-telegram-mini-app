@@ -8,80 +8,90 @@
   :root{
     --bg:#0b0f14; --panel:#141b24; --panel2:#1b2532; --line:#2a3646;
     --ink:#e8eef7; --dim:#8b9bb0; --gold:#e8b04b; --accent:#7aa2ff; --ok:#4dbb72; --bad:#ff6b6b;
+    --glass:rgba(19,26,35,.82);
   }
-  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
   html,body{height:100%;overflow:hidden}
-  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif;display:flex;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-  #main{flex:1;min-width:0;display:flex;flex-direction:column}
-  #canvasWrap{flex:1;min-height:0;position:relative}
-  canvas{width:100%;height:100%;display:block;touch-action:none}
-  #hud{position:absolute;top:8px;left:8px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
-  .pill{background:rgba(20,27,36,.66);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border:.5px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 12px;font-size:.8rem;font-variant-numeric:tabular-nums;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif}
+  #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .glass{background:var(--glass);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:.5px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.42)}
+  button{font:inherit;color:var(--ink);background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.12);border-radius:13px;padding:8px 10px;cursor:pointer;font-size:.82rem;font-weight:500;transition:transform .16s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s}
+  button:disabled{opacity:.32;cursor:default}
+  button:active:not(:disabled){transform:scale(.93)}
+  button small{color:var(--dim);display:block;font-size:.68rem;font-weight:400}
+  /* верхний HUD */
+  #hud{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;max-width:58vw;z-index:20}
+  .pill{background:var(--glass);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);border:.5px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 11px;font-size:.78rem;font-variant-numeric:tabular-nums;box-shadow:0 4px 16px rgba(0,0,0,.3)}
   .pill.bad{color:var(--bad)}
-  #goal{position:absolute;top:8px;right:8px;background:rgba(20,27,36,.72);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border:.5px solid rgba(232,176,75,.5);border-radius:14px;padding:8px 12px;font-size:.8rem;max-width:230px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  #goal{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;border-radius:14px;padding:8px 12px;font-size:.78rem;max-width:210px;cursor:pointer;z-index:20;border-color:rgba(232,176,75,.45)}
   #goal b{color:var(--gold)}
-  #tut{position:absolute;left:8px;bottom:8px;max-width:300px;background:rgba(20,27,36,.8);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:.5px solid rgba(122,162,255,.5);border-radius:16px;padding:12px 14px;font-size:.84rem;box-shadow:0 8px 24px rgba(0,0,0,.35);display:none;animation:tutIn .35s cubic-bezier(.2,1.2,.3,1)}
+  #goal.min .gtxt{display:none}
+  #goal.min{padding:6px 11px}
+  /* обучение */
+  #tut{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom) + 76px);max-width:290px;border-radius:16px;padding:12px 14px;font-size:.84rem;display:none;animation:pop .3s cubic-bezier(.2,1.2,.3,1);z-index:30;border-color:rgba(122,162,255,.4)}
   #tut.on{display:block}
   #tut .step{color:var(--accent);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px}
   #tut .skip{color:var(--dim);font-size:.72rem;margin-top:8px;cursor:pointer;text-decoration:underline}
-  @keyframes tutIn{0%{transform:translateY(12px) scale(.96);opacity:0}100%{transform:none;opacity:1}}
-  #zoomCtl{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px}
-  #zoomCtl button{width:40px;height:40px;padding:0;text-align:center;font-size:1.1rem;border-radius:12px}
-  #side{width:270px;flex-shrink:0;background:rgba(20,27,36,.72);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border-left:.5px solid rgba(255,255,255,.08);display:flex;flex-direction:column;overflow-y:auto}
-  .sec{padding:11px 13px;border-bottom:.5px solid rgba(255,255,255,.07)}
-  .sec h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin-bottom:8px;font-weight:600}
-  #build{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  button{font:inherit;color:var(--ink);background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.1);border-radius:13px;padding:8px 8px;cursor:pointer;font-size:.78rem;text-align:left;font-weight:500;
-    transition:transform .25s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-  button:disabled{opacity:.3;cursor:default;box-shadow:none}
-  button.armed{outline:2px solid var(--accent);background:rgba(122,162,255,.14)}
-  button:active:not(:disabled){transform:scale(.95)}
-  button small{color:var(--dim);display:block;font-size:.68rem}
-  #inv{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:.8rem}
-  #inv div{display:flex;justify-content:space-between;background:var(--panel2);border-radius:8px;padding:4px 8px}
-  #inv .n{font-variant-numeric:tabular-nums;font-weight:700}
-  #tech button{width:100%;margin-bottom:6px}
-  #tech button.done{border-color:var(--ok);opacity:.6}
-  #log{height:74px;overflow-y:auto;padding:5px 10px;font-size:.75rem;color:var(--dim);border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
-  #toast{position:fixed;left:50%;top:12px;transform:translateX(-50%) translateY(-8px) scale(.96);background:rgba(27,37,50,.78);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:.5px solid rgba(232,176,75,.5);padding:9px 18px;border-radius:999px;font-size:.85rem;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  @keyframes pop{0%{transform:translateY(10px) scale(.96);opacity:0}100%{transform:none;opacity:1}}
+  /* умная кнопка (dynamic-island) */
+  #smart{position:fixed;right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:40}
+  #smartBtn{width:54px;height:54px;border-radius:50%;font-size:1.35rem;padding:0;display:grid;place-items:center}
+  #smartMenu{display:none;flex-direction:column;gap:7px}
+  #smart.open #smartMenu{display:flex;animation:pop .22s cubic-bezier(.2,1.2,.3,1)}
+  #smartMenu button{width:158px;text-align:left;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+  #smartMenu .k{font-size:1.05rem;width:20px;text-align:center;flex-shrink:0}
+  /* контекстное меню по клетке */
+  #ctx{position:fixed;z-index:50;display:none;border-radius:16px;padding:8px;min-width:176px;max-width:248px;animation:pop .16s cubic-bezier(.2,1.2,.3,1)}
+  #ctx.on{display:block}
+  #ctx .ctxTitle{font-size:.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;padding:2px 6px 7px}
+  #ctx .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  #ctx button{text-align:left;display:flex;flex-direction:column;gap:1px;min-height:46px;justify-content:center;line-height:1.15}
+  #ctx button.wide{grid-column:1 / -1}
+  #ctx button.bad{color:var(--bad);border-color:rgba(255,107,107,.3)}
+  /* быстрая укладка */
+  #quick{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:35;display:none;align-items:center;gap:10px;border-radius:999px;padding:7px 8px 7px 15px;font-size:.82rem}
+  #quick.on{display:flex}
+  #quick button{border-radius:50%;width:30px;height:30px;padding:0;display:grid;place-items:center;font-size:.8rem}
+  /* нижний лист */
+  #sheet{position:fixed;left:0;right:0;bottom:0;z-index:45;transform:translateY(112%);transition:transform .32s cubic-bezier(.2,.9,.2,1);border-radius:20px 20px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom) + 16px);max-height:74vh;display:flex;flex-direction:column}
+  #sheet.on{transform:translateY(0)}
+  #sheetHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  #sheetTitle{font-weight:700;font-size:1.02rem}
+  #sheetX{width:34px;height:34px;border-radius:50%;padding:0;display:grid;place-items:center}
+  #sheetBody{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .invGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.85rem}
+  .invGrid div{display:flex;justify-content:space-between;background:var(--panel2);border-radius:10px;padding:7px 11px}
+  .invGrid .n{font-variant-numeric:tabular-nums;font-weight:700}
+  #sheetBody .techBtn{width:100%;margin-bottom:7px;text-align:left}
+  #sheetBody .techBtn.done{border-color:var(--ok);opacity:.6}
+  #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 46px);transform:translateX(-50%) translateY(-8px) scale(.96);background:rgba(27,37,50,.85);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:.5px solid rgba(232,176,75,.5);padding:9px 18px;border-radius:999px;font-size:.85rem;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:86vw;text-align:center}
   #toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
-  @media(max-width:820px){
-    body{flex-direction:column}
-    #side{width:100%;height:42%;border-left:none;border-top:1px solid var(--line);flex-direction:row;flex-wrap:wrap}
-    .sec{flex:1 1 46%}
-    #tut{max-width:230px}
-  }
 </style>
 </head>
 <body>
-<div id="main">
-  <div id="canvasWrap">
-    <canvas id="cv"></canvas>
-    <div id="hud"></div>
-    <div id="goal"></div>
-    <div id="tut"><div class="step"></div><div class="txt"></div><div class="skip">пропустить обучение</div></div>
-    <div id="zoomCtl">
-      <button id="zIn">＋</button><button id="zOut">－</button><button id="zFit" title="вся карта">🗺</button>
-      <button id="undoBtn" title="отменить">↩️</button><button id="hintBtn" title="подсказка">💡</button>
-      <button id="bookBtn" title="рецепты">📖</button><button id="sndBtn">🔊</button>
-    </div>
-  </div>
-  <div id="log"></div>
+<canvas id="cv"></canvas>
+<div id="hud"></div>
+<div id="goal" class="glass"></div>
+<div id="tut" class="glass"><div class="step"></div><div class="txt"></div><div class="skip">пропустить обучение</div></div>
+<div id="ctx" class="glass"></div>
+<div id="quick" class="glass"><span id="quickTxt"></span><button id="quickX">✕</button></div>
+<div id="smart">
+  <div id="smartMenu"></div>
+  <button id="smartBtn" class="glass">⋯</button>
 </div>
-<div id="side">
-  <div class="sec"><h3>Постройки <small style="color:var(--dim)">(тап по конвейеру — поворот; тап по зданию — загрузка со склада; ✖ — снос с возвратом 50%)</small></h3><div id="build"></div></div>
-  <div class="sec"><h3>Склад</h3><div id="inv"></div></div>
-  <div class="sec"><h3>Задание мастера Фейбла</h3><div id="quest" style="font-size:.8rem"></div></div>
-  <div class="sec"><h3>Исследования</h3><div id="tech"></div></div>
-  <div class="sec"><button id="exitBtn" style="width:100%;text-align:center">← В меню игр</button></div>
+<div id="sheet" class="glass">
+  <div id="sheetHead"><span id="sheetTitle"></span><button id="sheetX">✕</button></div>
+  <div id="sheetBody"></div>
 </div>
+<div id="log" style="display:none"></div>
 <div id="toast"></div>
 <script>
 "use strict";
 /* ============ Fable Factory v3 — карты, камера, обучение, энергия на угле ============ */
-const W=56,H=36,TS=26;
+const W0=64,H0=44,TS=26;   // стартовый размер мира; карту можно догенерировать (expandWorld)
+let W=W0,H=H0;
 const cv=document.getElementById("cv"),cx=cv.getContext("2d");
+const mk=()=>Array.from({length:H},()=>Array(W).fill(null));
 const ORE={iron:"#9fb9d4",copper:"#d9813f",coal:"#23262d",stone:"#a09b8a"};
 const ORE_NM={iron:"⛏ Железная руда",copper:"⛏ Медная руда",coal:"⚫ Уголь",stone:"🪨 Камень"};
 const ITEM_COL={iron:"#9fb9d4",copper:"#d9813f",coal:"#2a2e36",stone:"#a09b8a",wood:"#8a6a3d",
@@ -99,11 +109,12 @@ const MAPS={
   isles: {nm:"🏝 Архипелаг",desc:"озёра и рощи мешают строить",oreMul:1.2,water:true,trees:9,
     pal:["#4a6138","#465c35","#4f6a3d","#435832"],dirt:"#6b5a3d",grass:true},
 };
-const ore=Array.from({length:H},()=>Array(W).fill(null));
-const terr=Array.from({length:H},()=>Array(W).fill(null)); // "water"|"tree"|null
+let ore=mk();
+let terr=mk(); // "water"|"tree"|null
+function resizeTerrCanvas(){terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;terrDirty=true}
 function genMap(mapId){
   const m=MAPS[mapId];
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){ore[y][x]=null;terr[y][x]=null}
+  W=W0;H=H0;ore=mk();terr=mk();grid=mk();resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
   if(m.water){ // озёра-кляксы
     for(let i=0;i<7;i++){let x=rnd(4,W-5),y=rnd(4,H-5);
       for(let j=0;j<50;j++){if(x>1&&y>1&&x<W-2&&y<H-2)terr[y][x]="water";x+=rnd(-1,1);y+=rnd(-1,1)}}
@@ -117,6 +128,35 @@ function genMap(mapId){
   for(let i=0;i<(m.trees||0);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<26;j++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
   terrDirty=true;
+}
+/* ---------- догенерация: добавляем кольцо новой земли вокруг мира ---------- */
+function expandWorld(margin){
+  const oldW=W,oldH=H,sh=margin;
+  const nW=W+margin*2,nH=H+margin*2;
+  W=nW;H=nH;
+  const nOre=mk(),nTerr=mk(),nGrid=mk();
+  for(let y=0;y<oldH;y++)for(let x=0;x<oldW;x++){
+    nOre[y+sh][x+sh]=ore[y][x];nTerr[y+sh][x+sh]=terr[y][x];nGrid[y+sh][x+sh]=grid[y][x];
+  }
+  ore=nOre;terr=nTerr;grid=nGrid;
+  cam.x+=sh*TS;cam.y+=sh*TS;
+  enemies.forEach(e=>{e.x+=sh;e.y+=sh});
+  const inRing=(x,y)=>x<sh||y<sh||x>=sh+oldW||y>=sh+oldH;
+  const m=MAPS[S.map]||MAPS.valley;
+  if(m.water){for(let i=0;i<Math.round(margin/2);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
+    for(let j=0;j<48;j++){if(inRing(x,y)&&x>1&&y>1&&x<W-2&&y<H-2)terr[y][x]="water";x+=rnd(-1,1);y+=rnd(-1,1)}}}
+  const blob=(kind,n)=>{let x=rnd(2,W-3),y=rnd(2,H-3),g=0;
+    while((!inRing(x,y)||terr[y][x]||grid[y][x])&&g++<80){x=rnd(2,W-3);y=rnd(2,H-3)}
+    for(let i=0;i<n;i++){if(inRing(x,y)&&x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!grid[y][x])ore[y][x]=kind;x+=rnd(-1,1);y+=rnd(-1,1)}};
+  const base=Math.round(30*m.oreMul);
+  const kinds=["iron","iron","iron","copper","copper","coal","coal","coal","stone","stone"];
+  const passes=Math.max(2,Math.round(margin/3));
+  for(let p=0;p<passes;p++)kinds.forEach(k=>blob(k,base));
+  for(let i=0;i<Math.max(6,(m.trees||8));i++){let x=rnd(2,W-3),y=rnd(2,H-3);
+    for(let j=0;j<24;j++){if(inRing(x,y)&&x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x]&&!grid[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
+  resizeTerrCanvas();
+  undoStack.length=0;S.hint=null;
+  clampCam();
 }
 
 /* ---------- здания / рецепты / технологии ---------- */
@@ -155,9 +195,9 @@ const GOALS=[
 ];
 
 /* ---------- состояние ---------- */
-const grid=Array.from({length:H},()=>Array(W).fill(null));
-const inv={iron:0,copper:0,coal:25,stone:12,wood:0,ironPlate:14,copperPlate:0,steelPlate:0,gear:4,wire:0,circuit:0,science:0};
-const S={tool:"belt",goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null};
+let grid=mk();
+const inv={iron:0,copper:0,coal:30,stone:18,wood:0,ironPlate:22,copperPlate:0,steelPlate:0,gear:6,wire:0,circuit:0,science:0};
+const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 const tech=id=>TECHS.find(t=>t.id===id).done;
@@ -183,9 +223,7 @@ function snd(kind){
     o.start(t);o.stop(t+cfg[1]+.02);
   }catch(e){}
 }
-const sndBtn=document.getElementById("sndBtn");
-sndBtn.textContent=muted?"🔇":"🔊";
-sndBtn.onclick=()=>{muted=!muted;localStorage.setItem("ff.muted",muted?"1":"0");sndBtn.textContent=muted?"🔇":"🔊"};
+function toggleMute(){muted=!muted;localStorage.setItem("ff.muted",muted?"1":"0");toast(muted?"🔇 Звук выключен":"🔊 Звук включён")}
 
 /* ---------- частицы ---------- */
 function puff(x,y,color,n=4,text){
@@ -197,17 +235,19 @@ function puff(x,y,color,n=4,text){
 const cam={x:W*TS/2,y:H*TS/2,z:1};
 function clampCam(){
   cam.z=Math.min(2.4,Math.max(.42,cam.z));
-  cam.x=Math.min(W*TS,Math.max(0,cam.x));
-  cam.y=Math.min(H*TS,Math.max(0,cam.y));
+  const r=cv.getBoundingClientRect();
+  const halfW=r.width/2/cam.z, halfH=r.height/2/cam.z, wpx=W*TS, hpx=H*TS;
+  // держим камеру так, чтобы мир заполнял экран (без чёрной пустоты по краям); если мир меньше вьюпорта — центрируем
+  cam.x = wpx>2*halfW ? Math.min(wpx-halfW,Math.max(halfW,cam.x)) : wpx/2;
+  cam.y = hpx>2*halfH ? Math.min(hpx-halfH,Math.max(halfH,cam.y)) : hpx/2;
 }
 function fitAll(){
   const r=cv.getBoundingClientRect();
   cam.z=Math.min(r.width/(W*TS),r.height/(H*TS))*.96;
   cam.x=W*TS/2;cam.y=H*TS/2;clampCam();
 }
-document.getElementById("zIn").onclick=()=>{cam.z*=1.25;clampCam()};
-document.getElementById("zOut").onclick=()=>{cam.z/=1.25;clampCam()};
-document.getElementById("zFit").onclick=fitAll;
+function zoomIn(){cam.z*=1.25;clampCam()}
+function zoomOut(){cam.z/=1.25;clampCam()}
 cv.addEventListener("wheel",e=>{e.preventDefault();cam.z*=e.deltaY<0?1.12:0.9;clampCam()},{passive:false});
 
 /* тап против пана; пинч-зум */
@@ -248,43 +288,20 @@ cv.addEventListener("pointerup",e=>{
 });
 cv.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);panStart=null});
 
-/* ---------- UI: постройки/склад/технологии ---------- */
-const buildEl=document.getElementById("build");
+/* ---------- UI helpers ---------- */
 function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" ")[0]).join(" ")||"—"}
 function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
 function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
-function drawBuild(){
-  buildEl.innerHTML="";
-  for(const [t,d] of Object.entries(DEFS)){
-    if(d.unlock==="hidden")continue;
-    if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)continue;
-    if((t==="turret"||t==="wall")&&S.mode!=="survival")continue;
-    const b=document.createElement("button");
-    b.innerHTML=`${d.ic} ${d.nm}<small>${costStr(d.cost)}</small>`;
-    b.className=S.tool===t?"armed":"";
-    b.disabled=t!=="del"&&!canPay(d.cost);
-    b.onclick=()=>{S.tool=t;drawBuild()};
-    buildEl.appendChild(b);
-  }
-}
-function drawInv(){
-  document.getElementById("inv").innerHTML=Object.entries(ITEM)
-    .filter(([k])=>inv[k]>0||["coal","ironPlate","steelPlate","gear","circuit","science"].includes(k))
-    .map(([k,nm])=>`<div><span>${nm}</span><span class="n">${inv[k]}</span></div>`).join("");
-}
-function drawTech(){
-  document.getElementById("tech").innerHTML="";
-  TECHS.forEach(t=>{
-    const b=document.createElement("button");
-    b.className=t.done?"done":"";
-    b.innerHTML=`${t.done?"✅":"🔬"} ${t.nm}<small>${t.desc}</small>`;
-    b.disabled=t.done||!canPay(t.cost);
-    b.onclick=()=>{pay(t.cost);t.done=true;say("Исследовано: "+t.nm);toast("🔬 "+t.nm);snd("research");
-      if(t.id==="t_win")winGame();
-      drawTech();drawBuild();drawInv()};
-    document.getElementById("tech").appendChild(b);
-  });
-}
+function drawBuild(){} // постройки теперь в контекстном меню по клетке — панели нет
+const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","turret","wall"];
+function buildables(){return BUILD_ORDER.filter(t=>{
+  const d=DEFS[t];
+  if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)return false;
+  if((t==="turret"||t==="wall")&&S.mode!=="survival")return false;
+  return true;
+});}
+function drawInv(){if(S.sheet==="inv")renderSheet()}
+function drawTech(){if(S.sheet==="tech")renderSheet()}
 function drawGoal(){
   const g=GOALS[S.goal];
   document.getElementById("goal").innerHTML=g?`<b>Цель ${S.goal+1}/${GOALS.length}:</b><br>${g.txt}`:"<b>Все цели выполнены!</b>";
@@ -305,10 +322,166 @@ function drawHud(){
     (noFuel?`<div class="pill bad">⚫ генератор без угля!</div>`:"")+wavePill;
   S.powerOk=ok;
 }
-document.getElementById("exitBtn").onclick=()=>parent.postMessage("hexland:exit","*");
+function exitGame(){parent.postMessage("hexland:exit","*")}
+document.getElementById("goal").onclick=function(){this.classList.toggle("min")};
 
-/* ---------- тап: постройка / поворот / загрузка / снос ---------- */
-/* ℹ️ инспектор: тап по чему угодно объясняет, что это */
+/* ---------- действия над клеткой ---------- */
+function buildAt(x,y,t){
+  const d=DEFS[t];
+  if(t==="miner"&&!ore[y][x]){toast("🛠 Бур ставится только на залежь");return false}
+  if(!canPay(d.cost)){toast("Не хватает ресурсов на "+d.nm);return false}
+  pushU(x,y);pay(d.cost);
+  grid[y][x]={t,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0};
+  snd("place");puff(x,y,"#7aa2ff",3);drawInv();drawHud();
+  return true;
+}
+function doDelete(x,y){
+  const c=grid[y][x];
+  if(terr[y][x]==="tree"&&!c){pushU(x,y);terr[y][x]=null;inv.wood+=3;terrDirty=true;
+    toast("🪓 +3 древесины");snd("boom");puff(x,y,"#4dbb72",4);drawInv();return}
+  if(!c)return;
+  if(c.t==="core")return toast("Ядро сносить нельзя");
+  pushU(x,y);
+  Object.entries(DEFS[c.t].cost).forEach(([k,n])=>inv[k]+=n); // полный возврат ресурсов
+  grid[y][x]=null;say("Снесено: "+DEFS[c.t].nm+" (возврат 100%)");snd("boom");puff(x,y,"#8b9bb0",5);
+  drawInv();drawHud();
+}
+function refuel(x,y){const c=grid[y][x];
+  const take=Math.min(inv.coal,3), tw=take>0?0:Math.min(inv.wood,4);
+  if(take>0){pushU(x,y);inv.coal-=take;c.buf.coal=(c.buf.coal||0)+take;toast("⚫ Уголь в генератор: "+take);snd("place");drawInv()}
+  else if(tw>0){pushU(x,y);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;toast("🌲 Древесина в генератор: "+tw);snd("place");drawInv()}
+  else toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
+}
+function feed(x,y){const c=grid[y][x];let fed=[];
+  const needs=new Set();RECIPES[c.t].forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
+  if(c.t==="furnace"&&S.goal<2)needs.delete("ironPlate");
+  pushU(x,y);
+  needs.forEach(k=>{const take=Math.min(inv[k],3);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
+  if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}
+  else toast(`${DEFS[c.t].nm}: нужно ${RECIPES[c.t].map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖 Рецепты`);
+}
+
+/* ---------- быстрая укладка ---------- */
+function armQuick(t){S.quick=t;
+  document.getElementById("quickTxt").innerHTML=`Быстро: ${DEFS[t].ic} ${DEFS[t].nm} — тапай по клеткам`;
+  document.getElementById("quick").classList.add("on");}
+function clearQuick(){S.quick=null;document.getElementById("quick").classList.remove("on")}
+document.getElementById("quickX").onclick=clearQuick;
+
+/* ---------- контекстное меню по клетке ---------- */
+const ctxEl=document.getElementById("ctx");
+function closeCtx(){ctxEl.classList.remove("on")}
+function renderCtx(title,acts,sx,sy){
+  ctxEl.innerHTML=`<div class="ctxTitle">${title}</div><div class="grid">${
+    acts.map((a,i)=>`<button data-i="${i}" class="${a.wide?'wide':''} ${a.cls||''}"${a.dis?' disabled':''}><span>${a.ic} ${a.l}</span>${a.sub?`<small>${a.sub}</small>`:''}</button>`).join("")}</div>`;
+  ctxEl.classList.add("on");
+  ctxEl.style.left="-999px";ctxEl.style.top="0px";
+  const r=ctxEl.getBoundingClientRect();
+  let L=sx+14, T=sy-r.height/2;
+  if(L+r.width>innerWidth-8)L=sx-r.width-14;
+  L=Math.max(8,Math.min(L,innerWidth-r.width-8));
+  T=Math.max(8,Math.min(T,innerHeight-r.height-8));
+  ctxEl.style.left=L+"px";ctxEl.style.top=T+"px";
+  [...ctxEl.querySelectorAll("button")].forEach(b=>b.onclick=()=>{
+    const a=acts[+b.dataset.i];if(a.dis)return;closeCtx();a.f();});
+}
+function openCtx(x,y,sx,sy){
+  const c=grid[y][x],acts=[];let title;
+  if(c){
+    title=`${DEFS[c.t].ic} ${DEFS[c.t].nm}`;
+    if(c.t==="belt")acts.push({ic:"🔄",l:"Повернуть",f:()=>{pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate")}});
+    if(c.t==="gen")acts.push({ic:"⛽️",l:"Заправить",f:()=>refuel(x,y)});
+    if(RECIPES[c.t])acts.push({ic:"📥",l:"Загрузить",f:()=>feed(x,y)});
+    acts.push({ic:"ℹ️",l:"Что это?",f:()=>describe(x,y)});
+    if(c.t!=="core")acts.push({ic:"✖",l:"Снести",cls:"bad",f:()=>doDelete(x,y)});
+  } else if(terr[y][x]==="tree"){
+    title="🌲 Дерево";
+    acts.push({ic:"🪓",l:"Срубить +3 🌲",wide:true,f:()=>doDelete(x,y)});
+    acts.push({ic:"ℹ️",l:"Что это?",wide:true,f:()=>describe(x,y)});
+  } else if(terr[y][x]==="water"){
+    title="🌊 Вода";
+    acts.push({ic:"ℹ️",l:"Что это?",wide:true,f:()=>describe(x,y)});
+  } else {
+    const onOre=ore[y][x];
+    title=onOre?`${ORE_NM[onOre]} — что строим?`:"Что построить?";
+    buildables().forEach(t=>{
+      if(t==="miner"&&!onOre)return;
+      const d=DEFS[t],ok=canPay(d.cost);
+      acts.push({ic:d.ic,l:d.nm,sub:costStr(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)&&t==="belt")armQuick("belt")}});
+    });
+    acts.push({ic:"ℹ️",l:onOre?"Что за руда?":"Осмотреть",wide:true,f:()=>describe(x,y)});
+  }
+  renderCtx(title,acts,sx,sy);
+}
+
+/* ---------- нижний лист (склад/наука/задания/карта) ---------- */
+const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира"};
+function openSheet(kind){S.sheet=kind;closeCtx();
+  document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
+  renderSheet();sheetEl.classList.add("on");}
+function closeSheet(){sheetEl.classList.remove("on");S.sheet=null}
+document.getElementById("sheetX").onclick=closeSheet;
+function renderSheet(){
+  if(!S.sheet)return;
+  if(S.sheet==="inv")sheetBody.innerHTML=invHtml();
+  else if(S.sheet==="quest")sheetBody.innerHTML=questSheetHtml();
+  else if(S.sheet==="tech")techSheet();
+  else if(S.sheet==="map")mapSheet();
+}
+function invHtml(){
+  const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0||["coal","ironPlate","steelPlate","gear","circuit","science"].includes(k))
+    .map(([k,nm])=>`<div><span>${nm}</span><span class="n">${inv[k]}</span></div>`).join("");
+  return `<div class="invGrid">${rows}</div>`;
+}
+function techSheet(){
+  sheetBody.innerHTML="";
+  TECHS.forEach(t=>{const b=document.createElement("button");
+    b.className="techBtn"+(t.done?" done":"");
+    b.innerHTML=`${t.done?"✅":"🔬"} ${t.nm}<small>${t.desc}</small>`;
+    b.disabled=t.done||!canPay(t.cost);
+    b.onclick=()=>{pay(t.cost);t.done=true;say("Исследовано: "+t.nm);toast("🔬 "+t.nm);snd("research");
+      if(t.id==="t_win")winGame();techSheet();drawInv();drawHud()};
+    sheetBody.appendChild(b);});
+}
+function mapSheet(){
+  sheetBody.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px">
+      <button id="mZin" style="flex:1;text-align:center;font-size:1.1rem">➕</button>
+      <button id="mZout" style="flex:1;text-align:center;font-size:1.1rem">➖</button>
+      <button id="mFit" style="flex:1;text-align:center">🗺 Вся карта</button></div>
+    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Размер мира: <b style="color:var(--ink)">${W}×${H}</b> клеток. Мало руды или стало тесно? Расширь карту — вокруг появится кольцо новой земли с рудой и лесами.</div>
+    <button id="mExp" style="width:100%;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌍 Расширить карту</button>`;
+  sheetBody.querySelector("#mZin").onclick=zoomIn;
+  sheetBody.querySelector("#mZout").onclick=zoomOut;
+  sheetBody.querySelector("#mFit").onclick=()=>{fitAll();closeSheet()};
+  sheetBody.querySelector("#mExp").onclick=()=>{expandWorld(14);mapSheet();toast("🌍 Карта расширена: новое кольцо земли с ресурсами");snd("research")};
+}
+
+/* ---------- умная кнопка (всё меню в одной) ---------- */
+const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
+function smartItems(){return [
+  {k:"📦",l:"Склад",f:()=>openSheet("inv")},
+  {k:"🔬",l:"Наука",f:()=>openSheet("tech")},
+  {k:"📜",l:"Задания",f:()=>openSheet("quest")},
+  {k:"📖",l:"Рецепты",f:()=>showBook()},
+  {k:"🗺",l:"Карта / рост мира",f:()=>openSheet("map")},
+  {k:"↩️",l:"Отменить",f:()=>doUndo()},
+  {k:"💡",l:"Подсказка",f:()=>doHint()},
+  {k:muted?"🔇":"🔊",l:"Звук",f:()=>toggleMute()},
+  {k:"🏠",l:"Главное меню",f:()=>showMenu()},
+  {k:"🎮",l:"К играм",f:()=>exitGame()},
+];}
+function buildSmart(){smartMenuEl.innerHTML="";
+  smartItems().forEach(it=>{const b=document.createElement("button");
+    b.innerHTML=`<span class="k">${it.k}</span><span>${it.l}</span>`;
+    b.onclick=()=>{closeSmart();it.f()};smartMenuEl.appendChild(b);});}
+function closeSmart(){smartEl.classList.remove("open");smartBtn.textContent="⋯"}
+smartBtn.onclick=()=>{
+  if(smartEl.classList.contains("open"))return closeSmart();
+  closeCtx();buildSmart();smartEl.classList.add("open");smartBtn.textContent="✕";
+};
+
+/* ℹ️ инспектор: объясняет, что это */
 function describe(x,y){
   const c=grid[y][x];
   let msg;
@@ -317,7 +490,7 @@ function describe(x,y){
     msg=`${d.ic} ${d.nm}`;
     if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}`;
     if(c.t==="gen")msg+=` — топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}`;
-    if(c.t==="belt")msg+=" — везёт предметы по стрелке; повторный тап (инструментом Конвейер) — поворот";
+    if(c.t==="belt")msg+=" — везёт предметы по стрелке; тап → 🔄 Повернуть";
     if(RECIPES[c.t])msg+=` — рецепты: ${RECIPES[c.t].map(r=>recipeStr(r)).join("; ")}`;
     if(c.t==="turret")msg+=" — стреляет по рейдерам рядом (нужна энергия)";
     if(c.t==="wall")msg+=" — прочная преграда для рейдеров";
@@ -326,60 +499,29 @@ function describe(x,y){
     if(buf&&c.t!=="gen")msg+=` · внутри: ${buf}`;
     if(c.hp<DEFS[c.t].hp)msg+=` · HP ${c.hp}/${DEFS[c.t].hp}`;
   }
-  else if(ore[y][x])msg=`${ORE_NM[ore[y][x]]} — поставь на неё 🛠 Бур, и он будет добывать`;
+  else if(ore[y][x])msg=`${ORE_NM[ore[y][x]]} — тапни и выбери 🛠 Бур, он будет добывать`;
   else if(terr[y][x]==="water")msg="🌊 Вода — строить нельзя, обходи";
-  else if(terr[y][x]==="tree")msg="🌲 Дерево — сруби ✖ Сносом: даст древесину (горит в генераторе)";
-  else msg="Пустая земля — можно строить";
+  else if(terr[y][x]==="tree")msg="🌲 Дерево — тапни → 🪓 Срубить: даст древесину (горит в генераторе)";
+  else msg="Пустая земля — тапни, чтобы выбрать постройку";
   toast(msg.slice(0,140));say("ℹ️ "+msg);
 }
 function tapAt(clientX,clientY){
   if(!S.started||S.over||S.win)return;
+  // тап по карте закрывает открытые панели (и «съедает» этот тап)
+  if(smartEl.classList.contains("open"))return closeSmart();
+  if(ctxEl.classList.contains("on"))return closeCtx();
+  if(sheetEl.classList.contains("on"))return closeSheet();
   const [x,y]=tileAt(clientX,clientY);
   if(x<0||y<0||x>=W||y>=H)return;
-  const c=grid[y][x];
-  if(S.tool==="info")return describe(x,y);
-  if(S.tool==="del"){
-    if(terr[y][x]==="tree"&&!c){ // рубим дерево
-      pushU(x,y);terr[y][x]=null;inv.wood+=3;terrDirty=true;
-      toast("🌲 +3 древесины");snd("boom");puff(x,y,"#4dbb72",4);drawInv();return}
-    if(c){
-    if(c.t==="core")return toast("Ядро сносить нельзя");
-    pushU(x,y);
-    Object.entries(DEFS[c.t].cost).forEach(([k,n])=>inv[k]+=Math.floor(n/2));
-    grid[y][x]=null;say("Снесено: "+DEFS[c.t].nm+" (возврат 50%)");snd("boom");puff(x,y,"#8b9bb0",5);
-    drawInv();drawBuild();drawHud()}return}
-  if(c){
-    if(c.t==="belt"&&S.tool==="belt"){pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate");return}
-    if(c.t==="gen"){ // ручная заправка: уголь, затем древесина
-      const take=Math.min(inv.coal,3), tw=take>0?0:Math.min(inv.wood,4);
-      if(take>0){pushU(x,y);inv.coal-=take;c.buf.coal=(c.buf.coal||0)+take;toast("⚫ Уголь в генератор: "+take);snd("place");drawInv()}
-      else if(tw>0){pushU(x,y);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;toast("🌲 Древесина в генератор: "+tw);snd("place");drawInv()}
-      else toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
-      return;
-    }
-    if(RECIPES[c.t]){
-      let fed=[];
-      const needs=new Set();RECIPES[c.t].forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
-      if(c.t==="furnace"&&S.goal<2)needs.delete("ironPlate"); // сталь кормим руками только когда дошли до цели о стали
-      pushU(x,y);
-      needs.forEach(k=>{const take=Math.min(inv[k],3);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
-      if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}
-      else toast(`${DEFS[c.t].nm}: нужно ${RECIPES[c.t].map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖`);
-      return;
-    }
-    return describe(x,y); // «занятая» клетка = рассказать, что это
+  if(S.quick){ // быстрая укладка одинаковых построек тапами
+    const t=S.quick;
+    if(grid[y][x])return toast("Клетка занята");
+    if(terr[y][x]==="water")return toast("Здесь вода");
+    if(terr[y][x]==="tree")return toast("Сначала сруби дерево (выключи ✕ быстрый режим)");
+    if(t==="miner"&&!ore[y][x])return toast("Здесь нет залежи");
+    buildAt(x,y,t);return;
   }
-  if(terr[y][x]==="water")return describe(x,y);
-  if(terr[y][x]==="tree")return toast("🌲 Тут дерево — сначала сруби его ✖ Сносом (+3 древесины)");
-  const d=DEFS[S.tool];
-  if(!canPay(d.cost))return toast("Не хватает ресурсов");
-  if(S.tool==="miner"&&!ore[y][x])return toast("Бур ставится на залежь — кучки камней на земле");
-  if(S.tool!=="miner"&&S.tool!=="belt"&&ore[y][x])return describe(x,y);
-  pushU(x,y);
-  pay(d.cost);
-  grid[y][x]={t:S.tool,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0};
-  snd("place");puff(x,y,"#7aa2ff",3);
-  drawBuild();drawInv();drawHud();
+  openCtx(x,y,clientX,clientY);
 }
 
 /* ---------- симуляция ---------- */
@@ -504,7 +646,7 @@ function step(){
   if(g&&g.chk(S)){say("✅ Цель выполнена: "+g.txt);toast("✅ "+g.txt);snd("research");S.goal++;drawGoal()}
   tutCheck();
   if(S.tick%30===7)questCheck();
-  if(S.tick%30===0){drawInv();drawTech();drawBuild();drawHud()}
+  if(S.tick%30===0){drawInv();drawTech();drawQuest();drawHud()}
 }
 
 /* ---------- обучение ---------- */
@@ -512,38 +654,38 @@ function findB(t){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x]&&grid[y]
 function findOre(kind){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(ore[y][x]===kind&&!grid[y][x])return [x,y];return null}
 const minerOn=kind=>{for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x]&&grid[y][x].t==="miner"&&ore[y][x]===kind)return true;return false};
 const TUT=[
-  {txt:"Выбери 🛠 Бур в панели и поставь его на железную залежь — кучки голубовато-серых камней. Карту можно таскать пальцем и зумить ＋/－. Инструмент ℹ️ объясняет любую клетку.",
+  {txt:"Тапни по железной залежи (кучки голубовато-серых камней) → в меню выбери 🛠 Бур. Карту таскай пальцем, зум — щипком. У тебя на старте есть немного угля и листов — их хватит на первые буры и генератор.",
    chk:()=>minerOn("iron"),
    target:()=>findOre("iron")},
-  {txt:"Поставь ⚡️ Генератор на пустую клетку и тапни по нему — закинется уголь со склада (1 уголь ≈ 25 сек). Без энергии буры стоят!",
+  {txt:"Тапни по пустой клетке → ⚡️ Генератор. Потом тапни по нему → ⛽️ Заправить (закинет уголь со склада, 1 уголь ≈ 25 сек). Без энергии буры стоят!",
    chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&c.fuel>0),
    target:()=>findB("gen")},
-  {txt:"Уголь догорает! Поставь второй 🛠 Бур на угольную залежь (чёрные блестящие кучки) — уголь нужен постоянно.",
+  {txt:"Уголь догорает! Тапни по угольной залежи (чёрные блестящие кучки) → 🛠 Бур — свой уголь важнее покупного запаса.",
    chk:()=>minerOn("coal"),
    target:()=>findOre("coal")},
-  {txt:"Поставь 🔥 Плавильню в паре клеток от железного бура.",
+  {txt:"Тапни по пустой клетке в паре клеток от бура → 🔥 Плавильня.",
    chk:()=>grid.flat().some(c=>c&&c.t==="furnace"),
    target:()=>findB("furnace")},
-  {txt:"Соедини бур и плавильню ➡️ Конвейером. Повторный тап по конвейеру поворачивает стрелку.",
+  {txt:"Соедини бур и плавильню ➡️ Конвейером (тап по клетке → Конвейер; включится быстрый режим — тапай дорожку). Тап по конвейеру → 🔄 Повернуть.",
    chk:()=>grid.flat().some(c=>c&&c.t==="belt"),
    target:()=>findB("belt")},
-  {txt:"Тапни по плавильне — закинь уголь со склада. Руда + уголь = ▪️ железный лист.",
+  {txt:"Тапни по плавильне → 📥 Загрузить (уголь со склада). Руда + уголь = ▪️ железный лист.",
    chk:()=>S.made.ironPlate>0,
    target:()=>findB("furnace")},
-  {txt:"Дотяни ➡️ конвейер от угольного бура к ⚡️ генератору — он будет заправляться сам, без тапов.",
+  {txt:"Дотяни ➡️ конвейер от угольного бура к ⚡️ генератору — он заправляется сам, без тапов.",
    chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&(c.buf.coal||0)>0),
    target:()=>findB("gen")},
-  {txt:"Накопи 10 ▪️ листов (цель 1). Если что-то встало — жми 💡 Подсказку справа внизу.",
+  {txt:"Накопи 10 ▪️ листов (цель 1). Застрял? Жми ⋯ справа снизу → 💡 Подсказка.",
    chk:()=>S.made.ironPlate>=10,target:()=>null},
-  {txt:"Исследуй 🔬 Сборку (15 ▪️ листов) в панели справа.",
+  {txt:"Открой ⋯ → 🔬 Наука и исследуй Сборку (15 ▪️ листов).",
    chk:()=>tech("t_asm"),target:()=>null},
-  {txt:"Поставь 🏭 Сборщик и подай в него листы (конвейером или тапом) — пойдут ⚙️ шестерни.",
+  {txt:"Тапни клетку → 🏭 Сборщик и подай в него листы (конвейером или тап → 📥 Загрузить) — пойдут ⚙️ шестерни.",
    chk:()=>S.made.gear>4,
    target:()=>findB("asm")},
-  {txt:"Сталь: тапни по плавильне, когда есть 2 листа + уголь (или вези конвейером) — 🔩 сталь нужна для целей.",
+  {txt:"Сталь: тап по плавильне → 📥 Загрузить, когда есть 2 листа + уголь (или вези конвейером) — 🔩 сталь нужна для целей.",
    chk:()=>S.made.steelPlate>0,
    target:()=>findB("furnace")},
-  {txt:"Дальше цепочка: медь → провода → 🟩 платы → Наука → Лаборатория → 25 🧪 → Fable-ядро. Задания мастера Фейбла — в панели справа. Удачи!",
+  {txt:"Дальше цепочка: медь → провода → 🟩 платы → Наука → Лаборатория → 25 🧪 → Fable-ядро. Задания мастера Фейбла — в ⋯ → 📜. Мало руды? ⋯ → 🗺 → Расширить карту. Удачи!",
    chk:()=>false,target:()=>null,last:true},
 ];
 const tutEl=document.getElementById("tut");
@@ -588,15 +730,15 @@ const QUESTS=[
   {t:"Мегафабрика",s:"«Тысяча листов. Дым до небес — в хорошем смысле».",chk:s=>s.made.ironPlate>=1000,rw:{science:15}},
   {t:"Гений Фейблдона",s:"«Сто колб науки. Ты превзошёл мастера».",chk:s=>s.made.science>=100,rw:{steelPlate:50}},
 ];
-function drawQuest(){
+function questSheetHtml(){
   const q=QUESTS[S.quest];
-  const el=document.getElementById("quest");
-  if(!q){el.innerHTML=`<div style="color:var(--gold)">🏅 Все задания мастера выполнены!</div>`;return}
+  if(!q)return `<div style="color:var(--gold)">🏅 Все задания мастера выполнены!</div>`;
   const rw=Object.entries(q.rw).map(([k,n])=>"+"+n+" "+ITEM[k].split(" ")[0]).join(" ");
-  el.innerHTML=`<div style="color:var(--gold);font-weight:600">📜 ${S.quest+1}/${QUESTS.length}: ${q.t}</div>
-    <div style="color:var(--dim);margin:4px 0">${q.s}</div>
-    <div style="font-size:.75rem">Награда: <b>${rw}</b></div>`;
+  return `<div style="color:var(--gold);font-weight:600;font-size:.95rem">📜 ${S.quest+1}/${QUESTS.length}: ${q.t}</div>
+    <div style="color:var(--dim);margin:6px 0;line-height:1.4">${q.s}</div>
+    <div style="font-size:.85rem">Награда: <b>${rw}</b></div>`;
 }
+function drawQuest(){if(S.sheet==="quest")renderSheet()}
 function questCheck(){
   const q=QUESTS[S.quest];
   if(!q||!q.chk(S))return;
@@ -628,12 +770,12 @@ function adviseHint(){
   }
   return {txt:"Всё идёт отлично. Расширяй производство и копи 🧪 на Fable-ядро!",target:findB("lab")};
 }
-document.getElementById("hintBtn").onclick=()=>{
+function doHint(){
   if(!S.started)return;
   const h=adviseHint();if(!h)return;
   S.hint={target:h.target,until:S.tick+900}; // подсветка ~15с
   toast("💡 "+h.txt.slice(0,120));say("💡 "+h.txt);
-};
+}
 
 /* ---------- 📖 справочник производства (генерится из RECIPES) ---------- */
 const recipeStr=r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")+" → "+ITEM[r.out];
@@ -650,12 +792,11 @@ function showBook(){
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
         <div style="font-size:.82rem">ест топливо: ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с). Заправка: тап по нему или конвейер</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
-        <div style="font-size:.82rem">Дерево рубится ✖ Сносом (+3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень. Тапни ℹ️ Инфо по чему угодно — расскажу, что это</div></div>
-      <div style="color:var(--dim);font-size:.78rem">Доставка входов: конвейером в здание или тапом по зданию (возьмёт со склада). Готовое уходит на конвейер рядом или на склад.</div>
+        <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень.</div></div>
+      <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
     </div>
     <button style="width:100%;margin-top:12px;text-align:center" onclick="hideOverlay()">Понятно</button>`);
 }
-document.getElementById("bookBtn").onclick=()=>{if(S.started)showBook()};
 
 /* ---------- статичный слой мира: земля, залежи, деревья (кэш ×2, перерисовка только при изменении) ---------- */
 const SS=2;
@@ -748,6 +889,7 @@ function render(){
   if(cv.width!==Math.round(r.width*devicePixelRatio)){cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio}
   cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
   cx.clearRect(0,0,r.width,r.height);
+  cx.fillStyle="#0e1912";cx.fillRect(0,0,r.width,r.height); // «пустота» за краем мира — глубокий тон, не чёрный
   cx.save();
   cx.translate(r.width/2,r.height/2);cx.scale(cam.z,cam.z);cx.translate(-cam.x,-cam.y);
   const x0=Math.max(0,Math.floor((cam.x-r.width/2/cam.z)/TS)),x1=Math.min(W-1,Math.ceil((cam.x+r.width/2/cam.z)/TS));
@@ -873,7 +1015,7 @@ function writeSessions(l){localStorage.setItem(SESS_KEY,JSON.stringify(l))}
 function saveGame(){
   if(!S.started||!S.sessionId)return;
   const gridSer=grid.map(row=>row.map(c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp,fuel:c.fuel}:null));
-  const data={ore,terr,grid:gridSer,inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
+  const data={w:W,h:H,ore,terr,grid:gridSer,inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
     status:S.win?"🏆":S.over?"💀":"▶"};
   const list=sessionsList();
@@ -883,6 +1025,8 @@ function saveGame(){
   writeSessions(list.slice(0,8));
 }
 function loadGame(d){
+  W=d.w||(d.grid[0]?d.grid[0].length:W0);H=d.h||(d.grid?d.grid.length:H0);
+  ore=mk();terr=mk();grid=mk();resizeTerrCanvas();
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     ore[y][x]=d.ore[y][x];terr[y][x]=(d.terr&&d.terr[y][x])||null;
     grid[y][x]=d.grid[y][x]?{...d.grid[y][x],rec:null}:null}
@@ -912,14 +1056,14 @@ function startGame(opts){
       say("Выживание: защищай 💠 Ядро! Первая волна через 90 сек. Исследуй Оборону для турелей.");
     }
   }
-  hideOverlay();fitAll();cam.z=1;clampCam();
-  S.tool="info"; // старт с инспектора: тапай и изучай мир, стройка — по выбору инструмента
+  hideOverlay();closeSheet();closeCtx();closeSmart();clearQuick();
+  fitAll();cam.z=1.4;clampCam();
   // камера на стартовую точку: ядро или первая железная залежь
   const tgt=findB("core")||(()=>{for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(ore[y][x]==="iron")return[x,y];return [W/2,H/2]})();
   cam.x=tgt[0]*TS;cam.y=tgt[1]*TS;clampCam();
-  drawBuild();drawInv();drawTech();drawGoal();drawHud();drawQuest();tutShow();
-  say("Fable Factory: карту можно таскать и зумить. Тап по зданию — загрузка со склада. 💡 — подсказка.");
-  toast(opts.session?"Партия продолжена 💾":opts.mode==="survival"?"Выживание: 90с до волны!":"Поехали! 🏭");
+  drawGoal();drawHud();tutShow();
+  say("Fable Factory: тап по клетке — меню постройки. Все панели — в ⋯ справа снизу.");
+  toast(opts.session?"Партия продолжена 💾":opts.mode==="survival"?"Выживание: 90с до волны!":"Тапни по клетке, чтобы строить 🏭");
 }
 setInterval(()=>{if(!S.win&&!S.over)saveGame()},5000);
 
@@ -927,14 +1071,14 @@ setInterval(()=>{if(!S.win&&!S.over)saveGame()},5000);
 let undoStack=[];
 const cellCopy=c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:{...c.buf},hp:c.hp,fuel:c.fuel}:null;
 function pushU(x,y){undoStack.push({x,y,cell:cellCopy(grid[y][x]),inv:{...inv}});if(undoStack.length>25)undoStack.shift()}
-document.getElementById("undoBtn").onclick=()=>{
+function doUndo(){
   const u=undoStack.pop();
   if(!u)return toast("Нечего отменять");
   grid[u.y][u.x]=u.cell?{...u.cell,rec:null}:null;
   Object.keys(inv).forEach(k=>inv[k]=u.inv[k]??0);
   toast("Отменено ↩️");snd("rotate");
-  drawBuild();drawInv();drawHud();
-};
+  drawInv();drawHud();
+}
 
 /* стартовое меню: сессии (удаление только вручную) / рейтинг / новая партия */
 function showMenu(){
