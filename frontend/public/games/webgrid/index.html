@@ -28,6 +28,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 18px;
     position: relative;
+    overflow-y: auto;
   }
 
   #wires {
@@ -64,12 +65,15 @@
     border-color: rgba(34,255,158,0.28);
     box-shadow: 0 0 0 1px rgba(34,255,158,0.2), 0 0 44px rgba(34,255,158,0.14);
   }
+  #grid-frame.phase-error {
+    border-color: rgba(255,93,122,0.55);
+    box-shadow: 0 0 0 1px rgba(255,93,122,0.45), 0 0 50px rgba(255,93,122,0.3);
+  }
   #grid-frame.dimmed { opacity: 0.22; }
 
   #grid {
     position: relative;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
     gap: clamp(5px, 1.6vw, 10px);
     width: min(88vw, 380px);
     aspect-ratio: 1 / 1;
@@ -83,7 +87,7 @@
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
     cursor: pointer;
     overflow: hidden;
-    transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.3s ease;
   }
   .cell.target {
     transform: scale(0.94);
@@ -92,12 +96,23 @@
     box-shadow: 0 0 22px 3px #22ff9e, 0 0 54px 8px rgba(34,255,158,0.4), inset 0 0 18px rgba(255,255,255,0.08);
   }
   .cell.hit { transform: scale(0.84); }
+  .cell.decoy {
+    border-color: #ff5d7a;
+    background: linear-gradient(160deg, rgba(255,93,122,0.28) 0%, #180608 100%);
+    box-shadow: 0 0 16px 2px rgba(255,93,122,0.4);
+  }
+  .cell.zone-dim { opacity: 0.22; }
+  .target-timer-bar {
+    position: absolute; left: 0; bottom: 0; width: 100%; height: 3px;
+    background: #ffd166; transform-origin: left; transform: scaleX(1);
+    transition-property: transform; transition-timing-function: linear;
+  }
 
   #panel {
     position: relative; z-index: 2;
-    margin-top: clamp(18px, 5vh, 30px);
+    margin-top: clamp(16px, 4vh, 26px);
     min-height: 48px;
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
   }
   #intro-caption {
     text-align: center; font-size: 12px; line-height: 1.6; letter-spacing: 0.5px;
@@ -110,6 +125,7 @@
     border-radius: 999px; padding: 13px 32px; cursor: pointer;
     transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease, border-color 0.2s ease;
   }
+  .ghost-btn.small { padding: 8px 20px; font-size: 10px; letter-spacing: 2px; }
   .ghost-btn:active {
     transform: scale(0.95);
     background: rgba(127,242,255,0.12);
@@ -117,9 +133,32 @@
     border-color: rgba(127,242,255,0.6);
   }
 
+  #mode-sheet {
+    display: none;
+    flex-direction: column; align-items: center; gap: 10px;
+    max-width: 320px;
+    padding: 14px 4px 2px;
+  }
+  #mode-sheet.show { display: flex; }
+  .sheet-hint { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #4d6a9e; }
+  .seg { display: flex; gap: 6px; }
+  .seg-btn {
+    font-family: inherit; font-size: 11px; letter-spacing: 1px; font-weight: 700;
+    color: #6a80ac; background: transparent; border: 1px solid rgba(120,160,255,0.2);
+    border-radius: 999px; padding: 7px 14px; cursor: pointer; transition: all 0.15s ease;
+  }
+  .seg-btn.active { color: #7ff2ff; border-color: rgba(127,242,255,0.55); background: rgba(127,242,255,0.1); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .chip {
+    font-family: inherit; font-size: 10px; letter-spacing: 0.5px; font-weight: 700;
+    color: #6a80ac; background: transparent; border: 1px solid rgba(120,160,255,0.2);
+    border-radius: 999px; padding: 7px 12px; cursor: pointer; transition: all 0.15s ease;
+  }
+  .chip.active { color: #22ff9e; border-color: rgba(34,255,158,0.55); background: rgba(34,255,158,0.1); }
+
   #overlay {
     position: absolute; inset: 0; z-index: 5;
-    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
     background: rgba(2,4,10,0);
     transition: background 0.4s ease;
   }
@@ -135,14 +174,15 @@
     font-size: 13px; letter-spacing: 6px; text-transform: uppercase;
     color: #9fe8c2; text-shadow: 0 0 18px rgba(34,255,158,0.4);
   }
-  #overlay-stats { display: flex; gap: 30px; }
+  #overlay-stats { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; max-width: 320px; }
   .stat-num {
-    font-size: 30px; font-weight: 700; color: #7ff2ff; text-align: center;
+    font-size: 28px; font-weight: 700; color: #7ff2ff; text-align: center;
     text-shadow: 0 0 16px rgba(127,242,255,0.4);
     font-variant-numeric: tabular-nums;
   }
   .stat-lbl { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #4d6a9e; text-align: center; margin-top: 2px; }
   .stat-num.new-best { color: #ffd166; text-shadow: 0 0 18px rgba(255,209,102,0.55); }
+  #overlay-actions { display: flex; gap: 10px; }
 </style>
 </head>
 <body>
@@ -150,7 +190,7 @@
   <canvas id="wires"></canvas>
 
   <div class="corner-stat" id="time-corner">
-    <span class="corner-label">Time</span>
+    <span class="corner-label" id="time-label">Time</span>
     <span class="corner-value" id="time-val">60</span>
   </div>
   <div class="corner-stat" id="hits-corner">
@@ -165,27 +205,30 @@
   </div>
 
   <div id="panel">
-    <p id="intro-caption">Тапай зелёную клетку — она мгновенно перескакивает на новое место. 60 секунд, сколько успеешь?</p>
+    <p id="intro-caption">Тапай зелёную клетку — она мгновенно перескакивает на новое место.</p>
+    <button id="mode-btn" class="ghost-btn small">Режим</button>
+
+    <div id="mode-sheet">
+      <span class="sheet-hint">Размер сетки</span>
+      <div class="seg" id="size-seg">
+        <button class="seg-btn" data-size="4">4×4</button>
+        <button class="seg-btn" data-size="6">6×6</button>
+        <button class="seg-btn" data-size="9">9×9</button>
+      </div>
+      <span class="sheet-hint">Модификаторы</span>
+      <div class="chip-row" id="chip-row"></div>
+    </div>
+
     <button id="start-btn" class="ghost-btn">Начать</button>
   </div>
 
   <div id="overlay">
     <div id="overlay-title">Время вышло</div>
-    <div id="overlay-stats">
-      <div>
-        <div class="stat-num" id="final-hits">0</div>
-        <div class="stat-lbl">Hits</div>
-      </div>
-      <div>
-        <div class="stat-num" id="final-bps">0.0</div>
-        <div class="stat-lbl">Bits/s</div>
-      </div>
-      <div>
-        <div class="stat-num" id="final-best">0.0</div>
-        <div class="stat-lbl">Best</div>
-      </div>
+    <div id="overlay-stats"></div>
+    <div id="overlay-actions">
+      <button id="reconfig-btn" class="ghost-btn small">Сменить режим</button>
+      <button id="retry-btn" class="ghost-btn small">Ещё раз</button>
     </div>
-    <button id="retry-btn" class="ghost-btn">Ещё раз</button>
   </div>
 </div>
 
@@ -193,36 +236,88 @@
 (function () {
   "use strict";
 
-  var COLS = 6, ROWS = 6;
-  var SESSION_MS = 60000;
   var BEST_KEY = "webgrid_best_bps_v1";
+  var CONFIG_KEY = "webgrid_config_v1";
+
+  var DEFAULT_CONFIG = {
+    gridSize: 6,
+    hardcore: false,
+    combo: false,
+    accelerate: false,
+    doubleTarget: false,
+    decoy: false,
+    zoneMode: false,
+    endless: false,
+    audioMode: false,
+    seeded: false
+  };
+
+  var TOGGLES = [
+    { key: "hardcore", label: "Хардкор" },
+    { key: "combo", label: "Комбо" },
+    { key: "accelerate", label: "Ускорение" },
+    { key: "doubleTarget", label: "Двойная цель" },
+    { key: "decoy", label: "Ловушки" },
+    { key: "zoneMode", label: "Зоны" },
+    { key: "endless", label: "Без таймера" },
+    { key: "audioMode", label: "На слух" },
+    { key: "seeded", label: "Сид дня" }
+  ];
+
+  var SESSION_MS = 60000;
+
+  function loadConfig() {
+    try {
+      var raw = localStorage.getItem(CONFIG_KEY);
+      if (!raw) return Object.assign({}, DEFAULT_CONFIG);
+      return Object.assign({}, DEFAULT_CONFIG, JSON.parse(raw));
+    } catch (e) {
+      return Object.assign({}, DEFAULT_CONFIG);
+    }
+  }
+  function saveConfig() {
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); } catch (e) { /* ignore */ }
+  }
+
+  var config = loadConfig();
+  var best = parseFloat(localStorage.getItem(BEST_KEY) || "0");
 
   var gridFrame = document.getElementById("grid-frame");
   var grid = document.getElementById("grid");
   var startBtn = document.getElementById("start-btn");
   var retryBtn = document.getElementById("retry-btn");
+  var reconfigBtn = document.getElementById("reconfig-btn");
+  var modeBtn = document.getElementById("mode-btn");
+  var modeSheet = document.getElementById("mode-sheet");
+  var sizeSeg = document.getElementById("size-seg");
+  var chipRow = document.getElementById("chip-row");
   var overlay = document.getElementById("overlay");
+  var overlayStats = document.getElementById("overlay-stats");
   var srStatus = document.getElementById("sr-status");
   var timeVal = document.getElementById("time-val");
+  var timeLabel = document.getElementById("time-label");
   var hitsVal = document.getElementById("hits-val");
   var timeCorner = document.getElementById("time-corner");
   var hitsCorner = document.getElementById("hits-corner");
-  var finalHits = document.getElementById("final-hits");
-  var finalBps = document.getElementById("final-bps");
-  var finalBest = document.getElementById("final-best");
   var panel = document.getElementById("panel");
 
-  var best = parseFloat(localStorage.getItem(BEST_KEY) || "0");
-
   var cells = [];
-  var targetIdx = -1;
-  var spawnTime = 0;
+  var activeTargets = []; // [{ idx, cell, spawnTime }]
+  var decoyIdx = -1;
+  var spawnGen = 0;
   var hits = 0;
-  var bitsPerHit = Math.log2(COLS * ROWS);
+  var streak = 0;
+  var comboMultiplier = 1;
+  var score = 0;
+  var bitsPerHit = 0;
   var bpsSum = 0;
   var playing = false;
+  var startTime = 0;
   var endTime = 0;
   var tickHandle = null;
+  var zone = "left";
+  var rng = Math.random;
+  var audioLoopTimers = {};
 
   // --- audio ---
   var audioCtx = null;
@@ -241,7 +336,7 @@
   }
   document.addEventListener("pointerdown", unlockAudio, { once: true });
 
-  function beep(freq, dur, type) {
+  function beep(freq, dur, type, pan) {
     try {
       var c = ctx();
       var osc = c.createOscillator();
@@ -252,7 +347,14 @@
       gain.gain.exponentialRampToValueAtTime(0.18, c.currentTime + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
       osc.connect(gain);
-      gain.connect(c.destination);
+      if (pan !== undefined && c.createStereoPanner) {
+        var panner = c.createStereoPanner();
+        panner.pan.value = Math.max(-1, Math.min(1, pan));
+        gain.connect(panner);
+        panner.connect(c.destination);
+      } else {
+        gain.connect(c.destination);
+      }
       osc.start();
       osc.stop(c.currentTime + dur + 0.02);
     } catch (e) { /* audio unsupported, ignore */ }
@@ -263,17 +365,33 @@
       if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
         var h = window.Telegram.WebApp.HapticFeedback;
         if (style === "success") h.notificationOccurred("success");
+        else if (style === "error") h.notificationOccurred("error");
         else h.impactOccurred(style || "light");
       } else if (navigator.vibrate) {
-        navigator.vibrate(12);
+        navigator.vibrate(style === "error" ? [30, 30, 30] : 12);
       }
     } catch (e) { /* ignore */ }
   }
 
+  // --- seeded PRNG (mulberry32), для режима "Сид дня" ---
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function seedFromToday() {
+    var d = new Date();
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+
   function buildGrid() {
+    grid.style.gridTemplateColumns = "repeat(" + config.gridSize + ", 1fr)";
     grid.innerHTML = "";
     cells = [];
-    var total = COLS * ROWS;
+    var total = config.gridSize * config.gridSize;
     for (var i = 0; i < total; i++) {
       var c = document.createElement("div");
       c.className = "cell";
@@ -291,36 +409,202 @@
   }
   var hitsBumpHolder = { id: null };
 
-  function spawnTarget() {
-    var next;
-    do {
-      next = Math.floor(Math.random() * cells.length);
-    } while (next === targetIdx && cells.length > 1);
-    if (targetIdx >= 0) cells[targetIdx].classList.remove("target");
-    targetIdx = next;
-    cells[targetIdx].classList.add("target");
-    spawnTime = performance.now();
+  function updateHitsDisplay() {
+    hitsVal.textContent = config.combo && comboMultiplier > 1 ? hits + " ×" + comboMultiplier : hits;
+  }
+
+  function updateZoneVisual() {
+    if (!config.zoneMode) return;
+    var cols = config.gridSize;
+    var half = Math.floor(cols / 2);
+    cells.forEach(function (cell, i) {
+      var col = i % cols;
+      var inLeft = col < half;
+      var active = zone === "left" ? inLeft : !inLeft;
+      cell.classList.toggle("zone-dim", !active);
+    });
+  }
+
+  function pickRandomCell(excludeSet) {
+    var cols = config.gridSize;
+    var candidates = [];
+    for (var i = 0; i < cells.length; i++) {
+      if (excludeSet.has(i)) continue;
+      if (config.zoneMode) {
+        var col = i % cols;
+        var half = Math.floor(cols / 2);
+        var inLeft = col < half;
+        if ((zone === "left") !== inLeft) continue;
+      }
+      candidates.push(i);
+    }
+    if (!candidates.length) {
+      for (var j = 0; j < cells.length; j++) if (!excludeSet.has(j)) candidates.push(j);
+    }
+    return candidates[Math.floor(rng() * candidates.length)];
+  }
+
+  function removeTimerBar(cell) {
+    var bar = cell.querySelector(".target-timer-bar");
+    if (bar) bar.remove();
+  }
+
+  function attachTimerBar(cell, duration) {
+    var bar = document.createElement("div");
+    bar.className = "target-timer-bar";
+    bar.style.transitionDuration = "0ms";
+    cell.appendChild(bar);
+    requestAnimationFrame(function () {
+      bar.style.transitionDuration = duration + "ms";
+      bar.style.transform = "scaleX(0)";
+    });
+  }
+
+  function stopAudioCue(idx) {
+    if (audioLoopTimers[idx]) {
+      clearTimeout(audioLoopTimers[idx]);
+      delete audioLoopTimers[idx];
+    }
+  }
+
+  function startAudioCue(idx, gen) {
+    var cols = config.gridSize;
+    var col = idx % cols, row = Math.floor(idx / cols);
+    var pan = cols > 1 ? (col / (cols - 1)) * 2 - 1 : 0;
+    var pitch = 300 + (cols > 1 ? (1 - row / (cols - 1)) : 0.5) * 420;
+    function pulse() {
+      if (gen !== spawnGen) return;
+      beep(pitch, 0.14, "sine", pan);
+      audioLoopTimers[idx] = setTimeout(pulse, 260);
+    }
+    pulse();
+  }
+
+  function clearActiveVisuals() {
+    activeTargets.forEach(function (t) {
+      t.cell.classList.remove("target");
+      removeTimerBar(t.cell);
+      stopAudioCue(t.idx);
+    });
+    activeTargets = [];
+    if (decoyIdx >= 0) {
+      cells[decoyIdx].classList.remove("decoy");
+      decoyIdx = -1;
+    }
+  }
+
+  function spawnRound() {
+    clearActiveVisuals();
+    spawnGen += 1;
+    var myGen = spawnGen;
+    var excludeSet = new Set();
+    var count = config.doubleTarget ? 2 : 1;
+    var now = performance.now();
+    for (var k = 0; k < count; k++) {
+      var idx = pickRandomCell(excludeSet);
+      excludeSet.add(idx);
+      var t = { idx: idx, cell: cells[idx], spawnTime: now };
+      activeTargets.push(t);
+      if (config.audioMode) {
+        startAudioCue(idx, myGen);
+      } else {
+        t.cell.classList.add("target");
+      }
+    }
+    if (config.decoy && hits >= 2 && rng() < 0.3) {
+      var didx = pickRandomCell(excludeSet);
+      decoyIdx = didx;
+      cells[didx].classList.add("decoy");
+    }
+    if (config.accelerate) {
+      var duration = Math.max(320, 900 - hits * 14);
+      activeTargets.forEach(function (t2) { attachTimerBar(t2.cell, duration); });
+      setTimeout(function () { handleTimeout(myGen); }, duration);
+    }
+  }
+
+  function flashError() {
+    gridFrame.classList.add("phase-error");
+    setTimeout(function () {
+      gridFrame.classList.remove("phase-error");
+      if (playing) gridFrame.classList.add("phase-running");
+    }, 260);
+  }
+
+  function handleMiss(reason) {
+    streak = 0;
+    comboMultiplier = 1;
+    updateHitsDisplay();
+    haptic("error");
+    beep(90, 0.22, "sawtooth");
+    flashError();
+    srStatus.textContent = "Мимо.";
+    if (config.hardcore || config.endless) {
+      endSession();
+    }
+  }
+
+  function handleHit(idx, cell) {
+    var match = null;
+    for (var i = 0; i < activeTargets.length; i++) {
+      if (activeTargets[i].idx === idx) { match = activeTargets[i]; break; }
+    }
+    if (!match) return;
+    var reactionMs = performance.now() - match.spawnTime;
+    activeTargets = activeTargets.filter(function (t) { return t.idx !== idx; });
+    removeTimerBar(cell);
+    stopAudioCue(idx);
+    cell.classList.remove("target");
+    cell.classList.add("hit");
+    setTimeout(function () { cell.classList.remove("hit"); }, 110);
+
+    hits += 1;
+    streak += 1;
+    comboMultiplier = config.combo ? Math.min(1 + Math.floor(streak / 3), 6) : 1;
+    score += comboMultiplier;
+    var bps = bitsPerHit / Math.max(0.08, reactionMs / 1000);
+    bpsSum += bps;
+    updateHitsDisplay();
+    bumpCorner(hitsCorner, hitsBumpHolder);
+    beep(520 + Math.min(reactionMs, 400), 0.08, "triangle");
+    haptic("light");
+
+    if (config.zoneMode && hits % 4 === 0) {
+      zone = zone === "left" ? "right" : "left";
+      updateZoneVisual();
+    }
+
+    if (activeTargets.length === 0) {
+      spawnRound();
+      if (config.zoneMode) updateZoneVisual();
+    }
+  }
+
+  function handleTimeout(gen) {
+    if (gen !== spawnGen || activeTargets.length === 0) return;
+    handleMiss("timeout");
+    if (!playing) return;
+    spawnRound();
+    if (config.zoneMode) updateZoneVisual();
   }
 
   function onCellTap(e) {
     if (!playing) return;
     var idx = parseInt(e.currentTarget.dataset.idx, 10);
-    if (idx !== targetIdx) return;
-    var reactionMs = performance.now() - spawnTime;
     var cell = e.currentTarget;
-    cell.classList.add("hit");
-    setTimeout(function () { cell.classList.remove("hit"); }, 110);
-    hits += 1;
-    var bps = bitsPerHit / Math.max(0.08, reactionMs / 1000);
-    bpsSum += bps;
-    hitsVal.textContent = hits;
-    bumpCorner(hitsCorner, hitsBumpHolder);
-    beep(520 + Math.min(reactionMs, 400), 0.08, "triangle");
-    haptic("light");
-    spawnTarget();
+    var isTarget = activeTargets.some(function (t) { return t.idx === idx; });
+    if (isTarget) { handleHit(idx, cell); return; }
+    if (idx === decoyIdx) { handleMiss("decoy"); return; }
+    if (config.hardcore || config.combo || config.endless) handleMiss("empty");
   }
 
   function tick() {
+    if (config.endless) {
+      var elapsedSec = Math.floor((performance.now() - startTime) / 1000);
+      timeVal.textContent = elapsedSec;
+      tickHandle = requestAnimationFrame(tick);
+      return;
+    }
     var remainingMs = endTime - performance.now();
     if (remainingMs <= 0) {
       timeVal.textContent = "0";
@@ -333,47 +617,117 @@
     tickHandle = requestAnimationFrame(tick);
   }
 
+  function statBlockHtml(value, label, isBest) {
+    var div = document.createElement("div");
+    var num = document.createElement("div");
+    num.className = "stat-num" + (isBest ? " new-best" : "");
+    num.textContent = String(value);
+    var lbl = document.createElement("div");
+    lbl.className = "stat-lbl";
+    lbl.textContent = label;
+    div.appendChild(num);
+    div.appendChild(lbl);
+    return div;
+  }
+
   function endSession() {
     playing = false;
     cancelAnimationFrame(tickHandle);
-    if (targetIdx >= 0) cells[targetIdx].classList.remove("target");
-    gridFrame.classList.remove("phase-running");
+    clearActiveVisuals();
+    gridFrame.classList.remove("phase-running", "phase-error");
     gridFrame.classList.add("dimmed");
+
     var avgBps = hits > 0 ? bpsSum / hits : 0;
-    if (avgBps > best) {
+    var isNewBest = avgBps > best;
+    if (isNewBest) {
       best = avgBps;
       localStorage.setItem(BEST_KEY, String(best));
     }
-    finalHits.textContent = hits;
-    finalBps.textContent = avgBps.toFixed(1);
-    finalBest.textContent = best.toFixed(1);
-    document.getElementById("final-best").classList.toggle("new-best", avgBps >= best && hits > 0);
-    srStatus.textContent = "Время вышло. " + hits + " попаданий.";
+
+    overlayStats.innerHTML = "";
+    overlayStats.appendChild(statBlockHtml(hits, "Hits"));
+    overlayStats.appendChild(statBlockHtml(avgBps.toFixed(1), "Bits/s"));
+    if (config.combo) overlayStats.appendChild(statBlockHtml(score, "Score"));
+    if (config.endless) overlayStats.appendChild(statBlockHtml(Math.floor((performance.now() - startTime) / 1000), "Survived, s"));
+    overlayStats.appendChild(statBlockHtml(best.toFixed(1), "Best", isNewBest));
+
+    srStatus.textContent = "Игра окончена. " + hits + " попаданий.";
     overlay.classList.add("show");
   }
 
   function startGame() {
     ctx();
     overlay.classList.remove("show");
-    gridFrame.classList.remove("dimmed");
+    modeSheet.classList.remove("show");
+    gridFrame.classList.remove("dimmed", "phase-error");
     gridFrame.classList.add("phase-running");
     panel.style.display = "none";
+
+    rng = config.seeded ? mulberry32(seedFromToday()) : Math.random;
+    bitsPerHit = Math.log2(config.gridSize * config.gridSize);
     buildGrid();
-    hits = 0;
-    bpsSum = 0;
-    hitsVal.textContent = "0";
-    timeVal.textContent = Math.ceil(SESSION_MS / 1000);
+
+    hits = 0; streak = 0; comboMultiplier = 1; score = 0; bpsSum = 0;
+    zone = "left";
+    updateHitsDisplay();
+    timeLabel.textContent = config.endless ? "Elapsed" : "Time";
+    timeVal.textContent = config.endless ? "0" : Math.ceil(SESSION_MS / 1000);
     timeCorner.classList.remove("urgent");
-    targetIdx = -1;
+
     playing = true;
-    endTime = performance.now() + SESSION_MS;
-    spawnTarget();
+    startTime = performance.now();
+    endTime = startTime + SESSION_MS;
+    spawnRound();
+    if (config.zoneMode) updateZoneVisual();
     tickHandle = requestAnimationFrame(tick);
   }
 
+  // --- настройки режима ---
+  function renderModeUI() {
+    Array.prototype.forEach.call(sizeSeg.children, function (btn) {
+      btn.classList.toggle("active", parseInt(btn.dataset.size, 10) === config.gridSize);
+    });
+    chipRow.innerHTML = "";
+    TOGGLES.forEach(function (t) {
+      var chip = document.createElement("button");
+      chip.className = "chip" + (config[t.key] ? " active" : "");
+      chip.textContent = t.label;
+      chip.dataset.key = t.key;
+      chipRow.appendChild(chip);
+    });
+  }
+
+  sizeSeg.addEventListener("click", function (e) {
+    var btn = e.target.closest(".seg-btn");
+    if (!btn) return;
+    config.gridSize = parseInt(btn.dataset.size, 10);
+    saveConfig();
+    renderModeUI();
+  });
+
+  chipRow.addEventListener("click", function (e) {
+    var chip = e.target.closest(".chip");
+    if (!chip) return;
+    var key = chip.dataset.key;
+    config[key] = !config[key];
+    saveConfig();
+    renderModeUI();
+  });
+
+  modeBtn.addEventListener("click", function () {
+    modeSheet.classList.toggle("show");
+  });
+
   buildGrid();
-  startBtn.addEventListener("click", function () { panel.style.display = "none"; startGame(); });
-  retryBtn.addEventListener("click", function () { panel.style.display = "none"; startGame(); });
+  renderModeUI();
+  startBtn.addEventListener("click", startGame);
+  retryBtn.addEventListener("click", startGame);
+  reconfigBtn.addEventListener("click", function () {
+    overlay.classList.remove("show");
+    gridFrame.classList.remove("dimmed");
+    buildGrid();
+    panel.style.display = "flex";
+  });
 
   // --- фоновые нейро-нити на canvas ---
   var wiresCanvas = document.getElementById("wires");
