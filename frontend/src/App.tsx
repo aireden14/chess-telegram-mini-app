@@ -15,9 +15,8 @@ import { LeaderboardScreen } from "./pages/LeaderboardScreen";
 import { PausedScreen } from "./pages/PausedScreen";
 import { SudokuScreen } from "./features/sudoku/SudokuScreen";
 import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorScreen";
+import { NeurogridScreen } from "./features/neurogrid/NeurogridScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
-import { CatanBetaScreen } from "./features/catanBeta/CatanBetaScreen";
-import { CatanV2Screen } from "./features/catanV2/CatanV2Screen";
 import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
@@ -27,7 +26,6 @@ import { PdfStudioScreen } from "./features/pdfStudio/PdfStudioScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { CardOfDayScreen } from "./features/cardOfDay/CardOfDayScreen";
 import { IcebreakerScreen } from "./features/icebreakers/IcebreakerScreen";
-import { SeafarersScreen } from "./features/seafarers/SeafarersScreen";
 import { useAuthStore } from "./store/auth";
 import { usePieceStyleStore } from "./store/pieceStyle";
 import { useThemeStore } from "./store/theme";
@@ -64,9 +62,8 @@ export function App() {
         <Route path="/paused" element={<Protected><PausedScreen /></Protected>} />
         <Route path="/sudoku" element={<Protected><SudokuScreen /></Protected>} />
         <Route path="/force-deflector" element={<Protected><ForceDeflectorScreen /></Protected>} />
+        <Route path="/neurogrid" element={<Protected><NeurogridScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
-        <Route path="/catan-beta" element={<Protected><CatanBetaScreen /></Protected>} />
-        <Route path="/catan-v2" element={<Protected><CatanV2Screen /></Protected>} />
         <Route path="/hexforge" element={<Protected><HexForgeScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
@@ -76,7 +73,6 @@ export function App() {
         <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />
         <Route path="/card-of-day" element={<Protected><CardOfDayScreen /></Protected>} />
         <Route path="/icebreakers" element={<Protected><IcebreakerScreen /></Protected>} />
-        <Route path="/seafarers" element={<Protected><SeafarersScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>
     </BrowserRouter>

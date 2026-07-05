@@ -25,7 +25,7 @@ export function CatanScreen() {
       <iframe
         className="catan-fs-frame"
         title="Катан"
-        src="/games/catan/index.html"
+        src="/games/catan-v2/index.html"
         allow="autoplay; fullscreen"
       />
     </div>
