@@ -30,6 +30,7 @@ const SECTIONS: Section[] = [
       { key: "catan_beta", icon: "catan-beta.png", title: "Катан Бета", to: "/catan-beta", grad: ["#7a8f57", "#566b34"], badge: "BETA" },
       { key: "hexforge", icon: "🪄", title: "Катан Fable", to: "/catan-fable", grad: ["#8a5bd0", "#5b3a9e"], badge: "NEW" },
       { key: "hexforge", icon: "🏭", title: "Fable Factory", to: "/fable-factory", grad: ["#d0a75b", "#9e6f2a"], badge: "NEW" },
+      { key: "hexforge", icon: "🚂", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#c0392b", "#8e2418"], badge: "NEW" },
       { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge", grad: ["#2f3f46", "#4dbb72"], badge: "BETA" },
     ],
   },

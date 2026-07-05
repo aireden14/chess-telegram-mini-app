@@ -1,0 +1,1100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Ticket to Sonnet</title>
+<style>
+  :root{
+    --bg:#0e1420; --panel:#161f30; --panel2:#1c2740; --line:#2a3752; --text:#eef2ff; --muted:#8fa0c4;
+    --c-purple:#8e5fd6; --c-white:#eef1f6; --c-blue:#3a7bd5; --c-yellow:#f2c94c; --c-orange:#f2994a;
+    --c-black:#2b2f38; --c-red:#eb5757; --c-green:#27ae60; --c-loco:conic-gradient(from 0deg,#eb5757,#f2994a,#f2c94c,#27ae60,#3a7bd5,#8e5fd6,#eb5757);
+    --c-gray:#9aa5b8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden;}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 14px;font-size:14px;}
+  button:active{transform:scale(.96);}
+  button:disabled{opacity:.35;cursor:default;}
+  button.primary{background:linear-gradient(150deg,#5b7bff,#3a5adf);color:#fff;font-weight:600;}
+  button.ghost{background:transparent;border:1px solid var(--line);}
+  h1,h2,h3{margin:0 0 8px;}
+  .hidden{display:none !important;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:auto;padding:16px;padding-top:calc(16px + var(--safe-top,0px));}
+  .card-swatch{width:26px;height:26px;border-radius:6px;display:inline-block;border:1px solid rgba(255,255,255,.25);}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;gap:8px;}
+  .between{justify-content:space-between;}
+  .muted{color:var(--muted);font-size:12px;}
+  .setup-seat{background:var(--panel);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .pill{padding:4px 10px;border-radius:20px;background:var(--panel2);font-size:12px;}
+  .pill.on{background:#2f8f6b;}
+  #boardWrap{flex:1;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#182238,#0b1120);}
+  #boardScroll{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;}
+  svg#map{display:block;touch-action:pan-x pan-y;}
+  .city-dot{fill:#e9edf7;stroke:#0b1120;stroke-width:1.5;}
+  .city-label{fill:#cfd8ee;font-size:11px;font-weight:600;pointer-events:none;paint-order:stroke;stroke:#0b1120;stroke-width:3px;}
+  .edge-hit{fill:none;stroke:transparent;stroke-width:16;cursor:pointer;}
+  .edge-line{fill:none;stroke-linecap:round;}
+  .edge-line.tunnel{stroke-dasharray:2 4;}
+  .edge-line.claimable:hover{filter:brightness(1.4);}
+  .station-mark{cursor:pointer;}
+  #bottomBar{background:var(--panel);border-top:1px solid var(--line);padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));}
+  #handRow{display:flex;gap:6px;overflow-x:auto;padding:4px 0;}
+  .hand-chip{position:relative;min-width:44px;height:56px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#111;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);}
+  .hand-chip .cnt{position:absolute;bottom:2px;right:4px;font-size:10px;background:rgba(0,0,0,.35);color:#fff;border-radius:6px;padding:0 4px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;background:var(--panel);padding:8px 12px;padding-top:calc(8px + var(--safe-top,0px));border-bottom:1px solid var(--line);}
+  .scoreboard{display:flex;gap:8px;overflow-x:auto;}
+  .score-chip{background:var(--panel2);border-radius:10px;padding:6px 10px;font-size:12px;white-space:nowrap;border:2px solid transparent;}
+  .score-chip.active{border-color:#5b7bff;}
+  .ticket-card{background:var(--panel2);border-radius:10px;padding:8px 10px;font-size:13px;display:flex;justify-content:space-between;gap:8px;align-items:center;}
+  .ticket-card.done{background:#1d3a2c;}
+  .ticket-card.failed{background:#3a1d1d;}
+  .modal-back{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .modal{background:var(--panel);border-radius:16px;padding:16px;max-width:420px;width:100%;max-height:85vh;overflow:auto;}
+  .close-x{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.08);border-radius:50%;width:30px;height:30px;}
+  .pass-screen{position:absolute;inset:0;background:#0b1120;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:60;text-align:center;padding:20px;}
+  .toast{position:absolute;top:calc(10px + var(--safe-top,0px));left:50%;transform:translateX(-50%);background:#1c2740;border:1px solid var(--line);padding:8px 14px;border-radius:20px;font-size:13px;z-index:70;max-width:90%;text-align:center;}
+  .select-card{outline:2px solid #5b7bff !important;}
+  .faceup-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+  .faceup-card{width:50px;height:70px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#111;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);cursor:pointer;}
+  .deckback{width:50px;height:70px;border-radius:8px;background:linear-gradient(150deg,#2a3752,#161f30);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;border:1px solid var(--line);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SETUP SCREEN -->
+  <div class="screen" id="scrSetup">
+    <h1>🚂 Ticket to Sonnet</h1>
+    <p class="muted">Настольная железная дорога по Европе. Локальная игра — до 5 мест за одним устройством.</p>
+    <div class="col" id="seatList" style="margin-top:12px;"></div>
+    <div class="row" style="margin-top:12px;">
+      <button id="btnAddSeat">+ Игрок</button>
+      <button id="btnRmSeat">− Игрок</button>
+    </div>
+    <div style="flex:1"></div>
+    <button class="primary" id="btnStart" style="padding:14px;font-size:16px;">Начать игру</button>
+  </div>
+
+  <!-- PASS SCREEN (hide hand between hotseat turns) -->
+  <div class="pass-screen hidden" id="scrPass">
+    <div style="font-size:40px;" id="passIcon">🚂</div>
+    <h2 id="passWho"></h2>
+    <p class="muted">Передайте устройство игроку. Нажмите, чтобы увидеть свою руку.</p>
+    <button class="primary" id="btnPassReveal">Я готов — показать</button>
+  </div>
+
+  <!-- TICKET CHOICE SCREEN -->
+  <div class="screen hidden" id="scrTickets">
+    <h2 id="tkTitle">Выбор маршрутов</h2>
+    <p class="muted">Оставьте себе минимум 2 карты маршрутов.</p>
+    <div class="col" id="tkList" style="margin-top:10px;"></div>
+    <div style="flex:1"></div>
+    <button class="primary" id="btnTkConfirm" style="padding:14px;">Подтвердить выбор</button>
+  </div>
+
+  <!-- MAIN GAME SCREEN -->
+  <div class="screen hidden" id="scrGame" style="padding:0;">
+    <div class="topbar">
+      <div class="row" style="gap:6px;">
+        <button class="ghost" id="btnExit">✕</button>
+        <b id="turnLabel" style="font-size:14px;"></b>
+      </div>
+      <div class="scoreboard" id="scoreboard"></div>
+    </div>
+    <div id="boardWrap">
+      <div id="boardScroll"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="toast hidden" id="toast"></div>
+    </div>
+    <div id="bottomBar">
+      <div class="row between" style="margin-bottom:6px;">
+        <div class="muted" id="handSummary"></div>
+        <div class="row" style="gap:6px;">
+          <button id="btnMyTickets">🎫 Маршруты</button>
+        </div>
+      </div>
+      <div id="handRow"></div>
+      <div class="row" style="margin-top:8px;gap:6px;">
+        <button class="primary" id="actDraw" style="flex:1;">Взять карты</button>
+        <button id="actTickets" style="flex:1;">Взять маршруты</button>
+        <button id="actStation" style="flex:1;">Станция 🏠</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal root -->
+  <div id="modalRoot"></div>
+</div>
+
+<script>
+"use strict";
+/* ===================== SAFE AREA / TELEGRAM ===================== */
+(function(){
+  try{
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if(tg){ tg.expand && tg.expand(); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); }
+  }catch(e){}
+  document.documentElement.style.setProperty('--safe-top','env(safe-area-inset-top,0px)');
+})();
+function exitGame(){ try{ window.parent.postMessage("hexland:exit","*"); }catch(e){} }
+function esc(s){ return String(s).replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+/* ===================== DATA: MAP ===================== */
+const COLORS = ["purple","white","blue","yellow","orange","black","red","green"];
+const COLOR_HEX = {
+  purple:"#8e5fd6", white:"#eef1f6", blue:"#3a7bd5", yellow:"#f2c94c", orange:"#f2994a",
+  black:"#2b2f38", red:"#eb5757", green:"#27ae60", gray:"#9aa5b8", loco:"conic"
+};
+const PLAYER_COLORS = ["#eb5757","#3a7bd5","#27ae60","#f2c94c","#8e5fd6"];
+const PLAYER_NAMES_DEFAULT = ["Игрок 1","Игрок 2","Игрок 3","Игрок 4","Игрок 5"];
+
+// City coordinates (viewBox 1000x680), simplified European layout
+const CITIES = {
+  Edinburgh:[100,30], London:[140,120], Amsterdam:[250,105], Bruxelles:[245,145], Dieppe:[190,140],
+  Paris:[210,185], Brest:[90,195], Pamplona:[160,285], Madrid:[130,345], Lisboa:[40,355], Cadiz:[90,405],
+  Barcelona:[210,345], Marseille:[250,300], Zurich:[300,215], Frankfurt:[300,160], Essen:[280,120],
+  Kobenhavn:[360,55], Berlin:[380,120], Munchen:[340,195], Venezia:[380,255], Roma:[380,325],
+  Palermo:[400,405], Brindisi:[450,345], Sarajevo:[460,285], Zagreb:[430,245], Budapest:[470,215],
+  Wien:[440,190], Warszawa:[490,140], Danzig:[460,90], Riga:[530,70], Wilno:[540,110], Kyiv:[580,175],
+  Smolensk:[590,110], Moskva:[650,90], Petrograd:[600,25], Stockholm:[460,15], Rostov:[680,190],
+  Sevastopol:[630,255], Sochi:[680,260], Constantinople:[560,335], Angora:[610,365], Smyrna:[560,395],
+  Athina:[510,405], Bucuresti:[530,285], Erzurum:[700,375]
+};
+
+// Edges: [a,b,len,color,flags]  flags: {tunnel,ferry(#locos),double(groupId)}
+function E(a,b,len,color,extra){ return {a,b,len,color,...(extra||{})}; }
+const EDGES_RAW = [
+  E("Edinburgh","London",4,"black"),
+  E("London","Amsterdam",2,"gray",{ferry:1}),
+  E("London","Dieppe",2,"purple",{double:"ld"}), E("London","Dieppe",2,"blue",{double:"ld"}),
+  E("Amsterdam","Bruxelles",1,"black"),
+  E("Amsterdam","Essen",3,"yellow"),
+  E("Amsterdam","Frankfurt",2,"white"),
+  E("Bruxelles","Dieppe",2,"green"),
+  E("Bruxelles","Frankfurt",2,"blue"),
+  E("Dieppe","Paris",1,"gray",{double:"dp"}), E("Dieppe","Paris",1,"gray",{double:"dp"}),
+  E("Dieppe","Brest",2,"orange"),
+  E("Brest","Paris",3,"black"),
+  E("Brest","Pamplona",4,"gray"),
+  E("Paris","Frankfurt",3,"orange"),
+  E("Paris","Zurich",3,"purple"),
+  E("Paris","Marseille",4,"gray",{double:"pm"}), E("Paris","Marseille",4,"gray",{double:"pm"}),
+  E("Paris","Pamplona",4,"gray"),
+  E("Pamplona","Madrid",3,"black"),
+  E("Pamplona","Barcelona",2,"red"),
+  E("Madrid","Lisboa",3,"purple"),
+  E("Madrid","Barcelona",2,"yellow"),
+  E("Madrid","Cadiz",3,"orange"),
+  E("Lisboa","Cadiz",2,"white"),
+  E("Barcelona","Marseille",4,"gray",{tunnel:true}),
+  E("Marseille","Zurich",2,"purple",{tunnel:true}),
+  E("Marseille","Roma",4,"gray",{ferry:1}),
+  E("Zurich","Frankfurt",2,"black"),
+  E("Zurich","Munchen",2,"yellow"),
+  E("Zurich","Venezia",2,"green",{tunnel:true}),
+  E("Frankfurt","Essen",2,"green"),
+  E("Frankfurt","Berlin",3,"black"),
+  E("Frankfurt","Munchen",2,"purple"),
+  E("Essen","Kobenhavn",3,"gray",{ferry:1}),
+  E("Essen","Berlin",2,"blue"),
+  E("Berlin","Kobenhavn",3,"orange"),
+  E("Berlin","Danzig",4,"gray"),
+  E("Berlin","Warszawa",4,"purple"),
+  E("Berlin","Wien",3,"green"),
+  E("Kobenhavn","Stockholm",3,"yellow",{ferry:1}),
+  E("Munchen","Wien",3,"orange"),
+  E("Munchen","Venezia",2,"blue",{tunnel:true}),
+  E("Venezia","Roma",2,"black"),
+  E("Venezia","Zagreb",2,"gray",{tunnel:true}),
+  E("Roma","Palermo",4,"gray",{ferry:1}),
+  E("Roma","Brindisi",2,"white"),
+  E("Palermo","Brindisi",3,"gray"),
+  E("Brindisi","Sarajevo",3,"gray",{ferry:1}),
+  E("Sarajevo","Zagreb",3,"red"),
+  E("Sarajevo","Budapest",3,"purple",{tunnel:true}),
+  E("Sarajevo","Sofia",2,"blue"),
+  E("Zagreb","Budapest",2,"orange"),
+  E("Zagreb","Wien",2,"gray",{double:"zw"}), E("Zagreb","Wien",2,"gray",{double:"zw"}),
+  E("Budapest","Wien",1,"gray",{double:"bw"}), E("Budapest","Wien",1,"gray",{double:"bw"}),
+  E("Budapest","Kyiv",6,"gray",{tunnel:true}),
+  E("Budapest","Bucuresti",4,"gray",{tunnel:true}),
+  E("Wien","Warszawa",4,"blue"),
+  E("Warszawa","Danzig",2,"gray"),
+  E("Warszawa","Wilno",3,"red"),
+  E("Warszawa","Kyiv",4,"gray"),
+  E("Danzig","Riga",3,"black"),
+  E("Riga","Wilno",4,"green"),
+  E("Riga","Petrograd",4,"gray"),
+  E("Wilno","Kyiv",2,"purple"),
+  E("Wilno","Smolensk",3,"gray"),
+  E("Kyiv","Smolensk",3,"red"),
+  E("Kyiv","Bucuresti",4,"blue"),
+  E("Kyiv","Rostov",4,"gray"),
+  E("Smolensk","Moskva",2,"orange"),
+  E("Smolensk","Petrograd",4,"gray"),
+  E("Moskva","Petrograd",4,"white"),
+  E("Moskva","Kharkov",4,"gray"),
+  E("Kharkov","Rostov",2,"green"),
+  E("Kharkov","Kyiv",4,"orange"),
+  E("Rostov","Sevastopol",4,"black"),
+  E("Rostov","Sochi",2,"gray",{ferry:1}),
+  E("Sevastopol","Sochi",2,"gray",{ferry:1}),
+  E("Sevastopol","Constantinople",4,"gray",{ferry:2}),
+  E("Sevastopol","Erzurum",4,"gray"),
+  E("Sochi","Erzurum",3,"red"),
+  E("Bucuresti","Constantinople",3,"yellow"),
+  E("Bucuresti","Sofia",2,"gray",{double:"bs"}), E("Bucuresti","Sofia",2,"gray",{double:"bs"}),
+  E("Sofia","Constantinople",3,"blue"),
+  E("Sofia","Athina",3,"gray"),
+  E("Constantinople","Angora",2,"gray"),
+  E("Constantinople","Smyrna",2,"gray",{ferry:1}),
+  E("Angora","Erzurum",3,"black"),
+  E("Angora","Smyrna",3,"orange"),
+  E("Smyrna","Athina",2,"gray",{ferry:1}),
+  E("Athina","Brindisi",4,"gray",{ferry:1}),
+  E("Stockholm","Petrograd",8,"gray",{ferry:1}),
+];
+EDGES_RAW.forEach((e,i)=> e.id = i);
+// derive city set actually used (add Sofia/Kharkov which weren't in CITIES table)
+CITIES.Sofia = [500,335]; CITIES.Kharkov = [640,150];
+
+const SCORE_TABLE = {1:1,2:2,3:4,4:7,5:10,6:15,7:18,8:21};
+
+// Ticket cards: short [a,b,pts], long [a,b,pts]
+const SHORT_TICKETS = [
+  ["Edinburgh","London",4],["London","Bruxelles",7],["Amsterdam","Paris",7],["Brest","Pamplona",8],
+  ["Paris","Zurich",8],["Paris","Marseille",8],["Madrid","Cadiz",6],["Madrid","Barcelona",6],
+  ["Barcelona","Marseille",7],["Zurich","Munchen",6],["Frankfurt","Berlin",6],["Berlin","Wien",6],
+  ["Berlin","Kobenhavn",6],["Kobenhavn","Stockholm",5],["Essen","Kyiv",10],["Wien","Kyiv",9],
+  ["Budapest","Sofia",7],["Zagreb","Brindisi",6],["Roma","Palermo",7],["Sarajevo","Sevastopol",8],
+  ["Warszawa","Smolensk",6],["Riga","Petrograd",6],["Kyiv","Moskva",6],["Sofia","Angora",7],
+  ["Athina","Smyrna",5],["Rostov","Erzurum",5],["Sevastopol","Constantinople",4],["Munchen","Venezia",5],
+  ["Frankfurt","Paris",5],["Amsterdam","Berlin",7],
+];
+const LONG_TICKETS = [
+  ["Edinburgh","Athina",20],["Lisboa","Erzurum",20],["Kobenhavn","Erzurum",21],
+  ["Cadiz","Stockholm",21],["Brest","Petrograd",20],["Palermo","Moskva",20],
+];
+
+/* ===================== GRAPH HELPERS ===================== */
+function neighborsOf(edges, city){
+  return edges.filter(e=>e.a===city||e.b===city);
+}
+function otherEnd(e, city){ return e.a===city ? e.b : e.a; }
+
+// Dijkstra shortest path by length over a filtered edge set, returns {dist, pathEdges}
+function shortestPath(edges, from, to, weightFn){
+  const dist = {}; const prevE = {}; const visited = new Set();
+  Object.keys(CITIES).forEach(c=>dist[c]=Infinity);
+  dist[from]=0;
+  const pq = [[0,from]];
+  while(pq.length){
+    pq.sort((x,y)=>x[0]-y[0]);
+    const [d,u] = pq.shift();
+    if(visited.has(u)) continue;
+    visited.add(u);
+    if(u===to) break;
+    for(const e of neighborsOf(edges,u)){
+      const v = otherEnd(e,u);
+      const w = weightFn ? weightFn(e) : e.len;
+      if(w===Infinity) continue;
+      if(d+w < dist[v]){ dist[v]=d+w; prevE[v]=e; pq.push([d+w,v]); }
+    }
+  }
+  if(dist[to]===Infinity) return null;
+  const path=[]; let cur=to;
+  while(cur!==from){ const e=prevE[cur]; if(!e) break; path.unshift(e); cur=otherEnd(e,cur); }
+  return {dist:dist[to], path};
+}
+
+/* ===================== GAME STATE ===================== */
+let G = null; // global game state
+
+function freshDeck(){
+  const deck = [];
+  COLORS.forEach(c=>{ for(let i=0;i<12;i++) deck.push(c); });
+  for(let i=0;i<14;i++) deck.push("loco");
+  shuffle(deck);
+  return deck;
+}
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+function makePlayer(name, isAI, color){
+  return {
+    name, isAI, color,
+    hand:{purple:0,white:0,blue:0,yellow:0,orange:0,black:0,red:0,green:0,loco:0},
+    trains:45, stations:3, score:0,
+    tickets:[], // {a,b,pts,done:null}
+    claimed:[], // edge ids
+  };
+}
+function handTotal(h){ return Object.values(h).reduce((a,b)=>a+b,0); }
+
+function initGame(seats){
+  const deck = freshDeck();
+  const players = seats.map((s,i)=>makePlayer(s.name, s.isAI, PLAYER_COLORS[i]));
+  players.forEach(p=>{ for(let i=0;i<4;i++){ p.hand[deck.pop()]++; } });
+  const faceUp = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop()];
+  const discard = [];
+  fixFaceUp();
+  const shortDeck = shuffle(SHORT_TICKETS.map((t,i)=>({a:t[0],b:t[1],pts:t[2],id:"s"+i})));
+  const longDeck = shuffle(LONG_TICKETS.map((t,i)=>({a:t[0],b:t[1],pts:t[2],id:"l"+i})));
+  G = {
+    edges: EDGES_RAW.map(e=>({...e, owner:null})),
+    deck, discard, faceUp, shortDeck, longDeck,
+    players, turn:0, phase:"ticket-choice",
+    pendingTicketChoice: null,
+    lastRound:false, lastRoundTrigger:-1, turnsAfterTrigger:0,
+    log:[],
+  };
+  function fixFaceUp(){
+    let guard=0;
+    while(G && guard<50){
+      const locos = faceUp.filter(c=>c==="loco").length;
+      if(locos>=3){
+        discard.push(...faceUp.splice(0,5));
+        for(let i=0;i<5;i++){ if(deck.length===0) reshuffleDiscard(); faceUp.push(deck.pop()); }
+        guard++;
+      } else break;
+    }
+  }
+  // deal tickets: 1 long + 3 short per player, keep >=2 of the 4
+  G.pendingTicketChoice = players.map(p=>{
+    const opts = [longDeck.pop(), shortDeck.pop(), shortDeck.pop(), shortDeck.pop()];
+    return {min:2, opts};
+  });
+  G.ticketChoiceIndex = 0;
+  return G;
+}
+function reshuffleDiscard(){
+  if(G.discard.length===0) return;
+  G.deck.push(...G.discard.splice(0));
+  shuffle(G.deck);
+}
+function drawFromDeck(){
+  if(G.deck.length===0) reshuffleDiscard();
+  if(G.deck.length===0) return null;
+  return G.deck.pop();
+}
+function refillFaceUp(){
+  while(G.faceUp.length<5){ const c=drawFromDeck(); if(!c) break; G.faceUp.push(c); }
+  checkFaceUpReset();
+}
+function checkFaceUpReset(){
+  let guard=0;
+  while(guard<20){
+    const locos = G.faceUp.filter(c=>c==="loco").length;
+    if(locos>=3 && (G.deck.length+G.discard.length)>0){
+      G.discard.push(...G.faceUp.splice(0));
+      refillPartial();
+      guard++;
+    } else break;
+  }
+  function refillPartial(){ while(G.faceUp.length<5){ const c=drawFromDeck(); if(!c) break; G.faceUp.push(c); } }
+}
+
+/* ===================== SCORING / ENDGAME ===================== */
+function buildOwnedGraph(players, forPlayerIdx){
+  // edges usable by player: own claimed edges (weight 0) — used for connectivity BFS (undirected union-find)
+  const p = players[forPlayerIdx];
+  const parent = {};
+  Object.keys(CITIES).forEach(c=>parent[c]=c);
+  function find(x){ return parent[x]===x?x:(parent[x]=find(parent[x])); }
+  function union(a,b){ a=find(a);b=find(b); if(a!==b) parent[a]=b; }
+  p.claimed.forEach(id=>{ const e=G.edges[id]; union(e.a,e.b); });
+  return {find};
+}
+function ticketCompleted(players, pIdx, ticket){
+  const {find} = buildOwnedGraph(players,pIdx);
+  return find(ticket.a)===find(ticket.b);
+}
+function longestPathForPlayer(pIdx){
+  const p = G.players[pIdx];
+  const myEdges = p.claimed.map(id=>G.edges[id]);
+  if(myEdges.length===0) return 0;
+  // build adjacency of own edges only, find longest simple path (DFS, graph is small enough per player)
+  const adj = {};
+  myEdges.forEach(e=>{
+    (adj[e.a]=adj[e.a]||[]).push(e); (adj[e.b]=adj[e.b]||[]).push(e);
+  });
+  let best=0;
+  function dfs(city, usedEdgeIds, length){
+    best = Math.max(best,length);
+    for(const e of (adj[city]||[])){
+      if(usedEdgeIds.has(e.id)) continue;
+      usedEdgeIds.add(e.id);
+      dfs(otherEnd(e,city), usedEdgeIds, length+e.len);
+      usedEdgeIds.delete(e.id);
+    }
+  }
+  Object.keys(adj).forEach(c=>dfs(c,new Set(),0));
+  return best;
+}
+function finalScoring(){
+  const results = G.players.map((p,i)=>{
+    let base = p.score;
+    let ticketDelta=0, ticketsDone=0;
+    p.tickets.forEach(t=>{
+      const ok = ticketCompleted(G.players,i,t);
+      t.done = ok;
+      if(ok){ ticketDelta+=t.pts; ticketsDone++; } else { ticketDelta-=t.pts; }
+    });
+    const stationBonus = p.stations*4;
+    const longest = longestPathForPlayer(i);
+    return {name:p.name, base, ticketDelta, stationBonus, longest, ticketsDone, stationsLeft:p.stations, stationsBuilt:3-p.stations, total: base+ticketDelta+stationBonus};
+  });
+  const maxLongest = Math.max(...results.map(r=>r.longest));
+  results.forEach(r=>{ r.hasExpress = r.longest===maxLongest && maxLongest>0; if(r.hasExpress) r.total+=10; });
+  return results;
+}
+
+/* ===================== UI: SETUP ===================== */
+let seats = [
+  {name:PLAYER_NAMES_DEFAULT[0], isAI:false},
+  {name:"Бот 1", isAI:true},
+  {name:"Бот 2", isAI:true},
+];
+function renderSetup(){
+  const list = document.getElementById("seatList");
+  list.innerHTML="";
+  seats.forEach((s,i)=>{
+    const row = document.createElement("div");
+    row.className="setup-seat";
+    row.innerHTML = `
+      <div class="row"><span class="card-swatch" style="background:${PLAYER_COLORS[i]}"></span>
+      <input data-i="${i}" class="seatname" style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;width:120px;" value="${esc(s.name)}"/></div>
+      <button class="pill ${s.isAI?'on':''}" data-toggle="${i}">${s.isAI?'🤖 ИИ':'🧑 Человек'}</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll(".seatname").forEach(inp=>{
+    inp.addEventListener("input",e=>{ seats[+e.target.dataset.i].name = e.target.value || PLAYER_NAMES_DEFAULT[+e.target.dataset.i]; });
+  });
+  list.querySelectorAll("[data-toggle]").forEach(btn=>{
+    btn.addEventListener("click",e=>{
+      const i = +e.target.dataset.toggle;
+      seats[i].isAI = !seats[i].isAI;
+      renderSetup();
+    });
+  });
+  document.getElementById("btnAddSeat").disabled = seats.length>=5;
+  document.getElementById("btnRmSeat").disabled = seats.length<=2;
+}
+document.getElementById("btnAddSeat").onclick=()=>{ if(seats.length<5){ seats.push({name:"Бот "+seats.length, isAI:true}); renderSetup(); } };
+document.getElementById("btnRmSeat").onclick=()=>{ if(seats.length>2){ seats.pop(); renderSetup(); } };
+document.getElementById("btnStart").onclick=()=>{
+  initGame(seats);
+  showScreen("scrTickets");
+  startTicketChoiceFlow();
+};
+renderSetup();
+
+/* ===================== UI: SCREEN SWITCH ===================== */
+function showScreen(id){
+  ["scrSetup","scrTickets","scrGame"].forEach(s=>document.getElementById(s).classList.toggle("hidden", s!==id));
+}
+
+/* ===================== TICKET CHOICE FLOW (initial deal) ===================== */
+function startTicketChoiceFlow(){
+  processTicketChoiceSeat();
+}
+function processTicketChoiceSeat(){
+  if(G.ticketChoiceIndex>=G.players.length){
+    G.phase="playing"; G.turn=0;
+    showScreen("scrGame");
+    renderGame();
+    beginTurn();
+    return;
+  }
+  const idx = G.ticketChoiceIndex;
+  const p = G.players[idx];
+  if(p.isAI){
+    const choice = G.pendingTicketChoice[idx];
+    // AI keeps all if <=3 pts sum small... simple: keep long always + short with high pts, min 2 total
+    const kept = choice.opts.slice(0,3); // keep 3 of 4 (drop worst)
+    kept.forEach(t=>p.tickets.push(t));
+    const dropped = choice.opts.filter(o=>!kept.includes(o));
+    dropped.forEach(t=> t.a? (t.pts>=15? G.longDeck.unshift(t): G.shortDeck.unshift(t)) : null);
+    G.ticketChoiceIndex++;
+    processTicketChoiceSeat();
+    return;
+  }
+  document.getElementById("tkTitle").textContent = `${p.name}: выбор маршрутов`;
+  renderTicketChoiceUI(idx);
+  if(idx>0 || true){
+    showPassScreen(p, ()=>{ showScreen("scrTickets"); });
+  }
+}
+let tkSelected = new Set();
+function renderTicketChoiceUI(idx){
+  tkSelected = new Set([0,1,2,3]);
+  const choice = G.pendingTicketChoice[idx];
+  const list = document.getElementById("tkList");
+  list.innerHTML="";
+  choice.opts.forEach((t,i)=>{
+    const div = document.createElement("div");
+    div.className="ticket-card select-card";
+    div.style.cursor="pointer";
+    div.innerHTML = `<span>${t.a} — ${t.b} ${t.pts>=15?'<b>(длинный)</b>':''}</span><b>${t.pts}⭐</b>`;
+    div.onclick=()=>{
+      if(tkSelected.has(i)) tkSelected.delete(i); else tkSelected.add(i);
+      div.classList.toggle("select-card", tkSelected.has(i));
+    };
+    list.appendChild(div);
+  });
+  document.getElementById("btnTkConfirm").onclick=()=>{
+    if(tkSelected.size<choice.min){ flashToast(`Оставьте минимум ${choice.min} маршрута`); return; }
+    choice.opts.forEach((t,i)=>{ if(tkSelected.has(i)) G.players[idx].tickets.push(t); });
+    G.ticketChoiceIndex++;
+    processTicketChoiceSeat();
+  };
+}
+
+/* ===================== PASS SCREEN ===================== */
+function showPassScreen(player, onReveal){
+  const scr = document.getElementById("scrPass");
+  document.getElementById("passWho").textContent = "Ход: "+player.name;
+  scr.classList.remove("hidden");
+  document.getElementById("btnPassReveal").onclick = ()=>{
+    scr.classList.add("hidden");
+    onReveal();
+  };
+}
+
+/* ===================== MAIN GAME RENDER ===================== */
+function currentPlayer(){ return G.players[G.turn]; }
+
+function renderGame(){
+  renderMap();
+  renderScoreboard();
+  renderHand();
+  document.getElementById("turnLabel").textContent = `Ход: ${currentPlayer().name}${currentPlayer().isAI?' 🤖':''}`;
+  document.getElementById("actStation").disabled = currentPlayer().isAI || currentPlayer().stations<=0;
+}
+function renderScoreboard(){
+  const box = document.getElementById("scoreboard");
+  box.innerHTML="";
+  G.players.forEach((p,i)=>{
+    const d = document.createElement("div");
+    d.className="score-chip"+(i===G.turn?" active":"");
+    d.style.borderColor = i===G.turn? p.color: "transparent";
+    d.innerHTML = `<span style="color:${p.color}">●</span> ${esc(p.name)} · ${p.score}⭐ · 🚃${p.trains} · 🏠${p.stations} · 🎫${p.tickets.length}`;
+    box.appendChild(d);
+  });
+}
+function chipStyle(color){
+  if(color==="loco") return `background:${COLOR_HEX.loco.startsWith('conic')?'conic-gradient(#eb5757,#f2994a,#f2c94c,#27ae60,#3a7bd5,#8e5fd6,#eb5757)':COLOR_HEX[color]}`;
+  return `background:${COLOR_HEX[color]}`;
+}
+function renderHand(){
+  const p = currentPlayer();
+  const row = document.getElementById("handRow");
+  row.innerHTML="";
+  Object.keys(p.hand).forEach(c=>{
+    if(p.hand[c]<=0) return;
+    const chip = document.createElement("div");
+    chip.className="hand-chip";
+    chip.style = chipStyle(c);
+    chip.innerHTML = (c==="loco"?"🚂":"") + `<span class="cnt">${p.hand[c]}</span>`;
+    row.appendChild(chip);
+  });
+  document.getElementById("handSummary").textContent = `Карт в руке: ${handTotal(p.hand)}`;
+}
+
+/* -------- MAP SVG -------- */
+function renderMap(){
+  const svg = document.getElementById("map");
+  svg.setAttribute("viewBox","0 0 1000 680");
+  svg.setAttribute("width","1500"); svg.setAttribute("height","1020");
+  svg.innerHTML="";
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  svg.appendChild(g);
+
+  // group double edges to offset them visually
+  const doubleGroups = {};
+  G.edges.forEach(e=>{ if(e.double){ (doubleGroups[e.double]=doubleGroups[e.double]||[]).push(e); } });
+
+  G.edges.forEach(e=>{
+    const [ax,ay]=CITIES[e.a], [bx,by]=CITIES[e.b];
+    let offset=0;
+    if(e.double){
+      const grp = doubleGroups[e.double];
+      const idx = grp.indexOf(e);
+      offset = idx===0? -5:5;
+    }
+    const dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len, ny=dx/len;
+    const mx=(ax+bx)/2+nx*offset, my=(ay+by)/2+ny*offset;
+    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+    const d = `M ${ax+nx*offset} ${ay+ny*offset} Q ${mx} ${my} ${bx+nx*offset} ${by+ny*offset}`;
+    path.setAttribute("d",d);
+    path.setAttribute("class","edge-line"+(e.tunnel?" tunnel":""));
+    path.setAttribute("stroke-width","5");
+    path.setAttribute("stroke", e.owner!=null? G.players[e.owner].color : (e.color==="gray"?"#6b7690": COLOR_HEX[e.color]));
+    path.setAttribute("opacity", e.owner!=null? "0.95":"0.55");
+    g.appendChild(path);
+
+    // segment ticks to indicate length
+    for(let i=0;i<e.len;i++){
+      // small perpendicular ticks along path (visual only, approximate at even spacing)
+      const t = (i+0.5)/e.len;
+      const px = ax+nx*offset+(bx-ax)*t, py = ay+ny*offset+(by-ay)*t;
+      const tick = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      tick.setAttribute("cx",px); tick.setAttribute("cy",py); tick.setAttribute("r", e.owner!=null?"3":"2");
+      tick.setAttribute("fill", e.owner!=null? "#fff":"rgba(255,255,255,.25)");
+      g.appendChild(tick);
+    }
+    if(e.ferry){
+      const anchor = document.createElementNS("http://www.w3.org/2000/svg","text");
+      anchor.setAttribute("x",mx); anchor.setAttribute("y",my-6); anchor.setAttribute("text-anchor","middle");
+      anchor.setAttribute("font-size","12"); anchor.textContent="⚓".repeat(e.ferry);
+      g.appendChild(anchor);
+    }
+
+    if(e.owner==null){
+      const hit = document.createElementNS("http://www.w3.org/2000/svg","path");
+      hit.setAttribute("d",d); hit.setAttribute("class","edge-hit claimable");
+      hit.addEventListener("click",()=>onEdgeClick(e));
+      g.appendChild(hit);
+    }
+  });
+
+  Object.entries(CITIES).forEach(([name,[x,y]])=>{
+    const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx",x); c.setAttribute("cy",y); c.setAttribute("r",5);
+    c.setAttribute("class","city-dot station-mark");
+    c.addEventListener("click",()=>onCityClick(name));
+    g.appendChild(c);
+    const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+    t.setAttribute("x",x+7); t.setAttribute("y",y-6); t.setAttribute("class","city-label");
+    t.textContent = name;
+    g.appendChild(t);
+    // station markers owned
+    G.players.forEach((p,pi)=>{
+      if(p._stationsAt && p._stationsAt.includes(name)){}
+    });
+  });
+  // draw built stations
+  G.stationsBuilt = G.stationsBuilt || [];
+  G.stationsBuilt.forEach(s=>{
+    const [x,y]=CITIES[s.city];
+    const tri = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+    const off = s.slot*8-8;
+    tri.setAttribute("points", `${x+off},${y-14} ${x+off-6},${y-4} ${x+off+6},${y-4}`);
+    tri.setAttribute("fill", G.players[s.owner].color);
+    tri.setAttribute("stroke","#0b1120");
+    g.appendChild(tri);
+  });
+}
+
+/* ===================== TOAST / MODALS ===================== */
+function flashToast(msg,ms){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.add("hidden"), ms||2200);
+}
+function openModal(html){
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `<div class="modal-back" id="mbk"><div class="modal" style="position:relative;">
+    <button class="close-x" id="mClose">✕</button>${html}</div></div>`;
+  document.getElementById("mClose").onclick=closeModal;
+  document.getElementById("mbk").onclick=(e)=>{ if(e.target.id==="mbk") closeModal(); };
+}
+function closeModal(){ document.getElementById("modalRoot").innerHTML=""; }
+
+/* ===================== TURN / ACTIONS ===================== */
+function beginTurn(){
+  renderGame();
+  if(currentPlayer().isAI){
+    setTimeout(aiTakeTurn, 500);
+  }
+}
+function endTurn(consumedFullAction){
+  if(!G.lastRound && currentPlayer().trains<=2){
+    G.lastRound = true; G.lastRoundTrigger = G.turn;
+    flashToast(`${currentPlayer().name} — вагоны на исходе! Последний круг!`, 3000);
+  }
+  if(G.lastRound){
+    G.turnsAfterTrigger++;
+    if(G.turnsAfterTrigger>G.players.length){
+      finishGame(); return;
+    }
+  }
+  G.turn = (G.turn+1)%G.players.length;
+  const next = currentPlayer();
+  if(!next.isAI){
+    showPassScreen(next, ()=>{ beginTurn(); });
+  } else {
+    beginTurn();
+  }
+}
+
+/* ---- Action: draw cards ---- */
+let drawState = null;
+document.getElementById("actDraw").onclick=()=>{
+  if(currentPlayer().isAI) return;
+  drawState = {taken:0, lockedLoco:false};
+  openDrawModal();
+};
+function openDrawModal(){
+  const faceHtml = G.faceUp.map((c,i)=>`<div class="faceup-card" style="${chipStyle(c)}" data-i="${i}">${c==='loco'?'🚂':''}</div>`).join("");
+  openModal(`
+    <h3>Взять карты составов (${drawState.taken}/2)</h3>
+    <div class="faceup-row" id="fuRow">${faceHtml}<div class="deckback" id="deckBack">🂠</div></div>
+    <p class="muted" style="margin-top:10px;">Открытый локомотив — забирает сразу оба действия.</p>
+  `);
+  document.getElementById("fuRow").querySelectorAll(".faceup-card").forEach(el=>{
+    el.onclick=()=>{
+      const i = +el.dataset.i; const c = G.faceUp[i];
+      if(drawState.lockedLoco) return;
+      if(c==="loco" && drawState.taken>0){ flashToast("Открытый локомотив нельзя взять вторым"); return; }
+      currentPlayer().hand[c]++;
+      G.faceUp.splice(i,1);
+      const nc = drawFromDeck(); if(nc) G.faceUp.push(nc);
+      checkFaceUpReset();
+      drawState.taken++;
+      if(c==="loco"){ finishDraw(); return; }
+      if(drawState.taken>=2){ finishDraw(); return; }
+      openDrawModal();
+    };
+  });
+  document.getElementById("deckBack").onclick=()=>{
+    const c = drawFromDeck();
+    if(!c){ flashToast("Колода пуста"); return; }
+    currentPlayer().hand[c]++;
+    drawState.taken++;
+    if(drawState.taken>=2){ finishDraw(); return; }
+    openDrawModal();
+  };
+}
+function finishDraw(){
+  closeModal();
+  renderHand();
+  endTurn(true);
+}
+
+/* ---- Action: draw tickets ---- */
+document.getElementById("actTickets").onclick=()=>{
+  if(currentPlayer().isAI) return;
+  doDrawTickets(G.turn, false);
+};
+function doDrawTickets(pIdx, isAI){
+  const p = G.players[pIdx];
+  const pool = [];
+  for(let i=0;i<3;i++){ const t = p.tickets.length===0 && i===0 && G.longDeck.length && Math.random()<0.15 ? G.longDeck.pop() : G.shortDeck.pop(); if(t) pool.push(t); else if(G.longDeck.length){ pool.push(G.longDeck.pop()); } }
+  if(pool.length===0){ flashToast("Карты маршрутов закончились"); endTurn(true); return; }
+  if(isAI){
+    const keepCount = Math.max(1, Math.min(pool.length, 1+Math.floor(Math.random()*pool.length)));
+    const kept = pool.slice(0,keepCount);
+    kept.forEach(t=>p.tickets.push(t));
+    pool.slice(keepCount).forEach(t=>t.pts>=15?G.longDeck.unshift(t):G.shortDeck.unshift(t));
+    endTurn(true);
+    return;
+  }
+  let sel = new Set(pool.map((_,i)=>i));
+  function draw(){
+    const list = pool.map((t,i)=>`
+      <div class="ticket-card ${sel.has(i)?'select-card':''}" data-i="${i}" style="cursor:pointer;">
+        <span>${t.a} — ${t.b}</span><b>${t.pts}⭐</b>
+      </div>`).join("");
+    openModal(`<h3>Новые маршруты (минимум 1)</h3><div class="col">${list}</div>
+      <button class="primary" id="tkOk" style="margin-top:12px;width:100%;padding:12px;">Подтвердить</button>`);
+    document.querySelectorAll("[data-i]").forEach(el=>{
+      el.onclick=()=>{ const i=+el.dataset.i; sel.has(i)?sel.delete(i):sel.add(i); draw(); };
+    });
+    document.getElementById("tkOk").onclick=()=>{
+      if(sel.size<1){ flashToast("Оставьте минимум 1 маршрут"); return; }
+      pool.forEach((t,i)=>{ if(sel.has(i)) p.tickets.push(t); else (t.pts>=15?G.longDeck.unshift(t):G.shortDeck.unshift(t)); });
+      closeModal();
+      endTurn(true);
+    };
+  }
+  draw();
+}
+
+/* ---- Action: build station ---- */
+document.getElementById("actStation").onclick=()=>{
+  if(currentPlayer().isAI) return;
+  if(currentPlayer().stations<=0) return;
+  flashToast("Нажмите на город на карте, чтобы поставить станцию");
+  window._stationMode = true;
+};
+function onCityClick(city){
+  if(!window._stationMode) return;
+  window._stationMode = false;
+  const p = currentPlayer();
+  G.stationsBuilt = G.stationsBuilt||[];
+  if(G.stationsBuilt.some(s=>s.city===city)){ flashToast("В этом городе уже есть станция"); return; }
+  const built = 3-p.stations; // stations already built = cost tier
+  const cost = built+1; // 1st=1 card,2nd=2 same,3rd=3 same
+  openStationPay(city, cost, p);
+}
+function openStationPay(city, cost, p){
+  if(cost===1){
+    const opts = Object.keys(p.hand).filter(c=>p.hand[c]>0);
+    if(opts.length===0){ flashToast("Нет карт"); return; }
+    const html = opts.map(c=>`<div class="faceup-card" style="${chipStyle(c)}" data-c="${c}">${c==='loco'?'🚂':''}</div>`).join("");
+    openModal(`<h3>Станция в ${city}</h3><p class="muted">Сбросьте 1 любую карту</p><div class="faceup-row">${html}</div>`);
+    document.querySelectorAll("[data-c]").forEach(el=>el.onclick=()=>{
+      p.hand[el.dataset.c]--; G.discard.push(el.dataset.c);
+      finishStation(city,p); closeModal();
+    });
+  } else {
+    // need `cost` matching cards, loco can substitute
+    const colorsAvail = Object.keys(p.hand).filter(c=>c!=="loco" && p.hand[c]+p.hand.loco>=cost && p.hand[c]>0);
+    const canAny = colorsAvail.length>0;
+    if(!canAny){ flashToast(`Нужно ${cost} одинаковых карт`); return; }
+    const html = colorsAvail.map(c=>`<button class="pill" data-c="${c}" style="${chipStyle(c)}">${c} x${cost}</button>`).join(" ");
+    openModal(`<h3>Станция в ${city}</h3><p class="muted">Сбросьте ${cost} одинаковых карт (локомотивы заменяют любой цвет)</p><div class="row">${html}</div>`);
+    document.querySelectorAll("[data-c]").forEach(el=>el.onclick=()=>{
+      let need=cost; const c=el.dataset.c;
+      const useOwn = Math.min(p.hand[c],need); p.hand[c]-=useOwn; need-=useOwn;
+      const useLoco = Math.min(p.hand.loco,need); p.hand.loco-=useLoco; need-=useLoco;
+      for(let i=0;i<useOwn;i++) G.discard.push(c);
+      for(let i=0;i<useLoco;i++) G.discard.push("loco");
+      finishStation(city,p); closeModal();
+    });
+  }
+}
+function finishStation(city,p){
+  p.stations--;
+  G.stationsBuilt.push({city, owner:G.players.indexOf(p), slot:G.stationsBuilt.filter(s=>s.city===city).length});
+  flashToast(`Станция построена в ${city}`);
+  renderGame();
+  endTurn(true);
+}
+
+/* ---- Action: claim edge ---- */
+function onEdgeClick(e){
+  if(currentPlayer().isAI) return;
+  if(e.owner!=null) return;
+  if(e.double){
+    const sibling = G.edges.find(x=>x.double===e.double && x.id!==e.id);
+    const twoOrThree = G.players.length<=3;
+    if(twoOrThree && sibling && sibling.owner!=null){ flashToast("В игре 2-3 игроков доступна только одна из двух линий"); return; }
+    if(twoOrThree && currentPlayer()._justClaimedDoubleGroup===e.double){ /* no-op */ }
+  }
+  const p = currentPlayer();
+  const need = e.len;
+  const color = e.color;
+  if(e.tunnel){
+    openTunnelClaim(e);
+    return;
+  }
+  openClaimModal(e);
+}
+function affordableColors(p, e){
+  const need = e.len;
+  if(e.color==="gray"){
+    return COLORS.filter(c=> p.hand[c]+p.hand.loco>=need && p.hand[c]>0 || (p.hand.loco>=need));
+  }
+  return (p.hand[e.color]+p.hand.loco>=need) ? [e.color] : [];
+}
+function openClaimModal(e){
+  const p = currentPlayer();
+  let colorChoices = e.color==="gray" ? COLORS.filter(c=>p.hand[c]>0) : [e.color];
+  colorChoices = colorChoices.filter(c=> p.hand[c]+p.hand.loco>=e.len);
+  const ferryNeed = e.ferry||0;
+  if(p.hand.loco < ferryNeed){ colorChoices = []; }
+  if(colorChoices.length===0 && !(e.color!=="gray" && p.hand.loco>=e.len)){
+    if(!(e.color!=="gray" && p.hand.loco>=e.len)){
+      openModal(`<h3>${e.a} — ${e.b}</h3><p>Недостаточно карт (нужно ${e.len} ${e.color!=="gray"?e.color:"одного цвета"}${ferryNeed?`, из них ${ferryNeed} 🚂`:""})</p>`);
+      return;
+    }
+  }
+  if(e.color!=="gray" && p.hand.loco>=e.len && !colorChoices.includes(e.color)) colorChoices.push(e.color);
+  const btns = colorChoices.map(c=>`<button class="pill" style="${chipStyle(c)}" data-c="${c}">${c}</button>`).join(" ");
+  openModal(`<h3>Захват: ${e.a} — ${e.b} (${e.len})</h3>
+    <p class="muted">${ferryNeed? `Паром: нужно ${ferryNeed} 🚂 локомотива + остальное одним цветом`:""}</p>
+    <div class="row">${btns||"<span class='muted'>Нет доступных цветов</span>"}</div>`);
+  document.querySelectorAll("[data-c]").forEach(el=>el.onclick=()=>{
+    const c = el.dataset.c;
+    payAndClaim(e, c);
+    closeModal();
+  });
+}
+function payAndClaim(e, color){
+  const p = currentPlayer();
+  let need = e.len; let ferryNeed = e.ferry||0;
+  const useLocoFerry = Math.min(ferryNeed, p.hand.loco);
+  p.hand.loco -= useLocoFerry; need -= useLocoFerry;
+  const useColor = Math.min(p.hand[color], need); p.hand[color]-=useColor; need-=useColor;
+  const useLoco2 = Math.min(p.hand.loco, need); p.hand.loco-=useLoco2; need-=useLoco2;
+  for(let i=0;i<useColor;i++) G.discard.push(color);
+  for(let i=0;i<useLocoFerry+useLoco2;i++) G.discard.push("loco");
+  finalizeClaim(e,p);
+}
+function finalizeClaim(e,p){
+  e.owner = G.players.indexOf(p);
+  p.claimed.push(e.id);
+  p.trains -= e.len;
+  p.score += SCORE_TABLE[e.len]||0;
+  flashToast(`${p.name}: захвачен ${e.a}—${e.b} (+${SCORE_TABLE[e.len]}⭐)`);
+  renderGame();
+  endTurn(true);
+}
+
+/* ---- Tunnel resolution ---- */
+function openTunnelClaim(e){
+  const p = currentPlayer();
+  let colorChoices = e.color==="gray" ? COLORS.filter(c=>p.hand[c]+p.hand.loco>=e.len && p.hand[c]>0) : (p.hand[e.color]+p.hand.loco>=e.len?[e.color]:[]);
+  if(e.color!=="gray" && p.hand.loco>=e.len) colorChoices=[e.color];
+  if(colorChoices.length===0){ openModal(`<h3>${e.a} — ${e.b} (туннель)</h3><p>Недостаточно карт</p>`); return; }
+  const btns = colorChoices.map(c=>`<button class="pill" style="${chipStyle(c)}" data-c="${c}">${c}</button>`).join(" ");
+  openModal(`<h3>Туннель: ${e.a} — ${e.b} (${e.len})</h3>
+    <p class="muted">После оплаты вскроются 3 карты — за каждую карту цвета туннеля/локомотив придётся доплатить ещё одну такую карту.</p>
+    <div class="row">${btns}</div>`);
+  document.querySelectorAll("[data-c]").forEach(el=>el.onclick=()=>{
+    const color = el.dataset.c;
+    closeModal();
+    resolveTunnel(e,color,p);
+  });
+}
+function resolveTunnel(e,color,p){
+  const revealed = [drawFromDeck(),drawFromDeck(),drawFromDeck()].filter(Boolean);
+  const extra = revealed.filter(c=>c===color||c==="loco").length;
+  const haveAfterBase = (p.hand[color]||0) + (p.hand.loco||0);
+  const baseNeed = e.len;
+  const totalNeed = baseNeed+extra;
+  const canPay = haveAfterBase>=totalNeed;
+  openModal(`
+    <h3>Туннель — результат</h3>
+    <div class="faceup-row">${revealed.map(c=>`<div class="faceup-card" style="${chipStyle(c)}">${c==='loco'?'🚂':''}</div>`).join("")}</div>
+    <p style="margin-top:10px;">Доплата: <b>${extra}</b> карт(ы) цвета «${color}» (или 🚂).</p>
+    <p class="muted">${canPay? "У вас достаточно карт." : "Недостаточно карт для доплаты — маршрут не будет захвачен."}</p>
+    <button class="primary" id="tnOk" style="margin-top:10px;width:100%;padding:12px;">${canPay?"Оплатить и захватить":"Отменить (карты не сброшены)"}</button>
+  `);
+  revealed.forEach(c=>G.discard.push(c));
+  document.getElementById("tnOk").onclick=()=>{
+    closeModal();
+    if(!canPay){ endTurn(false); return; }
+    payAndClaimWithExtra(e,color,totalNeed);
+  };
+}
+function payAndClaimWithExtra(e,color,totalNeed){
+  const p = currentPlayer();
+  let need = totalNeed;
+  const useColor = Math.min(p.hand[color],need); p.hand[color]-=useColor; need-=useColor;
+  const useLoco = Math.min(p.hand.loco,need); p.hand.loco-=useLoco; need-=useLoco;
+  for(let i=0;i<useColor;i++) G.discard.push(color);
+  for(let i=0;i<useLoco;i++) G.discard.push("loco");
+  finalizeClaim(e,p);
+}
+
+/* ===================== MY TICKETS MODAL ===================== */
+document.getElementById("btnMyTickets").onclick=()=>{
+  const p = currentPlayer();
+  const html = p.tickets.map(t=>{
+    const done = ticketCompleted(G.players, G.turn, t);
+    return `<div class="ticket-card ${done?'done':''}"><span>${t.a} — ${t.b}</span><b>${t.pts}⭐ ${done?'✅':''}</b></div>`;
+  }).join("") || "<p class='muted'>Нет маршрутов</p>";
+  openModal(`<h3>Маршруты игрока ${esc(p.name)}</h3><div class="col">${html}</div>`);
+};
+document.getElementById("btnExit").onclick=()=>{
+  if(confirm("Выйти из игры?")) exitGame();
+};
+
+/* ===================== AI ===================== */
+function aiTakeTurn(){
+  const p = currentPlayer();
+  const pIdx = G.turn;
+  // 1. find best affordable edge that progresses a ticket
+  const candidateEdges = G.edges.filter(e=>e.owner==null);
+  let bestEdge=null, bestColor=null, bestScore=-1;
+
+  // compute per-ticket shortest path over edges not owned by others
+  function weightFn(e){ if(e.owner!=null && e.owner!==pIdx) return Infinity; return e.len; }
+  const neededEdgeIds = new Set();
+  p.tickets.forEach(t=>{
+    if(ticketCompleted(G.players,pIdx,t)) return;
+    const sp = shortestPath(G.edges, t.a, t.b, weightFn);
+    if(sp) sp.path.forEach(e=>{ if(e.owner==null) neededEdgeIds.add(e.id); });
+  });
+
+  function canAfford(e){
+    if(e.tunnel) return false; // AI avoids tunnels for simplicity/safety
+    const ferryNeed = e.ferry||0;
+    if(p.hand.loco<ferryNeed) return false;
+    if(e.color==="gray"){
+      for(const c of COLORS){ if(p.hand[c]+p.hand.loco>=e.len && p.hand[c]>0) return c; }
+      if(p.hand.loco>=e.len) return "purple";
+      return false;
+    }
+    if(p.hand[e.color]+p.hand.loco>=e.len) return e.color;
+    return false;
+  }
+
+  candidateEdges.forEach(e=>{
+    if(e.double){
+      const sibling = G.edges.find(x=>x.double===e.double && x.id!==e.id);
+      if(G.players.length<=3 && sibling && sibling.owner!=null) return;
+    }
+    const col = canAfford(e);
+    if(!col) return;
+    let score = neededEdgeIds.has(e.id) ? 100+e.len : e.len*0.3;
+    if(score>bestScore){ bestScore=score; bestEdge=e; bestColor=col; }
+  });
+
+  if(bestEdge && p.trains>=bestEdge.len){
+    payAndClaim(bestEdge, bestColor);
+    return;
+  }
+
+  // 2. sometimes draw new tickets if few active
+  const activeUnfinished = p.tickets.filter(t=>!ticketCompleted(G.players,pIdx,t)).length;
+  if(p.tickets.length<2 || (activeUnfinished===0 && Math.random()<0.4)){
+    doDrawTickets(pIdx, true);
+    return;
+  }
+
+  // 3. draw cards: prefer colors needed
+  const need = {};
+  neededEdgeIds.forEach(id=>{ const e=G.edges[id]; if(e.color!=="gray") need[e.color]=(need[e.color]||0)+1; });
+  let taken=0;
+  function pickOne(){
+    let bestI=-1,bestC=-1;
+    G.faceUp.forEach((c,i)=>{
+      if(c==="loco"){ if(taken===0 && bestC<0){ bestI=i; } return; }
+      const w = need[c]||0.1;
+      if(w>bestC){ bestC=w; bestI=i; }
+    });
+    if(bestI>=0){
+      const c = G.faceUp[bestI];
+      if(c==="loco" && taken>0) return false;
+      p.hand[c]++;
+      G.faceUp.splice(bestI,1);
+      const nc = drawFromDeck(); if(nc) G.faceUp.push(nc);
+      checkFaceUpReset();
+      taken++;
+      return c!=="loco";
+    } else {
+      const c = drawFromDeck();
+      if(c){ p.hand[c]++; taken++; return true; }
+      return false;
+    }
+  }
+  if(pickOne()){ if(taken<2) pickOne(); }
+  renderHand();
+  setTimeout(()=>endTurn(true), 300);
+}
+
+/* ===================== GAME OVER ===================== */
+function finishGame(){
+  const results = finalScoring();
+  results.sort((a,b)=>b.total-a.total || b.ticketsDone-a.ticketsDone || a.stationsBuilt-b.stationsBuilt || (b.hasExpress-a.hasExpress));
+  const html = results.map((r,i)=>`
+    <div class="ticket-card ${i===0?'done':''}" style="flex-direction:column;align-items:flex-start;">
+      <b>${i+1}. ${esc(r.name)} — ${r.total}⭐ ${r.hasExpress?'🚄+10':''}</b>
+      <span class="muted">Пути: ${r.base} · Маршруты: ${r.ticketDelta>=0?'+':''}${r.ticketDelta} (${r.ticketsDone} готово) · Станции: +${r.stationBonus} · Экспресс: ${r.longest}</span>
+    </div>
+  `).join("");
+  openModal(`<h2>🏁 Игра окончена</h2><div class="col">${html}</div>
+    <button class="primary" id="btnNewGame" style="margin-top:14px;width:100%;padding:12px;">Новая игра</button>`);
+  document.getElementById("btnNewGame").onclick=()=>{ location.reload(); };
+}
+</script>
+</body>
+</html>
