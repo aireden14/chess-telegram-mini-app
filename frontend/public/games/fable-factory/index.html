@@ -29,7 +29,9 @@
   #resline .rpill b{font-weight:700;color:var(--ink)}
   #goal{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;border-radius:14px;padding:8px 12px;font-size:.78rem;max-width:210px;cursor:pointer;z-index:20;border-color:rgba(232,176,75,.45)}
   #goal b{color:var(--gold)}
+  #goal .gmin{display:none}
   #goal.min .gtxt{display:none}
+  #goal.min .gmin{display:inline}
   #goal.min{padding:6px 11px}
   /* обучение */
   #tut{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom) + 76px);max-width:290px;border-radius:16px;padding:12px 14px;font-size:.84rem;display:none;animation:pop .3s cubic-bezier(.2,1.2,.3,1);z-index:30;border-color:rgba(122,162,255,.4)}
@@ -99,7 +101,7 @@
 <script>
 "use strict";
 /* ============ Fable Factory v3 — карты, камера, обучение, энергия на угле ============ */
-const W0=64,H0=44,TS=26;   // стартовый размер мира; карту можно догенерировать (expandWorld)
+const W0=84,H0=58,TS=26;   // стартовый размер мира; карту можно догенерировать (expandWorld)
 let W=W0,H=H0;
 const cv=document.getElementById("cv"),cx=cv.getContext("2d");
 const mk=()=>Array.from({length:H},()=>Array(W).fill(null));
@@ -121,11 +123,16 @@ const MAPS={
     pal:["#4a6138","#465c35","#4f6a3d","#435832"],dirt:"#6b5a3d",grass:true},
 };
 let ore=mk();
+let oreAmt=mk(); // остаток залежи: руда КОНЕЧНА, выкопал — ищи новую (или новые земли)
 let terr=mk(); // "water"|"tree"|null
+function seedOreAmounts(mul){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
+    if(ore[y][x]&&!oreAmt[y][x])oreAmt[y][x]=Math.round(rnd(70,180)*(mul||1));
+}
 function resizeTerrCanvas(){terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;terrDirty=true}
 function genMap(mapId){
   const m=MAPS[mapId];
-  W=W0;H=H0;ore=mk();terr=mk();grid=mk();drops={};resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
+  W=W0;H=H0;ore=mk();oreAmt=mk();terr=mk();grid=mk();drops={};resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
   if(m.water){ // озёра-кляксы
     for(let i=0;i<7;i++){let x=rnd(4,W-5),y=rnd(4,H-5);
       for(let j=0;j<50;j++){if(x>1&&y>1&&x<W-2&&y<H-2)terr[y][x]="water";x+=rnd(-1,1);y+=rnd(-1,1)}}
@@ -134,7 +141,9 @@ function genMap(mapId){
     while(terr[y][x]==="water"&&guard++<40){x=rnd(3,W-4);y=rnd(3,H-4)}
     for(let i=0;i<n;i++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x])ore[y][x]=kind;x+=rnd(-1,1);y+=rnd(-1,1)}};
   const base=Math.round(34*m.oreMul);
-  ["iron","iron","iron","copper","copper","coal","coal","coal","stone","stone"].forEach(k=>blob(k,base));
+  // руда конечна → месторождений вдвое больше, чем раньше
+  for(let p=0;p<2;p++)["iron","iron","iron","copper","copper","coal","coal","coal","stone","stone"].forEach(k=>blob(k,base));
+  seedOreAmounts(m.oreMul);
   // леса: живой мир; дерево рубится Сносом → 🌲 древесина (топливо)
   for(let i=0;i<(m.trees||0);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<26;j++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
@@ -145,13 +154,16 @@ function expandWorld(margin){
   const oldW=W,oldH=H,sh=margin;
   const nW=W+margin*2,nH=H+margin*2;
   W=nW;H=nH;
-  const nOre=mk(),nTerr=mk(),nGrid=mk();
+  const nOre=mk(),nAmt=mk(),nTerr=mk(),nGrid=mk();
   for(let y=0;y<oldH;y++)for(let x=0;x<oldW;x++){
-    nOre[y+sh][x+sh]=ore[y][x];nTerr[y+sh][x+sh]=terr[y][x];nGrid[y+sh][x+sh]=grid[y][x];
+    nOre[y+sh][x+sh]=ore[y][x];nAmt[y+sh][x+sh]=oreAmt[y][x];nTerr[y+sh][x+sh]=terr[y][x];nGrid[y+sh][x+sh]=grid[y][x];
   }
-  ore=nOre;terr=nTerr;grid=nGrid;
+  ore=nOre;oreAmt=nAmt;terr=nTerr;grid=nGrid;
   cam.x+=sh*TS;cam.y+=sh*TS;
   enemies.forEach(e=>{e.x+=sh;e.y+=sh});
+  workers.forEach(w=>{w.x+=sh;w.y+=sh;if(w.job){w.job.x+=sh;w.job.y+=sh}});
+  const newDrops={};for(const key in drops){const [dx2,dy2]=key.split(",").map(Number);newDrops[(dx2+sh)+","+(dy2+sh)]=drops[key]}
+  drops=newDrops;
   const inRing=(x,y)=>x<sh||y<sh||x>=sh+oldW||y>=sh+oldH;
   const m=MAPS[S.map]||MAPS.valley;
   if(m.water){for(let i=0;i<Math.round(margin/2);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
@@ -165,6 +177,7 @@ function expandWorld(margin){
   for(let p=0;p<passes;p++)kinds.forEach(k=>blob(k,base));
   for(let i=0;i<Math.max(6,(m.trees||8));i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<24;j++){if(inRing(x,y)&&x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x]&&!grid[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
+  seedOreAmounts(m.oreMul);
   resizeTerrCanvas();
   undoStack.length=0;S.hint=null;
   clampCam();
@@ -195,14 +208,21 @@ const TECHS=[
   {id:"t_lab",nm:"Наука (8 🟩)",cost:{circuit:8},done:false,desc:"Открывает Лабораторию"},
   {id:"t_belt",nm:"Быстрые конвейеры (4 🧪)",cost:{science:4},done:false,desc:"Конвейеры ×2"},
   {id:"t_speed",nm:"Турбо-буры (5 🧪)",cost:{science:5},done:false,desc:"Буры ×2 быстрее"},
-  {id:"t_win",nm:"Fable-ядро (25 🧪)",cost:{science:25},done:false,desc:"ПОБЕДА"},
+  {id:"t_win",nm:"Fable-ядро (60 🧪)",cost:{science:60},done:false,desc:"ПОБЕДА"},
+  // новые техи ДОБАВЛЕНЫ В КОНЕЦ: сейвы хранят done по индексу
+  {id:"t_workers",nm:"Эргономика (12 🧪)",cost:{science:12},done:false,desc:"Рабочие бегают на 25% быстрее"},
+  {id:"t_grid",nm:"Энергосеть (15 🧪)",cost:{science:15},done:false,desc:"Зона генератора +3 клетки, мощность +4"},
 ];
 const GOALS=[
   {txt:"Скрафти 10 жел.листов",chk:s=>s.made.ironPlate>=10},
   {txt:"Исследуй «Сборку» и поставь Сборщик",chk:s=>tech("t_asm")&&grid.flat().some(c=>c&&c.t==="asm")},
   {txt:"Выплави 5 стали (2 листа + уголь в плавильне)",chk:s=>s.made.steelPlate>=5},
   {txt:"Собери 8 плат и открой «Науку»",chk:s=>tech("t_lab")},
-  {txt:"Произведи 25 🧪 и собери Fable-ядро",chk:s=>tech("t_win")},
+  {txt:"Наработай 25 🧪 науки",chk:s=>s.made.science>=25},
+  {txt:"Большая индустрия: 30 🔩 стали и 25 🟩 плат",chk:s=>s.made.steelPlate>=30&&s.made.circuit>=25},
+  {txt:"Посёлок: 6 рабочих и 3 работающих генератора",chk:()=>workers.length>=6&&grid.flat().filter(c=>c&&c.t==="gen"&&c.fuel>0).length>=3},
+  {txt:"Разведай новые земли (⋯ → 🗺 → 🚀)",chk:()=>(S.regions||[]).length>1},
+  {txt:"Произведи 60 🧪 и собери Fable-ядро",chk:s=>tech("t_win")},
 ];
 
 /* ---------- состояние ---------- */
@@ -224,12 +244,14 @@ let resFold=localStorage.getItem("ff.resfold")==="1";
 let zen=localStorage.getItem("ff.zen")==="1"; // «только карта и три точки»
 /* ---------- энергосистема: каждый генератор питает ЗОНУ (радиус), генераторов — сколько угодно ---------- */
 const GEN_RADIUS=9, GEN_CAP=8;
+const genRadius=()=>GEN_RADIUS+(tech("t_grid")?3:0);
+const genCap=()=>GEN_CAP+(tech("t_grid")?4:0);
 let powerStat={fed:0,need:0,noZone:0,over:0};
 function recomputePower(){
   const gens=[],cons=[];
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const c=grid[y][x];if(!c)continue;
-    if(c.t==="gen"){c.pw=c.fuel>0;if(c.fuel>0)gens.push({x,y,cap:GEN_CAP});}
+    if(c.t==="gen"){c.pw=c.fuel>0;if(c.fuel>0)gens.push({x,y,cap:genCap()});}
     else if(DEFS[c.t].power>0){c.pw=false;cons.push({x,y,c,need:DEFS[c.t].power});}
     else c.pw=true;
   }
@@ -238,7 +260,7 @@ function recomputePower(){
     let best=null,bd=1e9,inZone=false;
     gens.forEach(g=>{
       const d=Math.hypot(g.x-u.x,g.y-u.y);
-      if(d<=GEN_RADIUS){inZone=true;if(g.cap>=u.need&&d<bd){bd=d;best=g;}}
+      if(d<=genRadius()){inZone=true;if(g.cap>=u.need&&d<bd){bd=d;best=g;}}
     });
     if(best){best.cap-=u.need;u.c.pw=true;fed++;}
     else if(inZone)over++;else noZone++;
@@ -246,10 +268,36 @@ function recomputePower(){
   powerStat={fed,need:cons.length,noZone,over};
   S.powerOk=noZone===0&&over===0;
 }
-/* ---------- 🧍 рабочие: бегают, собирают кучи на склад, носят уголь генераторам ---------- */
+/* ---------- 🧍 рабочие: специализации, опыт, сами переносят буры на новую руду ---------- */
 let workers=[];
-const WORKER_MAX=6, WORKER_COST={wood:5,stone:5};
-function spawnWorker(x,y){workers.push({x:x+0.5,y:y+0.5,job:null,carry:null,ph:Math.random()*7});}
+const WORKER_MAX=10, WORKER_COST={wood:5,stone:5};
+const SPECS={
+  any:   {nm:"Универсал",ic:"🧍",piles:null,desc:"делает всё понемногу"},
+  coal:  {nm:"Угольщик",ic:"⚫",piles:["coal"],desc:"уголь: +30% при сборе, заправляет генераторы"},
+  iron:  {nm:"Рудокоп",ic:"⛏",piles:["iron","stone"],desc:"железо и камень: +30% при сборе"},
+  copper:{nm:"Медник",ic:"🟧",piles:["copper"],desc:"медь: +30% при сборе"},
+  power: {nm:"Электрик",ic:"⚡️",piles:[],desc:"только генераторы: носит 6 топлива, очень быстрый"},
+  hauler:{nm:"Грузчик",ic:"📦",piles:["ironPlate","copperPlate","steelPlate","gear","wire","circuit","science","wood"],desc:"продукция цехов: +30% при сборе"},
+};
+function spawnWorker(x,y){workers.push({x:x+0.5,y:y+0.5,job:null,carry:null,ph:Math.random()*7,spec:"any",xp:0,lvl:1});}
+function workerSpeed(w){
+  let s=0.06*(1+0.08*((w.lvl||1)-1));
+  if(w.spec&&w.spec!=="any")s*=w.spec==="power"?1.6:1.35;
+  if(tech("t_workers"))s*=1.25;
+  return s;
+}
+function giveXp(w,n){
+  w.xp=(w.xp||0)+n;
+  const need=(w.lvl||1)*12;
+  if(w.xp>=need&&(w.lvl||1)<9){w.xp-=need;w.lvl=(w.lvl||1)+1;
+    puff(Math.floor(w.x),Math.floor(w.y),"#ffd98a",6,"ур."+w.lvl);say(`🧍 ${SPECS[w.spec].nm} вырос до ур.${w.lvl} (быстрее бегает)`);}
+}
+function pileMatches(w,d){
+  const p=SPECS[w.spec||"any"].piles;
+  if(p===null)return true; // универсал берёт всё
+  if(!p.length)return false; // электрик кучами не занимается
+  return Object.keys(d).some(k=>p.includes(k));
+}
 function hireWorker(){
   if(workers.length>=WORKER_MAX)return toast("Хватит: "+WORKER_MAX+" рабочих — они и так всё тащат");
   if(!canPay(WORKER_COST))return toast("Нужно на рабочего: "+costStr(WORKER_COST));
@@ -266,23 +314,56 @@ function nearestBuilding(x,y){
     const d=(xx-x)*(xx-x)+(yy-y)*(yy-y);if(d<bd){bd=d;best=[xx,yy];}}
   return best;
 }
+function findOreNear(kind,x,y){ // ближайшая свободная залежь (той же руды, иначе любой)
+  let best=null,bd=1e9,anyBest=null,anyBd=1e9;
+  for(let yy=0;yy<H;yy++)for(let xx=0;xx<W;xx++){
+    if(!ore[yy][xx]||grid[yy][xx])continue;
+    const d=(xx-x)*(xx-x)+(yy-y)*(yy-y);
+    if(ore[yy][xx]===kind&&d<bd){bd=d;best=[xx,yy];}
+    if(d<anyBd){anyBd=d;anyBest=[xx,yy];}
+  }
+  return best||anyBest;
+}
+function specAllowsMiner(w,kind){
+  const s=w.spec||"any";
+  if(s==="any")return true;
+  if(s==="coal")return kind==="coal";
+  if(s==="iron")return kind==="iron"||kind==="stone";
+  if(s==="copper")return kind==="copper";
+  return false; // электрик и грузчик буры не таскают
+}
 function workerStep(w){
-  const SPEED=0.06;
+  const SPEED=workerSpeed(w);
   if(!w.job){
-    if(w.carry){ // несём собранное на склад (к ближайшему зданию)
+    if(w.carryCell){ // несём снятый бур к новой залежи
+      const tgt=findOreNear(w.carryCell.oreKind,w.x,w.y);
+      if(tgt)w.job={kind:"placeMiner",x:tgt[0],y:tgt[1]};
+      else {const b=nearestBuilding(w.x,w.y)||[Math.floor(w.x),Math.floor(w.y)]; // руды нет — вернуть бур на склад
+        Object.entries(DEFS.miner.cost).forEach(([k,n])=>inv[k]+=n);w.carryCell=null;
+        say("🛠 Свободной руды не осталось — бур разобран на склад");return;}
+    } else if(w.carry){ // несём собранное на склад (к ближайшему зданию)
       const b=nearestBuilding(w.x,w.y);
       if(!b){Object.entries(w.carry).forEach(([k,n])=>inv[k]+=n);w.carry=null;return;}
       w.job={kind:"return",x:b[0],y:b[1]};
     } else {
-      // работа 1: генератор голодает, на складе есть уголь
       let tgt=null,bd=1e9;
-      if(inv.coal>0)for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-        const c=grid[y][x];
-        if(c&&c.t==="gen"&&c.fuel<600&&(c.buf.coal||0)<1&&!workers.some(o=>o!==w&&o.job&&o.job.kind==="fuel"&&o.job.x===x&&o.job.y===y)){
-          const d=(x-w.x)*(x-w.x)+(y-w.y)*(y-w.y);if(d<bd){bd=d;tgt={kind:"fuel",x,y};}}}
-      // работа 2: ближайшая ничейная куча
+      const s=w.spec||"any";
+      // электрик/угольщик/универсал: голодный генератор
+      if((s==="any"||s==="power"||s==="coal")&&inv.coal+inv.wood>0&&S.autoAll!==false)
+        for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+          const c=grid[y][x];
+          if(c&&c.t==="gen"&&c.fuel<600&&(c.buf.coal||0)+(c.buf.wood||0)<1&&!workers.some(o=>o!==w&&o.job&&o.job.kind==="fuel"&&o.job.x===x&&o.job.y===y)){
+            const d=(x-w.x)*(x-w.x)+(y-w.y)*(y-w.y);if(d<bd){bd=d;tgt={kind:"fuel",x,y};}}}
+      // бур на пустой залежи → перенести (профильные и универсалы)
+      if(!tgt){bd=1e9;
+        for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+          const c=grid[y][x];
+          if(c&&c.t==="miner"&&!ore[y][x]&&specAllowsMiner(w,c.oreKind)&&!workers.some(o=>o!==w&&o.job&&o.job.kind==="fixMiner"&&o.job.x===x&&o.job.y===y)){
+            const d=(x-w.x)*(x-w.x)+(y-w.y)*(y-w.y);if(d<bd){bd=d;tgt={kind:"fixMiner",x,y};}}}}
+      // ближайшая подходящая по специализации куча
       if(!tgt){bd=1e9;
         for(const key in drops){
+          if(!pileMatches(w,drops[key]))continue;
           const [x,y]=key.split(",").map(Number);
           if(workers.some(o=>o!==w&&o.job&&o.job.kind==="pile"&&o.job.x===x&&o.job.y===y))continue;
           const d=(x-w.x)*(x-w.x)+(y-w.y)*(y-w.y);if(d<bd){bd=d;tgt={kind:"pile",x,y};}}}
@@ -296,13 +377,48 @@ function workerStep(w){
   const j=w.job;w.job=null;
   if(j.kind==="pile"){
     const d=drops[j.x+","+j.y];
-    if(d){w.carry=w.carry||{};Object.entries(d).forEach(([k,n])=>w.carry[k]=(w.carry[k]||0)+n);delete drops[j.x+","+j.y];puff(j.x,j.y,"#ffd98a",3);}
+    if(d){
+      const p=SPECS[w.spec||"any"].piles;
+      w.carry=w.carry||{};
+      Object.entries(d).forEach(([k,n])=>{
+        const bonus=(p&&p.includes(k))?Math.ceil(n*0.3):0; // профильный ресурс — +30%
+        w.carry[k]=(w.carry[k]||0)+n+bonus;
+      });
+      delete drops[j.x+","+j.y];puff(j.x,j.y,"#ffd98a",3);giveXp(w,2);
+    }
   } else if(j.kind==="fuel"){
     const c=grid[j.y]&&grid[j.y][j.x];
-    if(c&&c.t==="gen"&&inv.coal>0){const take=Math.min(inv.coal,3);inv.coal-=take;c.buf.coal=(c.buf.coal||0)+take;puff(j.x,j.y,"#5c6a7d",2);}
+    if(c&&c.t==="gen"&&S.autoAll!==false){
+      const cap=w.spec==="power"?6:3;
+      const tc=Math.min(inv.coal,cap);
+      if(tc>0){inv.coal-=tc;c.buf.coal=(c.buf.coal||0)+tc;}
+      else {const tw=Math.min(inv.wood,cap+1);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;}
+      puff(j.x,j.y,"#5c6a7d",2);giveXp(w,2);
+    }
+  } else if(j.kind==="fixMiner"){
+    const c=grid[j.y]&&grid[j.y][j.x];
+    if(c&&c.t==="miner"&&!ore[j.y][j.x]){grid[j.y][j.x]=null;w.carryCell=c;puff(j.x,j.y,"#8b9bb0",3);}
+  } else if(j.kind==="placeMiner"){
+    if(w.carryCell){
+      if(!grid[j.y][j.x]&&ore[j.y][j.x]){
+        w.carryCell.oreKind=ore[j.y][j.x];w.carryCell.prog=0;
+        grid[j.y][j.x]=w.carryCell;w.carryCell=null;
+        puff(j.x,j.y,"#7aa2ff",4);giveXp(w,6);
+        say(`🧍 ${SPECS[w.spec].nm} перенёс бур на ${ORE_NM[ore[j.y][j.x]]||"новую залежь"}`);
+      } // клетку заняли, пока шли — на следующем тике поищет другую
+    }
   } else if(j.kind==="return"){
-    if(w.carry){Object.entries(w.carry).forEach(([k,n])=>{inv[k]+=n;S.made[k]=S.made[k]||0;});w.carry=null;snd("craft");}
+    if(w.carry){Object.entries(w.carry).forEach(([k,n])=>{inv[k]+=n;});w.carry=null;snd("craft");giveXp(w,1);}
   }
+}
+/* меню рабочего: специализация + уровень */
+function openWorkerCtx(w,sx,sy){
+  const sp=SPECS[w.spec||"any"];
+  const acts=Object.entries(SPECS).map(([id,s])=>({
+    ic:(w.spec||"any")===id?"✅":s.ic,l:s.nm,sub:s.desc,wide:true,
+    f:()=>{w.spec=id;w.job=null;toast(`${s.ic} Теперь он ${s.nm.toLowerCase()} — ${s.desc}`);snd("rotate");}
+  }));
+  renderCtx(`${sp.ic} ${sp.nm} · ур.${w.lvl||1} (${w.xp||0}/${(w.lvl||1)*12} оп.)`,acts,sx,sy);
 }
 const tech=id=>TECHS.find(t=>t.id===id).done;
 
@@ -408,7 +524,10 @@ function drawInv(){if(S.sheet==="inv")renderSheet()}
 function drawTech(){if(S.sheet==="tech")renderSheet()}
 function drawGoal(){
   const g=GOALS[S.goal];
-  document.getElementById("goal").innerHTML=g?`<b>Цель ${S.goal+1}/${GOALS.length}:</b><br>${g.txt}`:"<b>Все цели выполнены!</b>";
+  // тап по плашке сворачивает её до «Цель N/M ▸» и разворачивает обратно
+  document.getElementById("goal").innerHTML=g
+    ?`<b>Цель ${S.goal+1}/${GOALS.length}<span class="gmin"> ▸</span>:</b><span class="gtxt"><br>${g.txt}</span>`
+    :"<b>Все цели выполнены!</b>";
 }
 function drawHud(){
   recomputePower();
@@ -426,12 +545,9 @@ function drawHud(){
   if(ps.noZone)powerPill+=` · ${ps.noZone} вне зоны генератора`;
   if(ps.over)powerPill+=` · нужен ещё генератор`;
   powerPill+=`</div>`;
-  const workerPill=workers.length?`<div class="pill">🧍×${workers.length}</div>`:"";
-  const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0);
-  const foldBtn=`<span class="rpill" style="cursor:pointer" onclick="event.stopPropagation();toggleResFold()">${resFold?"📦 ресурсы ▸":"📦 ✕"}</span>`;
-  const resPill=rows.length?`<div id="resline">${foldBtn}${resFold?"":rows.map(([k,nm])=>`<span class="rpill" onclick="openSheet('inv')">${nm.split(" ")[0]}<b>${inv[k]}</b></span>`).join("")}</div>`:"";
+  // ресурсы в HUD не показываем — склад живёт в ⋯ → 📦 (просьба игрока: меньше шума)
   document.getElementById("hud").innerHTML=
-    powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill+workerPill+resPill;
+    powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill;
 }
 function toggleResFold(){resFold=!resFold;localStorage.setItem("ff.resfold",resFold?"1":"0");drawHud()}
 function applyZen(){document.body.classList.toggle("zen",zen)}
@@ -444,12 +560,21 @@ document.getElementById("goal").onclick=function(){this.classList.toggle("min")}
 function buildAt(x,y,t){
   const d=DEFS[t];
   if(t==="miner"&&!ore[y][x]){toast("🛠 Бур ставится только на залежь");return false}
+  if(t==="gen"&&ore[y][x]){toast("⚡️ Генератор — только на пустую землю, залежь не закапываем");return false}
   if(!canPay(d.cost)){toast("Не хватает ресурсов на "+d.nm);return false}
   pushU(x,y);pay(d.cost);
   const cell={t,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0};
   if(RECIPES[t]){cell.recSel=0;cell.auto=true} // рецепт по умолчанию + авто-загрузка со склада
+  if(t==="miner")cell.oreKind=ore[y][x]; // помним, что копаем — для авто-перестановки рабочими
   grid[y][x]=cell;
   if(t==="belt")cell.dir=smartBeltDir(x,y); // умная ориентация — не крутить руками
+  if(t!=="belt"){ // посёлок растёт: каждые 5 построек приходит новый рабочий
+    S.builtCount=(S.builtCount||0)+1;
+    if(S.builtCount%5===0&&workers.length<WORKER_MAX){
+      spawnWorker(x,y);
+      toast("🧍 Посёлок растёт — прибыл новый рабочий! ("+workers.length+"/"+WORKER_MAX+")");snd("research");
+    }
+  }
   snd("place");puff(x,y,"#7aa2ff",3);drawInv();drawHud();
   return true;
 }
@@ -640,16 +765,30 @@ function techSheet(){
     sheetBody.appendChild(b);});
 }
 function mapSheet(){
+  const regionRows=(S.regions&&S.regions.length>1?S.regions:[]).map((rg,i)=>
+    `<button class="techBtn" data-rg="${i}" ${i===(S.curRegion||0)?"disabled":""}>${i===(S.curRegion||0)?"📍":"🌍"} ${rg?rg.nm||("Земля "+(i+1)):(S.regionName||"Земля "+(i+1))}<small>${i===(S.curRegion||0)?"ты здесь":"вернуться сюда"}</small></button>`).join("");
   sheetBody.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px">
       <button id="mZin" style="flex:1;text-align:center;font-size:1.1rem">➕</button>
       <button id="mZout" style="flex:1;text-align:center;font-size:1.1rem">➖</button>
       <button id="mFit" style="flex:1;text-align:center">🗺 Вся карта</button></div>
-    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Размер мира: <b style="color:var(--ink)">${W}×${H}</b> клеток. Мало руды или стало тесно? Расширь карту — вокруг появится кольцо новой земли с рудой и лесами.</div>
-    <button id="mExp" style="width:100%;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌍 Расширить карту</button>`;
+    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">📍 <b style="color:var(--ink)">${S.regionName||"Родная земля"}</b> · ${W}×${H} клеток. Руда конечна: выкопал — расширяй карту или уходи в новые земли (постройки и склад общие, рабочие идут с тобой).</div>
+    ${regionRows}
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button id="mExp" style="flex:1;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌱 Расширить эту</button>
+      <button id="mNew" style="flex:1;text-align:center;background:linear-gradient(180deg,#5b7bd5,#37549e);color:#eaf0ff;font-weight:700;border:none;padding:11px">🚀 Новые земли</button>
+    </div>`;
   sheetBody.querySelector("#mZin").onclick=zoomIn;
   sheetBody.querySelector("#mZout").onclick=zoomOut;
   sheetBody.querySelector("#mFit").onclick=()=>{fitAll();closeSheet()};
-  sheetBody.querySelector("#mExp").onclick=()=>{expandWorld(14);mapSheet();toast("🌍 Карта расширена: новое кольцо земли с ресурсами");snd("research")};
+  sheetBody.querySelector("#mExp").onclick=()=>{expandWorld(14);mapSheet();toast("🌱 Карта расширена: новое кольцо земли с ресурсами");snd("research")};
+  sheetBody.querySelectorAll("[data-rg]").forEach(b=>b.onclick=()=>travelTo(+b.dataset.rg));
+  sheetBody.querySelector("#mNew").onclick=()=>{
+    sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Куда отправляемся? Новая земля — свежая карта, полная руды. Назад можно вернуться в любой момент (🗺 → список земель).</div>`+
+      Object.entries(MAPS).map(([id,m])=>`<button class="techBtn" data-nm="${id}">${m.nm}<small>${m.desc}</small></button>`).join("")+
+      `<button class="techBtn" id="mBack"><small>← Назад</small></button>`;
+    sheetBody.querySelectorAll("[data-nm]").forEach(b=>b.onclick=()=>travelNew(b.dataset.nm));
+    sheetBody.querySelector("#mBack").onclick=mapSheet;
+  };
 }
 
 /* ---------- ⚙️ Автоматизация: сам строит цепочку и тратит ресурсы ---------- */
@@ -779,6 +918,10 @@ function autoSheet(){
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
   {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
+  {k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
+    S.autoAll=S.autoAll===false;
+    toast(S.autoAll!==false?"📥 Все здания снова сами берут со склада":"⛔️ Авто-пополнение выключено ВЕЗДЕ — загружай вручную (📥/⛽️), склад не тратится");
+  }},
   {k:zen?"👁":"🙈",l:zen?"Показать панели":"Скрыть панели",f:()=>toggleZen()},
   {k:"📦",l:"Склад",f:()=>openSheet("inv")},
   {k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
@@ -812,7 +955,7 @@ function describe(x,y){
     const d=DEFS[c.t];
     msg=`${d.ic} ${d.nm}`;
     if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}; без ленты складывает кучей (тапни кучу — соберёшь)`;
-    if(c.t==="gen")msg+=` — питает радиус ${GEN_RADIUS} клеток (до ${GEN_CAP}⚡️); топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}${c.auto!==false?"; сам берёт со склада":""}`;
+    if(c.t==="gen")msg+=` — питает радиус ${genRadius()} клеток (до ${genCap()}⚡️); топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}${c.auto!==false?"; сам берёт со склада":""}`;
     if(c.t==="belt")msg+=" — везёт предметы по стрелке; тап → 🔄 Повернуть";
     if(RECIPES[c.t])msg+=` — рецепты: ${RECIPES[c.t].map(r=>recipeStr(r)).join("; ")}`;
     if(c.t==="turret")msg+=" — стреляет по рейдерам рядом (нужна энергия)";
@@ -822,7 +965,7 @@ function describe(x,y){
     if(buf&&c.t!=="gen")msg+=` · внутри: ${buf}`;
     if(c.hp<DEFS[c.t].hp)msg+=` · HP ${c.hp}/${DEFS[c.t].hp}`;
   }
-  else if(ore[y][x])msg=`${ORE_NM[ore[y][x]]} — тапни и выбери 🛠 Бур, он будет добывать`;
+  else if(ore[y][x])msg=`${ORE_NM[ore[y][x]]} — осталось ${oreAmt[y][x]||"?"} ед. Тапни и выбери 🛠 Бур`;
   else if(terr[y][x]==="water")msg="🌊 Вода — строить нельзя, обходи";
   else if(terr[y][x]==="tree")msg="🌲 Дерево — тапни → 🪓 Срубить: даст древесину (горит в генераторе)";
   else msg="Пустая земля — тапни, чтобы выбрать постройку";
@@ -849,6 +992,12 @@ function tapAt(clientX,clientY){
     if(c.t==="belt")c.dir=smartBeltDir(x,y);
     snd("place");puff(x,y,"#7aa2ff",4);toast("↔️ Перенесено");
     clearQuick();drawHud();return;
+  }
+  { // тап по человечку — меню специализации
+    const r=cv.getBoundingClientRect();
+    const fx=(clientX-r.left-r.width/2)/cam.z+cam.x, fy=(clientY-r.top-r.height/2)/cam.z+cam.y;
+    const wn=workers.find(w=>Math.hypot(w.x*TS-fx,w.y*TS-fy)<TS*0.75);
+    if(wn){openWorkerCtx(wn,clientX,clientY);return}
   }
   if(drops[x+","+y]){collectDrops(x,y);return} // тап по куче — собрать
   if(S.quick){ // быстрая укладка одинаковых построек тапами
@@ -910,7 +1059,7 @@ function step(){
       if(c.fuel<=0&&(c.buf.coal||0)>0){c.buf.coal--;c.fuel=1500;puff(x,y,"#5c6a7d",1)} // 1 уголь ≈ 25с
       else if(c.fuel<=0&&(c.buf.wood||0)>0){c.buf.wood--;c.fuel=600;puff(x,y,"#4dbb72",1)} // 1 древесина ≈ 10с
       // авто-уголь со склада: свет не гаснет, пока на складе есть топливо (выкл. тапом по генератору)
-      else if(c.fuel<=0&&c.auto!==false){
+      else if(c.fuel<=0&&c.auto!==false&&S.autoAll!==false){
         if(inv.coal>0){const t2=Math.min(inv.coal,3);inv.coal-=t2;c.buf.coal=(c.buf.coal||0)+t2;}
         else if(inv.wood>0){const t2=Math.min(inv.wood,4);inv.wood-=t2;c.buf.wood=(c.buf.wood||0)+t2;}
       }
@@ -921,14 +1070,20 @@ function step(){
       c.prog+=speed;
       if(c.prog>=90){
         const k=ore[y][x];
-        if(!k){c.prog=0;continue}
-        if(outputTo(x,y,k)||dropAt(x,y,k)){c.prog=0;S.made[k]++;if(S.tick%180<90)puff(x,y,ORE[k],1)}
+        if(!k){c.prog=0;continue} // залежь исчерпана — рабочие перенесут бур
+        if(outputTo(x,y,k)||dropAt(x,y,k)){
+          c.prog=0;S.made[k]++;if(S.tick%180<90)puff(x,y,ORE[k],1);
+          if(--oreAmt[y][x]<=0){ // руда КОНЕЧНА
+            ore[y][x]=null;oreAmt[y][x]=0;terrDirty=true;
+            say("⛏ Залежь под буром исчерпана — рабочие поищут новую");
+          }
+        }
         else c.prog=90; // куча под буром полна — ждём, пока соберут
       }
     }
     if(c.t==="furnace"||c.t==="asm"||c.t==="lab"){
       if(DEFS[c.t].power>0&&!c.pw)continue;
-      if(c.auto!==false&&c.recSel!=null&&S.tick%90===(x*7+y*13)%90){ // авто-подсос сырья со склада под выбранный рецепт
+      if(c.auto!==false&&S.autoAll!==false&&c.recSel!=null&&S.tick%90===(x*7+y*13)%90){ // авто-подсос сырья со склада под выбранный рецепт
         activeRecipes(c).forEach(r=>Object.entries(r.in).forEach(([k,n])=>{
           const take=Math.min(n*2-(c.buf[k]||0),inv[k]);
           if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take}
@@ -1321,7 +1476,7 @@ function render(){
     const c=grid[y][x];
     if(c&&c.t==="gen"&&c.fuel>0){
       cx.strokeStyle="rgba(232,176,75,.14)";cx.lineWidth=1.5;
-      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,GEN_RADIUS*TS,0,7);cx.stroke();cx.lineWidth=1;
+      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,genRadius()*TS,0,7);cx.stroke();cx.lineWidth=1;
     }
   }
   // 🧍 рабочие
@@ -1334,6 +1489,9 @@ function render(){
     if(w.carry){const k=Object.keys(w.carry)[0];
       cx.fillStyle=ITEM_COL[k]||"#c9d4e0";cx.beginPath();cx.arc(wx+4,wy-2,2.6,0,7);cx.fill();
       cx.strokeStyle="rgba(0,0,0,.4)";cx.stroke();}
+    if(w.spec&&w.spec!=="any"){cx.font="8px sans-serif";cx.fillText(SPECS[w.spec].ic,wx,wy-10);cx.font="16px sans-serif";}
+    if(w.carryCell){cx.font="9px sans-serif";cx.fillText("🛠",wx+5,wy-7);cx.font="16px sans-serif";}
+    if((w.lvl||1)>1){cx.font="7px sans-serif";cx.fillStyle="#ffd98a";cx.fillText("★"+w.lvl,wx-6,wy-9);cx.font="16px sans-serif";}
   });
   // кучи ресурсов на земле (сбор тапом)
   cx.font="10px sans-serif";
@@ -1421,14 +1579,68 @@ function winGame(){
     <button style="flex:1" onclick="location.reload()">Меню</button>
     <button style="flex:1" onclick="parent.postMessage('hexland:exit','*')">В игры</button></div>`);
 }
+/* ---------- 🌍 земли-регионы: уходи в новые края и возвращайся ---------- */
+const serCell=c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp,fuel:c.fuel,recSel:c.recSel,auto:c.auto,oreKind:c.oreKind}:null;
+function regionDefaults(){ // дефолты для машин/буров после десериализации
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const g2=grid[y][x];if(!g2)continue;
+    if(RECIPES[g2.t]){if(g2.recSel===undefined)g2.recSel=0;if(g2.auto===undefined)g2.auto=true}
+    if(g2.t==="miner"&&g2.oreKind===undefined)g2.oreKind=ore[y][x];
+  }
+}
+function serializeRegion(){
+  return {nm:S.regionName,map:S.map,w:W,h:H,ore,oreAmt,terr,
+    grid:grid.map(r=>r.map(serCell)),drops,wave:S.wave,nextWave:S.nextWave};
+}
+function loadRegion(rg){
+  W=rg.w;H=rg.h;S.map=rg.map;S.regionName=rg.nm;
+  ore=rg.ore;oreAmt=rg.oreAmt||mk();terr=rg.terr;
+  grid=rg.grid.map(r=>r.map(c=>c?{...c,rec:null}:null));
+  drops=rg.drops||{};
+  S.wave=rg.wave||0;S.nextWave=rg.nextWave||S.tick+5400;
+  enemies=[];parts=[];
+  regionDefaults();seedOreAmounts(1);
+  resizeTerrCanvas();terrDirty=true;
+  workers.forEach(w=>{w.x=W/2+(Math.random()-0.5)*3;w.y=H/2+(Math.random()-0.5)*3;w.job=null;w.carryCell=null;});
+  undoStack.length=0;S.hint=null;
+  fitAll();cam.z=1.15;clampCam();
+  recomputePower();drawHud();drawGoal();
+}
+function travelTo(idx){
+  if(idx===S.curRegion)return;
+  S.regions[S.curRegion]=serializeRegion();
+  S.curRegion=idx;
+  loadRegion(S.regions[idx]);
+  toast("🌍 Вернулись: "+S.regionName);snd("research");closeSheet();saveGame();
+}
+function travelNew(mapId){
+  S.regions=S.regions||[];
+  S.regions[S.curRegion||0]=serializeRegion();
+  S.curRegion=S.regions.length;
+  genMap(mapId);S.map=mapId;
+  S.regionName=`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
+  S.regions.push(serializeRegion());
+  workers.forEach(w=>{w.x=W/2+(Math.random()-0.5)*3;w.y=H/2+(Math.random()-0.5)*3;w.job=null;w.carryCell=null;});
+  enemies=[];undoStack.length=0;S.hint=null;
+  fitAll();cam.z=1.15;clampCam();
+  if(S.mode==="survival")toast("⚠️ Ядро осталось в родной земле — не бросай его надолго!");
+  else toast("🌍 Новая земля: "+S.regionName+" — свежая руда ждёт");
+  snd("research");closeSheet();recomputePower();drawHud();saveGame();
+}
+
 /* сессии: каждая партия — отдельный сейв, удаляется ТОЛЬКО вручную из меню */
 const SESS_KEY="ff.sessions.v1";
 function sessionsList(){try{return JSON.parse(localStorage.getItem(SESS_KEY))||[]}catch(e){return[]}}
 function writeSessions(l){localStorage.setItem(SESS_KEY,JSON.stringify(l))}
 function saveGame(){
   if(!S.started||!S.sessionId)return;
-  const gridSer=grid.map(row=>row.map(c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp,fuel:c.fuel,recSel:c.recSel,auto:c.auto}:null));
-  const data={w:W,h:H,ore,terr,grid:gridSer,drops,workers:workers.map(w=>({x:w.x,y:w.y})),inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
+  S.regions=S.regions||[];
+  S.regions[S.curRegion||0]=serializeRegion(); // текущая земля — всегда свежая в списке
+  const data={w:W,h:H,ore,oreAmt,terr,grid:grid.map(r=>r.map(serCell)),drops,
+    workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl})),
+    regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
+    autoAll:S.autoAll,builtCount:S.builtCount,
+    inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
     status:S.win?"🏆":S.over?"💀":"▶"};
   const list=sessionsList();
@@ -1439,15 +1651,21 @@ function saveGame(){
 }
 function loadGame(d){
   W=d.w||(d.grid[0]?d.grid[0].length:W0);H=d.h||(d.grid?d.grid.length:H0);
-  ore=mk();terr=mk();grid=mk();resizeTerrCanvas();
+  ore=mk();oreAmt=mk();terr=mk();grid=mk();resizeTerrCanvas();
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    ore[y][x]=d.ore[y][x];terr[y][x]=(d.terr&&d.terr[y][x])||null;
-    grid[y][x]=d.grid[y][x]?{...d.grid[y][x],rec:null}:null;
-    const g2=grid[y][x]; // старые сейвы: включаем рецепт+авто-загрузку по умолчанию
-    if(g2&&RECIPES[g2.t]){if(g2.recSel===undefined)g2.recSel=0;if(g2.auto===undefined)g2.auto=true}}
+    ore[y][x]=d.ore[y][x];oreAmt[y][x]=(d.oreAmt&&d.oreAmt[y][x])||0;terr[y][x]=(d.terr&&d.terr[y][x])||null;
+    grid[y][x]=d.grid[y][x]?{...d.grid[y][x],rec:null}:null}
+  regionDefaults();seedOreAmounts(1); // старые сейвы: руда получает запас, машины — дефолты
   drops=d.drops||{};
   workers=[];
-  (d.workers&&d.workers.length?d.workers:[{x:W/2,y:H/2}]).forEach(w=>spawnWorker(w.x-0.5,w.y-0.5)); // старые сейвы получают одного рабочего
+  (d.workers&&d.workers.length?d.workers:[{x:W/2,y:H/2}]).forEach(w=>{
+    spawnWorker(w.x-0.5,w.y-0.5);
+    const nw=workers[workers.length-1];
+    nw.spec=w.spec||"any";nw.xp=w.xp||0;nw.lvl=w.lvl||1;
+  });
+  S.regions=d.regions||[];S.curRegion=d.curRegion||0;
+  S.regionName=d.regionName||`${(MAPS[d.map||"valley"]||MAPS.valley).nm} · земля 1`;
+  S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
   // завершённые партии можно продолжать строить (song-of-factorio); рейтинг уже записан
@@ -1465,6 +1683,7 @@ function startGame(opts){
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
     S.map=opts.map;genMap(opts.map);
+    S.curRegion=0;S.regions=[];S.regionName=`${MAPS[opts.map].nm} · земля 1`;S.autoAll=true;S.builtCount=0;
     S.tut=opts.tutorial?0:-1;
     if(opts.mode==="survival"){
       const cx0=Math.floor(W/2),cy0=Math.floor(H/2);
