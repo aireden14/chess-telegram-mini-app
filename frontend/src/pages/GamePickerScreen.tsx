@@ -28,6 +28,7 @@ const SECTIONS: Section[] = [
       { key: "hexforge", icon: "🪄", title: "Катан Fable", to: "/catan-fable", grad: ["#8a5bd0", "#5b3a9e"], badge: "NEW" },
       { key: "hexforge", icon: "🏭", title: "Fable Factory", to: "/fable-factory", grad: ["#d0a75b", "#9e6f2a"], badge: "NEW" },
       { key: "hexforge", icon: "🚂", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#c0392b", "#8e2418"], badge: "NEW" },
+      { key: "hexforge", icon: "🏰", title: "Каркассон", to: "/carcassonne", grad: ["#c9a34e", "#8a6d34"], badge: "NEW" },
       { key: "hexforge", icon: "🪄", title: "Монополия", to: "/monopoly-hp", grad: ["#e8b04b", "#8a5bd0"], badge: "NEW" },
       { key: "hexforge", icon: "☢️", title: "Бункер", to: "/bunker", grad: ["#d97b3f", "#7a3c14"], badge: "NEW" },
       { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge", grad: ["#2f3f46", "#4dbb72"], badge: "BETA" },
