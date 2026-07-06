@@ -24,44 +24,44 @@ const SECTIONS: Section[] = [
   {
     title: "Настолки",
     apps: [
-      { key: "catan", icon: "🏝️", title: "Катан", to: "/catan", grad: ["#f3b04b", "#e8762b"] },
-      { key: "hexforge", icon: "🪄", title: "Катан Fable", to: "/catan-fable", grad: ["#8a5bd0", "#5b3a9e"], badge: "NEW" },
-      { key: "hexforge", icon: "🏭", title: "Fable Factory", to: "/fable-factory", grad: ["#d0a75b", "#9e6f2a"], badge: "NEW" },
-      { key: "hexforge", icon: "🚂", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#c0392b", "#8e2418"], badge: "NEW" },
-      { key: "hexforge", icon: "🏰", title: "Каркассон", to: "/carcassonne", grad: ["#c9a34e", "#8a6d34"], badge: "NEW" },
-      { key: "hexforge", icon: "🪄", title: "Монополия", to: "/monopoly-hp", grad: ["#e8b04b", "#8a5bd0"], badge: "NEW" },
-      { key: "hexforge", icon: "☢️", title: "Бункер", to: "/bunker", grad: ["#d97b3f", "#7a3c14"], badge: "NEW" },
-      { key: "hexforge", icon: "⚙️", title: "HexForge", to: "/hexforge", grad: ["#2f3f46", "#4dbb72"], badge: "BETA" },
+      { key: "catan", icon: "/game-icons/256/catan.png", title: "Катан", to: "/catan", grad: ["#00b8a9", "#ffb23f"] },
+      { key: "hexforge", icon: "/game-icons/256/catan-fable.png", title: "Катан Fable", to: "/catan-fable", grad: ["#7d4cff", "#c35cff"], badge: "NEW" },
+      { key: "hexforge", icon: "/game-icons/256/fable-factory.png", title: "Fable Factory", to: "/fable-factory", grad: ["#ffb000", "#00d6ff"], badge: "NEW" },
+      { key: "hexforge", icon: "/game-icons/256/ticket-to-sonnet.png", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#e21b4d", "#3debff"], badge: "NEW" },
+      { key: "hexforge", icon: "/game-icons/256/carcassonne.png", title: "Каркассон", to: "/carcassonne", grad: ["#00a86b", "#ffd15c"], badge: "NEW" },
+      { key: "hexforge", icon: "/game-icons/256/monopoly-hp.png", title: "Монополия", to: "/monopoly-hp", grad: ["#6a35ff", "#41ffc5"], badge: "NEW" },
+      { key: "hexforge", icon: "/game-icons/256/bunker.png", title: "Бункер", to: "/bunker", grad: ["#ff7a1a", "#b7ff2a"], badge: "NEW" },
+      { key: "hexforge", icon: "/game-icons/256/hexforge.png", title: "HexForge", to: "/hexforge", grad: ["#52ff6b", "#2ea8ff"], badge: "BETA" },
     ],
   },
   {
     title: "Классика",
     apps: [
-      { key: "chess", icon: "♟️", title: "Шахматы", to: "/chess", grad: ["#5b7bff", "#3a5adf"] },
-      { key: "checkers", icon: "🔴", title: "Шашки", to: "/checkers", grad: ["#ff8a5b", "#ff5e7d"] },
+      { key: "chess", icon: "/game-icons/256/chess.png", title: "Шахматы", to: "/chess", grad: ["#315cff", "#52e8ff"] },
+      { key: "checkers", icon: "/game-icons/256/checkers.png", title: "Шашки", to: "/checkers", grad: ["#ff3b5c", "#ffc24a"] },
     ],
   },
   {
     title: "Для пары",
     apps: [
-      { key: "icebreakers", icon: "💞", title: "Знакомства", to: "/icebreakers", grad: ["#ff8ec0", "#c98cff"], badge: "NEW" },
-      { key: "card", icon: "🔮", title: "Карта дня", to: "/card-of-day", grad: ["#a86bff", "#6b3bff"] },
+      { key: "icebreakers", icon: "/game-icons/256/icebreakers.png", title: "Знакомства", to: "/icebreakers", grad: ["#ff4fb8", "#7ff2ff"], badge: "NEW" },
+      { key: "card", icon: "/game-icons/256/card-of-day.png", title: "Карта дня", to: "/card-of-day", grad: ["#9a4dff", "#6ef8ff"] },
     ],
   },
   {
     title: "Соло",
     apps: [
-      { key: "sudoku", icon: "🔢", title: "Судоку", to: "/sudoku", grad: ["#4ad0a8", "#2aa6c9"] },
-      { key: "force", icon: "🛡️", title: "Отражатель", to: "/force-deflector", grad: ["#8b6cff", "#5b7bff"] },
-      { key: "force", icon: "🧠", title: "Neurogrid", to: "/neurogrid", grad: ["#7ff2ff", "#5b8dff"], badge: "NEW" },
-      { key: "force", icon: "🟩", title: "WebGrid", to: "/webgrid", grad: ["#22ff9e", "#1aa66b"], badge: "NEW" },
-      { key: "catan_beta", icon: "📚", title: "Читалка", to: "/reader", grad: ["#d7a86b", "#a9743e"] },
+      { key: "sudoku", icon: "/game-icons/256/sudoku.png", title: "Судоку", to: "/sudoku", grad: ["#35e8b3", "#236bff"] },
+      { key: "force", icon: "/game-icons/256/force-deflector.png", title: "Отражатель", to: "/force-deflector", grad: ["#7b61ff", "#2ea8ff"] },
+      { key: "force", icon: "/game-icons/256/neurogrid.png", title: "Neurogrid", to: "/neurogrid", grad: ["#00e5ff", "#ff39d6"], badge: "NEW" },
+      { key: "force", icon: "/game-icons/256/webgrid.png", title: "WebGrid", to: "/webgrid", grad: ["#22ff88", "#efff4a"], badge: "NEW" },
+      { key: "catan_beta", icon: "/game-icons/256/reader.png", title: "Читалка", to: "/reader", grad: ["#1c7cff", "#ff6a7a"] },
     ],
   },
   {
     title: "Инструменты",
     apps: [
-      { key: "catan_beta", icon: "📄", title: "PDF Studio", to: "/pdf-studio", grad: ["#4c8dff", "#2a5fd0"], badge: "NEW" },
+      { key: "catan_beta", icon: "/game-icons/256/pdf-studio.png", title: "PDF Studio", to: "/pdf-studio", grad: ["#f43a3a", "#2ea8ff"], badge: "NEW" },
     ],
   },
 ];
@@ -93,6 +93,7 @@ export function GamePickerScreen() {
             <div className="home-grid">
               {section.apps.map((a, i) => {
                 const isImg = a.icon.includes(".png") || a.icon.includes(".jpg");
+                const iconSrc = a.icon.startsWith("/") ? a.icon : `/images/${a.icon}`;
                 return (
                   <motion.button
                     key={a.title}
@@ -106,7 +107,7 @@ export function GamePickerScreen() {
                       style={{ background: `linear-gradient(150deg, ${a.grad[0]}, ${a.grad[1]})` }}
                     >
                       {isImg ? (
-                        <img src={`/images/${a.icon}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
+                        <img src={iconSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
                       ) : (
                         <span className="home-app-emoji" aria-hidden>{a.icon}</span>
                       )}
