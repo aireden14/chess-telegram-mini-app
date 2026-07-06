@@ -505,7 +505,7 @@ function openRecipeMenu(x,y,sx,sy){
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -518,6 +518,7 @@ function renderSheet(){
   else if(S.sheet==="tech")techSheet();
   else if(S.sheet==="map")mapSheet();
   else if(S.sheet==="hand")handSheet();
+  else if(S.sheet==="auto")autoSheet();
 }
 function handSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Пока нет конвейеров или не хватает построек — крафти руками из того, что на складе. Медленнее автоматики, зато не застрянешь.</div>`;
@@ -556,9 +557,127 @@ function mapSheet(){
   sheetBody.querySelector("#mExp").onclick=()=>{expandWorld(14);mapSheet();toast("🌍 Карта расширена: новое кольцо земли с ресурсами");snd("research")};
 }
 
+/* ---------- ⚙️ Автоматизация: сам строит цепочку и тратит ресурсы ---------- */
+function sumCost(list){const t={};list.forEach(c=>Object.entries(c).forEach(([k,n])=>t[k]=(t[k]||0)+n));return t}
+const freeCell=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&!grid[y][x]&&!terr[y][x];
+function findOreNearCam(kind){
+  const cx=cam.x/TS,cy=cam.y/TS;let best=null,bd=1e9;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
+    if(ore[y][x]===kind&&!grid[y][x]){const d=(x-cx)*(x-cx)+(y-cy)*(y-cy);if(d<bd){bd=d;best=[x,y]}}
+  return best;
+}
+function spiralFree(x,y,minR,maxR,noOre){
+  const out=[];
+  for(let r=minR;r<=maxR;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
+    const nx=x+dx,ny=y+dy;
+    if(freeCell(nx,ny)&&(!noOre||!ore[ny][nx]))out.push([nx,ny]);
+  }
+  return out;
+}
+function beltPath(from,to){ // BFS по пустым клеткам: ленты от бура до процессора
+  const key=(x,y)=>x+","+y;
+  const prev=new Map();prev.set(key(from[0],from[1]),null);
+  const Q=[from];
+  while(Q.length){
+    const [x,y]=Q.shift();
+    for(const [dx,dy] of DIRS){
+      const nx=x+dx,ny=y+dy,k=key(nx,ny);
+      if(prev.has(k))continue;
+      if(nx===to[0]&&ny===to[1]){ // дошли до клетки процессора
+        const path=[];let cur=[x,y];
+        while(cur&&!(cur[0]===from[0]&&cur[1]===from[1])){path.unshift(cur);cur=prev.get(key(cur[0],cur[1]))}
+        return path;
+      }
+      if(!freeCell(nx,ny))continue;
+      if(prev.size>900)return null; // защита от разлива по всей карте
+      prev.set(k,[x,y]);Q.push([nx,ny]);
+    }
+  }
+  return null;
+}
+function autoOptions(){return [
+ {id:"coal",  l:"⚫ Уголь → генератор", sub:"бур на уголь + лента + генератор (заправлю)", ore:"coal", proc:"gen"},
+ {id:"iron",  l:"▪️ Железные листы",   sub:"бур на железо → лента → плавильня «жел.лист»", ore:"iron", proc:"furnace", rec:0},
+ {id:"copper",l:"🟧 Медные листы",     sub:"бур на медь → лента → плавильня «мед.лист»", ore:"copper", proc:"furnace", rec:1},
+ {id:"stone", l:"🪨 Камень",           sub:"бур на камень — кучи собирай тапом", ore:"stone", proc:null},
+ {id:"steel", l:"🔩 Сталь",            sub:"плавильня «сталь»: сама берёт ▪️ листы и ⚫ уголь со склада", proc:"furnace", rec:2},
+ {id:"gear",  l:"⚙️ Шестерни",         sub:"сборщик «шестерня», сырьё со склада", proc:"asm", rec:0, tech:"t_asm"},
+ {id:"wire",  l:"〰️ Провода",          sub:"сборщик «провод», сырьё со склада", proc:"asm", rec:1, tech:"t_asm"},
+ {id:"circuit",l:"🟩 Платы",           sub:"сборщик «плата», сырьё со склада", proc:"asm", rec:2, tech:"t_asm"},
+ {id:"science",l:"🧪 Наука",           sub:"лаборатория, сырьё со склада", proc:"lab", rec:0, tech:"t_lab"},
+];}
+function runAuto(o){
+  if(o.tech&&!tech(o.tech))return {err:"Сначала исследуй технологию в 🔬 Науке"};
+  if(o.ore){ // цепочка добычи: бур (+ лента + процессор)
+    const at=findOreNearCam(o.ore);
+    if(!at)return {err:"Не вижу залежь "+ORE_NM[o.ore]+" — расширь карту (🗺)"};
+    let procPos=null,path=null;
+    const costs=[DEFS.miner.cost];
+    if(o.proc){
+      for(const cand of spiralFree(at[0],at[1],2,6,true)){ // ищем место с рабочим путём ленты
+        const p=beltPath(at,cand);
+        if(p&&p.length){procPos=cand;path=p;break}
+      }
+      if(!procPos)return {err:"Нет места под "+DEFS[o.proc].nm+" рядом с залежью — освободи клетки"};
+      costs.push(DEFS[o.proc].cost);
+      path.forEach(()=>costs.push(DEFS.belt.cost));
+    }
+    const total=sumCost(costs);
+    if(!canPay(total))return {err:"Не хватает: "+costStr(total)};
+    buildAt(at[0],at[1],"miner");
+    if(o.proc){
+      buildAt(procPos[0],procPos[1],o.proc);
+      path.forEach(c=>buildAt(c[0],c[1],"belt"));
+      for(let i=0;i<path.length;i++){ // ориентируем ленты строго вдоль пути
+        const cell=grid[path[i][1]][path[i][0]];
+        const nxt=i+1<path.length?path[i+1]:procPos;
+        const di=DIRS.findIndex(([dx,dy])=>path[i][0]+dx===nxt[0]&&path[i][1]+dy===nxt[1]);
+        if(cell&&di>=0)cell.dir=di;
+      }
+      const pc=grid[procPos[1]][procPos[0]];
+      if(o.rec!=null){pc.recSel=o.rec;pc.auto=true}
+      if(o.proc==="gen")refuel(procPos[0],procPos[1]);
+    }
+    cam.x=at[0]*TS;cam.y=at[1]*TS;clampCam();
+    snd("research");
+    return {ok:`⚙️ Готово: 🛠 бур${path?` → ${path.length} лент → ${DEFS[o.proc].ic} ${DEFS[o.proc].nm}`:" (кучи собирай тапом)"}`};
+  }
+  // только переработка: здание с рецептом + авто-склад
+  const d=DEFS[o.proc];
+  if(!canPay(d.cost))return {err:"Не хватает: "+costStr(d.cost)};
+  const cx=Math.round(cam.x/TS),cy=Math.round(cam.y/TS);
+  const spots=spiralFree(cx,cy,1,10,true);
+  if(!spots.length)return {err:"Нет свободной клетки в центре экрана — сдвинь камеру"};
+  const pos=spots[0];
+  buildAt(pos[0],pos[1],o.proc);
+  const pc=grid[pos[1]][pos[0]];
+  pc.recSel=o.rec??0;pc.auto=true;
+  cam.x=pos[0]*TS;cam.y=pos[1]*TS;clampCam();
+  snd("research");
+  return {ok:`⚙️ Готово: ${d.ic} ${d.nm} · рецепт «${ITEM[RECIPES[o.proc][o.rec??0].out]}» · сырьё берёт со склада сам`};
+}
+function autoSheet(){
+  sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Выбери, что автоматизировать. Я сам поставлю постройки, дотяну ленту, выберу рецепт и спишу ресурсы со склада. Здания с рецептом дальше сами берут сырьё со склада (📥 авто).</div>`;
+  autoOptions().forEach(o=>{
+    const locked=o.tech&&!tech(o.tech);
+    const b=document.createElement("button");
+    b.className="techBtn";
+    b.innerHTML=`${locked?"🔒":o.l.slice(0,2)} ${o.l.slice(2)}<small>${locked?"нужна технология: "+TECHS.find(t=>t.id===o.tech).nm:o.sub}</small>`;
+    b.disabled=!!locked;
+    b.onclick=()=>{
+      const r=runAuto(o);
+      if(r.err){toast("⚠️ "+r.err)}
+      else{toast(r.ok);say(r.ok);closeSheet();drawInv();drawHud()}
+    };
+    sheetBody.appendChild(b);
+  });
+}
+
 /* ---------- умная кнопка (всё меню в одной) ---------- */
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
+  {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
   {k:"📦",l:"Склад",f:()=>openSheet("inv")},
   {k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
   {k:"🔬",l:"Наука",f:()=>openSheet("tech")},
