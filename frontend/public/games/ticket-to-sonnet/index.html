@@ -35,7 +35,7 @@
   svg#map{display:block;touch-action:pan-x pan-y;}
   .city-dot{fill:#e9edf7;stroke:#0b1120;stroke-width:1.5;}
   .city-label{fill:#cfd8ee;font-size:11px;font-weight:600;pointer-events:none;paint-order:stroke;stroke:#0b1120;stroke-width:3px;}
-  .edge-hit{fill:none;stroke:transparent;stroke-width:16;cursor:pointer;}
+  .edge-hit{fill:none;stroke:transparent;stroke-width:26;cursor:pointer;}
   .edge-line{fill:none;stroke-linecap:round;}
   .edge-line.tunnel{stroke-dasharray:2 4;}
   .edge-line.claimable:hover{filter:brightness(1.4);}
@@ -60,6 +60,20 @@
   .faceup-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
   .faceup-card{width:50px;height:70px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#111;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);cursor:pointer;}
   .deckback{width:50px;height:70px;border-radius:8px;background:linear-gradient(150deg,#2a3752,#161f30);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;border:1px solid var(--line);}
+  /* зум-контролы карты */
+  #mapCtrls{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;z-index:30;}
+  #mapCtrls button{width:42px;height:42px;border-radius:50%;font-size:18px;background:rgba(22,31,48,.92);border:1px solid var(--line);padding:0;}
+  /* подсветка подсказанных линий */
+  .edge-glow{stroke:#fff;stroke-width:8;fill:none;opacity:.8;stroke-dasharray:10 8;stroke-linecap:round;animation:dashmove 1s linear infinite;pointer-events:none;}
+  @keyframes dashmove{to{stroke-dashoffset:-18}}
+  /* панель подсказки */
+  #hintBar{display:flex;gap:8px;align-items:center;background:#20304e;border:1px solid #35507e;border-radius:10px;padding:7px 10px;font-size:12.5px;line-height:1.35;margin-bottom:6px;}
+  #hintBar.strong{border-color:#2f8f6b;background:#1c3a30;}
+  #hintBar .hicon{flex-shrink:0;}
+  #hintBar button{padding:4px 8px;font-size:12px;flex-shrink:0;background:rgba(255,255,255,.1);}
+  /* полноэкранная карта */
+  #app.mapfull #bottomBar{display:none;}
+  #app.mapfull .topbar .scoreboard{display:none;}
 </style>
 </head>
 <body>
@@ -90,6 +104,7 @@
   <div class="screen hidden" id="scrTickets">
     <h2 id="tkTitle">Выбор маршрутов</h2>
     <p class="muted">Оставьте себе минимум 2 карты маршрутов.</p>
+    <p class="muted">💡 Маршрут = соединить два города непрерывной цепочкой СВОИХ линий. Выполнишь — получишь очки, не выполнишь — потеряешь столько же. Оставляй маршруты, которые идут по одним и тем же местам.</p>
     <div class="col" id="tkList" style="margin-top:10px;"></div>
     <div style="flex:1"></div>
     <button class="primary" id="btnTkConfirm" style="padding:14px;">Подтвердить выбор</button>
@@ -100,6 +115,7 @@
     <div class="topbar">
       <div class="row" style="gap:6px;">
         <button class="ghost" id="btnExit">✕</button>
+        <button class="ghost" id="btnHelp">❓</button>
         <b id="turnLabel" style="font-size:14px;"></b>
       </div>
       <div class="scoreboard" id="scoreboard"></div>
@@ -107,8 +123,15 @@
     <div id="boardWrap">
       <div id="boardScroll"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
       <div class="toast hidden" id="toast"></div>
+      <div id="mapCtrls">
+        <button id="mzIn">＋</button>
+        <button id="mzOut">－</button>
+        <button id="mzFit" title="вся карта">⛶</button>
+        <button id="mzFull" title="развернуть карту">🗺</button>
+      </div>
     </div>
     <div id="bottomBar">
+      <div id="hintBar" class="hidden"><span class="hicon">💡</span><span id="hintTxt"></span></div>
       <div class="row between" style="margin-bottom:6px;">
         <div class="muted" id="handSummary"></div>
         <div class="row" style="gap:6px;">
@@ -567,6 +590,7 @@ function showPassScreen(player, onReveal){
 function currentPlayer(){ return G.players[G.turn]; }
 
 function renderGame(){
+  renderHint();
   renderMap();
   renderScoreboard();
   renderHand();
@@ -607,7 +631,7 @@ function renderHand(){
 function renderMap(){
   const svg = document.getElementById("map");
   svg.setAttribute("viewBox","0 0 1000 680");
-  svg.setAttribute("width","1500"); svg.setAttribute("height","1020");
+  updateMapSize();
   svg.innerHTML="";
   const g = document.createElementNS("http://www.w3.org/2000/svg","g");
   svg.appendChild(g);
@@ -653,6 +677,11 @@ function renderMap(){
       g.appendChild(anchor);
     }
 
+    if(window._hintEdges && window._hintEdges.has(e.id) && e.owner==null){
+      const gl = document.createElementNS("http://www.w3.org/2000/svg","path");
+      gl.setAttribute("d",d); gl.setAttribute("class","edge-glow");
+      g.appendChild(gl);
+    }
     if(e.owner==null){
       const hit = document.createElementNS("http://www.w3.org/2000/svg","path");
       hit.setAttribute("d",d); hit.setAttribute("class","edge-hit claimable");
@@ -710,6 +739,8 @@ function beginTurn(){
   renderGame();
   if(currentPlayer().isAI){
     setTimeout(aiTakeTurn, 500);
+  } else if(!localStorage.getItem("tts.tut")){
+    showTutorial(0); // первое знакомство — обучение само откроется
   }
 }
 function endTurn(consumedFullAction){
@@ -996,6 +1027,133 @@ document.getElementById("btnMyTickets").onclick=()=>{
 document.getElementById("btnExit").onclick=()=>{
   if(confirm("Выйти из игры?")) exitGame();
 };
+
+/* ===================== КАРТА: ЗУМ / ПИНЧ / ПОЛНЫЙ ЭКРАН ===================== */
+let mapZoom = parseFloat(localStorage.getItem("tts.zoom")||"0.9")||0.9;
+function updateMapSize(){
+  const svg=document.getElementById("map");
+  svg.setAttribute("width",Math.round(1000*mapZoom));
+  svg.setAttribute("height",Math.round(680*mapZoom));
+}
+function setZoom(z,cx,cy){
+  const sc=document.getElementById("boardScroll");
+  const old=mapZoom;
+  mapZoom=Math.min(3,Math.max(0.3,z));
+  if(Math.abs(mapZoom-old)<1e-6) return;
+  const px=cx!=null?cx:sc.clientWidth/2, py=cy!=null?cy:sc.clientHeight/2;
+  const rx=(sc.scrollLeft+px)/old, ry=(sc.scrollTop+py)/old;
+  updateMapSize();
+  sc.scrollLeft=rx*mapZoom-px; sc.scrollTop=ry*mapZoom-py;
+  localStorage.setItem("tts.zoom",mapZoom.toFixed(3));
+}
+document.getElementById("mzIn").onclick=()=>setZoom(mapZoom*1.3);
+document.getElementById("mzOut").onclick=()=>setZoom(mapZoom/1.3);
+document.getElementById("mzFit").onclick=()=>{
+  const sc=document.getElementById("boardScroll");
+  setZoom(Math.min(sc.clientWidth/1000,sc.clientHeight/680));
+};
+document.getElementById("mzFull").onclick=()=>{
+  const app=document.getElementById("app");
+  app.classList.toggle("mapfull");
+  document.getElementById("mzFull").textContent=app.classList.contains("mapfull")?"🎴":"🗺";
+};
+(function(){ // пинч-зум двумя пальцами
+  const sc=document.getElementById("boardScroll");
+  let pd=0;
+  const dist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  sc.addEventListener("touchstart",e=>{ if(e.touches.length===2) pd=dist(e); },{passive:true});
+  sc.addEventListener("touchmove",e=>{
+    if(e.touches.length!==2) return;
+    e.preventDefault();
+    const d=dist(e);
+    if(pd>0){
+      const r=sc.getBoundingClientRect();
+      const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left;
+      const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;
+      setZoom(mapZoom*d/pd,cx,cy);
+    }
+    pd=d;
+  },{passive:false});
+  sc.addEventListener("touchend",()=>{pd=0},{passive:true});
+})();
+
+/* ===================== 💡 ПОДСКАЗКИ «ЗА РУКУ» ===================== */
+const RU_COLOR={purple:"фиолетовых",white:"белых",blue:"синих",yellow:"жёлтых",orange:"оранжевых",black:"чёрных",red:"красных",green:"зелёных",loco:"локомотивов"};
+function affordEdgeColor(p,e){
+  const ferry=e.ferry||0;
+  if(p.hand.loco<ferry) return false;
+  if(e.color==="gray"){
+    for(const c of COLORS){ if(p.hand[c]>0 && p.hand[c]+p.hand.loco>=e.len) return c; }
+    return p.hand.loco>=e.len?"loco":false;
+  }
+  return (p.hand[e.color]+p.hand.loco>=e.len)?e.color:false;
+}
+function computeHint(){
+  const p=currentPlayer(),pIdx=G.turn;
+  const weightFn=e=>{ if(e.owner!=null) return e.owner===pIdx?0:Infinity; return e.len; };
+  const todo=p.tickets.filter(t=>!ticketCompleted(G.players,pIdx,t));
+  if(!todo.length) return {txt:"Все твои маршруты выполнены ✅ Возьми новые («Взять маршруты») или строй самые длинные линии — за них тоже очки.",edges:[]};
+  let best=null;
+  todo.forEach(t=>{
+    const sp=shortestPath(G.edges,t.a,t.b,weightFn);
+    if(!sp) return;
+    const rest=sp.path.filter(e=>e.owner==null);
+    const restLen=rest.reduce((a,e)=>a+e.len,0);
+    if(!best||restLen<best.restLen) best={t,rest,restLen};
+  });
+  if(!best) return {txt:"Маршруты перекрыты соперниками. Выручит Станция 🏠 — поставь её в городе на чужой линии: она «одолжит» этот участок для маршрута.",edges:[]};
+  const {t,rest}=best;
+  if(!rest.length) return {txt:`Маршрут «${t.a} — ${t.b}» уже соединён ✅`,edges:[]};
+  for(const e of rest){
+    if(p.trains>=e.len && affordEdgeColor(p,e))
+      return {txt:`Строй сейчас: ${e.a} — ${e.b} (${e.len} ваг.) — тапни подсвеченную линию! Это шаг к маршруту «${t.a} — ${t.b}».`,edges:[e.id],strong:true};
+  }
+  const e=rest[0];
+  let needTxt;
+  if(e.color==="gray"){
+    let bc=COLORS[0];COLORS.forEach(c=>{if(p.hand[c]>p.hand[bc])bc=c});
+    const miss=Math.max(0,e.len-(p.hand[bc]+p.hand.loco));
+    needTxt=`нужно ${e.len} карт одного цвета${miss>0?` — не хватает ${miss}, копи ${RU_COLOR[bc]}`:""}`;
+  } else {
+    const miss=Math.max(0,e.len-(p.hand[e.color]+p.hand.loco));
+    needTxt=`нужно ${e.len} ${RU_COLOR[e.color]}${miss>0?` — не хватает ${miss}`:""}`;
+  }
+  return {txt:`Цель «${t.a} — ${t.b}» (осталось ${best.restLen} ваг. по пунктиру). Следующий отрезок ${e.a} — ${e.b}: ${needTxt}. Жми «Взять карты».`,edges:rest.map(x=>x.id)};
+}
+function renderHint(){
+  const bar=document.getElementById("hintBar");
+  if(!G||G.phase!=="playing"||currentPlayer().isAI){ if(bar)bar.classList.add("hidden"); window._hintEdges=null; return; }
+  const h=computeHint();
+  document.getElementById("hintTxt").textContent=h.txt;
+  bar.classList.toggle("strong",!!h.strong);
+  bar.classList.remove("hidden");
+  window._hintEdges=new Set(h.edges);
+}
+
+/* ===================== ❓ ОБУЧЕНИЕ ===================== */
+const TUT_STEPS=[
+  {t:"🎯 Цель игры",b:"Набери больше всех очков: строй железнодорожные линии между городами и выполняй карты-маршруты (соединить два города своей непрерывной сетью). У тебя 45 вагонов — когда у кого-то останется меньше 3, начнётся последний круг."},
+  {t:"🎴 Твой ход = ОДНО действие",b:"1) «Взять карты» — 2 карты составов (открытые или из колоды).<br>2) Захватить линию — тапни её на карте и оплати картами.<br>3) «Взять маршруты» — 3 новых билета, оставь минимум 1.<br>4) «Станция» — поставить домик в городе."},
+  {t:"🚃 Как захватывать линии",b:"Линия из N сегментов = сбрось N карт её цвета. Серые линии — любые N карт ОДНОГО цвета. 🚂 Локомотив заменяет любую карту. Очки: 1→1, 2→2, 3→4, 4→7, 6→15, 8→21."},
+  {t:"⚓ Паромы и ⛰ туннели",b:"Паром (⚓ на линии): часть оплаты — обязательно локомотивы (по числу якорей).<br>Туннель (пунктирная линия): после оплаты вскрываются 3 карты — за каждую совпавшую по цвету придётся доплатить ещё карту."},
+  {t:"🎫 Маршруты (билеты)",b:"Выполнил маршрут — получаешь его очки, НЕ выполнил к концу игры — теряешь столько же. Свои маршруты смотри в «🎫 Маршруты» (✅ = уже соединён). Станция 🏠 позволяет использовать ОДНУ чужую линию из этого города."},
+  {t:"💡 Подсказки поведут за руку",b:"Внизу всегда панель 💡: она говорит, что делать прямо сейчас, а нужные линии ПОДСВЕЧИВАЮТСЯ белым пунктиром на карте. Карта: ➕➖ зум, ⛶ — вся карта, 🗺 — развернуть на весь экран, пинч двумя пальцами тоже работает."},
+];
+function showTutorial(i){
+  i=i||0;const s=TUT_STEPS[i];
+  openModal(`<h3>${s.t}</h3><p style="line-height:1.55;font-size:14px;">${s.b}</p>
+    <div class="row" style="margin-top:12px;">
+      ${i>0?'<button id="tutPrev">←</button>':''}
+      <button class="primary" id="tutNext" style="flex:1;padding:12px;">${i<TUT_STEPS.length-1?"Дальше →":"Понятно, играем!"}</button>
+    </div>
+    <p class="muted" style="margin-top:8px;text-align:center;">Обучение · ${i+1}/${TUT_STEPS.length}</p>`);
+  const pv=document.getElementById("tutPrev"); if(pv) pv.onclick=()=>showTutorial(i-1);
+  document.getElementById("tutNext").onclick=()=>{
+    if(i<TUT_STEPS.length-1) showTutorial(i+1);
+    else { localStorage.setItem("tts.tut","1"); closeModal(); }
+  };
+}
+document.getElementById("btnHelp").onclick=()=>showTutorial(0);
 
 /* ===================== AI ===================== */
 function aiTakeTurn(){

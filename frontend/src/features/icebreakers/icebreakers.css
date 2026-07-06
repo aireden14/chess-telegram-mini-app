@@ -107,3 +107,25 @@
   line-height: 1.4;
   color: rgba(255, 255, 255, .55);
 }
+
+.ice-btnrow {
+  display: flex;
+  gap: 8px;
+  width: min(440px, 88%);
+  margin: 0 auto;
+}
+.ice-btnrow .ice-next-btn { width: auto; flex: 1; margin: 0; padding: 16px 8px; }
+.ice-done-btn {
+  background: linear-gradient(135deg, #7ee8a2, #3fbf7f);
+  box-shadow: 0 12px 30px rgba(70, 190, 130, .35);
+  color: #0d2a1a;
+}
+.ice-reset-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: rgba(255, 255, 255, .55);
+  text-decoration: underline;
+  font-size: 12px;
+  cursor: pointer;
+}

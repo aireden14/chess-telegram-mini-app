@@ -22,6 +22,8 @@ import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
 import { TicketToSonnetScreen } from "./features/ticketToSonnet/TicketToSonnetScreen";
+import { MonopolyHpScreen } from "./features/monopolyHp/MonopolyHpScreen";
+import { BunkerScreen } from "./features/bunker/BunkerScreen";
 import { ReaderScreen } from "./features/reader/ReaderScreen";
 import { PdfStudioScreen } from "./features/pdfStudio/PdfStudioScreen";
 import { CheckersScreen } from "./features/checkers/CheckersScreen";
@@ -70,6 +72,8 @@ export function App() {
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
         <Route path="/ticket-to-sonnet" element={<Protected><TicketToSonnetScreen /></Protected>} />
+        <Route path="/monopoly-hp" element={<Protected><MonopolyHpScreen /></Protected>} />
+        <Route path="/bunker" element={<Protected><BunkerScreen /></Protected>} />
         <Route path="/reader" element={<Protected><ReaderScreen /></Protected>} />
         <Route path="/pdf-studio" element={<Protected><PdfStudioScreen /></Protected>} />
         <Route path="/checkers" element={<Protected><CheckersScreen /></Protected>} />

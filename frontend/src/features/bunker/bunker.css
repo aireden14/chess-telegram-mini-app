@@ -1,0 +1,59 @@
+.bunker-screen { display: flex; flex-direction: column; min-height: 100%; }
+.bk-menu, .bk-lobby { display: flex; flex-direction: column; gap: 10px; padding: 16px; max-width: 480px; margin: 0 auto; width: 100%; }
+.bk-logo { font-size: 44px; text-align: center; margin-top: 12px; }
+.bk-menu h2 { text-align: center; margin: 0; }
+.bk-muted { color: var(--text-secondary, #9aa5b8); font-size: 12.5px; line-height: 1.5; margin: 0; }
+.bk-err { color: #ff8484; font-size: 13px; margin: 0; text-align: center; }
+.bk-input {
+  background: var(--surface-2, #1c2740); border: 1px solid var(--border, #2a3752); border-radius: 12px;
+  color: inherit; padding: 13px; font-size: 16px; text-align: center; letter-spacing: 2px; font-weight: 700;
+  width: 100%;
+}
+.bk-btn {
+  border: none; border-radius: 12px; background: var(--surface-2, #1c2740); color: inherit;
+  padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.bk-btn:active { transform: scale(.97); }
+.bk-btn:disabled { opacity: .4; }
+.bk-btn.primary { background: linear-gradient(150deg, #d97b3f, #b04a1f); color: #fff; }
+.bk-btn.danger { background: #5a2233; color: #ffb4b4; }
+.bk-btn.small { padding: 8px 10px; font-size: 12.5px; flex: 1; }
+.bk-code-box { background: var(--surface-2, #1c2740); border-radius: 14px; padding: 14px; text-align: center; font-size: 15px; }
+.bk-code-box b { font-size: 24px; letter-spacing: 3px; display: block; margin: 4px 0; }
+.bk-players-list { display: flex; flex-direction: column; gap: 6px; }
+.bk-prow { display: flex; justify-content: space-between; background: var(--surface-2, #1c2740); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.bk-on { color: #6fd394; font-size: 12px; }
+.bk-off { color: #777; font-size: 12px; }
+
+.bk-game { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px calc(20px + env(safe-area-inset-bottom, 0px)); max-width: 560px; margin: 0 auto; width: 100%; }
+.bk-scenario { background: #2b1d12; border: 1px solid #6b3d1c; border-radius: 12px; padding: 10px 12px; font-size: 13px; cursor: pointer; line-height: 1.4; }
+.bk-timer { float: right; font-weight: 800; color: #ffd98a; font-variant-numeric: tabular-nums; }
+.bk-voteres { background: #3a1d2a; border: 1px solid #7e3050; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
+.bk-table { display: flex; flex-direction: column; gap: 6px; }
+.bk-pcard { background: var(--surface-2, #1c2740); border-radius: 12px; padding: 9px 11px; border: 1px solid transparent; }
+.bk-pcard.me { border-color: #d97b3f; }
+.bk-pcard.out { opacity: .5; }
+.bk-pname { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.bk-traits { display: flex; flex-wrap: wrap; gap: 4px; }
+.bk-trait { background: rgba(255,255,255,.07); border-radius: 8px; padding: 3px 8px; font-size: 11.5px; line-height: 1.35; }
+.bk-trait.dim { color: #778; }
+.bk-events { background: rgba(0,0,0,.25); border-radius: 10px; padding: 8px 10px; font-size: 11.5px; color: var(--text-secondary, #9aa5b8); line-height: 1.5; }
+.bk-hand-title { font-size: 12px; color: var(--text-secondary, #9aa5b8); margin-bottom: 6px; }
+.bk-hand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bk-card {
+  border: 1px solid var(--border, #2a3752); border-radius: 12px; background: #23180f;
+  padding: 8px 9px; text-align: left; cursor: pointer; color: inherit;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.bk-card.open { background: #14261a; border-color: #2f6b46; }
+.bk-card-cat { font-size: 11px; color: #c9a27a; font-weight: 700; }
+.bk-card-val { font-size: 12.5px; line-height: 1.35; }
+.bk-card-st { font-size: 10px; color: #888; }
+.bk-host { background: rgba(217,123,63,.08); border: 1px dashed #6b3d1c; border-radius: 12px; padding: 10px; }
+.bk-host-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.bk-finish { background: #14261a; border: 1px solid #2f6b46; border-radius: 12px; padding: 14px; text-align: center; font-size: 15px; font-weight: 700; }
+.bk-modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
+.bk-modal { background: var(--surface, #161f30); border-radius: 16px; padding: 18px; max-width: 440px; width: 100%; max-height: 84vh; overflow: auto; }
+.bk-modal p { font-size: 13.5px; line-height: 1.55; margin: 6px 0; }
+.bk-modal h3 { margin: 0 0 4px; }
+.bk-modal .bk-btn { width: 100%; margin-top: 10px; }

@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Монополия: Магический мир</title>
+<style>
+  :root{
+    --bg:#12101c; --panel:#1d1a2e; --panel2:#272240; --line:#3a3358; --text:#f0ecff; --muted:#9d93c4;
+    --gold:#e8b04b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;padding-top:var(--safe-top,0px);}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--panel2);color:var(--text);padding:10px 12px;font-size:14px;}
+  button:active{transform:scale(.96);}
+  button:disabled{opacity:.35;}
+  button.primary{background:linear-gradient(150deg,#8a5cf5,#5c3ad1);font-weight:700;}
+  button.gold{background:linear-gradient(150deg,#f0bc5e,#c98a2c);color:#241a08;font-weight:700;}
+  button.danger{background:#5a2233;}
+  .hidden{display:none !important;}
+  .muted{color:var(--muted);font-size:12px;}
+  h1,h2,h3{margin:0 0 8px;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:auto;padding:16px;padding-top:calc(16px + var(--safe-top,0px));}
+  /* игроки сверху */
+  #playersBar{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:var(--panel);scrollbar-width:none;}
+  #playersBar::-webkit-scrollbar{display:none;}
+  .pchip{flex:0 0 auto;border-radius:12px;padding:5px 10px;background:var(--panel2);font-size:12px;border:2px solid transparent;font-variant-numeric:tabular-nums;}
+  .pchip.turn{border-color:var(--gold);}
+  .pchip.dead{opacity:.4;text-decoration:line-through;}
+  /* доска */
+  #boardBox{padding:6px;display:flex;justify-content:center;}
+  #board{display:grid;grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);gap:1.5px;width:min(100vw - 12px, 62vh, 520px);aspect-ratio:1/1;}
+  .cell{position:relative;background:var(--panel);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:clamp(10px,3vw,16px);overflow:visible;}
+  .cell .cbar{position:absolute;top:0;left:0;right:0;height:22%;border-radius:4px 4px 0 0;}
+  .cell.corner{font-size:clamp(12px,3.6vw,20px);background:var(--panel2);}
+  .cell .own{position:absolute;inset:0;border-radius:4px;border:2px solid transparent;pointer-events:none;}
+  .cell .hs{position:absolute;bottom:1px;left:2px;font-size:7px;letter-spacing:-1px;line-height:1;}
+  .cell .tok{position:absolute;bottom:-2px;right:-2px;display:flex;flex-wrap:wrap;width:70%;justify-content:flex-end;pointer-events:none;z-index:3;}
+  .cell .tok i{width:9px;height:9px;border-radius:50%;border:1.5px solid #0b0a14;margin:-1px;}
+  .cell.here{outline:2px solid #fff;z-index:2;}
+  /* центр доски */
+  #center{grid-area:2/2/11/11;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;background:radial-gradient(ellipse at 50% 30%,#221d3a,#141020);border-radius:10px;margin:2px;}
+  #dice{font-size:34px;min-height:44px;letter-spacing:4px;}
+  #turnWho{font-weight:700;font-size:14px;}
+  #logBox{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.45;min-height:44px;max-width:100%;overflow:hidden;}
+  /* действия снизу */
+  #actions{padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:6px;background:var(--panel);}
+  #actions button{flex:1 1 30%;font-size:13px;padding:11px 6px;}
+  /* модалки */
+  .modal-back{position:fixed;inset:0;background:rgba(5,3,12,.72);display:flex;align-items:center;justify-content:center;z-index:60;padding:14px;}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:440px;width:100%;max-height:84vh;overflow:auto;position:relative;}
+  .close-x{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.08);border-radius:50%;width:30px;height:30px;padding:0;}
+  .prop-row{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px;gap:8px;}
+  .prop-row .dotc{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+  .prop-row.sel{outline:2px solid var(--gold);}
+  .toast{position:fixed;top:calc(12px + var(--safe-top,0px));left:50%;transform:translateX(-50%);background:#2c2547;border:1px solid var(--line);padding:9px 16px;border-radius:20px;font-size:13px;z-index:80;max-width:92%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+  .setup-seat{background:var(--panel);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .pill{padding:5px 11px;border-radius:20px;background:var(--panel2);font-size:12px;}
+  input[type=number]{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px;font-size:15px;width:100%;}
+  .rentline{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--muted);}
+  .rentline b{color:var(--text);}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- SETUP -->
+  <div class="screen" id="scrSetup">
+    <h1>🪄 Монополия: Магический мир</h1>
+    <p class="muted">Скупай волшебные места, стройся и торгуйся. Галлеоны решают всё. До 5 игроков за одним устройством (люди и боты).</p>
+    <div id="seatList" style="margin-top:12px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="btnAddSeat">+ Игрок</button>
+      <button id="btnRmSeat">− Игрок</button>
+    </div>
+    <div id="resumeBox" style="margin-top:12px;"></div>
+    <div style="flex:1"></div>
+    <button class="gold" id="btnStart" style="padding:15px;font-size:16px;">Начать игру</button>
+    <button id="btnExitSetup" style="margin-top:8px;">← К играм</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="scrGame" class="hidden" style="display:flex;flex-direction:column;height:100%;">
+    <div id="playersBar"></div>
+    <div id="boardBox"><div id="board"></div></div>
+    <div id="logBoxOuter" style="flex:1;min-height:0;"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="modalRoot"></div>
+  <div id="toastRoot"></div>
+</div>
+<script>
+"use strict";
+(function(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(tg){tg.expand&&tg.expand();tg.disableVerticalSwipes&&tg.disableVerticalSwipes();}}catch(e){}
+document.documentElement.style.setProperty('--safe-top','env(safe-area-inset-top,0px)');})();
+function exitGame(){try{window.parent.postMessage("hexland:exit","*");}catch(e){}}
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const fmt=n=>n+"🪙";
+
+/* ================= ДАННЫЕ ПОЛЯ ================= */
+const GROUP_COLORS={brown:"#8d6748",lblue:"#7fd4f0",pink:"#e88ac8",orange:"#f2994a",red:"#eb5757",yellow:"#f2c94c",green:"#27ae60",dark:"#5c7cfa",rail:"#b9c2cf",util:"#a58ee0"};
+const GROUP_NAMES={brown:"Магловские места",lblue:"Косой переулок",pink:"Хогсмид: лавки",orange:"Хогсмид: окраины",red:"Хогвартс: залы",yellow:"Угодья",green:"Волшебный центр",dark:"Сердце магии",rail:"Транспорт",util:"Службы"};
+const RENTS={60:[2,10,30,90,160,250],100:[6,30,90,270,400,550],120:[8,40,100,300,450,600],
+ 140:[10,50,150,450,625,750],160:[12,60,180,500,700,900],180:[14,70,200,550,750,950],200:[16,80,220,600,800,1000],
+ 220:[18,90,250,700,875,1050],240:[20,100,300,750,925,1100],260:[22,110,330,800,975,1150],280:[24,120,360,850,1025,1200],
+ 300:[26,130,390,900,1100,1275],320:[28,150,450,1000,1200,1400],350:[35,175,500,1100,1300,1500],400:[50,200,600,1400,1700,2000]};
+function P(nm,ic,g,price){return {t:"prop",nm,ic,g,price,rent:RENTS[price]};}
+function R(nm,ic){return {t:"rail",nm,ic,g:"rail",price:200};}
+function U(nm,ic){return {t:"util",nm,ic,g:"util",price:150};}
+const BOARD=[
+ {t:"go",nm:"Платформа 9¾",ic:"🚂"},
+ P("Тисовая улица, 4","🏠","brown",60),
+ {t:"chest",nm:"Шоколадная лягушка",ic:"🍫"},
+ P("Нора","🏡","brown",60),
+ {t:"tax",nm:"Налог Министерства",ic:"📜",amount:200},
+ R("Хогвартс-экспресс","🚂"),
+ P("Дырявый котёл","🍺","lblue",100),
+ {t:"chance",nm:"Карта Мародёров",ic:"🗺"},
+ P("Флориш и Блоттс","📚","lblue",100),
+ P("Лавка Олливандера","🪄","lblue",120),
+ {t:"jail",nm:"Азкабан",ic:"⛓"},
+ P("Сладкое королевство","🍬","pink",140),
+ U("Совиная почта","🦉"),
+ P("Зонко","💥","pink",140),
+ P("Три метлы","🍻","pink",160),
+ R("Ночной рыцарь","🚌"),
+ P("Кабанья голова","🐗","orange",180),
+ {t:"chest",nm:"Шоколадная лягушка",ic:"🍫"},
+ P("Визжащая хижина","🏚","orange",180),
+ P("Хогсмид-станция","🏘","orange",200),
+ {t:"free",nm:"Выручай-комната",ic:"🚪"},
+ P("Большой зал","🕯","red",220),
+ {t:"chance",nm:"Карта Мародёров",ic:"🗺"},
+ P("Библиотека","📖","red",220),
+ P("Астрономич. башня","🔭","red",240),
+ R("Летучий порох","🔥"),
+ P("Запретный лес","🌲","yellow",260),
+ P("Хижина Хагрида","🛖","yellow",260),
+ U("Ежедневный пророк","📰"),
+ P("Поле для квиддича","🧹","yellow",280),
+ {t:"gotojail",nm:"В Азкабан!",ic:"👮"},
+ P("Косой переулок","🛤","green",300),
+ P("Гринготтс","🏦","green",300),
+ {t:"chest",nm:"Шоколадная лягушка",ic:"🍫"},
+ P("Министерство магии","🏛","green",320),
+ R("Портключ","🌀"),
+ {t:"chance",nm:"Карта Мародёров",ic:"🗺"},
+ P("Хогвартс","🏰","dark",350),
+ {t:"tax",nm:"Взнос в Орден Феникса",ic:"🕊",amount:100},
+ P("Кабинет директора","🦉","dark",400),
+];
+BOARD.forEach((c,i)=>c.id=i);
+const HOUSE_COST=i=>i<10?50:i<20?100:i<30?150:200;
+const PLAYER_COLORS=["#eb5757","#3a7bd5","#27ae60","#f2c94c","#c58cff"];
+const TOKENS=["⚡️","🦉","🐈","🐀","🦌"];
+const BOT_NAMES=["Гермиона","Рон","Драко","Луна"];
+
+/* карты */
+const CHANCE=[
+ {txt:"Тайный ход ведёт на Платформу 9¾: получи 200🪙.",mv:1,f:p=>{moveTo(p,0,true);}},
+ {txt:"Портключ уносит тебя в Хогвартс.",mv:1,f:p=>{moveTo(p,37,true);}},
+ {txt:"Ты выиграл дуэль! +100🪙.",f:p=>{gain(p,100);}},
+ {txt:"Штраф за колдовство при маглах: −75🪙.",f:p=>{charge(p,75,null);}},
+ {txt:"«Пожиратели рядом» — беги в Азкабан (без 200🪙 за круг).",mv:1,f:p=>{goJail(p);}},
+ {txt:"Нашёл выпавший клык дракона: продай за 50🪙.",f:p=>{gain(p,50);}},
+ {txt:"Ремонт после пикси: заплати по 40🪙 за каждый домик.",f:p=>{const n=totalHouses(p);charge(p,n*40,null);log(`${p.name}: пикси разнесли ${n} построек`);}},
+ {txt:"Экспресс ждёт: отправляйся на Хогвартс-экспресс.",mv:1,f:p=>{moveTo(p,5,true);}},
+ {txt:"Карта Мародёров показывает короткий путь: сходи ещё раз!",f:p=>{S.extraRoll=true;}},
+ {txt:"Освобождение из Азкабана — прибереги эту карту.",f:p=>{p.jailCards++;}},
+];
+const CHEST=[
+ {txt:"Наследство от дальнего родственника-волшебника: +100🪙.",f:p=>{gain(p,100);}},
+ {txt:"Гринготтс начислил проценты: +50🪙.",f:p=>{gain(p,50);}},
+ {txt:"Выиграл конкурс зелий: +150🪙.",f:p=>{gain(p,150);}},
+ {txt:"Потерял палочку — новая у Олливандера: −100🪙.",f:p=>{charge(p,100,null);}},
+ {txt:"Помог Ордену Феникса: каждый игрок платит тебе 30🪙.",f:p=>{S.players.forEach(o=>{if(o!==p&&!o.dead)transfer(o,p,30);});}},
+ {txt:"Угостил всех сливочным пивом: −25🪙 каждому игроку.",f:p=>{S.players.forEach(o=>{if(o!==p&&!o.dead)transfer(p,o,25);});}},
+ {txt:"Шоколадная лягушка с редкой карточкой: +40🪙.",f:p=>{gain(p,40);}},
+ {txt:"Мадам Помфри лечит бесплатно, но зелья стоят: −50🪙.",f:p=>{charge(p,50,null);}},
+ {txt:"Освобождение из Азкабана — прибереги эту карту.",f:p=>{p.jailCards++;}},
+ {txt:"Вернулся на Платформу 9¾: получи 200🪙.",mv:1,f:p=>{moveTo(p,0,true);}},
+];
+
+/* ================= СОСТОЯНИЕ ================= */
+let S=null;
+const SAVE_KEY="mhp.save.v2";
+function newGame(seats){
+  S={
+    players:seats.map((s,i)=>({i,name:s.name,isAI:s.isAI,color:PLAYER_COLORS[i],tok:TOKENS[i],
+      money:1500,pos:0,jail:0,jailCards:0,dead:false,doubles:0})),
+    own:BOARD.map(()=>null),          // индекс игрока-владельца
+    houses:BOARD.map(()=>0),          // 0..5 (5 = замок)
+    mort:BOARD.map(()=>false),        // заложено
+    turn:0,phase:"roll",dice:[0,0],extraRoll:false,log:[],
+  };
+  save();
+}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){}}
+function loadSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY));}catch(e){return null;}}
+function cur(){return S.players[S.turn];}
+function alive(){return S.players.filter(p=>!p.dead);}
+function groupCells(g){return BOARD.filter(c=>c.g===g);}
+function ownsGroup(pi,g){return groupCells(g).every(c=>S.own[c.id]===pi);}
+function totalHouses(p){return BOARD.reduce((a,c)=>a+(S.own[c.id]===p.i?S.houses[c.id]:0),0);}
+function playerWorth(p){let w=p.money;BOARD.forEach(c=>{if(S.own[c.id]===p.i){w+=(S.mort[c.id]?c.price/2:c.price)+S.houses[c.id]*HOUSE_COST(c.id)/2;}});return w;}
+
+/* ================= ЛОГ / ТОСТ ================= */
+function log(t){S.log.push(t);if(S.log.length>60)S.log.shift();renderCenterLog();}
+let toastT=null;
+function toast(t,ms){
+  const r=document.getElementById("toastRoot");
+  r.innerHTML=`<div class="toast">${t}</div>`;
+  clearTimeout(toastT);toastT=setTimeout(()=>r.innerHTML="",ms||2600);
+}
+
+/* ================= ДЕНЬГИ ================= */
+function gain(p,n){p.money+=n;log(`${p.name}: +${fmt(n)}`);}
+function transfer(from,to,n){
+  const real=Math.min(from.money,n);
+  from.money-=n;to.money+=real;
+  if(from.money<0)handleDebt(from,to);
+}
+function charge(p,n,to){ // to=null → банк
+  p.money-=n;
+  if(to)to.money+=Math.min(n,n); // упрощённо: кредитор получает всё, долг разруливается банкротством
+  if(p.money<0)handleDebt(p,to);
+}
+function handleDebt(p,creditor){
+  // авто-залог у ботов; человеку — модалка управления
+  if(p.isAI){
+    autoRaiseMoney(p);
+    if(p.money<0)bankrupt(p,creditor);
+  } else {
+    if(canRaise(p)){
+      toast("Не хватает галлеонов! Заложи собственность или продай постройки (💼).",4000);
+      openManage(p,true,creditor);
+    } else bankrupt(p,creditor);
+  }
+}
+function canRaise(p){
+  return BOARD.some(c=>S.own[c.id]===p.i&&(!S.mort[c.id]||S.houses[c.id]>0));
+}
+function autoRaiseMoney(p){
+  // бот: сначала продаёт постройки, потом закладывает
+  for(const c of BOARD){
+    if(p.money>=0)return;
+    if(S.own[c.id]===p.i&&S.houses[c.id]>0){p.money+=S.houses[c.id]*HOUSE_COST(c.id)/2;S.houses[c.id]=0;}
+  }
+  for(const c of BOARD){
+    if(p.money>=0)return;
+    if(S.own[c.id]===p.i&&!S.mort[c.id]){S.mort[c.id]=true;p.money+=c.price/2;}
+  }
+}
+function bankrupt(p,creditor){
+  p.dead=true;
+  log(`💀 ${p.name} — банкрот!`);
+  toast(`💀 ${p.name} выбывает из игры`,3500);
+  BOARD.forEach(c=>{
+    if(S.own[c.id]===p.i){
+      if(creditor&&!creditor.dead){S.own[c.id]=creditor.i;}
+      else {S.own[c.id]=null;S.mort[c.id]=false;}
+      S.houses[c.id]=0;
+    }
+  });
+  if(creditor&&p.money<0){/* остаток долга прощается */}
+  p.money=0;
+  const a=alive();
+  if(a.length===1){finishGame(a[0]);return;}
+  if(S.turn===p.i)nextTurn();else renderAll();
+}
+function finishGame(winner){
+  S.phase="over";save();
+  openModal(`<h2>🏆 Победа!</h2>
+    <p style="font-size:15px;line-height:1.5;"><b style="color:${winner.color}">${winner.tok} ${esc(winner.name)}</b> — магнат магического мира!<br>
+    Состояние: <b>${fmt(playerWorth(winner))}</b></p>
+    <button class="gold" id="mNew" style="width:100%;margin-top:12px;padding:13px;">Новая игра</button>
+    <button id="mExit" style="width:100%;margin-top:8px;">К играм</button>`,true);
+  document.getElementById("mNew").onclick=()=>{localStorage.removeItem(SAVE_KEY);location.reload();};
+  document.getElementById("mExit").onclick=exitGame;
+}
+
+/* ================= ПЕРЕМЕЩЕНИЕ / КЛЕТКИ ================= */
+function moveTo(p,idx,collectGo){
+  if(collectGo&&idx<p.pos){gain(p,200);log(`${p.name} проходит Платформу 9¾: +200🪙`);}
+  p.pos=idx;
+  renderAll();
+  landOn(p);
+}
+function advance(p,steps){
+  const np=(p.pos+steps)%40;
+  if(np<p.pos){gain(p,200);log(`${p.name} проходит Платформу 9¾: +200🪙`);}
+  p.pos=np;
+  renderAll();
+  landOn(p);
+}
+function goJail(p){
+  p.pos=10;p.jail=3;p.doubles=0;S.extraRoll=false;
+  log(`⛓ ${p.name} отправляется в Азкабан`);
+  renderAll();
+  S.phase="acted";afterAction();
+}
+function landOn(p){
+  const c=BOARD[p.pos];
+  log(`${p.tok} ${p.name} → ${c.ic} ${c.nm}`);
+  if(c.t==="prop"||c.t==="rail"||c.t==="util"){
+    const owner=S.own[c.id];
+    if(owner==null){S.phase="canBuy";afterAction();return;}
+    if(owner!==p.i&&!S.mort[c.id]){
+      const o=S.players[owner];
+      const rent=rentOf(c);
+      log(`💸 Аренда ${c.nm}: ${fmt(rent)} → ${o.name}`);
+      toast(`💸 ${p.name} платит ${o.name} ${fmt(rent)} за ${c.ic} ${c.nm}`);
+      transfer(p,o,rent);
+      if(p.dead)return; // банкротство уже передало ход
+    }
+    S.phase="acted";afterAction();return;
+  }
+  if(c.t==="tax"){charge(p,c.amount,null);toast(`📜 ${c.nm}: −${fmt(c.amount)}`);if(p.dead)return;S.phase="acted";afterAction();return;}
+  if(c.t==="gotojail"){goJail(p);return;}
+  if(c.t==="chance"||c.t==="chest"){drawCard(p,c.t);return;}
+  S.phase="acted";afterAction();
+}
+function rentOf(c){
+  const owner=S.players[S.own[c.id]];
+  if(c.t==="rail"){
+    const n=groupCells("rail").filter(x=>S.own[x.id]===owner.i&&!S.mort[x.id]).length;
+    return [0,25,50,100,200][n]||25;
+  }
+  if(c.t==="util"){
+    const n=groupCells("util").filter(x=>S.own[x.id]===owner.i&&!S.mort[x.id]).length;
+    return (S.dice[0]+S.dice[1])*(n>=2?10:4);
+  }
+  const h=S.houses[c.id];
+  if(h>0)return c.rent[h];
+  return ownsGroup(owner.i,c.g)?c.rent[0]*2:c.rent[0];
+}
+function drawCard(p,kind){
+  const deck=kind==="chance"?CHANCE:CHEST;
+  const card=deck[Math.floor(Math.random()*deck.length)];
+  const title=kind==="chance"?"🗺 Карта Мародёров":"🍫 Шоколадная лягушка";
+  const apply=()=>{
+    const t0=S.turn;
+    card.f(p);
+    // карты с перемещением сами доигрывают клетку (landOn); банкротство могло уже передать ход
+    if(!card.mv&&S.turn===t0&&S.phase!=="over"&&!p.dead){S.phase="acted";afterAction();}
+  };
+  if(p.isAI){log(`${title}: ${card.txt}`);apply();return;}
+  openModal(`<h3>${title}</h3><p style="font-size:15px;line-height:1.5;">${card.txt}</p>
+    <button class="primary" id="mOk" style="width:100%;margin-top:10px;padding:12px;">Ок</button>`,true);
+  document.getElementById("mOk").onclick=()=>{closeModal();apply();};
+}
+
+/* ================= ХОД ================= */
+function rollDice(){
+  const p=cur();
+  const d1=1+Math.floor(Math.random()*6),d2=1+Math.floor(Math.random()*6);
+  S.dice=[d1,d2];
+  const dbl=d1===d2;
+  if(p.jail>0){
+    if(dbl){p.jail=0;log(`🎲 ${p.name}: дубль! Свободен из Азкабана`);toast("🎲 Дубль — свобода!");advance(p,d1+d2);}
+    else{
+      p.jail--;
+      if(p.jail===0){charge(p,50,null);if(p.dead)return;log(`${p.name} платит 50🪙 и выходит из Азкабана`);advance(p,d1+d2);}
+      else{log(`⛓ ${p.name} сидит в Азкабане (${p.jail} ход.)`);S.phase="acted";afterAction();}
+    }
+    return;
+  }
+  if(dbl){p.doubles++;if(p.doubles>=3){log(`🎲 Три дубля подряд!`);goJail(p);return;}S.extraRoll=true;}
+  else{p.doubles=0;}
+  advance(p,d1+d2);
+}
+function buyCurrent(){
+  const p=cur(),c=BOARD[p.pos];
+  if(S.phase!=="canBuy"||S.own[c.id]!=null)return;
+  if(p.money<c.price){toast("Не хватает галлеонов");return;}
+  p.money-=c.price;S.own[c.id]=p.i;
+  log(`🛍 ${p.name} покупает ${c.ic} ${c.nm} за ${fmt(c.price)}`);
+  toast(`🛍 Куплено: ${c.ic} ${c.nm}`);
+  S.phase="acted";afterAction();
+}
+function skipBuy(){if(S.phase==="canBuy"){S.phase="acted";afterAction();}}
+function endTurn(){
+  const p=cur();
+  if(S.phase==="canBuy"){S.phase="acted";}
+  if(S.extraRoll&&p.jail===0&&!p.dead){
+    S.extraRoll=false;S.phase="roll";
+    log(`🎲 Дубль — ${p.name} ходит ещё раз`);
+    renderAll();save();
+    if(p.isAI)setTimeout(botTurn,700);
+    return;
+  }
+  nextTurn();
+}
+function nextTurn(){
+  S.extraRoll=false;
+  let n=S.turn;
+  do{n=(n+1)%S.players.length;}while(S.players[n].dead);
+  S.turn=n;S.phase="roll";S.dice=[0,0];
+  renderAll();save();
+  const p=cur();
+  if(p.isAI)setTimeout(botTurn,800);
+}
+function afterAction(){
+  renderAll();save();
+  const p=cur();
+  if(p.dead){nextTurn();return;}
+  if(p.isAI)setTimeout(botAfter,700);
+}
+
+/* ================= УПРАВЛЕНИЕ СОБСТВЕННОСТЬЮ ================= */
+function myProps(p){return BOARD.filter(c=>S.own[c.id]===p.i);}
+function canBuild(p,c){
+  if(c.t!=="prop"||S.own[c.id]!==p.i||!ownsGroup(p.i,c.g))return false;
+  if(S.mort[c.id]||groupCells(c.g).some(x=>S.mort[x.id]))return false;
+  return S.houses[c.id]<5;
+}
+function openManage(p,debt,creditor){
+  const rows=myProps(p).map(c=>{
+    const h=S.houses[c.id],m=S.mort[c.id];
+    const acts=[];
+    if(canBuild(p,c)&&p.money>=HOUSE_COST(c.id)&&!debt)acts.push(`<button data-b="${c.id}" class="pill">🏗 +${h>=4?"🏰":"🏠"} ${fmt(HOUSE_COST(c.id))}</button>`);
+    if(h>0)acts.push(`<button data-s="${c.id}" class="pill">💰 −🏠 +${fmt(HOUSE_COST(c.id)/2)}</button>`);
+    if(!m&&h===0)acts.push(`<button data-m="${c.id}" class="pill">🔒 Залог +${fmt(c.price/2)}</button>`);
+    if(m)acts.push(`<button data-u="${c.id}" class="pill" ${p.money<Math.ceil(c.price*0.55)?"disabled":""}>🔓 Выкуп −${fmt(Math.ceil(c.price*0.55))}</button>`);
+    return `<div class="prop-row"><span class="dotc" style="background:${GROUP_COLORS[c.g]}"></span>
+      <span style="flex:1;">${c.ic} ${c.nm}${m?" <span class='muted'>(залог)</span>":""}${h>0?` ${h>=5?"🏰":"🏠".repeat(h)}`:""}</span>
+      <span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">${acts.join("")}</span></div>`;
+  }).join("")||"<p class='muted'>У тебя пока нет собственности.</p>";
+  openModal(`<h3>💼 Хозяйство: ${esc(p.name)} · ${fmt(p.money)}</h3>
+    ${debt?`<p class="muted" style="color:#ff9b9b;">Долг! Подними деньги (залог/продажа), окно закроется когда баланс ≥ 0.</p>`:""}
+    <div style="margin-top:8px;">${rows}</div>`);
+  const rerender=()=>{renderAll();save();
+    if(debt&&p.money>=0){closeModal();toast("Долг покрыт ✅");}
+    else if(debt&&!canRaise(p)&&p.money<0){closeModal();bankrupt(p,creditor);}
+    else openManage(p,debt,creditor);};
+  document.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{const c=BOARD[+b.dataset.b];p.money-=HOUSE_COST(c.id);S.houses[c.id]++;log(`🏗 ${p.name} строит на ${c.nm}`);rerender();});
+  document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{const c=BOARD[+b.dataset.s];p.money+=HOUSE_COST(c.id)/2;S.houses[c.id]--;rerender();});
+  document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{const c=BOARD[+b.dataset.m];S.mort[c.id]=true;p.money+=c.price/2;log(`🔒 ${p.name} закладывает ${c.nm}`);rerender();});
+  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{const c=BOARD[+b.dataset.u];const cost=Math.ceil(c.price*0.55);if(p.money<cost)return;p.money-=cost;S.mort[c.id]=false;rerender();});
+}
+
+/* ================= ОБМЕНЫ (главная фишка) ================= */
+function openTradePartner(){
+  const p=cur();
+  const others=alive().filter(o=>o.i!==p.i);
+  openModal(`<h3>🤝 Обмен: с кем торгуемся?</h3>
+    ${others.map(o=>`<button data-p="${o.i}" style="width:100%;margin-bottom:8px;text-align:left;padding:12px;">
+      <span style="color:${o.color}">${o.tok}</span> ${esc(o.name)} · ${fmt(o.money)} · владений: ${myProps(o).length}</button>`).join("")}`);
+  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>openTradeBuilder(p,S.players[+b.dataset.p]));
+}
+function openTradeBuilder(p,o,preset){
+  const sel={give:new Set(preset?.give||[]),get:new Set(preset?.get||[]),giveM:preset?.giveM||0,getM:preset?.getM||0};
+  function propRows(owner,set,attr){
+    const props=myProps(owner).filter(c=>S.houses[c.id]===0); // с постройками не обмениваются — сначала продай
+    if(!props.length)return "<p class='muted'>Нет свободной собственности (постройки надо продать до обмена).</p>";
+    return props.map(c=>`<div class="prop-row ${set.has(c.id)?"sel":""}" data-${attr}="${c.id}" style="cursor:pointer;">
+      <span class="dotc" style="background:${GROUP_COLORS[c.g]}"></span>
+      <span style="flex:1;">${c.ic} ${c.nm}${S.mort[c.id]?" <span class='muted'>(залог)</span>":""}</span><b>${fmt(c.price)}</b></div>`).join("");
+  }
+  function draw(){
+    openModal(`<h3>🤝 Обмен: ${esc(p.name)} ⇄ ${esc(o.name)}</h3>
+      <p class="muted" style="margin:4px 0;">Отдаёшь ты (${esc(p.name)}):</p>
+      ${propRows(p,sel.give,"g1")}
+      <div style="display:flex;gap:8px;align-items:center;margin:6px 0;">
+        <span class="muted" style="flex-shrink:0;">+ галлеоны:</span>
+        <input type="number" id="tGiveM" min="0" max="${p.money}" value="${sel.giveM}"/>
+      </div>
+      <p class="muted" style="margin:10px 0 4px;">Получаешь от ${esc(o.name)}:</p>
+      ${propRows(o,sel.get,"g2")}
+      <div style="display:flex;gap:8px;align-items:center;margin:6px 0;">
+        <span class="muted" style="flex-shrink:0;">+ галлеоны:</span>
+        <input type="number" id="tGetM" min="0" max="${o.money}" value="${sel.getM}"/>
+      </div>
+      <button class="gold" id="tSend" style="width:100%;margin-top:10px;padding:13px;">Предложить обмен</button>`);
+    document.querySelectorAll("[data-g1]").forEach(el=>el.onclick=()=>{const id=+el.dataset.g1;sel.give.has(id)?sel.give.delete(id):sel.give.add(id);grabM();draw();});
+    document.querySelectorAll("[data-g2]").forEach(el=>el.onclick=()=>{const id=+el.dataset.g2;sel.get.has(id)?sel.get.delete(id):sel.get.add(id);grabM();draw();});
+    function grabM(){sel.giveM=Math.max(0,Math.min(p.money,+document.getElementById("tGiveM").value||0));
+      sel.getM=Math.max(0,Math.min(o.money,+document.getElementById("tGetM").value||0));}
+    document.getElementById("tSend").onclick=()=>{
+      grabM();
+      if(!sel.give.size&&!sel.get.size&&!sel.giveM&&!sel.getM){toast("Пустой обмен");return;}
+      closeModal();
+      proposeTrade(p,o,{give:[...sel.give],get:[...sel.get],giveM:sel.giveM,getM:sel.getM});
+    };
+  }
+  draw();
+}
+function tradeText(p,o,tr){
+  const li=ids=>ids.map(id=>`${BOARD[id].ic} ${BOARD[id].nm}`).join(", ");
+  return `<b style="color:${p.color}">${esc(p.name)}</b> отдаёт: ${li(tr.give)||"—"}${tr.giveM?` + ${fmt(tr.giveM)}`:""}<br>
+     <b style="color:${o.color}">${esc(o.name)}</b> отдаёт: ${li(tr.get)||"—"}${tr.getM?` + ${fmt(tr.getM)}`:""}`;
+}
+function proposeTrade(p,o,tr){
+  if(o.isAI){
+    const verdict=botEvalTrade(o,p,tr);
+    if(verdict){executeTrade(p,o,tr);toast(`🤝 ${o.name} согласен на обмен!`,3000);}
+    else toast(`🙅 ${o.name} отказывается: невыгодно. Добавь галлеонов или другую собственность.`,3500);
+    return;
+  }
+  openModal(`<h3>🤝 Предложение обмена</h3>
+    <p style="font-size:14px;line-height:1.6;">${tradeText(p,o,tr)}</p>
+    <p class="muted">${esc(o.name)}, решай (передайте устройство).</p>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="gold" id="tYes" style="flex:1;padding:12px;">✅ Согласен</button>
+      <button class="danger" id="tNo" style="flex:1;padding:12px;">❌ Отказ</button>
+    </div>`,true);
+  document.getElementById("tYes").onclick=()=>{closeModal();executeTrade(p,o,tr);};
+  document.getElementById("tNo").onclick=()=>{closeModal();toast(`${o.name} отказался от обмена`);};
+}
+function executeTrade(p,o,tr){
+  tr.give.forEach(id=>S.own[id]=o.i);
+  tr.get.forEach(id=>S.own[id]=p.i);
+  p.money+=tr.getM-tr.giveM;
+  o.money+=tr.giveM-tr.getM;
+  log(`🤝 Обмен: ${p.name} ⇄ ${o.name}`);
+  renderAll();save();
+}
+/* ценность клетки для игрока pi: достройка группы сильно дороже */
+function propValueFor(pi,id){
+  const c=BOARD[id];let v=c.price*(S.mort[id]?0.6:1);
+  if(c.g&&c.t==="prop"){
+    const grp=groupCells(c.g);
+    const mine=grp.filter(x=>x.id!==id&&S.own[x.id]===pi).length;
+    if(mine===grp.length-1)v*=2.3;       // завершает монополию
+    else if(mine>0)v*=1.35;
+  }
+  if(c.t==="rail"){const n=groupCells("rail").filter(x=>x.id!==id&&S.own[x.id]===pi).length;v*=1+0.25*n;}
+  return v;
+}
+function botEvalTrade(bot,other,tr){
+  // tr с точки зрения other: give→bot, get←bot
+  let gain2=tr.giveM-tr.getM;
+  tr.give.forEach(id=>gain2+=propValueFor(bot.i,id));
+  tr.get.forEach(id=>gain2-=propValueFor(bot.i,id)*1.15); // расставаться больно
+  if(tr.getM>bot.money)return false;
+  return gain2>=-10;
+}
+
+/* ================= БОТ ================= */
+function botTurn(){
+  if(!S||S.phase==="over")return;
+  const p=cur();
+  if(!p.isAI||p.dead)return;
+  if(p.jail>0&&p.jailCards>0){p.jailCards--;p.jail=0;log(`${p.name} использует карту освобождения`);}
+  rollDice();
+}
+function botAfter(){
+  if(!S||S.phase==="over")return;
+  const p=cur();
+  if(!p.isAI){renderAll();return;}
+  if(S.phase==="canBuy"){
+    const c=BOARD[p.pos];
+    const keep=p.money-c.price;
+    const want=keep>150||(keep>=0&&propValueFor(p.i,c.id)>c.price*1.2);
+    if(want)buyCurrent();else skipBuy();
+    return;
+  }
+  if(S.phase==="acted"){
+    botBuild(p);
+    if(Math.random()<0.35)botTryTrade(p);
+    setTimeout(endTurn,600);
+  }
+}
+function botBuild(p){
+  let guard=0;
+  while(guard++<12){
+    const opts=BOARD.filter(c=>canBuild(p,c)&&p.money-HOUSE_COST(c.id)>=200);
+    if(!opts.length)break;
+    opts.sort((a,b)=>S.houses[a.id]-S.houses[b.id]); // равномерная застройка
+    const c=opts[0];
+    p.money-=HOUSE_COST(c.id);S.houses[c.id]++;
+    log(`🏗 ${p.name} строит на ${c.nm}`);
+  }
+}
+function botTryTrade(p){
+  // ищет клетку, завершающую его монополию, у живого игрока
+  for(const c of BOARD){
+    if(c.t!=="prop")continue;
+    const owner=S.own[c.id];
+    if(owner==null||owner===p.i)continue;
+    const grp=groupCells(c.g);
+    const mine=grp.filter(x=>x.id!==c.id&&S.own[x.id]===p.i).length;
+    if(mine!==grp.length-1)continue;
+    if(S.houses[c.id]>0)continue;
+    const o=S.players[owner];
+    if(o.dead)continue;
+    const offer=Math.ceil(c.price*1.6);
+    if(p.money-offer<150)continue;
+    const tr={give:[],get:[c.id],giveM:offer,getM:0};
+    log(`🤝 ${p.name} предлагает ${o.name} обмен: ${fmt(offer)} за ${c.nm}`);
+    if(o.isAI){
+      if(botEvalTrade(o,p,tr)){executeTrade(p,o,tr);toast(`🤝 ${p.name} выкупил ${c.ic} ${c.nm} у ${o.name}`,3000);}
+      return;
+    }
+    // человеку — интерактивное предложение
+    proposeTrade(p,o,tr);
+    return;
+  }
+}
+
+/* ================= РЕНДЕР ================= */
+const boardEl=document.getElementById("board");
+function cellPos(i){
+  if(i===0)return [11,11]; if(i<10)return [11,11-i]; if(i===10)return [11,1];
+  if(i<20)return [11-(i-10),1]; if(i===20)return [1,1]; if(i<30)return [1,i-19];
+  if(i===30)return [1,11]; return [i-29,11];
+}
+function buildBoard(){
+  boardEl.innerHTML="";
+  BOARD.forEach((c,i)=>{
+    const [r,cl]=cellPos(i);
+    const d=document.createElement("div");
+    d.className="cell"+(c.t==="go"||c.t==="jail"||c.t==="free"||c.t==="gotojail"?" corner":"");
+    d.style.gridArea=`${r}/${cl}`;
+    d.dataset.i=i;
+    d.innerHTML=`${c.g?`<div class="cbar" style="background:${GROUP_COLORS[c.g]}"></div>`:""}<span>${c.ic}</span>
+      <div class="own"></div><div class="hs"></div><div class="tok"></div>`;
+    d.onclick=()=>openCellInfo(i);
+    boardEl.appendChild(d);
+  });
+  const center=document.createElement("div");
+  center.id="center";
+  center.innerHTML=`<div id="turnWho"></div><div id="dice"></div><div id="logBox"></div>`;
+  boardEl.appendChild(center);
+}
+function renderAll(){
+  if(!S)return;
+  // игроки
+  document.getElementById("playersBar").innerHTML=S.players.map(p=>
+    `<div class="pchip ${p.i===S.turn?"turn":""} ${p.dead?"dead":""}" style="border-color:${p.i===S.turn?p.color:"transparent"}">
+      <span style="color:${p.color}">${p.tok}</span> ${esc(p.name)} · <b>${fmt(p.money)}</b>${p.jail>0?" ⛓":""}${p.jailCards>0?" 🎴":""}</div>`).join("");
+  // клетки
+  BOARD.forEach((c,i)=>{
+    const el=boardEl.querySelector(`[data-i="${i}"]`);if(!el)return;
+    const own=el.querySelector(".own");
+    own.style.borderColor=S.own[i]!=null?S.players[S.own[i]].color:"transparent";
+    own.style.opacity=S.mort[i]?"0.4":"1";
+    el.querySelector(".hs").textContent=S.houses[i]>=5?"🏰":"🏠".repeat(S.houses[i]);
+    el.querySelector(".tok").innerHTML=S.players.filter(p=>!p.dead&&p.pos===i).map(p=>`<i style="background:${p.color}"></i>`).join("");
+    el.classList.toggle("here",cur().pos===i&&!cur().dead);
+  });
+  const p=cur();
+  document.getElementById("turnWho").innerHTML=`<span style="color:${p.color}">${p.tok} ${esc(p.name)}</span>${p.isAI?" 🤖":""}`;
+  document.getElementById("dice").textContent=S.dice[0]?`${"⚀⚁⚂⚃⚄⚅"[S.dice[0]-1]} ${"⚀⚁⚂⚃⚄⚅"[S.dice[1]-1]}`:"🎲";
+  renderCenterLog();
+  renderActions();
+}
+function renderCenterLog(){
+  const el=document.getElementById("logBox");
+  if(el)el.innerHTML=S.log.slice(-3).map(esc).join("<br>");
+}
+function renderActions(){
+  const p=cur();
+  const box=document.getElementById("actions");
+  if(p.isAI){box.innerHTML=`<button disabled style="flex:1;">🤖 ${esc(p.name)} думает…</button>
+    <button id="aTradeAI">🤝 Обмен</button>`;
+    const t=document.getElementById("aTradeAI");if(t)t.onclick=openTradePartner;
+    return;}
+  const b=[];
+  if(S.phase==="roll"){
+    if(p.jail>0){
+      b.push(`<button class="primary" id="aRoll">🎲 Дубль на свободу</button>`);
+      b.push(`<button id="aPay" ${p.money<50?"disabled":""}>💰 Заплатить 50</button>`);
+      if(p.jailCards>0)b.push(`<button id="aCard">🎴 Карта свободы</button>`);
+    } else b.push(`<button class="primary" id="aRoll">🎲 Бросить кубики</button>`);
+  }
+  if(S.phase==="canBuy"){
+    const c=BOARD[p.pos];
+    b.push(`<button class="gold" id="aBuy" ${p.money<c.price?"disabled":""}>🛍 Купить за ${fmt(c.price)}</button>`);
+    b.push(`<button id="aSkip">Не покупать</button>`);
+  }
+  if(S.phase==="acted")b.push(`<button class="primary" id="aEnd">${S.extraRoll?"🎲 Ходить ещё (дубль)":"➡️ Конец хода"}</button>`);
+  b.push(`<button id="aTrade">🤝 Обмен</button>`);
+  b.push(`<button id="aManage">💼 Хозяйство</button>`);
+  b.push(`<button id="aMenu">⚙️</button>`);
+  box.innerHTML=b.join("");
+  const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f;};
+  on("aRoll",rollDice);
+  on("aPay",()=>{p.money-=50;p.jail=0;log(`${p.name} откупился от Азкабана`);renderAll();});
+  on("aCard",()=>{p.jailCards--;p.jail=0;log(`${p.name} использует карту освобождения`);renderAll();});
+  on("aBuy",buyCurrent);on("aSkip",skipBuy);on("aEnd",endTurn);
+  on("aTrade",openTradePartner);on("aManage",()=>openManage(p,false,null));
+  on("aMenu",openMenu);
+}
+function openMenu(){
+  openModal(`<h3>⚙️ Меню</h3>
+    <button id="mRules" style="width:100%;margin-bottom:8px;">📖 Правила коротко</button>
+    <button id="mLog" style="width:100%;margin-bottom:8px;">📜 История событий</button>
+    <button class="danger" id="mReset" style="width:100%;margin-bottom:8px;">🗑 Завершить партию</button>
+    <button id="mExit" style="width:100%;">🎮 К играм (партия сохранится)</button>`);
+  document.getElementById("mRules").onclick=()=>openModal(`<h3>📖 Правила</h3>
+    <p style="font-size:13.5px;line-height:1.6;">🎲 Бросай кубики, иди по кругу. Попал на свободное место — можешь купить.
+    Попал на чужое — платишь аренду. Собери все места одного цвета (монополию) — аренда ×2 и можно строить 🏠 (5-я постройка = 🏰 замок, аренда огромная).<br><br>
+    🤝 <b>Обмены — сердце игры</b>: меняйся местами и галлеонами с другими игроками, чтобы собрать монополию. Боты тоже торгуются и понимают выгоду.<br><br>
+    🔒 Нет денег — закладывай собственность (половина цены). ⛓ Азкабан: выход — дубль, 50🪙 или карта. Банкрот выбывает; последний живой — победитель. Партия автосохраняется.</p>
+    <button class="primary" style="width:100%;margin-top:10px;padding:12px;" onclick="closeModal()">Понятно</button>`);
+  document.getElementById("mLog").onclick=()=>openModal(`<h3>📜 История</h3>
+    <div style="font-size:12.5px;line-height:1.6;color:var(--muted);">${S.log.slice(-40).map(esc).join("<br>")}</div>`);
+  document.getElementById("mReset").onclick=()=>{if(confirm("Точно завершить партию? Сейв удалится.")){localStorage.removeItem(SAVE_KEY);location.reload();}};
+  document.getElementById("mExit").onclick=()=>{save();exitGame();};
+}
+function openCellInfo(i){
+  const c=BOARD[i];
+  let body="";
+  if(c.t==="prop"){
+    const own=S.own[i]!=null?S.players[S.own[i]]:null;
+    body=`<p class="muted">${GROUP_NAMES[c.g]} · цена ${fmt(c.price)} · постройка ${fmt(HOUSE_COST(i))}</p>
+      ${own?`<p>Владелец: <b style="color:${own.color}">${own.tok} ${esc(own.name)}</b>${S.mort[i]?" (в залоге)":""}</p>`:"<p>Свободно</p>"}
+      <div class="rentline"><span>Аренда</span><b>${fmt(c.rent[0])}</b></div>
+      <div class="rentline"><span>— с монополией</span><b>${fmt(c.rent[0]*2)}</b></div>
+      ${[1,2,3,4].map(h=>`<div class="rentline"><span>— ${"🏠".repeat(h)}</span><b>${fmt(c.rent[h])}</b></div>`).join("")}
+      <div class="rentline"><span>— 🏰 замок</span><b>${fmt(c.rent[5])}</b></div>`;
+  } else if(c.t==="rail"){
+    const own=S.own[i]!=null?S.players[S.own[i]]:null;
+    body=`<p class="muted">Транспорт · цена ${fmt(c.price)}</p>
+      ${own?`<p>Владелец: <b style="color:${own.color}">${esc(own.name)}</b></p>`:"<p>Свободно</p>"}
+      <div class="rentline"><span>1/2/3/4 транспорта</span><b>25/50/100/200🪙</b></div>`;
+  } else if(c.t==="util"){
+    body=`<p class="muted">Служба · цена ${fmt(c.price)}</p><div class="rentline"><span>Аренда</span><b>кубики ×4 (×10 с двумя)</b></div>`;
+  } else {
+    const desc={go:"Проходишь или встаёшь — получаешь 200🪙.",jail:"Просто посещение… если ты не заключённый.",
+      free:"Комната появляется, когда нужна. Отдыхай бесплатно.",gotojail:"Прямиком в Азкабан, без 200🪙.",
+      tax:`Заплати ${fmt(c.amount||0)}.`,chance:"Тяни Карту Мародёров — что угодно может случиться.",chest:"Шоколадная лягушка с сюрпризом внутри."}[c.t]||"";
+    body=`<p style="line-height:1.5;">${desc}</p>`;
+  }
+  openModal(`<h3>${c.ic} ${esc(c.nm)}</h3>${body}`);
+}
+
+/* ================= МОДАЛКИ ================= */
+function openModal(html,noClose){
+  const root=document.getElementById("modalRoot");
+  root.innerHTML=`<div class="modal-back" id="mbk"><div class="modal">${noClose?"":'<button class="close-x" id="mX">✕</button>'}${html}</div></div>`;
+  const x=document.getElementById("mX");if(x)x.onclick=closeModal;
+  document.getElementById("mbk").onclick=e=>{if(e.target.id==="mbk"&&!noClose)closeModal();};
+}
+function closeModal(){document.getElementById("modalRoot").innerHTML="";}
+
+/* ================= SETUP ================= */
+let seats=[{name:"Гарри",isAI:false},{name:BOT_NAMES[0],isAI:true},{name:BOT_NAMES[1],isAI:true}];
+function renderSetup(){
+  const list=document.getElementById("seatList");
+  list.innerHTML=seats.map((s,i)=>`<div class="setup-seat">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:18px;">${TOKENS[i]}</span>
+      <input data-i="${i}" class="seatname" style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;width:130px;" value="${esc(s.name)}"/>
+    </div>
+    <button class="pill" data-t="${i}" style="${s.isAI?"":"background:#2f8f6b;"}">${s.isAI?"🤖 Бот":"🧑 Человек"}</button>
+  </div>`).join("");
+  list.querySelectorAll(".seatname").forEach(inp=>inp.addEventListener("input",e=>{seats[+e.target.dataset.i].name=e.target.value||("Игрок "+(+e.target.dataset.i+1));}));
+  list.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{seats[+b.dataset.t].isAI=!seats[+b.dataset.t].isAI;renderSetup();});
+  document.getElementById("btnAddSeat").disabled=seats.length>=5;
+  document.getElementById("btnRmSeat").disabled=seats.length<=2;
+  const sv=loadSave();
+  document.getElementById("resumeBox").innerHTML=(sv&&sv.phase!=="over")?
+    `<button class="primary" id="btnResume" style="width:100%;padding:13px;">▶️ Продолжить сохранённую партию</button>`:"";
+  const r=document.getElementById("btnResume");
+  if(r)r.onclick=()=>{S=loadSave();startUI();};
+}
+document.getElementById("btnAddSeat").onclick=()=>{if(seats.length<5){seats.push({name:BOT_NAMES[seats.length-1]||("Игрок "+(seats.length+1)),isAI:true});renderSetup();}};
+document.getElementById("btnRmSeat").onclick=()=>{if(seats.length>2){seats.pop();renderSetup();}};
+document.getElementById("btnStart").onclick=()=>{newGame(seats);startUI();};
+document.getElementById("btnExitSetup").onclick=exitGame;
+function startUI(){
+  document.getElementById("scrSetup").classList.add("hidden");
+  document.getElementById("scrGame").classList.remove("hidden");
+  buildBoard();renderAll();
+  if(!localStorage.getItem("mhp.tut")){
+    localStorage.setItem("mhp.tut","1");
+    openModal(`<h3>🪄 Как играть</h3><p style="font-size:14px;line-height:1.6;">
+      🎲 Жми «Бросить кубики» — фишка идёт по кругу.<br>
+      🛍 Свободное место можно купить, на чужом платишь аренду.<br>
+      🎨 Собери все места одного цвета → стройся 🏠 и дери втридорога.<br>
+      🤝 «Обмен» — торгуйся с игроками и ботами: места + галлеоны.<br>
+      💼 «Хозяйство» — стройка, залог, продажа.<br>
+      Тапни любую клетку на поле, чтобы посмотреть её цены.</p>
+      <button class="gold" style="width:100%;margin-top:10px;padding:12px;" onclick="closeModal()">Поехали!</button>`,true);
+  }
+  if(cur().isAI)setTimeout(botTurn,900);
+}
+renderSetup();
+</script>
+</body>
+</html>

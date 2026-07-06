@@ -118,7 +118,7 @@ let terr=mk(); // "water"|"tree"|null
 function resizeTerrCanvas(){terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;terrDirty=true}
 function genMap(mapId){
   const m=MAPS[mapId];
-  W=W0;H=H0;ore=mk();terr=mk();grid=mk();resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
+  W=W0;H=H0;ore=mk();terr=mk();grid=mk();drops={};resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
   if(m.water){ // озёра-кляксы
     for(let i=0;i<7;i++){let x=rnd(4,W-5),y=rnd(4,H-5);
       for(let j=0;j<50;j++){if(x>1&&y>1&&x<W-2&&y<H-2)terr[y][x]="water";x+=rnd(-1,1);y+=rnd(-1,1)}}
@@ -211,6 +211,9 @@ const HAND=[
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
+let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
+const DROP_CAP=40;
+let resFold=localStorage.getItem("ff.resfold")==="1";
 const tech=id=>TECHS.find(t=>t.id===id).done;
 
 const logEl=document.getElementById("log");
@@ -332,12 +335,14 @@ function drawHud(){
     &&!RECIPES[c.t].some(r=>Object.entries(r.in).every(([k,n])=>(c.buf[k]||0)>=n))).length;
   const idlePill=idle>0?`<div class="pill bad">⏸ простаивает: ${idle} — нет сырья</div>`:"";
   const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0);
-  const resPill=rows.length?`<div id="resline" onclick="openSheet('inv')">${rows.map(([k,nm])=>`<span class="rpill">${nm.split(" ")[0]}<b>${inv[k]}</b></span>`).join("")}</div>`:"";
+  const foldBtn=`<span class="rpill" style="cursor:pointer" onclick="event.stopPropagation();toggleResFold()">${resFold?"📦 ресурсы ▸":"📦 ✕"}</span>`;
+  const resPill=rows.length?`<div id="resline">${foldBtn}${resFold?"":rows.map(([k,nm])=>`<span class="rpill" onclick="openSheet('inv')">${nm.split(" ")[0]}<b>${inv[k]}</b></span>`).join("")}</div>`:"";
   document.getElementById("hud").innerHTML=
     `<div class="pill ${ok?"":"bad"}">⚡️ ${gen}/${use}${ok?"":" — не хватает энергии!"}</div>`+
     (noFuel?`<div class="pill bad">⚫ генератор без угля!</div>`:"")+wavePill+idlePill+resPill;
   S.powerOk=ok;
 }
+function toggleResFold(){resFold=!resFold;localStorage.setItem("ff.resfold",resFold?"1":"0");drawHud()}
 function exitGame(){parent.postMessage("hexland:exit","*")}
 document.getElementById("goal").onclick=function(){this.classList.toggle("min")};
 
@@ -347,9 +352,62 @@ function buildAt(x,y,t){
   if(t==="miner"&&!ore[y][x]){toast("🛠 Бур ставится только на залежь");return false}
   if(!canPay(d.cost)){toast("Не хватает ресурсов на "+d.nm);return false}
   pushU(x,y);pay(d.cost);
-  grid[y][x]={t,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0};
+  const cell={t,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0};
+  if(RECIPES[t]){cell.recSel=0;cell.auto=true} // рецепт по умолчанию + авто-загрузка со склада
+  grid[y][x]=cell;
+  if(t==="belt")cell.dir=smartBeltDir(x,y); // умная ориентация — не крутить руками
   snd("place");puff(x,y,"#7aa2ff",3);drawInv();drawHud();
   return true;
+}
+/* умная ориентация конвейера: в приёмник → продолжить линию → от бура */
+const cellAt=(X,Y)=>(X>=0&&Y>=0&&X<W&&Y<H)?grid[Y][X]:null;
+const ACCEPTS=t=>t==="furnace"||t==="asm"||t==="lab"||t==="gen";
+function receiverDir(x,y){
+  for(let di=0;di<4;di++){const [dx,dy]=DIRS[di],n=cellAt(x+dx,y+dy);
+    if(n&&ACCEPTS(n.t))return di}
+  return null;
+}
+function smartBeltDir(x,y){
+  const rd=receiverDir(x,y);if(rd!=null)return rd;
+  for(let di=0;di<4;di++){const [dx,dy]=DIRS[di],n=cellAt(x+dx,y+dy);
+    if(n&&n.t==="belt"){const [bdx,bdy]=DIRS[n.dir];
+      if(x+dx+bdx===x&&y+dy+bdy===y)return n.dir}} // входящая лента — продолжаем её направление
+  for(let di=0;di<4;di++){const [dx,dy]=DIRS[di],n=cellAt(x+dx,y+dy);
+    if(n&&n.t==="miner")return (di+2)%4} // от бура — наружу
+  return 0;
+}
+/* быстрая укладка: каждый новый сегмент разворачивает предыдущий в свою сторону — рисуешь дорожку тапами */
+function chainBelt(x,y){
+  const p=S.quickLast;
+  if(p){const dx=x-p.x,dy=y-p.y;
+    if(Math.abs(dx)+Math.abs(dy)===1){
+      const di=DIRS.findIndex(([a,b])=>a===dx&&b===dy);
+      const pc=cellAt(p.x,p.y);
+      if(pc&&pc.t==="belt")pc.dir=di;
+      const c=cellAt(x,y),rd=receiverDir(x,y);
+      if(c&&c.t==="belt")c.dir=rd!=null?rd:di;
+    }}
+  S.quickLast={x,y};
+}
+/* кучи на земле */
+function dropAt(x,y,k){
+  const key=x+","+y,d=drops[key]||(drops[key]={});
+  const tot=Object.values(d).reduce((a,b)=>a+b,0);
+  if(tot>=DROP_CAP)return false;
+  d[k]=(d[k]||0)+1;return true;
+}
+function collectDrops(x,y){
+  const key=x+","+y,d=drops[key];if(!d)return false;
+  const parts2=Object.entries(d).map(([k,n])=>{inv[k]+=n;return "+"+n+" "+ITEM[k].split(" ")[0]});
+  delete drops[key];
+  toast("📥 "+parts2.join("  "));snd("craft");puff(x,y,"#e8b04b",5);
+  drawInv();drawHud();return true;
+}
+/* перенос здания */
+function armMove(x,y){
+  S.moveFrom={x,y};S.quick=null;
+  document.getElementById("quickTxt").innerHTML=`↔️ Перенос: ${DEFS[grid[y][x].t].ic} ${DEFS[grid[y][x].t].nm} — тапни новую клетку`;
+  document.getElementById("quick").classList.add("on");
 }
 function doDelete(x,y){
   const c=grid[y][x];
@@ -368,20 +426,20 @@ function refuel(x,y){const c=grid[y][x];
   else if(tw>0){pushU(x,y);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;toast("🌲 Древесина в генератор: "+tw);snd("place");drawInv()}
   else toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
 }
+const activeRecipes=c=>c.recSel!=null&&RECIPES[c.t][c.recSel]?[RECIPES[c.t][c.recSel]]:RECIPES[c.t];
 function feed(x,y){const c=grid[y][x];let fed=[];
-  const needs=new Set();RECIPES[c.t].forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
-  if(c.t==="furnace"&&S.goal<2)needs.delete("ironPlate");
+  const needs=new Set();activeRecipes(c).forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
   pushU(x,y);
-  needs.forEach(k=>{const take=Math.min(inv[k],3);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
+  needs.forEach(k=>{const take=Math.min(inv[k],5);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
   if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}
-  else toast(`${DEFS[c.t].nm}: нужно ${RECIPES[c.t].map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖 Рецепты`);
+  else toast(`${DEFS[c.t].nm}: нужно ${activeRecipes(c).map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖 Рецепты`);
 }
 
 /* ---------- быстрая укладка ---------- */
-function armQuick(t){S.quick=t;
+function armQuick(t){S.quick=t;S.quickLast=null;
   document.getElementById("quickTxt").innerHTML=`Быстро: ${DEFS[t].ic} ${DEFS[t].nm} — тапай по клеткам`;
   document.getElementById("quick").classList.add("on");}
-function clearQuick(){S.quick=null;document.getElementById("quick").classList.remove("on")}
+function clearQuick(){S.quick=null;S.quickLast=null;S.moveFrom=null;document.getElementById("quick").classList.remove("on")}
 document.getElementById("quickX").onclick=clearQuick;
 
 /* ---------- контекстное меню по клетке ---------- */
@@ -407,7 +465,13 @@ function openCtx(x,y,sx,sy){
     title=`${DEFS[c.t].ic} ${DEFS[c.t].nm}`;
     if(c.t==="belt")acts.push({ic:"🔄",l:"Повернуть",f:()=>{pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate")}});
     if(c.t==="gen")acts.push({ic:"⛽️",l:"Заправить",f:()=>refuel(x,y)});
-    if(RECIPES[c.t])acts.push({ic:"📥",l:"Загрузить",f:()=>feed(x,y)});
+    if(RECIPES[c.t]&&RECIPES[c.t].length>1){
+      const cur=c.recSel!=null?ITEM[RECIPES[c.t][c.recSel].out]:"авто";
+      acts.push({ic:"🎛",l:"Рецепт",sub:cur,f:()=>openRecipeMenu(x,y,sx,sy)});
+    }
+    if(RECIPES[c.t])acts.push({ic:"📥",l:c.auto!==false?"Авто-склад: ВКЛ":"Авто-склад: выкл",sub:c.auto!==false?"берёт сырьё сам":"тап → Загрузить",f:()=>{c.auto=c.auto===false;toast(c.auto!==false?"📥 Сам берёт сырьё со склада":"📥 Авто-загрузка выключена");}});
+    if(RECIPES[c.t])acts.push({ic:"⬆️",l:"Загрузить",sub:"со склада сейчас",f:()=>feed(x,y)});
+    if(c.t!=="core")acts.push({ic:"↔️",l:"Перенести",f:()=>armMove(x,y)});
     acts.push({ic:"ℹ️",l:"Что это?",f:()=>describe(x,y)});
     if(c.t!=="core")acts.push({ic:"✖",l:"Снести",cls:"bad",f:()=>doDelete(x,y)});
   } else if(terr[y][x]==="tree"){
@@ -423,11 +487,20 @@ function openCtx(x,y,sx,sy){
     buildables().forEach(t=>{
       if(t==="miner"&&!onOre)return;
       const d=DEFS[t],ok=canPay(d.cost);
-      acts.push({ic:d.ic,l:d.nm,sub:costStr(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)&&t==="belt")armQuick("belt")}});
+      acts.push({ic:d.ic,l:d.nm,sub:costStr(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)&&t==="belt"){armQuick("belt");chainBelt(x,y)}}});
     });
     acts.push({ic:"ℹ️",l:onOre?"Что за руда?":"Осмотреть",wide:true,f:()=>describe(x,y)});
   }
   renderCtx(title,acts,sx,sy);
+}
+/* выбор рецепта для плавильни/сборщика */
+function openRecipeMenu(x,y,sx,sy){
+  const c=grid[y][x],recs=RECIPES[c.t];
+  const pick=i=>{c.recSel=i;if(c.prog===0)c.rec=null;
+    toast(i==null?"♻️ Рецепт: авто (по содержимому)":"🎛 Рецепт: "+ITEM[recs[i].out]);snd("rotate")};
+  const acts=recs.map((r,i)=>({ic:c.recSel===i?"✅":"▫️",l:ITEM[r.out],sub:recipeStr(r),wide:true,f:()=>pick(i)}));
+  acts.push({ic:c.recSel==null?"✅":"♻️",l:"Авто",sub:"что привезут — то и делает",wide:true,f:()=>pick(null)});
+  renderCtx("🎛 Что производить?",acts,sx,sy);
 }
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
@@ -515,7 +588,7 @@ function describe(x,y){
   if(c){
     const d=DEFS[c.t];
     msg=`${d.ic} ${d.nm}`;
-    if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}`;
+    if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}; без ленты складывает кучей (тапни кучу — соберёшь)`;
     if(c.t==="gen")msg+=` — топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}`;
     if(c.t==="belt")msg+=" — везёт предметы по стрелке; тап → 🔄 Повернуть";
     if(RECIPES[c.t])msg+=` — рецепты: ${RECIPES[c.t].map(r=>recipeStr(r)).join("; ")}`;
@@ -540,13 +613,29 @@ function tapAt(clientX,clientY){
   if(sheetEl.classList.contains("on"))return closeSheet();
   const [x,y]=tileAt(clientX,clientY);
   if(x<0||y<0||x>=W||y>=H)return;
+  if(S.moveFrom){ // режим переноса: тап = новая позиция
+    const {x:fx,y:fy}=S.moveFrom,c=grid[fy][fx];
+    if(!c){clearQuick();return}
+    if(x===fx&&y===fy){clearQuick();return toast("Осталось на месте")}
+    if(grid[y][x])return toast("Клетка занята");
+    if(terr[y][x]==="water")return toast("Здесь вода");
+    if(terr[y][x]==="tree")return toast("Здесь дерево — сначала сруби");
+    if(c.t==="miner"&&!ore[y][x])return toast("Бур можно перенести только на залежь");
+    pushU(fx,fy);pushU(x,y);
+    grid[y][x]=c;grid[fy][fx]=null;
+    if(c.t==="belt")c.dir=smartBeltDir(x,y);
+    snd("place");puff(x,y,"#7aa2ff",4);toast("↔️ Перенесено");
+    clearQuick();drawHud();return;
+  }
+  if(drops[x+","+y]){collectDrops(x,y);return} // тап по куче — собрать
   if(S.quick){ // быстрая укладка одинаковых построек тапами
     const t=S.quick;
     if(grid[y][x])return toast("Клетка занята");
     if(terr[y][x]==="water")return toast("Здесь вода");
     if(terr[y][x]==="tree")return toast("Сначала сруби дерево (выключи ✕ быстрый режим)");
     if(t==="miner"&&!ore[y][x])return toast("Здесь нет залежи");
-    buildAt(x,y,t);return;
+    if(buildAt(x,y,t)&&t==="belt")chainBelt(x,y);
+    return;
   }
   openCtx(x,y,clientX,clientY);
 }
@@ -579,10 +668,14 @@ function step(){
       const [dx,dy]=DIRS[c.dir],nx=x+dx,ny=y+dy;
       if(nx<0||ny<0||nx>=W||ny>=H)return;
       const t=grid[ny][nx];
-      if(!t)return;
+      if(!t){ // лента упирается в землю — предмет ложится кучей (собери тапом)
+        if(terr[ny][nx]!=="water"&&dropAt(nx,ny,c.item))c.item=null;
+        return;
+      }
       if(t.t==="belt"&&!t.item){t.item=c.item;t.itemAge=S.tick;c.item=null}
       else if(t.t==="furnace"||t.t==="asm"||t.t==="lab"){t.buf[c.item]=(t.buf[c.item]||0)+1;c.item=null}
       else if(t.t==="gen"&&(c.item==="coal"||c.item==="wood")){t.buf[c.item]=(t.buf[c.item]||0)+1;c.item=null}
+      else if(t.t!=="belt"&&S.tick-(c.itemAge||0)>900){inv[c.item]++;c.item=null} // упёрлось в глухое здание — через 15с на склад
     });
   }
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
@@ -596,14 +689,22 @@ function step(){
     if(c.t==="miner"){
       if(!S.powerOk)continue;
       c.prog+=speed;
-      if(c.prog>=90){c.prog=0;
+      if(c.prog>=90){
         const k=ore[y][x];
-        if(k){if(!outputTo(x,y,k))inv[k]++;S.made[k]++;if(S.tick%180<90)puff(x,y,ORE[k],1)}
+        if(!k){c.prog=0;continue}
+        if(outputTo(x,y,k)||dropAt(x,y,k)){c.prog=0;S.made[k]++;if(S.tick%180<90)puff(x,y,ORE[k],1)}
+        else c.prog=90; // куча под буром полна — ждём, пока соберут
       }
     }
     if(c.t==="furnace"||c.t==="asm"||c.t==="lab"){
       if(DEFS[c.t].power>0&&!S.powerOk)continue;
-      const recs=RECIPES[c.t];
+      if(c.auto!==false&&c.recSel!=null&&S.tick%90===(x*7+y*13)%90){ // авто-подсос сырья со склада под выбранный рецепт
+        activeRecipes(c).forEach(r=>Object.entries(r.in).forEach(([k,n])=>{
+          const take=Math.min(n*2-(c.buf[k]||0),inv[k]);
+          if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take}
+        }));
+      }
+      const recs=activeRecipes(c);
       if(!c.rec){c.rec=recs.find(r=>Object.entries(r.in).every(([k,n])=>(c.buf[k]||0)>=n))||null}
       if(c.rec){
         if(c.prog===0){
@@ -693,16 +794,16 @@ const TUT=[
   {txt:"Тапни по пустой клетке в паре клеток от бура → 🔥 Плавильня.",
    chk:()=>grid.flat().some(c=>c&&c.t==="furnace"),
    target:()=>findB("furnace")},
-  {txt:"Соедини бур и плавильню ➡️ Конвейером (тап по клетке → Конвейер; включится быстрый режим — тапай дорожку). Тап по конвейеру → 🔄 Повернуть.",
+  {txt:"Соедини бур и плавильню ➡️ Конвейером: тап по клетке → Конвейер, дальше просто тапай клетки по пути — лента сама поворачивается куда надо.",
    chk:()=>grid.flat().some(c=>c&&c.t==="belt"),
    target:()=>findB("belt")},
-  {txt:"Тапни по плавильне → 📥 Загрузить (уголь со склада). Руда + уголь = ▪️ железный лист.",
+  {txt:"Плавильня сама берёт сырьё со склада (авто-склад 📥). Что плавить — выбери: тап по ней → 🎛 Рецепт. Руда + уголь = ▪️ железный лист.",
    chk:()=>S.made.ironPlate>0,
    target:()=>findB("furnace")},
   {txt:"Дотяни ➡️ конвейер от угольного бура к ⚡️ генератору — он заправляется сам, без тапов.",
    chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&(c.buf.coal||0)>0),
    target:()=>findB("gen")},
-  {txt:"Накопи 10 ▪️ листов (цель 1). Застрял? Жми ⋯ справа снизу → 💡 Подсказка.",
+  {txt:"Накопи 10 ▪️ листов (цель 1). Добыча без ленты ложится кучей у бура — тапай кучу, чтобы собрать на склад. Застрял? ⋯ → 💡 Подсказка.",
    chk:()=>S.made.ironPlate>=10,target:()=>null},
   {txt:"Открой ⋯ → 🔬 Наука и исследуй Сборку (15 ▪️ листов).",
    chk:()=>tech("t_asm"),target:()=>null},
@@ -969,6 +1070,26 @@ function render(){
       cx.fillStyle="#ff6b6b";cx.fillRect(x*TS+2,y*TS+1,(TS-4)*Math.max(0,c.hp)/DEFS[c.t].hp,3);
     }
   }
+  // кучи ресурсов на земле (сбор тапом)
+  cx.font="10px sans-serif";
+  for(const key in drops){
+    const [ddx,ddy]=key.split(",").map(Number);
+    if(ddx<x0-1||ddx>x1+1||ddy<y0-1||ddy>y1+1)continue;
+    const d=drops[key];const rn=lcg(hash(ddx,ddy)^0xd207);let tot=0;
+    for(const k in d){tot+=d[k];
+      const n=Math.min(5,Math.ceil(d[k]/8));
+      for(let m=0;m<n;m++){
+        const ox=ddx*TS+TS/2+(rn()-.5)*TS*.62,oy=ddy*TS+TS/2+(rn()-.5)*TS*.5+3;
+        cx.fillStyle=ITEM_COL[k]||"#c9d4e0";
+        cx.beginPath();cx.arc(ox,oy,3.2,0,7);cx.fill();
+        cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
+      }
+    }
+    const bx=ddx*TS+TS/2,by=ddy*TS+4;
+    cx.fillStyle="rgba(8,12,18,.78)";cx.fillRect(bx-10,by-6,20,11);
+    cx.fillStyle="#ffd98a";cx.fillText(tot,bx,by);
+  }
+  cx.font="16px sans-serif";
   enemies.forEach(en=>{
     cx.fillStyle="#c03a3a";cx.beginPath();cx.arc(en.x*TS,en.y*TS,6,0,7);cx.fill();
     cx.strokeStyle="#5c1010";cx.stroke();
@@ -1041,8 +1162,8 @@ function sessionsList(){try{return JSON.parse(localStorage.getItem(SESS_KEY))||[
 function writeSessions(l){localStorage.setItem(SESS_KEY,JSON.stringify(l))}
 function saveGame(){
   if(!S.started||!S.sessionId)return;
-  const gridSer=grid.map(row=>row.map(c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp,fuel:c.fuel}:null));
-  const data={w:W,h:H,ore,terr,grid:gridSer,inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
+  const gridSer=grid.map(row=>row.map(c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp,fuel:c.fuel,recSel:c.recSel,auto:c.auto}:null));
+  const data={w:W,h:H,ore,terr,grid:gridSer,drops,inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
     status:S.win?"🏆":S.over?"💀":"▶"};
   const list=sessionsList();
@@ -1056,7 +1177,10 @@ function loadGame(d){
   ore=mk();terr=mk();grid=mk();resizeTerrCanvas();
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     ore[y][x]=d.ore[y][x];terr[y][x]=(d.terr&&d.terr[y][x])||null;
-    grid[y][x]=d.grid[y][x]?{...d.grid[y][x],rec:null}:null}
+    grid[y][x]=d.grid[y][x]?{...d.grid[y][x],rec:null}:null;
+    const g2=grid[y][x]; // старые сейвы: включаем рецепт+авто-загрузку по умолчанию
+    if(g2&&RECIPES[g2.t]){if(g2.recSel===undefined)g2.recSel=0;if(g2.auto===undefined)g2.auto=true}}
+  drops=d.drops||{};
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
   // завершённые партии можно продолжать строить (song-of-factorio); рейтинг уже записан
@@ -1096,7 +1220,7 @@ setInterval(()=>{if(!S.win&&!S.over)saveGame()},5000);
 
 /* ---------- ↩️ отмена последнего действия (стройка/снос/поворот/загрузка) ---------- */
 let undoStack=[];
-const cellCopy=c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:{...c.buf},hp:c.hp,fuel:c.fuel}:null;
+const cellCopy=c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:{...c.buf},hp:c.hp,fuel:c.fuel,recSel:c.recSel,auto:c.auto}:null;
 function pushU(x,y){undoStack.push({x,y,cell:cellCopy(grid[y][x]),inv:{...inv}});if(undoStack.length>25)undoStack.shift()}
 function doUndo(){
   const u=undoStack.pop();

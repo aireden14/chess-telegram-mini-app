@@ -20,10 +20,31 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Прогресс «отвечено» ключуется ТЕКСТОМ вопроса, а не id: при апдейтах набора
+// id могут переехать, а текст — стабильная идентичность карточки.
+const ANSWERED_KEY = "ice.answered.v1";
+function loadAnswered(): Set<string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ANSWERED_KEY) || "[]");
+    return new Set(Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+function saveAnswered(s: Set<string>) {
+  try {
+    localStorage.setItem(ANSWERED_KEY, JSON.stringify([...s]));
+  } catch {
+    /* приватный режим — просто без сохранения */
+  }
+}
+
 export function IcebreakerScreen() {
   const [filter, setFilter] = useState<Filter>("all");
-  // очередь перемешанных вопросов под текущий фильтр + индекс
-  const [queue, setQueue] = useState<IceQuestion[]>(() => shuffle(ICE_QUESTIONS));
+  const [answered, setAnswered] = useState<Set<string>>(() => loadAnswered());
+  const [queue, setQueue] = useState<IceQuestion[]>(() =>
+    shuffle(ICE_QUESTIONS.filter((q) => !loadAnswered().has(q.text))),
+  );
   const [idx, setIdx] = useState(0);
   const [flip, setFlip] = useState(false);
 
@@ -31,12 +52,13 @@ export function IcebreakerScreen() {
     () => (filter === "all" ? ICE_QUESTIONS : ICE_QUESTIONS.filter((q) => q.category === filter)),
     [filter],
   );
+  const answeredInPool = pool.filter((q) => answered.has(q.text)).length;
 
   const current = queue[idx];
 
-  const reshuffle = (f: Filter) => {
+  const reshuffle = (f: Filter, ans: Set<string>) => {
     const base = f === "all" ? ICE_QUESTIONS : ICE_QUESTIONS.filter((q) => q.category === f);
-    setQueue(shuffle(base));
+    setQueue(shuffle(base.filter((q) => !ans.has(q.text))));
     setIdx(0);
     setFlip((v) => !v);
   };
@@ -44,26 +66,40 @@ export function IcebreakerScreen() {
   const changeFilter = (f: Filter) => {
     if (f === filter) return;
     setFilter(f);
-    reshuffle(f);
+    reshuffle(f, answered);
     triggerHaptic("light");
   };
 
   const next = () => {
+    if (queue.length === 0) return;
     triggerHaptic("medium");
     setFlip((v) => !v);
-    setIdx((i) => {
-      const ni = i + 1;
-      if (ni >= queue.length) {
-        // прошли все — перемешиваем заново
-        setQueue(shuffle(pool));
-        return 0;
-      }
-      return ni;
-    });
+    setIdx((i) => (i + 1 >= queue.length ? 0 : i + 1));
+  };
+
+  const markAnswered = () => {
+    if (!current) return;
+    triggerHaptic("medium");
+    const na = new Set(answered);
+    na.add(current.text);
+    setAnswered(na);
+    saveAnswered(na);
+    const nq = queue.filter((q) => q.id !== current.id);
+    setQueue(nq);
+    setIdx((i) => (nq.length === 0 ? 0 : Math.min(i, nq.length - 1)));
+    setFlip((v) => !v);
+  };
+
+  const resetProgress = () => {
+    if (!window.confirm(`Сбросить прогресс? Все ${answered.size} отвеченных вопросов вернутся в колоду.`)) return;
+    const empty = new Set<string>();
+    setAnswered(empty);
+    saveAnswered(empty);
+    reshuffle(filter, empty);
+    triggerHaptic("light");
   };
 
   const total = pool.length;
-  const shown = Math.min(idx + 1, total);
 
   return (
     <div className="app-screen ice-screen">
@@ -92,18 +128,52 @@ export function IcebreakerScreen() {
                 {CAT_META[current.category].emoji} {CAT_META[current.category].name}
               </span>
               <p className="ice-card-q">{current.text}</p>
-              <span className="ice-card-num">{shown} / {total}</span>
+              <span className="ice-card-num">осталось {queue.length}</span>
             </>
           ) : (
-            <p className="ice-card-q">Нет вопросов в этой категории</p>
+            <>
+              <p className="ice-card-q">
+                {answeredInPool > 0
+                  ? "Вы ответили на все вопросы здесь! 🎉"
+                  : "Нет вопросов в этой категории"}
+              </p>
+              {answeredInPool > 0 && (
+                <span className="ice-card-num">можно сбросить прогресс и пройти заново</span>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      <button className="ice-next-btn" onClick={next}>
-        Следующий вопрос →
-      </button>
-      <p className="ice-hint">Задавайте по очереди и отвечайте честно. 100 вопросов, чтобы узнать друг друга.</p>
+      {current ? (
+        <div className="ice-btnrow">
+          <button className="ice-next-btn ice-done-btn" onClick={markAnswered}>
+            ✓ Отвечено
+          </button>
+          <button className="ice-next-btn" onClick={next}>
+            Дальше →
+          </button>
+        </div>
+      ) : (
+        answeredInPool > 0 && (
+          <button className="ice-next-btn" onClick={resetProgress}>
+            Сбросить прогресс
+          </button>
+        )
+      )}
+      <p className="ice-hint">
+        Отвечено {answeredInPool} из {total}
+        {answered.size > 0 && current ? (
+          <>
+            {" · "}
+            <button className="ice-reset-link" onClick={resetProgress}>
+              сбросить
+            </button>
+          </>
+        ) : null}
+        <br />
+        «✓ Отвечено» убирает карточку насовсем — прогресс сохраняется.
+      </p>
     </div>
   );
 }
