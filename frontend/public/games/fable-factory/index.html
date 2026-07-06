@@ -42,7 +42,13 @@
   #smartBtn{width:54px;height:54px;border-radius:50%;font-size:1.35rem;padding:0;display:grid;place-items:center}
   #smartMenu{display:none;flex-direction:column;gap:7px}
   #smart.open #smartMenu{display:flex;animation:pop .22s cubic-bezier(.2,1.2,.3,1)}
-  #smartMenu button{width:158px;text-align:left;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+  #smartMenu button{width:172px;text-align:left;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;
+    background:rgba(16,22,31,.97);border:.5px solid rgba(255,255,255,.22);box-shadow:0 6px 18px rgba(0,0,0,.55)}
+  /* тень-затемнение позади открытого меню — читается на любом фоне; закрывается только тапом по ней или ✕ */
+  #smartShade{position:fixed;inset:0;z-index:38;display:none;background:radial-gradient(ellipse at 85% 78%, rgba(0,0,0,.62), rgba(0,0,0,.34));backdrop-filter:blur(2.5px);-webkit-backdrop-filter:blur(2.5px)}
+  #smartShade.on{display:block}
+  /* дзен-режим: только карта и ⋯ */
+  body.zen #hud,body.zen #goal,body.zen #tut,body.zen #quick{display:none !important}
   #smartMenu .k{font-size:1.05rem;width:20px;text-align:center;flex-shrink:0}
   /* контекстное меню по клетке */
   #ctx{position:fixed;z-index:50;display:none;border-radius:16px;padding:8px;min-width:176px;max-width:248px;animation:pop .16s cubic-bezier(.2,1.2,.3,1)}
@@ -79,6 +85,7 @@
 <div id="tut" class="glass"><div class="step"></div><div class="txt"></div><div class="skip">пропустить обучение</div></div>
 <div id="ctx" class="glass"></div>
 <div id="quick" class="glass"><span id="quickTxt"></span><button id="quickX">✕</button></div>
+<div id="smartShade"></div>
 <div id="smart">
   <div id="smartMenu"></div>
   <button id="smartBtn" class="glass">⋯</button>
@@ -214,6 +221,89 @@ let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
 const DROP_CAP=40;
 let resFold=localStorage.getItem("ff.resfold")==="1";
+let zen=localStorage.getItem("ff.zen")==="1"; // «только карта и три точки»
+/* ---------- энергосистема: каждый генератор питает ЗОНУ (радиус), генераторов — сколько угодно ---------- */
+const GEN_RADIUS=9, GEN_CAP=8;
+let powerStat={fed:0,need:0,noZone:0,over:0};
+function recomputePower(){
+  const gens=[],cons=[];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const c=grid[y][x];if(!c)continue;
+    if(c.t==="gen"){c.pw=c.fuel>0;if(c.fuel>0)gens.push({x,y,cap:GEN_CAP});}
+    else if(DEFS[c.t].power>0){c.pw=false;cons.push({x,y,c,need:DEFS[c.t].power});}
+    else c.pw=true;
+  }
+  let fed=0,noZone=0,over=0;
+  cons.forEach(u=>{ // питается от БЛИЖАЙШЕГО генератора со свободной мощностью
+    let best=null,bd=1e9,inZone=false;
+    gens.forEach(g=>{
+      const d=Math.hypot(g.x-u.x,g.y-u.y);
+      if(d<=GEN_RADIUS){inZone=true;if(g.cap>=u.need&&d<bd){bd=d;best=g;}}
+    });
+    if(best){best.cap-=u.need;u.c.pw=true;fed++;}
+    else if(inZone)over++;else noZone++;
+  });
+  powerStat={fed,need:cons.length,noZone,over};
+  S.powerOk=noZone===0&&over===0;
+}
+/* ---------- 🧍 рабочие: бегают, собирают кучи на склад, носят уголь генераторам ---------- */
+let workers=[];
+const WORKER_MAX=6, WORKER_COST={wood:5,stone:5};
+function spawnWorker(x,y){workers.push({x:x+0.5,y:y+0.5,job:null,carry:null,ph:Math.random()*7});}
+function hireWorker(){
+  if(workers.length>=WORKER_MAX)return toast("Хватит: "+WORKER_MAX+" рабочих — они и так всё тащат");
+  if(!canPay(WORKER_COST))return toast("Нужно на рабочего: "+costStr(WORKER_COST));
+  pay(WORKER_COST);
+  const b=grid.flat().findIndex(c=>c);let bx=W/2,by=H/2;
+  if(b>=0){bx=b%W;by=(b-bx)/W;}
+  spawnWorker(bx,by);
+  toast("🧍 Рабочий нанят ("+workers.length+"/"+WORKER_MAX+")");snd("research");drawInv();
+}
+function nearestBuilding(x,y){
+  let best=null,bd=1e9;
+  for(let yy=0;yy<H;yy++)for(let xx=0;xx<W;xx++){
+    const c=grid[yy][xx];if(!c||c.t==="belt")continue;
+    const d=(xx-x)*(xx-x)+(yy-y)*(yy-y);if(d<bd){bd=d;best=[xx,yy];}}
+  return best;
+}
+function workerStep(w){
+  const SPEED=0.06;
+  if(!w.job){
+    if(w.carry){ // несём собранное на склад (к ближайшему зданию)
+      const b=nearestBuilding(w.x,w.y);
+      if(!b){Object.entries(w.carry).forEach(([k,n])=>inv[k]+=n);w.carry=null;return;}
+      w.job={kind:"return",x:b[0],y:b[1]};
+    } else {
+      // работа 1: генератор голодает, на складе есть уголь
+      let tgt=null,bd=1e9;
+      if(inv.coal>0)for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+        const c=grid[y][x];
+        if(c&&c.t==="gen"&&c.fuel<600&&(c.buf.coal||0)<1&&!workers.some(o=>o!==w&&o.job&&o.job.kind==="fuel"&&o.job.x===x&&o.job.y===y)){
+          const d=(x-w.x)*(x-w.x)+(y-w.y)*(y-w.y);if(d<bd){bd=d;tgt={kind:"fuel",x,y};}}}
+      // работа 2: ближайшая ничейная куча
+      if(!tgt){bd=1e9;
+        for(const key in drops){
+          const [x,y]=key.split(",").map(Number);
+          if(workers.some(o=>o!==w&&o.job&&o.job.kind==="pile"&&o.job.x===x&&o.job.y===y))continue;
+          const d=(x-w.x)*(x-w.x)+(y-w.y)*(y-w.y);if(d<bd){bd=d;tgt={kind:"pile",x,y};}}}
+      if(tgt)w.job=tgt;else return; // отдыхает
+    }
+  }
+  const tx=w.job.x+0.5,ty=w.job.y+0.5;
+  const dx=tx-w.x,dy=ty-w.y,L=Math.hypot(dx,dy);
+  if(L>0.35){w.x+=dx/L*SPEED;w.y+=dy/L*SPEED;return;}
+  // пришли
+  const j=w.job;w.job=null;
+  if(j.kind==="pile"){
+    const d=drops[j.x+","+j.y];
+    if(d){w.carry=w.carry||{};Object.entries(d).forEach(([k,n])=>w.carry[k]=(w.carry[k]||0)+n);delete drops[j.x+","+j.y];puff(j.x,j.y,"#ffd98a",3);}
+  } else if(j.kind==="fuel"){
+    const c=grid[j.y]&&grid[j.y][j.x];
+    if(c&&c.t==="gen"&&inv.coal>0){const take=Math.min(inv.coal,3);inv.coal-=take;c.buf.coal=(c.buf.coal||0)+take;puff(j.x,j.y,"#5c6a7d",2);}
+  } else if(j.kind==="return"){
+    if(w.carry){Object.entries(w.carry).forEach(([k,n])=>{inv[k]+=n;S.made[k]=S.made[k]||0;});w.carry=null;snd("craft");}
+  }
+}
 const tech=id=>TECHS.find(t=>t.id===id).done;
 
 const logEl=document.getElementById("log");
@@ -321,28 +411,32 @@ function drawGoal(){
   document.getElementById("goal").innerHTML=g?`<b>Цель ${S.goal+1}/${GOALS.length}:</b><br>${g.txt}`:"<b>Все цели выполнены!</b>";
 }
 function drawHud(){
-  let gen=0,use=0;
-  grid.flat().forEach(c=>{if(!c)return;const p=DEFS[c.t].power;
-    if(p<0){if(c.fuel>0)gen-=p}else use+=p});
-  const ok=gen>=use;
+  recomputePower();
+  const ps=powerStat;
   let wavePill="";
   if(S.mode==="survival"){
     const secs=Math.max(0,Math.ceil((S.nextWave-S.tick)/60));
     wavePill=`<div class="pill ${enemies.length?"bad":""}">🌊 волна ${S.wave+1} через ${secs}с${enemies.length?` · врагов: ${enemies.length}`:""}</div>`;
   }
   const noFuel=grid.flat().some(c=>c&&c.t==="gen"&&c.fuel<=0);
-  const idle=grid.flat().filter(c=>c&&RECIPES[c.t]&&(DEFS[c.t].power<=0||S.powerOk)
+  const idle=grid.flat().filter(c=>c&&RECIPES[c.t]&&(DEFS[c.t].power<=0||c.pw)
     &&!RECIPES[c.t].some(r=>Object.entries(r.in).every(([k,n])=>(c.buf[k]||0)>=n))).length;
   const idlePill=idle>0?`<div class="pill bad">⏸ простаивает: ${idle} — нет сырья</div>`:"";
+  let powerPill=`<div class="pill ${S.powerOk?"":"bad"}">⚡️ ${ps.fed}/${ps.need}`;
+  if(ps.noZone)powerPill+=` · ${ps.noZone} вне зоны генератора`;
+  if(ps.over)powerPill+=` · нужен ещё генератор`;
+  powerPill+=`</div>`;
+  const workerPill=workers.length?`<div class="pill">🧍×${workers.length}</div>`:"";
   const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0);
   const foldBtn=`<span class="rpill" style="cursor:pointer" onclick="event.stopPropagation();toggleResFold()">${resFold?"📦 ресурсы ▸":"📦 ✕"}</span>`;
   const resPill=rows.length?`<div id="resline">${foldBtn}${resFold?"":rows.map(([k,nm])=>`<span class="rpill" onclick="openSheet('inv')">${nm.split(" ")[0]}<b>${inv[k]}</b></span>`).join("")}</div>`:"";
   document.getElementById("hud").innerHTML=
-    `<div class="pill ${ok?"":"bad"}">⚡️ ${gen}/${use}${ok?"":" — не хватает энергии!"}</div>`+
-    (noFuel?`<div class="pill bad">⚫ генератор без угля!</div>`:"")+wavePill+idlePill+resPill;
-  S.powerOk=ok;
+    powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill+workerPill+resPill;
 }
 function toggleResFold(){resFold=!resFold;localStorage.setItem("ff.resfold",resFold?"1":"0");drawHud()}
+function applyZen(){document.body.classList.toggle("zen",zen)}
+function toggleZen(){zen=!zen;localStorage.setItem("ff.zen",zen?"1":"0");applyZen();
+  toast(zen?"🙈 Только карта и ⋯ — панели вернутся там же":"👁 Панели показаны")}
 function exitGame(){parent.postMessage("hexland:exit","*")}
 document.getElementById("goal").onclick=function(){this.classList.toggle("min")};
 
@@ -465,6 +559,7 @@ function openCtx(x,y,sx,sy){
     title=`${DEFS[c.t].ic} ${DEFS[c.t].nm}`;
     if(c.t==="belt")acts.push({ic:"🔄",l:"Повернуть",f:()=>{pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate")}});
     if(c.t==="gen")acts.push({ic:"⛽️",l:"Заправить",f:()=>refuel(x,y)});
+    if(c.t==="gen")acts.push({ic:"⚫",l:c.auto!==false?"Авто-уголь: ВКЛ":"Авто-уголь: выкл",sub:c.auto!==false?"берёт со склада сам":"заправляй тапом",f:()=>{c.auto=c.auto===false;toast(c.auto!==false?"⚫ Генератор сам берёт топливо со склада":"⚫ Авто-заправка выключена");}});
     if(RECIPES[c.t]&&RECIPES[c.t].length>1){
       const cur=c.recSel!=null?ITEM[RECIPES[c.t][c.recSel].out]:"авто";
       acts.push({ic:"🎛",l:"Рецепт",sub:cur,f:()=>openRecipeMenu(x,y,sx,sy)});
@@ -659,6 +754,12 @@ function runAuto(o){
 }
 function autoSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Выбери, что автоматизировать. Я сам поставлю постройки, дотяну ленту, выберу рецепт и спишу ресурсы со склада. Здания с рецептом дальше сами берут сырьё со склада (📥 авто).</div>`;
+  const hb=document.createElement("button");
+  hb.className="techBtn";
+  hb.innerHTML=`🧍 Нанять рабочего (${workers.length}/${WORKER_MAX})<small>${costStr(WORKER_COST)} · бегает сам: собирает кучи на склад, носит уголь генераторам</small>`;
+  hb.disabled=workers.length>=WORKER_MAX||!canPay(WORKER_COST);
+  hb.onclick=()=>{hireWorker();autoSheet()};
+  sheetBody.appendChild(hb);
   autoOptions().forEach(o=>{
     const locked=o.tech&&!tech(o.tech);
     const b=document.createElement("button");
@@ -678,6 +779,7 @@ function autoSheet(){
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
   {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
+  {k:zen?"👁":"🙈",l:zen?"Показать панели":"Скрыть панели",f:()=>toggleZen()},
   {k:"📦",l:"Склад",f:()=>openSheet("inv")},
   {k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
   {k:"🔬",l:"Наука",f:()=>openSheet("tech")},
@@ -694,11 +796,13 @@ function buildSmart(){smartMenuEl.innerHTML="";
   smartItems().forEach(it=>{const b=document.createElement("button");
     b.innerHTML=`<span class="k">${it.k}</span><span>${it.l}</span>`;
     b.onclick=()=>{closeSmart();it.f()};smartMenuEl.appendChild(b);});}
-function closeSmart(){smartEl.classList.remove("open");smartBtn.textContent="⋯"}
+function closeSmart(){smartEl.classList.remove("open");smartBtn.textContent="⋯";document.getElementById("smartShade").classList.remove("on")}
 smartBtn.onclick=()=>{
   if(smartEl.classList.contains("open"))return closeSmart();
   closeCtx();buildSmart();smartEl.classList.add("open");smartBtn.textContent="✕";
+  document.getElementById("smartShade").classList.add("on"); // тень: меню не закроется случайным тапом по карте
 };
+document.getElementById("smartShade").onclick=closeSmart;
 
 /* ℹ️ инспектор: объясняет, что это */
 function describe(x,y){
@@ -708,7 +812,7 @@ function describe(x,y){
     const d=DEFS[c.t];
     msg=`${d.ic} ${d.nm}`;
     if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}; без ленты складывает кучей (тапни кучу — соберёшь)`;
-    if(c.t==="gen")msg+=` — топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}`;
+    if(c.t==="gen")msg+=` — питает радиус ${GEN_RADIUS} клеток (до ${GEN_CAP}⚡️); топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}${c.auto!==false?"; сам берёт со склада":""}`;
     if(c.t==="belt")msg+=" — везёт предметы по стрелке; тап → 🔄 Повернуть";
     if(RECIPES[c.t])msg+=` — рецепты: ${RECIPES[c.t].map(r=>recipeStr(r)).join("; ")}`;
     if(c.t==="turret")msg+=" — стреляет по рейдерам рядом (нужна энергия)";
@@ -777,6 +881,8 @@ const DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
 function step(){
   if(S.over||!S.started||S.win)return;
   S.tick++;
+  if(S.tick%15===0)recomputePower(); // зоны питания: ближайший генератор кормит своих
+  workers.forEach(workerStep);
   const speed=tech("t_speed")?2:1;
   const beltPeriod=tech("t_belt")?6:12;
   const belts=[];
@@ -803,10 +909,15 @@ function step(){
       if(c.fuel>0)c.fuel--;
       if(c.fuel<=0&&(c.buf.coal||0)>0){c.buf.coal--;c.fuel=1500;puff(x,y,"#5c6a7d",1)} // 1 уголь ≈ 25с
       else if(c.fuel<=0&&(c.buf.wood||0)>0){c.buf.wood--;c.fuel=600;puff(x,y,"#4dbb72",1)} // 1 древесина ≈ 10с
+      // авто-уголь со склада: свет не гаснет, пока на складе есть топливо (выкл. тапом по генератору)
+      else if(c.fuel<=0&&c.auto!==false){
+        if(inv.coal>0){const t2=Math.min(inv.coal,3);inv.coal-=t2;c.buf.coal=(c.buf.coal||0)+t2;}
+        else if(inv.wood>0){const t2=Math.min(inv.wood,4);inv.wood-=t2;c.buf.wood=(c.buf.wood||0)+t2;}
+      }
       continue;
     }
     if(c.t==="miner"){
-      if(!S.powerOk)continue;
+      if(!c.pw)continue;
       c.prog+=speed;
       if(c.prog>=90){
         const k=ore[y][x];
@@ -816,7 +927,7 @@ function step(){
       }
     }
     if(c.t==="furnace"||c.t==="asm"||c.t==="lab"){
-      if(DEFS[c.t].power>0&&!S.powerOk)continue;
+      if(DEFS[c.t].power>0&&!c.pw)continue;
       if(c.auto!==false&&c.recSel!=null&&S.tick%90===(x*7+y*13)%90){ // авто-подсос сырья со склада под выбранный рецепт
         activeRecipes(c).forEach(r=>Object.entries(r.in).forEach(([k,n])=>{
           const take=Math.min(n*2-(c.buf[k]||0),inv[k]);
@@ -834,9 +945,11 @@ function step(){
         if(c.t==="furnace"&&S.tick%50===0)puff(x,y,"#e8762b",1);
         if(c.prog>=c.rec.t){
           const out=c.rec.out;
-          if(!outputTo(x,y,out))inv[out]++;
-          S.made[out]++;c.prog=0;c.rec=null;
-          snd("craft");puff(x,y,"#4dbb72",2,"+1 "+ITEM[out].split(" ")[0]);
+          // как у бура: без ленты продукт копится КУЧЕЙ у здания (собирают тапом или рабочие)
+          if(outputTo(x,y,out)||dropAt(x,y,out)){
+            S.made[out]++;c.prog=0;c.rec=null;
+            snd("craft");puff(x,y,"#4dbb72",2,"+1 "+ITEM[out].split(" ")[0]);
+          } else c.prog=c.rec.t; // куча полна — ждём, пока заберут
         }
       }
     }
@@ -877,9 +990,9 @@ function step(){
         }
       }
     });
-    if(S.tick%20===0&&S.powerOk){
+    if(S.tick%20===0){
       for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-        const c=grid[y][x];if(!c||c.t!=="turret")continue;
+        const c=grid[y][x];if(!c||c.t!=="turret"||!c.pw)continue;
         let tgt=null,td=4.5;
         enemies.forEach(en=>{const d=Math.hypot(en.x-(x+0.5),en.y-(y+0.5));if(d<td){td=d;tgt=en}});
         if(tgt){tgt.hp-=7;c.shotAt={x:tgt.x,y:tgt.y,t:S.tick};
@@ -904,7 +1017,7 @@ const TUT=[
   {txt:"Тапни по железной залежи (кучки голубовато-серых камней) → в меню выбери 🛠 Бур. Карту таскай пальцем, зум — щипком. У тебя на старте есть немного угля и листов — их хватит на первые буры и генератор.",
    chk:()=>minerOn("iron"),
    target:()=>findOre("iron")},
-  {txt:"Тапни по пустой клетке → ⚡️ Генератор. Потом тапни по нему → ⛽️ Заправить (закинет уголь со склада, 1 уголь ≈ 25 сек). Без энергии буры стоят!",
+  {txt:"Тапни по пустой клетке РЯДОМ с буром → ⚡️ Генератор. Он питает постройки в радиусе ~9 клеток (жёлтое кольцо) и сам берёт уголь со склада. Генераторов можно ставить сколько угодно — далёким постройкам нужен свой.",
    chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&c.fuel>0),
    target:()=>findB("gen")},
   {txt:"Уголь догорает! Тапни по угольной залежи (чёрные блестящие кучки) → 🛠 Бур — свой уголь важнее покупного запаса.",
@@ -1002,7 +1115,7 @@ function adviseHint(){
   if(!gens.length&&grid.flat().some(c=>c&&DEFS[c.t].power>0))return {txt:"Нет генератора — постройки без энергии. Поставь ⚡️ Генератор.",target:findOre("coal")};
   if(gens.length&&gens.every(g=>g.fuel<=0&&!(g.buf.coal>0)))
     return {txt:inv.coal>0?"Генератор без угля! Тапни по нему — заправится со склада.":"Уголь кончился! Поставь бур на угольную залежь и вези уголь конвейером.",target:findB("gen")||findOre("coal")};
-  if(!S.powerOk)return {txt:"Не хватает энергии — поставь ещё один ⚡️ Генератор с углём.",target:findB("gen")};
+  if(!S.powerOk)return {txt:powerStat.noZone?"Постройки вне зоны генератора (радиус "+GEN_RADIUS+" клеток) — поставь ⚡️ Генератор ближе к ним.":"Генераторы перегружены — поставь ещё один ⚡️ рядом с цехом.",target:findB("gen")};
   if(S.tut>=0&&S.tut<TUT.length&&!TUT[S.tut].last)return {txt:"Обучение: "+TUT[S.tut].txt,target:TUT[S.tut].target&&TUT[S.tut].target()};
   const q=QUESTS[S.quest];
   if(q){
@@ -1037,7 +1150,9 @@ function showBook(){
         <div style="font-size:.82rem">ставится на залежь → добывает её ресурс (⛏ железо, медь, ⚫ уголь, 🪨 камень)</div></div>
       ${rows}
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
-        <div style="font-size:.82rem">ест топливо: ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с). Заправка: тап по нему или конвейер</div></div>
+        <div style="font-size:.82rem">питает постройки в радиусе ${GEN_RADIUS} клеток (жёлтое кольцо), до ${GEN_CAP}⚡️ каждый — далёкому цеху нужен свой генератор. Ест ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с), сам берёт со склада; вручную — тап → ⛽️ или конвейер</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🧍 Рабочие</div>
+        <div style="font-size:.82rem">бегают сами: собирают кучи на склад и носят уголь голодным генераторам. Нанять: ⋯ → ⚙️ Автоматизация</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
         <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень.</div></div>
       <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
@@ -1175,7 +1290,18 @@ function render(){
       cx.fillStyle="#3a414c";cx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2); // металлическая рама
       cx.fillStyle="#232932";cx.fillRect(x*TS+3,y*TS+3,TS-6,TS-6);
       cx.strokeStyle=DEFS[c.t].power<0?(c.fuel>0?"#e8b04b":"#7d3535"):"#4c5560";cx.strokeRect(x*TS+1.5,y*TS+1.5,TS-3,TS-3);
-      cx.fillText(DEFS[c.t].ic,px,py);
+      // машины показывают ПРОДУКТ (что делают) + мини-значок здания в углу
+      const prod=RECIPES[c.t]?(c.rec?c.rec.out:(c.recSel!=null&&RECIPES[c.t][c.recSel]?RECIPES[c.t][c.recSel].out:null)):null;
+      if(prod){
+        cx.fillText(ITEM[prod].split(" ")[0],px,py+1);
+        cx.font="9px sans-serif";cx.fillText(DEFS[c.t].ic,x*TS+7,y*TS+7);cx.font="16px sans-serif";
+      } else cx.fillText(DEFS[c.t].ic,px,py);
+      // нет питания — мигающий значок
+      if(DEFS[c.t].power>0&&!c.pw&&S.tick%40<26){
+        cx.font="10px sans-serif";
+        cx.fillStyle="rgba(10,12,16,.8)";cx.fillRect(x*TS+TS-12,y*TS+1,11,11);
+        cx.fillText("⚡️",x*TS+TS-6.5,y*TS+7);cx.font="16px sans-serif";
+      }
       if(c.prog>0&&c.rec){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/c.rec.t,2)}
       if(c.t==="miner"&&c.prog>0){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/90,2)}
       if(c.t==="gen"&&c.fuel>0){cx.fillStyle="#e8b04b";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*Math.min(1,c.fuel/1500),2)}
@@ -1189,6 +1315,26 @@ function render(){
       cx.fillStyle="#ff6b6b";cx.fillRect(x*TS+2,y*TS+1,(TS-4)*Math.max(0,c.hp)/DEFS[c.t].hp,3);
     }
   }
+  // зоны генераторов: тонкое кольцо (видно, кого он питает)
+  for(let y=y0-GEN_RADIUS;y<=y1+GEN_RADIUS;y++)for(let x=x0-GEN_RADIUS;x<=x1+GEN_RADIUS;x++){
+    if(x<0||y<0||x>=W||y>=H)continue;
+    const c=grid[y][x];
+    if(c&&c.t==="gen"&&c.fuel>0){
+      cx.strokeStyle="rgba(232,176,75,.14)";cx.lineWidth=1.5;
+      cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,GEN_RADIUS*TS,0,7);cx.stroke();cx.lineWidth=1;
+    }
+  }
+  // 🧍 рабочие
+  workers.forEach(w=>{
+    const wx=w.x*TS,wy=w.y*TS,run=w.job?Math.sin(S.tick/3+w.ph)*1.6:0;
+    cx.fillStyle="rgba(0,0,0,.3)";cx.beginPath();cx.ellipse(wx,wy+5,4.5,1.8,0,0,7);cx.fill();
+    cx.fillStyle="#4a6a8f";cx.fillRect(wx-2.5,wy-3+Math.abs(run)*.3,5,7); // тело
+    cx.fillStyle="#e8c39a";cx.beginPath();cx.arc(wx,wy-5,3,0,7);cx.fill(); // голова
+    cx.fillStyle="#2f3f52";cx.fillRect(wx-2.5,wy+3,2,2+run);cx.fillRect(wx+0.5,wy+3,2,2-run); // ноги
+    if(w.carry){const k=Object.keys(w.carry)[0];
+      cx.fillStyle=ITEM_COL[k]||"#c9d4e0";cx.beginPath();cx.arc(wx+4,wy-2,2.6,0,7);cx.fill();
+      cx.strokeStyle="rgba(0,0,0,.4)";cx.stroke();}
+  });
   // кучи ресурсов на земле (сбор тапом)
   cx.font="10px sans-serif";
   for(const key in drops){
@@ -1282,7 +1428,7 @@ function writeSessions(l){localStorage.setItem(SESS_KEY,JSON.stringify(l))}
 function saveGame(){
   if(!S.started||!S.sessionId)return;
   const gridSer=grid.map(row=>row.map(c=>c?{t:c.t,dir:c.dir,item:c.item,prog:c.prog,buf:c.buf,hp:c.hp,fuel:c.fuel,recSel:c.recSel,auto:c.auto}:null));
-  const data={w:W,h:H,ore,terr,grid:gridSer,drops,inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
+  const data={w:W,h:H,ore,terr,grid:gridSer,drops,workers:workers.map(w=>({x:w.x,y:w.y})),inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
     status:S.win?"🏆":S.over?"💀":"▶"};
   const list=sessionsList();
@@ -1300,6 +1446,8 @@ function loadGame(d){
     const g2=grid[y][x]; // старые сейвы: включаем рецепт+авто-загрузку по умолчанию
     if(g2&&RECIPES[g2.t]){if(g2.recSel===undefined)g2.recSel=0;if(g2.auto===undefined)g2.auto=true}}
   drops=d.drops||{};
+  workers=[];
+  (d.workers&&d.workers.length?d.workers:[{x:W/2,y:H/2}]).forEach(w=>spawnWorker(w.x-0.5,w.y-0.5)); // старые сейвы получают одного рабочего
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
   // завершённые партии можно продолжать строить (song-of-factorio); рейтинг уже записан
@@ -1331,6 +1479,8 @@ function startGame(opts){
   // камера на стартовую точку: ядро или первая железная залежь
   const tgt=findB("core")||(()=>{for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(ore[y][x]==="iron")return[x,y];return [W/2,H/2]})();
   cam.x=tgt[0]*TS;cam.y=tgt[1]*TS;clampCam();
+  if(!opts.session){workers=[];spawnWorker(tgt[0]+1,tgt[1]+1);} // стартовый 🧍 рабочий
+  applyZen();recomputePower();
   drawGoal();drawHud();tutShow();
   say("Fable Factory: тап по клетке — меню постройки. Все панели — в ⋯ справа снизу.");
   toast(opts.session?"Партия продолжена 💾":opts.mode==="survival"?"Выживание: 90с до волны!":"Тапни по клетке, чтобы строить 🏭");
