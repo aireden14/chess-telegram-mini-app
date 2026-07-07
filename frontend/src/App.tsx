@@ -18,7 +18,6 @@ import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorSc
 import { NeurogridScreen } from "./features/neurogrid/NeurogridScreen";
 import { WebgridScreen } from "./features/webgrid/WebgridScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
-import { HexForgeScreen } from "./features/hexforge/HexForgeScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
 import { TicketToSonnetScreen } from "./features/ticketToSonnet/TicketToSonnetScreen";
@@ -69,7 +68,6 @@ export function App() {
         <Route path="/neurogrid" element={<Protected><NeurogridScreen /></Protected>} />
         <Route path="/webgrid" element={<Protected><WebgridScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
-        <Route path="/hexforge" element={<Protected><HexForgeScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
         <Route path="/ticket-to-sonnet" element={<Protected><TicketToSonnetScreen /></Protected>} />

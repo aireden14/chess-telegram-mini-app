@@ -9,7 +9,7 @@ import { hasUnseenWhatsNew } from "../data/changelog";
 import { type GameIconKind } from "../components/GameHubLogo";
 
 type AppEntry = {
-  key: GameIconKind | "card" | "catan_beta" | "hexforge" | "icebreakers";
+  key: GameIconKind | "card" | "catan_beta" | "icebreakers";
   icon: string;
   title: string;
   to: string;
@@ -25,13 +25,12 @@ const SECTIONS: Section[] = [
     title: "Настолки",
     apps: [
       { key: "catan", icon: "/game-icons/256/catan.png", title: "Катан", to: "/catan", grad: ["#00b8a9", "#ffb23f"] },
-      { key: "hexforge", icon: "/game-icons/256/catan-fable.png", title: "Катан Fable", to: "/catan-fable", grad: ["#7d4cff", "#c35cff"], badge: "NEW" },
-      { key: "hexforge", icon: "/game-icons/256/fable-factory.png", title: "Fable Factory", to: "/fable-factory", grad: ["#ffb000", "#00d6ff"], badge: "NEW" },
-      { key: "hexforge", icon: "/game-icons/256/ticket-to-sonnet.png", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#e21b4d", "#3debff"], badge: "NEW" },
-      { key: "hexforge", icon: "/game-icons/256/carcassonne.png", title: "Каркассон", to: "/carcassonne", grad: ["#00a86b", "#ffd15c"], badge: "NEW" },
-      { key: "hexforge", icon: "/game-icons/256/monopoly-hp.png", title: "Монополия", to: "/monopoly-hp", grad: ["#6a35ff", "#41ffc5"], badge: "NEW" },
-      { key: "hexforge", icon: "/game-icons/256/bunker.png", title: "Бункер", to: "/bunker", grad: ["#ff7a1a", "#b7ff2a"], badge: "NEW" },
-      { key: "hexforge", icon: "/game-icons/256/hexforge.png", title: "HexForge", to: "/hexforge", grad: ["#52ff6b", "#2ea8ff"], badge: "BETA" },
+      { key: "card", icon: "/game-icons/256/catan-fable.png", title: "Катан Fable", to: "/catan-fable", grad: ["#7d4cff", "#c35cff"], badge: "NEW" },
+      { key: "card", icon: "/game-icons/256/fable-factory.png", title: "Fable Factory", to: "/fable-factory", grad: ["#ffb000", "#00d6ff"], badge: "NEW" },
+      { key: "card", icon: "/game-icons/256/ticket-to-sonnet.png", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#e21b4d", "#3debff"], badge: "NEW" },
+      { key: "card", icon: "/game-icons/256/carcassonne.png", title: "Каркассон", to: "/carcassonne", grad: ["#00a86b", "#ffd15c"], badge: "NEW" },
+      { key: "card", icon: "/game-icons/256/monopoly-hp.png", title: "Монополия", to: "/monopoly-hp", grad: ["#6a35ff", "#41ffc5"], badge: "NEW" },
+      { key: "card", icon: "/game-icons/256/bunker.png", title: "Бункер", to: "/bunker", grad: ["#ff7a1a", "#b7ff2a"], badge: "NEW" },
     ],
   },
   {
