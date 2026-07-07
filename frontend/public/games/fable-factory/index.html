@@ -261,25 +261,25 @@ const GOALS=[
 ];
 const EPOCHS=[
   {nm:"Ручной цех",need:"старт",chk:()=>true,perk:"+ базовый завод"},
-  {nm:"Добыча",need:"10 ▪️ листов",chk:s=>s.made.ironPlate>=10,perk:"+5% к темпу"},
-  {nm:"Энергосеть",need:"работающий ⚡️ генератор",chk:()=>grid.flat().some(c=>c&&c.t==="gen"&&c.fuel>0),perk:"генераторы мощнее"},
-  {nm:"Сборка",need:"исследовать 🏭 Сборку",chk:()=>tech("t_asm"),perk:"дешевле ранние апгрейды"},
-  {nm:"Сталь",need:"5 🔩 стали",chk:s=>s.made.steelPlate>=5,perk:"прочнее здания"},
-  {nm:"Наука",need:"исследовать 🧪 Лабу",chk:()=>tech("t_lab"),perk:"ускоряет лаборатории"},
-  {nm:"Логистика",need:"25 конвейеров",chk:()=>countBuildings("belt")>=25,perk:"ленты стабильнее"},
-  {nm:"Посёлок",need:"4 рабочих",chk:()=>workers.length>=4,perk:"жители быстрее"},
-  {nm:"Хозяйство",need:"15 🍞 еды",chk:s=>tech("t_farm")&&s.made.food>=15,perk:"меньше голода"},
-  {nm:"Новые земли",need:"2 земли",chk:()=>(S.regions||[]).length>=2,perk:"+ стартовая разведка"},
-  {nm:"Золото",need:"8 🥇 слитков",chk:s=>s.made.goldBar>=8,perk:"открывает дорогие апгрейды"},
-  {nm:"Тонкое дело",need:"технология 🥇",chk:()=>tech("t_mod"),perk:"линзы и модули"},
-  {nm:"Синт-наука",need:"8 🔮",chk:s=>s.made.science2>=8,perk:"ускоряет поздний гринд"},
-  {nm:"Мегацех",need:"30 зданий",chk:()=>totalBuildings()>=30,perk:"бонус за масштаб"},
-  {nm:"Мастер-апгрейды",need:"здание ур.10",chk:()=>maxBuildingLevel()>=10,perk:"уровни 11-20"},
-  {nm:"Экспедиции",need:"4 земли",chk:()=>(S.regions||[]).length>=4,perk:"больше редкой руды"},
-  {nm:"Гильдия",need:"3 рабочих ур.5",chk:()=>workers.filter(w=>(w.lvl||1)>=5).length>=3,perk:"жители учатся быстрее"},
-  {nm:"Модульная эра",need:"15 🧩 модулей",chk:s=>s.made.module>=15,perk:"модули дешевле"},
-  {nm:"Fable-ядро",need:"исследовать 💠",chk:()=>tech("t_win")||S.coreBuilt,perk:"открывает престиж"},
-  {nm:"Endless Core",need:"здание ур.20 или 25 🔮",chk:s=>maxBuildingLevel()>=20||s.made.science2>=25,perk:"готово к перезапуску"},
+  {nm:"Добыча",need:"25 ▪️ листов + бур + плавильня",chk:s=>s.made.ironPlate>=25&&countBuildings("miner")>=1&&countBuildings("furnace")>=1,perk:"+5% к темпу"},
+  {nm:"Энергосеть",need:"2 работающих ⚡️ генератора и 12 конвейеров",chk:()=>poweredGenerators()>=2&&countBuildings("belt")>=12,perk:"генераторы мощнее"},
+  {nm:"Сборка",need:"исследовать 🏭 и поставить сборщик",chk:()=>tech("t_asm")&&countBuildings("asm")>=1,perk:"дешевле ранние апгрейды"},
+  {nm:"Сталь",need:"20 🔩 стали и 2 плавильни",chk:s=>s.made.steelPlate>=20&&countBuildings("furnace")>=2,perk:"прочнее здания"},
+  {nm:"Наука",need:"лаборатория + 30 🧪 науки",chk:s=>tech("t_lab")&&countBuildings("lab")>=1&&s.made.science>=30,perk:"ускоряет лаборатории"},
+  {nm:"Логистика",need:"40 конвейеров + здание ур.3",chk:()=>countBuildings("belt")>=40&&maxBuildingLevel()>=3,perk:"ленты стабильнее"},
+  {nm:"Посёлок",need:"5 рабочих + 3 работающих генератора",chk:()=>workers.length>=5&&poweredGenerators()>=3,perk:"жители быстрее"},
+  {nm:"Хозяйство",need:"ферма/охота + 60 🍞 еды",chk:s=>tech("t_farm")&&(countBuildings("farm")+countBuildings("lodge"))>=1&&s.made.food>=60,perk:"меньше голода"},
+  {nm:"Новые земли",need:"2 земли + 12 🥇 слитков",chk:s=>(S.regions||[]).length>=2&&s.made.goldBar>=12,perk:"+ стартовая разведка"},
+  {nm:"Золото",need:"30 🥇 слитков + здание ур.5",chk:s=>s.made.goldBar>=30&&maxBuildingLevel()>=5,perk:"открывает дорогие апгрейды"},
+  {nm:"Тонкое дело",need:"технология 🥇 + 8 🔍 линз + 6 🧩",chk:s=>tech("t_mod")&&s.made.lens>=8&&s.made.module>=6,perk:"линзы и модули"},
+  {nm:"Синт-наука",need:"25 🔮 синт-науки + 10 🧩",chk:s=>s.made.science2>=25&&s.made.module>=10,perk:"ускоряет поздний гринд"},
+  {nm:"Мегацех",need:"55 зданий, 70 лент, 5 генераторов",chk:()=>totalBuildings()>=55&&countBuildings("belt")>=70&&poweredGenerators()>=5,perk:"бонус за масштаб"},
+  {nm:"Мастер-апгрейды",need:"здание ур.10 + 45 суммарных уровней",chk:()=>maxBuildingLevel()>=10&&totalUpgradeLevels()>=45,perk:"уровни 11-20"},
+  {nm:"Экспедиции",need:"4 земли + 40 💎 кристаллов",chk:s=>(S.regions||[]).length>=4&&s.made.crystal>=40,perk:"больше редкой руды"},
+  {nm:"Гильдия",need:"5 рабочих ур.7 + 160 🍞 еды",chk:s=>workers.filter(w=>(w.lvl||1)>=7).length>=5&&s.made.food>=160,perk:"жители учатся быстрее"},
+  {nm:"Модульная эра",need:"35 🧩, 70 🔮, здание ур.12",chk:s=>s.made.module>=35&&s.made.science2>=70&&maxBuildingLevel()>=12,perk:"модули дешевле"},
+  {nm:"Fable-ядро",need:"💠 ядро + здание ур.15",chk:()=>S.coreBuilt&&maxBuildingLevel()>=15,perk:"открывает престиж"},
+  {nm:"Endless Core",need:"здание ур.20 + 120 🔮 + 50 🧩",chk:s=>maxBuildingLevel()>=20&&s.made.science2>=120&&s.made.module>=50,perk:"готово к перезапуску"},
 ];
 
 /* ---------- состояние ---------- */
@@ -543,6 +543,8 @@ function totalBuildings(){return grid.flat().filter(c=>c).length}
 function countBuildings(t){return grid.flat().filter(c=>c&&c.t===t).length}
 function maxLevelOf(t){return grid.flat().reduce((m,c)=>c&&c.t===t?Math.max(m,cellLevel(c)):m,1)}
 function maxBuildingLevel(){return grid.flat().reduce((m,c)=>c?Math.max(m,cellLevel(c)):m,1)}
+function totalUpgradeLevels(){return grid.flat().reduce((m,c)=>c?m+cellLevel(c)-1:m,0)}
+function poweredGenerators(){return grid.flat().filter(c=>c&&c.t==="gen"&&c.fuel>0).length}
 function prestigeMult(){return 1+(S.prestige||0)*0.08}
 function epochMult(){return 1+Math.max(0,(S.epoch||1)-1)*0.018}
 function machineMult(c){return (1+(cellLevel(c)-1)*0.16)*prestigeMult()*epochMult()}
@@ -693,12 +695,18 @@ document.getElementById("goal").onclick=function(){this.classList.toggle("min")}
 function upgradeCost(c){
   const lv=cellLevel(c);
   if(lv>=MAX_UPGRADE_LEVEL)return null;
-  if(c.t==="belt")return lv<6?{ironPlate:lv,gear:1}:lv<11?{steelPlate:Math.ceil(lv/2),gear:2}:lv<16?{circuit:lv-8,science:1}: {module:1,science2:Math.max(1,lv-15)};
-  if(lv<5)return {ironPlate:2+lv,gear:Math.ceil(lv/2)};
-  if(lv<10)return {steelPlate:lv-2,circuit:Math.ceil(lv/2)};
-  if(lv<15)return {science:lv-8,steelPlate:lv};
-  if(lv<19)return {goldBar:lv-13,lens:Math.ceil((lv-14)/2),module:1};
-  return {science2:8,module:3,crystal:12};
+  if(c.t==="belt"){
+    if(lv<6)return {ironPlate:lv*2,gear:Math.ceil(lv/2)};
+    if(lv<11)return {steelPlate:lv,gear:Math.ceil(lv/2)+1,circuit:Math.max(1,lv-6)};
+    if(lv<16)return {steelPlate:lv*2,circuit:lv-6,science:lv-9};
+    if(lv<19)return {module:Math.ceil((lv-14)/2),science2:lv-14,goldBar:(lv-14)*2};
+    return {science2:18,module:6,crystal:30};
+  }
+  if(lv<5)return {ironPlate:4+lv*2,gear:lv};
+  if(lv<10)return {steelPlate:lv*2,circuit:Math.ceil(lv*.8),science:Math.ceil((lv-4)/2)};
+  if(lv<15)return {science:lv*2,steelPlate:lv*3,circuit:lv};
+  if(lv<19)return {goldBar:(lv-12)*3,lens:lv-13,module:Math.ceil((lv-13)/2),science2:lv-13};
+  return {science2:28,module:10,crystal:50,goldBar:30};
 }
 function upgradeCell(x,y){
   const c=grid[y][x];
@@ -1164,7 +1172,10 @@ function ecoSheet(){
 /* ---------- 🏭 x20 развитие и престиж ---------- */
 function updateProgression(announce){
   let lvl=1;
-  EPOCHS.forEach((e,i)=>{if(e.chk(S))lvl=i+1});
+  for(let i=1;i<EPOCHS.length;i++){
+    if(EPOCHS[i].chk(S))lvl=i+1;
+    else break;
+  }
   const old=S.epoch||1;
   S.epoch=lvl;
   S.bestEpoch=Math.max(S.bestEpoch||1,lvl);
@@ -1225,6 +1236,7 @@ function doPrestige(){
 function progressionSheet(){
   updateProgression(false);
   const maxLv=maxBuildingLevel();
+  const next=EPOCHS[S.epoch||1];
   const ready=prestigeReady();
   const pc=prestigeCost();
   const rows=EPOCHS.map((e,i)=>{
@@ -1237,7 +1249,8 @@ function progressionSheet(){
   }).join("");
   sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);line-height:1.45;margin-bottom:10px">
       Текущая эпоха: <b style="color:var(--gold)">${S.epoch}/${EPOCHS.length} · ${EPOCHS[(S.epoch||1)-1].nm}</b>.
-      Лучшее здание: <b>${maxLv}/${MAX_UPGRADE_LEVEL}</b>. Престиж: <b>💠 ${S.prestige||0}</b>.
+      ${next?`Следующая: <b>${next.nm}</b> — нужно ${next.need}.`:"Цикл готов к престижу."}
+      Лучшее здание: <b>${maxLv}/${MAX_UPGRADE_LEVEL}</b>. Сумма уровней: <b>${totalUpgradeLevels()}</b>. Престиж: <b>💠 ${S.prestige||0}</b>.
       Каждый уровень здания даёт скорость, эпохи дают общий множитель, престиж остаётся после перезапуска ядра.
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
