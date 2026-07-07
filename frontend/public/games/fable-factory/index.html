@@ -50,7 +50,11 @@
   #smartShade{position:fixed;inset:0;z-index:38;display:none;background:radial-gradient(ellipse at 85% 78%, rgba(0,0,0,.62), rgba(0,0,0,.34));backdrop-filter:blur(2.5px);-webkit-backdrop-filter:blur(2.5px)}
   #smartShade.on{display:block}
   /* дзен-режим: только карта и ⋯ */
-  body.zen #hud,body.zen #goal,body.zen #tut,body.zen #quick{display:none !important}
+  body.zen #hud,body.zen #goal,body.zen #tut,body.zen #quick,body.zen #mmap{display:none !important}
+  /* минимапа: тап телепортирует камеру */
+  #mmap{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:30;display:none;
+    border:.5px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(8,12,10,.88);
+    box-shadow:0 6px 18px rgba(0,0,0,.45);image-rendering:pixelated}
   #smartMenu .k{font-size:1.05rem;width:20px;text-align:center;flex-shrink:0}
   /* контекстное меню по клетке */
   #ctx{position:fixed;z-index:50;display:none;border-radius:16px;padding:8px;min-width:176px;max-width:248px;animation:pop .16s cubic-bezier(.2,1.2,.3,1)}
@@ -87,6 +91,7 @@
 <div id="tut" class="glass"><div class="step"></div><div class="txt"></div><div class="skip">пропустить обучение</div></div>
 <div id="ctx" class="glass"></div>
 <div id="quick" class="glass"><span id="quickTxt"></span><button id="quickX">✕</button></div>
+<canvas id="mmap"></canvas>
 <div id="smartShade"></div>
 <div id="smart">
   <div id="smartMenu"></div>
@@ -105,12 +110,15 @@ const W0=84,H0=58,TS=26;   // стартовый размер мира; карт
 let W=W0,H=H0;
 const cv=document.getElementById("cv"),cx=cv.getContext("2d");
 const mk=()=>Array.from({length:H},()=>Array(W).fill(null));
-const ORE={iron:"#9fb9d4",copper:"#d9813f",coal:"#23262d",stone:"#a09b8a"};
-const ORE_NM={iron:"⛏ Железная руда",copper:"⛏ Медная руда",coal:"⚫ Уголь",stone:"🪨 Камень"};
+const ORE={iron:"#9fb9d4",copper:"#d9813f",coal:"#23262d",stone:"#a09b8a",gold:"#e8c84b",crystal:"#8be0e8"};
+const ORE_NM={iron:"⛏ Железная руда",copper:"⛏ Медная руда",coal:"⚫ Уголь",stone:"🪨 Камень",gold:"🪙 Золотая жила",crystal:"💎 Кристаллы"};
+const ORE_LETTER={iron:"Ж",copper:"М",coal:"У",stone:"К",gold:"З",crystal:"✦"};
 const ITEM_COL={iron:"#9fb9d4",copper:"#d9813f",coal:"#2a2e36",stone:"#a09b8a",wood:"#8a6a3d",
-  ironPlate:"#c8d4e2",copperPlate:"#e8955a",steelPlate:"#93a0b4",gear:"#b9c2cf",wire:"#d9813f",circuit:"#4dbb72",science:"#7aa2ff"};
+  ironPlate:"#c8d4e2",copperPlate:"#e8955a",steelPlate:"#93a0b4",gear:"#b9c2cf",wire:"#d9813f",circuit:"#4dbb72",science:"#7aa2ff",
+  gold:"#e8c84b",crystal:"#8be0e8",goldBar:"#f5d76e",lens:"#aef0f5",module:"#c58cff",science2:"#e07af0",food:"#e8a25b"};
 const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",wood:"🌲 древесина",
-  ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука"};
+  ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука",
+  gold:"🪙 золото",crystal:"💎 кристалл",goldBar:"🥇 слиток",lens:"🔍 линза",module:"🧩 модуль",science2:"🔮 синт-наука",food:"🍞 еда"};
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 
 /* ---------- карты ---------- */
@@ -130,9 +138,10 @@ function seedOreAmounts(mul){
     if(ore[y][x]&&!oreAmt[y][x])oreAmt[y][x]=Math.round(rnd(70,180)*(mul||1));
 }
 function resizeTerrCanvas(){terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;terrDirty=true}
-function genMap(mapId){
+function genMap(mapId,depth){
+  depth=depth||0; // глубина = номер земли: дальше — богаче и экзотичнее
   const m=MAPS[mapId];
-  W=W0;H=H0;ore=mk();oreAmt=mk();terr=mk();grid=mk();drops={};resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
+  W=W0;H=H0;ore=mk();oreAmt=mk();terr=mk();grid=mk();drops={};animals=[];resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
   if(m.water){ // озёра-кляксы
     for(let i=0;i<7;i++){let x=rnd(4,W-5),y=rnd(4,H-5);
       for(let j=0;j<50;j++){if(x>1&&y>1&&x<W-2&&y<H-2)terr[y][x]="water";x+=rnd(-1,1);y+=rnd(-1,1)}}
@@ -143,7 +152,11 @@ function genMap(mapId){
   const base=Math.round(34*m.oreMul);
   // руда конечна → месторождений вдвое больше, чем раньше
   for(let p=0;p<2;p++)["iron","iron","iron","copper","copper","coal","coal","coal","stone","stone"].forEach(k=>blob(k,base));
+  // дальние земли богаче: золото со 2-й земли, кристаллы с 3-й
+  if(depth>=1)for(let i=0;i<1+depth;i++)blob("gold",Math.round(20*m.oreMul));
+  if(depth>=2)for(let i=0;i<depth-1;i++)blob("crystal",16);
   seedOreAmounts(m.oreMul);
+  spawnAnimals(7+depth*3); // в диких землях больше зверья
   // леса: живой мир; дерево рубится Сносом → 🌲 древесина (топливо)
   for(let i=0;i<(m.trees||0);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<26;j++){if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
@@ -173,8 +186,11 @@ function expandWorld(margin){
     for(let i=0;i<n;i++){if(inRing(x,y)&&x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!grid[y][x])ore[y][x]=kind;x+=rnd(-1,1);y+=rnd(-1,1)}};
   const base=Math.round(30*m.oreMul);
   const kinds=["iron","iron","iron","copper","copper","coal","coal","coal","stone","stone"];
+  if((S.curRegion||0)>=1)kinds.push("gold");
+  if((S.curRegion||0)>=2)kinds.push("crystal");
   const passes=Math.max(2,Math.round(margin/3));
   for(let p=0;p<passes;p++)kinds.forEach(k=>blob(k,base));
+  spawnAnimals(3);
   for(let i=0;i<Math.max(6,(m.trees||8));i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<24;j++){if(inRing(x,y)&&x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!ore[y][x]&&!grid[y][x])terr[y][x]="tree";x+=rnd(-1,1);y+=rnd(-1,1)}}
   seedOreAmounts(m.oreMul);
@@ -194,24 +210,31 @@ const DEFS={
   lab:   {nm:"Лаборатория",ic:"🧪",cost:{ironPlate:10,circuit:2},power:4,unlock:"t_lab",hp:150},
   turret:{nm:"Турель",ic:"🗼",cost:{ironPlate:6,gear:4},power:2,unlock:"t_def",hp:220},
   wall:  {nm:"Стена",ic:"🧿",cost:{stone:2},power:0,unlock:"t_def",hp:420},
+  farm:  {nm:"Ферма",ic:"🌾",cost:{ironPlate:6,wood:10},power:2,unlock:"t_farm",hp:120},
+  lodge: {nm:"Хижина охотника",ic:"🏹",cost:{wood:12,stone:4},power:0,unlock:"t_farm",hp:120},
   core:  {nm:"Ядро",ic:"💠",cost:{},power:0,unlock:"hidden",hp:600},
   del:   {nm:"Снос",ic:"✖",cost:{},power:0,unlock:null,hp:0},
 };
 const RECIPES={
-  furnace:[{in:{iron:1,coal:1},out:"ironPlate",t:60},{in:{copper:1,coal:1},out:"copperPlate",t:60},{in:{ironPlate:2,coal:1},out:"steelPlate",t:100}],
-  asm:[{in:{ironPlate:2},out:"gear",t:80},{in:{copperPlate:1},out:"wire",t:50},{in:{wire:2,ironPlate:1},out:"circuit",t:110}],
-  lab:[{in:{circuit:1,gear:1},out:"science",t:140}],
+  furnace:[{in:{iron:1,coal:1},out:"ironPlate",t:60},{in:{copper:1,coal:1},out:"copperPlate",t:60},{in:{ironPlate:2,coal:1},out:"steelPlate",t:100},
+    {in:{gold:1,coal:1},out:"goldBar",t:120}],
+  asm:[{in:{ironPlate:2},out:"gear",t:80},{in:{copperPlate:1},out:"wire",t:50},{in:{wire:2,ironPlate:1},out:"circuit",t:110},
+    {in:{crystal:2},out:"lens",t:140,req:"t_mod"},{in:{circuit:1,goldBar:1},out:"module",t:170,req:"t_mod"}],
+  lab:[{in:{circuit:1,gear:1},out:"science",t:140},{in:{lens:1,module:1},out:"science2",t:220,req:"t_mod"}],
 };
+const recipesOf=t=>RECIPES[t].filter(r=>!r.req||tech(r.req)); // поздние рецепты открываются технологиями
 const TECHS=[
   {id:"t_asm",nm:"Сборка (9 ▪️)",cost:{ironPlate:9},done:false,desc:"Открывает Сборщик"},
   {id:"t_def",nm:"Оборона (8 ⚙️)",cost:{gear:8},done:false,desc:"Турель и стена"},
   {id:"t_lab",nm:"Наука (8 🟩)",cost:{circuit:8},done:false,desc:"Открывает Лабораторию"},
   {id:"t_belt",nm:"Быстрые конвейеры (4 🧪)",cost:{science:4},done:false,desc:"Конвейеры ×2"},
   {id:"t_speed",nm:"Турбо-буры (5 🧪)",cost:{science:5},done:false,desc:"Буры ×2 быстрее"},
-  {id:"t_win",nm:"Fable-ядро (60 🧪)",cost:{science:60},done:false,desc:"ПОБЕДА"},
-  // новые техи ДОБАВЛЕНЫ В КОНЕЦ: сейвы хранят done по индексу
+  {id:"t_win",nm:"Fable-ядро (40 🧪 + 10 🔮 + 3 🧩)",cost:{science:40,science2:10,module:3},done:false,desc:"ПОБЕДА"},
+  // новые техи ДОБАВЛЯТЬ ТОЛЬКО В КОНЕЦ: сейвы хранят done по индексу
   {id:"t_workers",nm:"Эргономика (12 🧪)",cost:{science:12},done:false,desc:"Рабочие бегают на 25% быстрее"},
   {id:"t_grid",nm:"Энергосеть (15 🧪)",cost:{science:15},done:false,desc:"Зона генератора +3 клетки, мощность +4"},
+  {id:"t_farm",nm:"Хозяйство (10 ⚙️)",cost:{gear:10},done:false,desc:"Ферма 🌾 и хижина охотника 🏹 — еда для посёлка"},
+  {id:"t_mod",nm:"Тонкое дело (6 🥇)",cost:{goldBar:6},done:false,desc:"Линзы 🔍, модули 🧩 и синт-наука 🔮 (золото и кристаллы ищи в новых землях)"},
 ];
 const GOALS=[
   {txt:"Скрафти 10 жел.листов",chk:s=>s.made.ironPlate>=10},
@@ -221,13 +244,17 @@ const GOALS=[
   {txt:"Наработай 25 🧪 науки",chk:s=>s.made.science>=25},
   {txt:"Большая индустрия: 30 🔩 стали и 25 🟩 плат",chk:s=>s.made.steelPlate>=30&&s.made.circuit>=25},
   {txt:"Посёлок: 6 рабочих и 3 работающих генератора",chk:()=>workers.length>=6&&grid.flat().filter(c=>c&&c.t==="gen"&&c.fuel>0).length>=3},
-  {txt:"Разведай новые земли (⋯ → 🗺 → 🚀)",chk:()=>(S.regions||[]).length>1},
-  {txt:"Произведи 60 🧪 и собери Fable-ядро",chk:s=>tech("t_win")},
+  {txt:"Накорми людей: исследуй «Хозяйство», построй 🌾 или 🏹 и добудь 15 🍞",chk:s=>tech("t_farm")&&s.made.food>=15},
+  {txt:"Разведай новые земли (⋯ → 🗺 → 🚀) — там золото",chk:()=>(S.regions||[]).length>1},
+  {txt:"Золотая лихорадка: выплави 8 🥇 слитков",chk:s=>s.made.goldBar>=8},
+  {txt:"Высокие технологии: 5 🧩 модулей и 8 🔮 синт-науки",chk:s=>s.made.module>=5&&s.made.science2>=8},
+  {txt:"Собери Fable-ядро (40 🧪 + 10 🔮 + 3 🧩)",chk:s=>tech("t_win")},
 ];
 
 /* ---------- состояние ---------- */
 let grid=mk();
-const inv={iron:0,copper:0,coal:30,stone:18,wood:0,ironPlate:22,copperPlate:0,steelPlate:0,gear:10,wire:0,circuit:0,science:0};
+const inv={iron:0,copper:0,coal:30,stone:18,wood:0,ironPlate:22,copperPlate:0,steelPlate:0,gear:10,wire:0,circuit:0,science:0,
+  gold:0,crystal:0,goldBar:0,lens:0,module:0,science2:0,food:6};
 /* ручной крафт: страховка от тупика (нет шестерён/листов — производи руками, пока не встал конвейер) */
 const HAND=[
   {out:"ironPlate",in:{iron:1,coal:1}},
@@ -240,6 +267,39 @@ Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
 const DROP_CAP=40;
+/* ---------- 🦌 животные: бродят, пугаются людей, охотятся хижиной ---------- */
+let animals=[];
+const ANIMAL_KINDS=[{ic:"🦌",sp:0.014},{ic:"🐇",sp:0.02},{ic:"🐗",sp:0.011}];
+function spawnAnimals(n){
+  for(let i=0;i<n;i++){
+    let x=rnd(2,W-3),y=rnd(2,H-3),g=0;
+    while((terr[y][x]||grid[y][x])&&g++<30){x=rnd(2,W-3);y=rnd(2,H-3)}
+    animals.push({x:x+.5,y:y+.5,k:rnd(0,ANIMAL_KINDS.length-1),a:Math.random()*7,t:0,rest:false});
+  }
+}
+function animalStep(an){
+  const K=ANIMAL_KINDS[an.k];
+  an.t--;
+  let flee=null;
+  for(const w of workers){const dx=an.x-w.x,dy=an.y-w.y;if(dx*dx+dy*dy<9){flee=[dx,dy];break}}
+  if(flee){const L=Math.hypot(flee[0],flee[1])||1;an.a=Math.atan2(flee[1]/L,flee[0]/L);an.t=60;an.rest=false;}
+  else if(an.t<=0){an.a=Math.random()*7;an.rest=Math.random()<0.45;an.t=rnd(120,420);}
+  if(!an.rest){
+    const sp=K.sp*(flee?2.6:1);
+    const nx=an.x+Math.cos(an.a)*sp,ny=an.y+Math.sin(an.a)*sp;
+    if(nx>1&&ny>1&&nx<W-1&&ny<H-1&&terr[Math.floor(ny)][Math.floor(nx)]!=="water"){an.x=nx;an.y=ny}
+    else an.a=Math.random()*7;
+  }
+}
+/* ---------- 📊 экономика: какой % добычи в минуту уходит на авто-производство ---------- */
+let minedMin={},supplyBudget=null; // null = безлимит (100%)
+function rolloverEconomy(){
+  S.mineRate={...minedMin};
+  const pct=S.supplyPct??100;
+  if(pct<100){supplyBudget={};for(const k in minedMin)supplyBudget[k]=Math.ceil(minedMin[k]*pct/100);}
+  else supplyBudget=null;
+  minedMin={};
+}
 let resFold=localStorage.getItem("ff.resfold")==="1";
 let zen=localStorage.getItem("ff.zen")==="1"; // «только карта и три точки»
 /* ---------- энергосистема: каждый генератор питает ЗОНУ (радиус), генераторов — сколько угодно ---------- */
@@ -279,11 +339,27 @@ const SPECS={
   power: {nm:"Электрик",ic:"⚡️",piles:[],desc:"только генераторы: носит 6 топлива, очень быстрый"},
   hauler:{nm:"Грузчик",ic:"📦",piles:["ironPlate","copperPlate","steelPlate","gear","wire","circuit","science","wood"],desc:"продукция цехов: +30% при сборе"},
 };
-function spawnWorker(x,y){workers.push({x:x+0.5,y:y+0.5,job:null,carry:null,ph:Math.random()*7,spec:"any",xp:0,lvl:1});}
+/* имена в духе названий кораблей: 26×26 = 676 вариантов из базы */
+const NAME_A=["Жуковый","Тихий","Ржавый","Бархатный","Лунный","Честный","Косой","Громкий","Сонный","Медный","Упрямый","Весёлый","Дальний","Хитрый","Крепкий","Пыльный","Ночной","Внезапный","Мудрый","Шустрый","Угрюмый","Ласковый","Гордый","Скромный","Дикий","Точный"];
+const NAME_B=["Поедатель","Гром","Скороход","Шептун","Молоток","Ветер","Фонарь","Барсук","Странник","Огонёк","Копатель","Свисток","Сапог","Философ","Пельмень","Компас","Балагур","Тумак","Родник","Жаворонок","Сухарь","Маяк","Валун","Бродяга","Умник","Костёр"];
+function makeName(){
+  for(let i=0;i<24;i++){
+    const n=NAME_A[rnd(0,NAME_A.length-1)]+" "+NAME_B[rnd(0,NAME_B.length-1)];
+    if(!workers.some(w=>w.name===n))return n;
+  }
+  return "Безымянный "+rnd(10,99);
+}
+const SKINS=["#e8c39a","#d9a878","#c68e5f","#f0d0ae"];
+const SHIRTS=["#4a6a8f","#7a4a8f","#4a8f5f","#8f6a4a","#8f4a55","#5b8f8a","#8a8f4a","#666f7d"];
+const HATS=[null,null,"#c9a34e","#7d8a95","#8f4a55"];
+function spawnWorker(x,y){workers.push({x:x+0.5,y:y+0.5,job:null,carry:null,ph:Math.random()*7,spec:"any",xp:0,lvl:1,
+  name:makeName(),look:{skin:SKINS[rnd(0,SKINS.length-1)],shirt:SHIRTS[rnd(0,SHIRTS.length-1)],hat:HATS[rnd(0,HATS.length-1)]},
+  belly:rnd(2400,5400),hungry:false});}
 function workerSpeed(w){
   let s=0.06*(1+0.08*((w.lvl||1)-1));
   if(w.spec&&w.spec!=="any")s*=w.spec==="power"?1.6:1.35;
   if(tech("t_workers"))s*=1.25;
+  if(w.hungry)s*=0.55; // голодный — вялый
   return s;
 }
 function giveXp(w,n){
@@ -333,6 +409,14 @@ function specAllowsMiner(w,kind){
   return false; // электрик и грузчик буры не таскают
 }
 function workerStep(w){
+  // голод включается, когда посёлок вырос (4+ жителей): 1 🍞 на ~90 сек
+  if(workers.length>=4){
+    w.belly=(w.belly??rnd(2400,5400))-1;
+    if(w.belly<=0){
+      if(inv.food>0){inv.food--;w.belly=5400;if(w.hungry){w.hungry=false;puff(Math.floor(w.x),Math.floor(w.y),"#e8a25b",2)}}
+      else {w.hungry=true;w.belly=300;} // проверит снова через 5с
+    }
+  } else w.hungry=false;
   const SPEED=workerSpeed(w);
   if(!w.job){
     if(w.carryCell){ // несём снятый бур к новой залежи
@@ -513,7 +597,7 @@ function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" 
 function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
 function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
 function drawBuild(){} // постройки теперь в контекстном меню по клетке — панели нет
-const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","turret","wall"];
+const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","farm","lodge","turret","wall"];
 function buildables(){return BUILD_ORDER.filter(t=>{
   const d=DEFS[t];
   if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)return false;
@@ -541,13 +625,15 @@ function drawHud(){
   const idle=grid.flat().filter(c=>c&&RECIPES[c.t]&&(DEFS[c.t].power<=0||c.pw)
     &&!RECIPES[c.t].some(r=>Object.entries(r.in).every(([k,n])=>(c.buf[k]||0)>=n))).length;
   const idlePill=idle>0?`<div class="pill bad">⏸ простаивает: ${idle} — нет сырья</div>`:"";
+  const hungry=workers.filter(w=>w.hungry).length;
+  const hungryPill=hungry>0?`<div class="pill bad">🍽 голодают: ${hungry} — нужна 🌾 еда</div>`:"";
   let powerPill=`<div class="pill ${S.powerOk?"":"bad"}">⚡️ ${ps.fed}/${ps.need}`;
   if(ps.noZone)powerPill+=` · ${ps.noZone} вне зоны генератора`;
   if(ps.over)powerPill+=` · нужен ещё генератор`;
   powerPill+=`</div>`;
   // ресурсы в HUD не показываем — склад живёт в ⋯ → 📦 (просьба игрока: меньше шума)
   document.getElementById("hud").innerHTML=
-    powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill;
+    powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill+hungryPill;
 }
 function toggleResFold(){resFold=!resFold;localStorage.setItem("ff.resfold",resFold?"1":"0");drawHud()}
 function applyZen(){document.body.classList.toggle("zen",zen)}
@@ -645,7 +731,13 @@ function refuel(x,y){const c=grid[y][x];
   else if(tw>0){pushU(x,y);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;toast("🌲 Древесина в генератор: "+tw);snd("place");drawInv()}
   else toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
 }
-const activeRecipes=c=>c.recSel!=null&&RECIPES[c.t][c.recSel]?[RECIPES[c.t][c.recSel]]:RECIPES[c.t];
+const activeRecipes=c=>{
+  if(c.recSel!=null&&RECIPES[c.t][c.recSel]){
+    const r=RECIPES[c.t][c.recSel];
+    return (!r.req||tech(r.req))?[r]:recipesOf(c.t);
+  }
+  return recipesOf(c.t);
+};
 function feed(x,y){const c=grid[y][x];let fed=[];
   const needs=new Set();activeRecipes(c).forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
   pushU(x,y);
@@ -718,14 +810,18 @@ function openRecipeMenu(x,y,sx,sy){
   const c=grid[y][x],recs=RECIPES[c.t];
   const pick=i=>{c.recSel=i;if(c.prog===0)c.rec=null;
     toast(i==null?"♻️ Рецепт: авто (по содержимому)":"🎛 Рецепт: "+ITEM[recs[i].out]);snd("rotate")};
-  const acts=recs.map((r,i)=>({ic:c.recSel===i?"✅":"▫️",l:ITEM[r.out],sub:recipeStr(r),wide:true,f:()=>pick(i)}));
+  const acts=recs.map((r,i)=>{
+    const locked=r.req&&!tech(r.req);
+    return {ic:locked?"🔒":(c.recSel===i?"✅":"▫️"),l:ITEM[r.out],
+      sub:locked?"нужна технология: "+TECHS.find(t=>t.id===r.req).nm:recipeStr(r),wide:true,dis:locked,f:()=>pick(i)};
+  });
   acts.push({ic:c.recSel==null?"✅":"♻️",l:"Авто",sub:"что привезут — то и делает",wide:true,f:()=>pick(null)});
   renderCtx("🎛 Что производить?",acts,sx,sy);
 }
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -739,6 +835,8 @@ function renderSheet(){
   else if(S.sheet==="map")mapSheet();
   else if(S.sheet==="hand")handSheet();
   else if(S.sheet==="auto")autoSheet();
+  else if(S.sheet==="crew")crewSheet();
+  else if(S.sheet==="eco")ecoSheet();
 }
 function handSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Пока нет конвейеров или не хватает построек — крафти руками из того, что на складе. Медленнее автоматики, зато не застрянешь.</div>`;
@@ -836,6 +934,11 @@ function autoOptions(){return [
  {id:"copper",l:"🟧 Медные листы",     sub:"бур на медь → лента → плавильня «мед.лист»", ore:"copper", proc:"furnace", rec:1},
  {id:"stone", l:"🪨 Камень",           sub:"бур на камень — кучи собирай тапом", ore:"stone", proc:null},
  {id:"steel", l:"🔩 Сталь",            sub:"плавильня «сталь»: сама берёт ▪️ листы и ⚫ уголь со склада", proc:"furnace", rec:2},
+ {id:"goldore",l:"🥇 Золотые слитки",  sub:"бур на золото → плавильня «слиток» (золото — в новых землях)", ore:"gold", proc:"furnace", rec:3},
+ {id:"food",  l:"🍞 Ферма",            sub:"растит еду для посёлка (нужно «Хозяйство»)", proc:"farm", tech:"t_farm"},
+ {id:"lens",  l:"🔍 Линзы",            sub:"сборщик «линза»: 2 💎 кристалла (нужно «Тонкое дело»)", proc:"asm", rec:3, tech:"t_mod"},
+ {id:"module",l:"🧩 Модули",           sub:"сборщик «модуль»: плата + слиток (нужно «Тонкое дело»)", proc:"asm", rec:4, tech:"t_mod"},
+ {id:"sci2",  l:"🔮 Синт-наука",       sub:"лаборатория: линза + модуль (нужно «Тонкое дело»)", proc:"lab", rec:1, tech:"t_mod"},
  {id:"gear",  l:"⚙️ Шестерни",         sub:"сборщик «шестерня», сырьё со склада", proc:"asm", rec:0, tech:"t_asm"},
  {id:"wire",  l:"〰️ Провода",          sub:"сборщик «провод», сырьё со склада", proc:"asm", rec:1, tech:"t_asm"},
  {id:"circuit",l:"🟩 Платы",           sub:"сборщик «плата», сырьё со склада", proc:"asm", rec:2, tech:"t_asm"},
@@ -886,10 +989,10 @@ function runAuto(o){
   const pos=spots[0];
   buildAt(pos[0],pos[1],o.proc);
   const pc=grid[pos[1]][pos[0]];
-  pc.recSel=o.rec??0;pc.auto=true;
+  if(RECIPES[o.proc]){pc.recSel=o.rec??0;pc.auto=true;}
   cam.x=pos[0]*TS;cam.y=pos[1]*TS;clampCam();
   snd("research");
-  return {ok:`⚙️ Готово: ${d.ic} ${d.nm} · рецепт «${ITEM[RECIPES[o.proc][o.rec??0].out]}» · сырьё берёт со склада сам`};
+  return {ok:`⚙️ Готово: ${d.ic} ${d.nm}${RECIPES[o.proc]?` · рецепт «${ITEM[RECIPES[o.proc][o.rec??0].out]}» · сырьё берёт со склада сам`:" — работает сама"}`};
 }
 function autoSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Выбери, что автоматизировать. Я сам поставлю постройки, дотяну ленту, выберу рецепт и спишу ресурсы со склада. Здания с рецептом дальше сами берут сырьё со склада (📥 авто).</div>`;
@@ -914,10 +1017,76 @@ function autoSheet(){
   });
 }
 
+/* ---------- 🗺 минимапа: вся земля на ладони, тап = телепорт камеры ---------- */
+const mmapEl=document.getElementById("mmap"),mmapCx=mmapEl.getContext("2d");
+function drawMinimap(){
+  if(!S.started||zen)return;
+  const sc=Math.min(108/W,76/H);
+  const mw=Math.max(2,Math.round(W*sc)),mh=Math.max(2,Math.round(H*sc));
+  if(mmapEl.width!==mw)mmapEl.width=mw;
+  if(mmapEl.height!==mh)mmapEl.height=mh;
+  const g=mmapCx;
+  g.fillStyle="#101a12";g.fillRect(0,0,mw,mh);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(terr[y][x]==="water"){g.fillStyle="#1b4a63";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
+    else if(ore[y][x]){g.fillStyle=ORE[ore[y][x]];g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
+    const c=grid[y][x];
+    if(c){g.fillStyle=c.t==="gen"?"#ffd45e":c.t==="belt"?"#6b7480":"#e8eef7";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
+  }
+  g.fillStyle="#ffd98a";
+  workers.forEach(w=>g.fillRect(w.x*sc-1,w.y*sc-1,2,2));
+  // рамка видимой области
+  const r=cv.getBoundingClientRect();
+  const vw=r.width/cam.z/TS*sc,vh=r.height/cam.z/TS*sc;
+  g.strokeStyle="rgba(255,255,255,.85)";g.lineWidth=1;
+  g.strokeRect(cam.x/TS*sc-vw/2,cam.y/TS*sc-vh/2,vw,vh);
+}
+mmapEl.addEventListener("pointerdown",e=>{
+  const r=mmapEl.getBoundingClientRect();
+  const sc=Math.min(108/W,76/H);
+  cam.x=(e.clientX-r.left)/sc*TS;cam.y=(e.clientY-r.top)/sc*TS;clampCam();drawMinimap();
+});
+
+/* ---------- 🧍 Жители: список с характеристиками ---------- */
+const JOB_NAMES={pile:"несёт кучу",fuel:"кормит генератор",fixMiner:"снимает бур",placeMiner:"ставит бур",return:"идёт на склад"};
+function crewSheet(){
+  sheetBody.innerHTML=`<div style="font-size:.8rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Посёлок: ${workers.length}/${WORKER_MAX}. Новые жители приходят за каждые 5 построек. Тап по жителю на карте — сменить профессию. Голодные (🍽) работают вдвое медленнее — строй 🌾 ферму или 🏹 хижину.</div>`;
+  workers.forEach((w,i)=>{
+    const sp=SPECS[w.spec||"any"];
+    const b=document.createElement("button");
+    b.className="techBtn";
+    b.innerHTML=`${sp.ic} <b>${w.name||"Житель "+(i+1)}</b> · ур.${w.lvl||1} ${w.hungry?"🍽":""}
+      <small>${sp.nm} · опыт ${w.xp||0}/${(w.lvl||1)*12} · ${w.job?(JOB_NAMES[w.job.kind]||"занят"):(w.carry?"несёт груз":"отдыхает")}</small>`;
+    b.onclick=()=>{closeSheet();cam.x=w.x*TS;cam.y=w.y*TS;cam.z=Math.max(cam.z,1.6);clampCam();
+      openWorkerCtx(w,innerWidth/2,innerHeight/2);};
+    sheetBody.appendChild(b);
+  });
+}
+/* ---------- 📊 Экономика: доля добычи на авто-производство ---------- */
+function ecoSheet(){
+  const pct=S.supplyPct??100;
+  const rate=Object.entries(S.mineRate||{}).filter(([,n])=>n>0)
+    .map(([k,n])=>`<span class="rpill" style="position:static">${ITEM[k].split(" ")[0]}<b>${n}</b></span>`).join(" ")||"<span style='color:var(--dim)'>пока пусто — добывай</span>";
+  sheetBody.innerHTML=`
+    <div style="font-size:.82rem;color:var(--dim);line-height:1.45;margin-bottom:10px">Сколько добычи в минуту разрешено авто-производству? Остальное копится на складе — на постройки, науку и ручное распределение. 100% = без лимита.</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <input type="range" id="ecoPct" min="0" max="100" step="5" value="${pct}" style="flex:1">
+      <b id="ecoPctL" style="min-width:52px;text-align:right;font-size:1.05rem">${pct}%</b>
+    </div>
+    <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px">⛏ Добыча за прошлую минуту</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">${rate}</div>
+    <div style="font-size:.75rem;color:var(--dim);margin-top:12px;line-height:1.4">Генераторы под лимит не попадают — свет важнее. Полное отключение авто-подачи: ⋯ → ⛔️ Авто-склад.</div>`;
+  const sl=sheetBody.querySelector("#ecoPct"),lb=sheetBody.querySelector("#ecoPctL");
+  sl.oninput=()=>{lb.textContent=sl.value+"%";};
+  sl.onchange=()=>{S.supplyPct=+sl.value;rolloverEconomy();toast("📊 Производству — "+sl.value+"% добычи в минуту");};
+}
+
 /* ---------- умная кнопка (всё меню в одной) ---------- */
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
   {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
+  {k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
+  {k:"📊",l:"Экономика",f:()=>openSheet("eco")},
   {k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
     S.autoAll=S.autoAll===false;
     toast(S.autoAll!==false?"📥 Все здания снова сами берут со склада":"⛔️ Авто-пополнение выключено ВЕЗДЕ — загружай вручную (📥/⛽️), склад не тратится");
@@ -1032,6 +1201,9 @@ function step(){
   S.tick++;
   if(S.tick%15===0)recomputePower(); // зоны питания: ближайший генератор кормит своих
   workers.forEach(workerStep);
+  animals.forEach(animalStep);
+  if(S.tick%3600===0){rolloverEconomy();if(animals.length<8)spawnAnimals(1);}
+  if(S.tick%30===0)drawMinimap();
   const speed=tech("t_speed")?2:1;
   const beltPeriod=tech("t_belt")?6:12;
   const belts=[];
@@ -1072,7 +1244,7 @@ function step(){
         const k=ore[y][x];
         if(!k){c.prog=0;continue} // залежь исчерпана — рабочие перенесут бур
         if(outputTo(x,y,k)||dropAt(x,y,k)){
-          c.prog=0;S.made[k]++;if(S.tick%180<90)puff(x,y,ORE[k],1);
+          c.prog=0;S.made[k]++;minedMin[k]=(minedMin[k]||0)+1;if(S.tick%180<90)puff(x,y,ORE[k],1);
           if(--oreAmt[y][x]<=0){ // руда КОНЕЧНА
             ore[y][x]=null;oreAmt[y][x]=0;terrDirty=true;
             say("⛏ Залежь под буром исчерпана — рабочие поищут новую");
@@ -1081,12 +1253,34 @@ function step(){
         else c.prog=90; // куча под буром полна — ждём, пока соберут
       }
     }
+    if(c.t==="farm"){ // 🌾 еда растёт медленно, но сама
+      if(!c.pw)continue;
+      c.prog+=speed;
+      if(c.prog>=1100){
+        if(dropAt(x,y,"food")){c.prog=0;S.made.food++;puff(x,y,"#e8a25b",2,"+1 🍞")}
+        else c.prog=1100;
+      }
+      continue;
+    }
+    if(c.t==="lodge"){ // 🏹 охота: нужен зверь в радиусе 6 клеток
+      c.prog++;
+      if(c.prog>=1400){
+        const ai=animals.findIndex(an=>{const dx=an.x-(x+0.5),dy=an.y-(y+0.5);return dx*dx+dy*dy<=36});
+        if(ai>=0){
+          animals.splice(ai,1);c.prog=0;
+          let got=0;for(let i=0;i<3;i++)if(dropAt(x,y,"food")){S.made.food++;got++}
+          puff(x,y,"#e8a25b",3,"+"+got+" 🍞");
+        } else c.prog=1400; // ждём, пока зверь забредёт
+      }
+      continue;
+    }
     if(c.t==="furnace"||c.t==="asm"||c.t==="lab"){
       if(DEFS[c.t].power>0&&!c.pw)continue;
       if(c.auto!==false&&S.autoAll!==false&&c.recSel!=null&&S.tick%90===(x*7+y*13)%90){ // авто-подсос сырья со склада под выбранный рецепт
         activeRecipes(c).forEach(r=>Object.entries(r.in).forEach(([k,n])=>{
-          const take=Math.min(n*2-(c.buf[k]||0),inv[k]);
-          if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take}
+          let take=Math.min(n*2-(c.buf[k]||0),inv[k]);
+          if(supplyBudget)take=Math.min(take,supplyBudget[k]||0); // 📊 лимит: не больше доли добычи в минуту
+          if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;if(supplyBudget)supplyBudget[k]-=take}
         }));
       }
       const recs=activeRecipes(c);
@@ -1244,6 +1438,12 @@ const QUESTS=[
   {t:"Стальной век",s:"«Сто стали — и о тебе сложат песни».",chk:s=>s.made.steelPlate>=100,rw:{science:10}},
   {t:"Мегафабрика",s:"«Тысяча листов. Дым до небес — в хорошем смысле».",chk:s=>s.made.ironPlate>=1000,rw:{science:15}},
   {t:"Гений Фейблдона",s:"«Сто колб науки. Ты превзошёл мастера».",chk:s=>s.made.science>=100,rw:{steelPlate:50}},
+  {t:"Хлеб насущный",s:"«Голодный рабочий — медленный рабочий». Добудь 30 еды.",chk:s=>s.made.food>=30,rw:{gear:10}},
+  {t:"Первопроходец",s:"«За горизонтом всегда есть ещё земля». Открой 3 земли.",chk:()=>(S.regions||[]).length>=3,rw:{science:8}},
+  {t:"Золотые руки",s:"«Золото не для украшений — для точных механизмов». 20 слитков.",chk:s=>s.made.goldBar>=20,rw:{crystal:6}},
+  {t:"Хрустальный путь",s:"«Кристалл держит свет, как ты держишь слово». 15 линз.",chk:s=>s.made.lens>=15,rw:{goldBar:8}},
+  {t:"Наставник",s:"«Учитель гордится учениками». Подними троих рабочих до 5 уровня.",chk:()=>workers.filter(w=>(w.lvl||1)>=5).length>=3,rw:{science2:3}},
+  {t:"Модульная эра",s:"«Из модулей соберём будущее». 15 модулей.",chk:s=>s.made.module>=15,rw:{science2:5}},
 ];
 function questSheetHtml(){
   const q=QUESTS[S.quest];
@@ -1298,7 +1498,7 @@ function showBook(){
   const bl={furnace:"🔥 Плавильня",asm:"🏭 Сборщик",lab:"🧪 Лаборатория"};
   const rows=Object.entries(RECIPES).map(([b,recs])=>
     `<div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">${bl[b]}</div>
-     ${recs.map(r=>`<div style="font-size:.82rem;padding:2px 0">${recipeStr(r)}</div>`).join("")}</div>`).join("");
+     ${recs.map(r=>`<div style="font-size:.82rem;padding:2px 0">${r.req&&!tech(r.req)?"🔒 ":""}${recipeStr(r)}${r.req&&!tech(r.req)?` <span style="color:var(--dim)">(техн. «${TECHS.find(t=>t.id===r.req).nm.split(" (")[0]}»)</span>`:""}</div>`).join("")}</div>`).join("");
   overlay(`<h2 style="margin-bottom:10px">📖 Производство</h2>
     <div style="max-height:46vh;overflow-y:auto">
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🛠 Бур</div>
@@ -1307,7 +1507,11 @@ function showBook(){
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
         <div style="font-size:.82rem">питает постройки в радиусе ${GEN_RADIUS} клеток (жёлтое кольцо), до ${GEN_CAP}⚡️ каждый — далёкому цеху нужен свой генератор. Ест ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с), сам берёт со склада; вручную — тап → ⛽️ или конвейер</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🧍 Рабочие</div>
-        <div style="font-size:.82rem">бегают сами: собирают кучи на склад и носят уголь голодным генераторам. Нанять: ⋯ → ⚙️ Автоматизация</div></div>
+        <div style="font-size:.82rem">собирают кучи, кормят генераторы, переносят буры с пустых залежей. Тап по человечку — профессия (+30% к своему делу). С 4+ жителей хотят 🍞 есть (голодные — вдвое медленнее). Список: ⋯ → 🧍 Жители</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌾 Ферма · 🏹 Охота · 🦌 звери</div>
+        <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
+        <div style="font-size:.82rem">только в НОВЫХ землях (⋯ → 🗺 → 🚀): золото со 2-й земли, кристаллы с 3-й. Слитки → модули → 🔮 синт-наука → Fable-ядро</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
         <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень.</div></div>
       <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
@@ -1328,6 +1532,8 @@ const ORE_FACES={ // [светлая грань, тело, тёмная гран
   copper:["#e8955a","#c26a2e","#8a4318","#ffd9ae"],
   coal:  ["#3a3f4a","#22262e","#0f1216","#8b97ad"],
   stone: ["#c4b99c","#9c9075","#6f6550","#e5dbc0"],
+  gold:  ["#f5e08e","#e0b23c","#a87d1e","#fff3c4"],
+  crystal:["#c8f4f8","#8bd8e0","#4fa3ac","#eefdff"],
 };
 function drawOreSprite(g,k,x,y){
   const C=ORE_FACES[k],rn=lcg(hash(x,y));
@@ -1445,12 +1651,21 @@ function render(){
       cx.fillStyle="#3a414c";cx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2); // металлическая рама
       cx.fillStyle="#232932";cx.fillRect(x*TS+3,y*TS+3,TS-6,TS-6);
       cx.strokeStyle=DEFS[c.t].power<0?(c.fuel>0?"#e8b04b":"#7d3535"):"#4c5560";cx.strokeRect(x*TS+1.5,y*TS+1.5,TS-3,TS-3);
-      // машины показывают ПРОДУКТ (что делают) + мини-значок здания в углу
+      // машины показывают ПРОДУКТ (что делают), бур — ЦВЕТ И БУКВУ руды + мини-значок здания в углу
       const prod=RECIPES[c.t]?(c.rec?c.rec.out:(c.recSel!=null&&RECIPES[c.t][c.recSel]?RECIPES[c.t][c.recSel].out:null)):null;
-      if(prod){
+      const mk2=c.t==="miner"?(ore[y][x]||c.oreKind):null;
+      if(mk2){
+        cx.fillStyle=ORE[mk2];cx.beginPath();cx.arc(px,py+1,6.5,0,7);cx.fill();
+        cx.strokeStyle="rgba(0,0,0,.55)";cx.stroke();
+        cx.fillStyle=mk2==="coal"?"#cfd6e2":"#181d26";cx.font="bold 9px sans-serif";cx.fillText(ORE_LETTER[mk2],px,py+1.5);
+        cx.font="9px sans-serif";cx.fillText("🛠",x*TS+7,y*TS+7);cx.font="16px sans-serif";
+      } else if(prod){
         cx.fillText(ITEM[prod].split(" ")[0],px,py+1);
         cx.font="9px sans-serif";cx.fillText(DEFS[c.t].ic,x*TS+7,y*TS+7);cx.font="16px sans-serif";
       } else cx.fillText(DEFS[c.t].ic,px,py);
+      if((c.t==="farm"||c.t==="lodge")&&c.prog>0){ // полоска созревания/охоты
+        cx.fillStyle="#e8a25b";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*Math.min(1,c.prog/(c.t==="farm"?1100:1400)),2);
+      }
       // нет питания — мигающий значок
       if(DEFS[c.t].power>0&&!c.pw&&S.tick%40<26){
         cx.font="10px sans-serif";
@@ -1479,13 +1694,23 @@ function render(){
       cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,genRadius()*TS,0,7);cx.stroke();cx.lineWidth=1;
     }
   }
-  // 🧍 рабочие
+  // 🦌 животные
+  cx.font="13px sans-serif";
+  animals.forEach(an=>{
+    if(an.x*TS<x0*TS-30||an.x*TS>x1*TS+30||an.y*TS<y0*TS-30||an.y*TS>y1*TS+30)return;
+    cx.fillText(ANIMAL_KINDS[an.k].ic,an.x*TS,an.y*TS);
+  });
+  cx.font="16px sans-serif";
+  // 🧍 рабочие (у каждого свой облик)
   workers.forEach(w=>{
     const wx=w.x*TS,wy=w.y*TS,run=w.job?Math.sin(S.tick/3+w.ph)*1.6:0;
+    const lk=w.look||{skin:"#e8c39a",shirt:"#4a6a8f",hat:null};
     cx.fillStyle="rgba(0,0,0,.3)";cx.beginPath();cx.ellipse(wx,wy+5,4.5,1.8,0,0,7);cx.fill();
-    cx.fillStyle="#4a6a8f";cx.fillRect(wx-2.5,wy-3+Math.abs(run)*.3,5,7); // тело
-    cx.fillStyle="#e8c39a";cx.beginPath();cx.arc(wx,wy-5,3,0,7);cx.fill(); // голова
+    cx.fillStyle=lk.shirt;cx.fillRect(wx-2.5,wy-3+Math.abs(run)*.3,5,7); // тело
+    cx.fillStyle=lk.skin;cx.beginPath();cx.arc(wx,wy-5,3,0,7);cx.fill(); // голова
+    if(lk.hat){cx.fillStyle=lk.hat;cx.fillRect(wx-3.5,wy-8.5,7,2);cx.fillRect(wx-2,wy-10.5,4,2.5);} // шляпа
     cx.fillStyle="#2f3f52";cx.fillRect(wx-2.5,wy+3,2,2+run);cx.fillRect(wx+0.5,wy+3,2,2-run); // ноги
+    if(w.hungry&&S.tick%50<32){cx.font="8px sans-serif";cx.fillText("🍽",wx+5,wy-8);cx.font="16px sans-serif";}
     if(w.carry){const k=Object.keys(w.carry)[0];
       cx.fillStyle=ITEM_COL[k]||"#c9d4e0";cx.beginPath();cx.arc(wx+4,wy-2,2.6,0,7);cx.fill();
       cx.strokeStyle="rgba(0,0,0,.4)";cx.stroke();}
@@ -1590,13 +1815,16 @@ function regionDefaults(){ // дефолты для машин/буров пос
 }
 function serializeRegion(){
   return {nm:S.regionName,map:S.map,w:W,h:H,ore,oreAmt,terr,
-    grid:grid.map(r=>r.map(serCell)),drops,wave:S.wave,nextWave:S.nextWave};
+    grid:grid.map(r=>r.map(serCell)),drops,animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
+    wave:S.wave,nextWave:S.nextWave};
 }
 function loadRegion(rg){
   W=rg.w;H=rg.h;S.map=rg.map;S.regionName=rg.nm;
   ore=rg.ore;oreAmt=rg.oreAmt||mk();terr=rg.terr;
   grid=rg.grid.map(r=>r.map(c=>c?{...c,rec:null}:null));
   drops=rg.drops||{};
+  animals=(rg.animals||[]).map(a=>({x:a.x,y:a.y,k:a.k||0,a:Math.random()*7,t:0,rest:false}));
+  if(!animals.length)spawnAnimals(6);
   S.wave=rg.wave||0;S.nextWave=rg.nextWave||S.tick+5400;
   enemies=[];parts=[];
   regionDefaults();seedOreAmounts(1);
@@ -1617,7 +1845,7 @@ function travelNew(mapId){
   S.regions=S.regions||[];
   S.regions[S.curRegion||0]=serializeRegion();
   S.curRegion=S.regions.length;
-  genMap(mapId);S.map=mapId;
+  genMap(mapId,S.curRegion);S.map=mapId;
   S.regionName=`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
   S.regions.push(serializeRegion());
   workers.forEach(w=>{w.x=W/2+(Math.random()-0.5)*3;w.y=H/2+(Math.random()-0.5)*3;w.job=null;w.carryCell=null;});
@@ -1637,9 +1865,10 @@ function saveGame(){
   S.regions=S.regions||[];
   S.regions[S.curRegion||0]=serializeRegion(); // текущая земля — всегда свежая в списке
   const data={w:W,h:H,ore,oreAmt,terr,grid:grid.map(r=>r.map(serCell)),drops,
-    workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl})),
+    workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl,name:w.name,look:w.look,belly:w.belly,hungry:w.hungry})),
+    animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
-    autoAll:S.autoAll,builtCount:S.builtCount,
+    autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
     status:S.win?"🏆":S.over?"💀":"▶"};
@@ -1662,7 +1891,12 @@ function loadGame(d){
     spawnWorker(w.x-0.5,w.y-0.5);
     const nw=workers[workers.length-1];
     nw.spec=w.spec||"any";nw.xp=w.xp||0;nw.lvl=w.lvl||1;
+    if(w.name)nw.name=w.name;if(w.look)nw.look=w.look;
+    if(w.belly!=null)nw.belly=w.belly;nw.hungry=!!w.hungry;
   });
+  animals=(d.animals||[]).map(a=>({x:a.x,y:a.y,k:a.k||0,a:Math.random()*7,t:0,rest:false}));
+  if(!animals.length)spawnAnimals(7);
+  S.supplyPct=d.supplyPct??100;
   S.regions=d.regions||[];S.curRegion=d.curRegion||0;
   S.regionName=d.regionName||`${(MAPS[d.map||"valley"]||MAPS.valley).nm} · земля 1`;
   S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
@@ -1700,6 +1934,7 @@ function startGame(opts){
   cam.x=tgt[0]*TS;cam.y=tgt[1]*TS;clampCam();
   if(!opts.session){workers=[];spawnWorker(tgt[0]+1,tgt[1]+1);} // стартовый 🧍 рабочий
   applyZen();recomputePower();
+  mmapEl.style.display="block";drawMinimap();
   drawGoal();drawHud();tutShow();
   say("Fable Factory: тап по клетке — меню постройки. Все панели — в ⋯ справа снизу.");
   toast(opts.session?"Партия продолжена 💾":opts.mode==="survival"?"Выживание: 90с до волны!":"Тапни по клетке, чтобы строить 🏭");
