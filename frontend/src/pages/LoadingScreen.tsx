@@ -44,26 +44,7 @@ export function LoadingScreen() {
     <div className="loading-page">
       <div className="loading-logo-container">
         <div className="logo-board-square">
-          <svg className="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="gpDieGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: "var(--piece-light-1)", stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: "var(--piece-light-2)", stopOpacity: 1 }} />
-              </linearGradient>
-              <filter id="gpDieGlow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="2.2" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-            <g filter="url(#gpDieGlow)">
-              <rect x="16" y="16" width="68" height="68" rx="17" fill="url(#gpDieGradient)" />
-              <circle cx="35" cy="35" r="6.2" fill="#16181d" />
-              <circle cx="65" cy="35" r="6.2" fill="#16181d" />
-              <circle cx="50" cy="50" r="6.2" fill="#16181d" />
-              <circle cx="35" cy="65" r="6.2" fill="#16181d" />
-              <circle cx="65" cy="65" r="6.2" fill="#16181d" />
-            </g>
-          </svg>
+          <img className="loading-brand-icon" src="/gamepass-brand/gamepass-splash.png" alt="" />
         </div>
         <div className="loading-text-group">
           <h2 className="loading-main-text">GamePass</h2>

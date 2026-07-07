@@ -6,56 +6,79 @@
 <title>Монополия: Магический мир</title>
 <style>
   :root{
-    --bg:#12101c; --panel:#1d1a2e; --panel2:#272240; --line:#3a3358; --text:#f0ecff; --muted:#9d93c4;
-    --gold:#e8b04b;
+    --bg:#090814; --panel:rgba(24,20,45,.82); --panel2:rgba(43,36,75,.78); --line:rgba(159,137,255,.26); --text:#f7f2ff; --muted:#bdb3da;
+    --gold:#ffd66b; --cyan:#55f1ff; --violet:#9a65ff; --coral:#ff5d7d;
+    --asset-bg:url("assets/monopoly-bg.png");
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;}
-  #app{position:fixed;inset:0;display:flex;flex-direction:column;padding-top:var(--safe-top,0px);}
-  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--panel2);color:var(--text);padding:10px 12px;font-size:14px;}
+  html,body{margin:0;height:100%;background:#090814;color:var(--text);font-family:-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;}
+  body::before{content:"";position:fixed;inset:0;background:
+    radial-gradient(86% 70% at 50% 0%,rgba(154,101,255,.26),transparent 62%),
+    linear-gradient(180deg,rgba(9,8,20,.28),rgba(9,8,20,.78)),
+    var(--asset-bg) center/cover no-repeat;filter:saturate(1.08);transform:scale(1.02);z-index:-2;}
+  body::after{content:"";position:fixed;inset:0;background:
+    linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,.48),transparent 78%);z-index:-1;pointer-events:none;}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;padding-top:var(--safe-top,0px);background:linear-gradient(180deg,rgba(8,7,18,.18),rgba(8,7,18,.68));}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:14px;background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.055));color:var(--text);padding:10px 12px;font-size:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 12px 28px rgba(0,0,0,.22);backdrop-filter:blur(18px) saturate(145%);-webkit-backdrop-filter:blur(18px) saturate(145%);}
   button:active{transform:scale(.96);}
   button:disabled{opacity:.35;}
-  button.primary{background:linear-gradient(150deg,#8a5cf5,#5c3ad1);font-weight:700;}
-  button.gold{background:linear-gradient(150deg,#f0bc5e,#c98a2c);color:#241a08;font-weight:700;}
-  button.danger{background:#5a2233;}
+  button.primary{background:linear-gradient(150deg,#8e5cff,#2bbcff);font-weight:800;}
+  button.gold{background:linear-gradient(150deg,#ffe08a,#ffb13d 48%,#ff6a7e);color:#1f1407;font-weight:800;}
+  button.danger{background:linear-gradient(150deg,#7a2440,#42172d);}
   .hidden{display:none !important;}
   .muted{color:var(--muted);font-size:12px;}
   h1,h2,h3{margin:0 0 8px;}
   .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:auto;padding:16px;padding-top:calc(16px + var(--safe-top,0px));}
+  #scrSetup{background:linear-gradient(180deg,rgba(10,8,24,.28),rgba(10,8,24,.74));}
+  #scrSetup h1{font-size:30px;line-height:1.03;letter-spacing:-.03em;text-shadow:0 12px 34px rgba(85,241,255,.24);}
   /* игроки сверху */
-  #playersBar{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:var(--panel);scrollbar-width:none;}
+  #playersBar{display:flex;gap:7px;overflow-x:auto;padding:8px 10px;background:linear-gradient(180deg,rgba(19,16,38,.9),rgba(15,13,31,.76));border-bottom:1px solid rgba(255,255,255,.1);box-shadow:0 10px 30px rgba(0,0,0,.24);scrollbar-width:none;backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);}
   #playersBar::-webkit-scrollbar{display:none;}
-  .pchip{flex:0 0 auto;border-radius:12px;padding:5px 10px;background:var(--panel2);font-size:12px;border:2px solid transparent;font-variant-numeric:tabular-nums;}
-  .pchip.turn{border-color:var(--gold);}
+  .pchip{flex:0 0 auto;border-radius:16px;padding:5px 10px 5px 6px;background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.045));font-size:12px;border:1.5px solid transparent;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.13);}
+  .pchip.turn{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,214,107,.1),0 0 24px rgba(255,214,107,.22);}
   .pchip.dead{opacity:.4;text-decoration:line-through;}
   /* доска */
-  #boardBox{padding:6px;display:flex;justify-content:center;}
-  #board{display:grid;grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);gap:1.5px;width:min(100vw - 12px, 62vh, 520px);aspect-ratio:1/1;}
-  .cell{position:relative;background:var(--panel);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:clamp(10px,3vw,16px);overflow:visible;}
-  .cell .cbar{position:absolute;top:0;left:0;right:0;height:22%;border-radius:4px 4px 0 0;}
-  .cell.corner{font-size:clamp(12px,3.6vw,20px);background:var(--panel2);}
-  .cell .own{position:absolute;inset:0;border-radius:4px;border:2px solid transparent;pointer-events:none;}
-  .cell .hs{position:absolute;bottom:1px;left:2px;font-size:7px;letter-spacing:-1px;line-height:1;}
-  .cell .tok{position:absolute;bottom:-2px;right:-2px;display:flex;flex-wrap:wrap;width:70%;justify-content:flex-end;pointer-events:none;z-index:3;}
-  .cell .tok i{width:9px;height:9px;border-radius:50%;border:1.5px solid #0b0a14;margin:-1px;}
-  .cell.here{outline:2px solid #fff;z-index:2;}
+  #boardBox{padding:7px 6px 4px;display:flex;justify-content:center;}
+  #board{display:grid;grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);gap:2px;width:min(100vw - 12px, 62vh, 520px);aspect-ratio:1/1;padding:5px;border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.18),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.16);box-shadow:0 26px 70px rgba(0,0,0,.46),inset 0 1px 0 rgba(255,255,255,.18);backdrop-filter:blur(18px) saturate(145%);-webkit-backdrop-filter:blur(18px) saturate(145%);}
+  .cell{position:relative;background:linear-gradient(145deg,rgba(28,22,55,.92),rgba(10,9,22,.9));border:1px solid rgba(255,255,255,.09);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:clamp(10px,3vw,16px);overflow:visible;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);}
+  .cell .cbar{position:absolute;top:0;left:0;right:0;height:20%;border-radius:7px 7px 0 0;box-shadow:0 0 16px currentColor;}
+  .cell.corner{background:linear-gradient(145deg,rgba(49,38,92,.96),rgba(12,10,26,.92));}
+  .cell .own{position:absolute;inset:-1px;border-radius:8px;border:2px solid transparent;pointer-events:none;box-shadow:0 0 0 transparent;}
+  .cell .hs{position:absolute;bottom:1px;left:2px;display:flex;gap:0;line-height:1;z-index:4;}
+  .cell .tok{position:absolute;bottom:-8px;right:-6px;display:flex;flex-wrap:wrap;width:82%;justify-content:flex-end;pointer-events:none;z-index:5;}
+  .cell.here{outline:2px solid rgba(255,255,255,.92);box-shadow:0 0 0 4px rgba(85,241,255,.14),0 0 22px rgba(85,241,255,.28);z-index:3;}
+  .cell-icon{position:relative;z-index:1;width:72%;height:72%;display:grid;place-items:center;filter:drop-shadow(0 7px 10px rgba(0,0,0,.42));}
+  .cell-icon img{display:block;width:100%;height:100%;object-fit:contain;border-radius:18%;}
+  .building-icon{width:9px;height:9px;object-fit:contain;margin-right:-2px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55));}
+  .token-mini{width:18px;height:18px;object-fit:contain;margin:-4px -3px 0 0;filter:drop-shadow(0 3px 4px rgba(0,0,0,.75));}
+  .token-chip{width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 4px 5px rgba(0,0,0,.5));}
+  .token-turn{width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 5px 7px rgba(0,0,0,.48));}
+  .seat-token{width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 5px 6px rgba(0,0,0,.45));}
+  .coin-inline{width:15px;height:15px;object-fit:contain;vertical-align:-2px;margin-left:2px;}
+  .row-icon,.modal-icon{width:22px;height:22px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 4px 5px rgba(0,0,0,.38));}
   /* центр доски */
-  #center{grid-area:2/2/11/11;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;background:radial-gradient(ellipse at 50% 30%,#221d3a,#141020);border-radius:10px;margin:2px;}
-  #dice{font-size:34px;min-height:44px;letter-spacing:4px;}
-  #turnWho{font-weight:700;font-size:14px;}
-  #logBox{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.45;min-height:44px;max-width:100%;overflow:hidden;}
+  #center{grid-area:2/2/11/11;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;background:
+    linear-gradient(180deg,rgba(10,8,25,.2),rgba(10,8,25,.68)),
+    url("assets/board-center.png") center 38%/62% auto no-repeat,
+    radial-gradient(ellipse at 50% 30%,rgba(119,80,255,.34),rgba(8,7,18,.84) 62%);border:1px solid rgba(255,255,255,.11);border-radius:16px;margin:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 20px 50px rgba(0,0,0,.28);}
+  #dice{min-height:54px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  #dice .die{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 8px 12px rgba(0,0,0,.45));}
+  #dice .die-idle{opacity:.72;filter:drop-shadow(0 0 14px rgba(85,241,255,.28));}
+  #turnWho{font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;min-height:30px;text-shadow:0 8px 20px rgba(0,0,0,.45);}
+  #logBox{font-size:10.5px;color:rgba(235,229,255,.78);text-align:center;line-height:1.45;min-height:48px;max-width:100%;overflow:hidden;text-shadow:0 2px 6px rgba(0,0,0,.5);}
   /* действия снизу */
-  #actions{padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:6px;background:var(--panel);}
+  #actions{padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:6px;background:linear-gradient(180deg,rgba(15,13,31,.62),rgba(12,10,25,.9));border-top:1px solid rgba(255,255,255,.1);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);}
   #actions button{flex:1 1 30%;font-size:13px;padding:11px 6px;}
   /* модалки */
   .modal-back{position:fixed;inset:0;background:rgba(5,3,12,.72);display:flex;align-items:center;justify-content:center;z-index:60;padding:14px;}
-  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:440px;width:100%;max-height:84vh;overflow:auto;position:relative;}
+  .modal{background:linear-gradient(145deg,rgba(35,29,62,.96),rgba(15,13,31,.94));border:1px solid var(--line);border-radius:20px;padding:16px;max-width:440px;width:100%;max-height:84vh;overflow:auto;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.1);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);}
   .close-x{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.08);border-radius:50%;width:30px;height:30px;padding:0;}
-  .prop-row{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px;gap:8px;}
+  .prop-row{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 10px;margin-bottom:6px;font-size:13px;gap:8px;}
   .prop-row .dotc{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
   .prop-row.sel{outline:2px solid var(--gold);}
-  .toast{position:fixed;top:calc(12px + var(--safe-top,0px));left:50%;transform:translateX(-50%);background:#2c2547;border:1px solid var(--line);padding:9px 16px;border-radius:20px;font-size:13px;z-index:80;max-width:92%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.5);}
-  .setup-seat{background:var(--panel);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .toast{position:fixed;top:calc(12px + var(--safe-top,0px));left:50%;transform:translateX(-50%);background:linear-gradient(145deg,rgba(47,37,82,.96),rgba(19,15,39,.94));border:1px solid var(--line);padding:9px 16px;border-radius:20px;font-size:13px;z-index:80;max-width:92%;text-align:center;box-shadow:0 14px 34px rgba(0,0,0,.52),0 0 24px rgba(85,241,255,.12);}
+  .setup-seat{background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;backdrop-filter:blur(18px) saturate(145%);-webkit-backdrop-filter:blur(18px) saturate(145%);}
   .pill{padding:5px 11px;border-radius:20px;background:var(--panel2);font-size:12px;}
   input[type=number]{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px;font-size:15px;width:100%;}
   .rentline{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--muted);}
@@ -96,6 +119,17 @@ document.documentElement.style.setProperty('--safe-top','env(safe-area-inset-top
 function exitGame(){try{window.parent.postMessage("hexland:exit","*");}catch(e){}}
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const fmt=n=>n+"🪙";
+const ASSET="assets/";
+const TOKEN_ASSETS=["red","blue","green","gold","violet"];
+const cellIconName=c=>c.t==="prop"?"property":c.t==="rail"?"rail":c.t==="util"?"util":c.t==="go"?"go":c.t==="jail"?"jail":c.t==="free"?"free":c.t==="gotojail"?"gotojail":c.t==="chance"?"chance":c.t==="chest"?"chest":c.t==="tax"?"tax":"property";
+const cellIconSrc=c=>`${ASSET}cells/${cellIconName(c)}.png`;
+const tokenSrc=i=>`${ASSET}tokens/${TOKEN_ASSETS[i%TOKEN_ASSETS.length]}.png`;
+const tokenImg=(p,cls)=>`<img class="${cls}" src="${tokenSrc(p.i)}" alt="">`;
+const tokenImgByIndex=(i,cls)=>`<img class="${cls}" src="${tokenSrc(i)}" alt="">`;
+const coinImg=()=>`<img class="coin-inline" src="${ASSET}coin.png" alt="">`;
+const fmtHtml=n=>`${n}${coinImg()}`;
+const rowIcon=c=>`<img class="row-icon" src="${cellIconSrc(c)}" alt="">`;
+const modalIcon=c=>`<img class="modal-icon" src="${cellIconSrc(c)}" alt="">`;
 
 /* ================= ДАННЫЕ ПОЛЯ ================= */
 const GROUP_COLORS={brown:"#8d6748",lblue:"#7fd4f0",pink:"#e88ac8",orange:"#f2994a",red:"#eb5757",yellow:"#f2c94c",green:"#27ae60",dark:"#5c7cfa",rail:"#b9c2cf",util:"#a58ee0"};
@@ -423,7 +457,8 @@ function openManage(p,debt,creditor){
     if(!m&&h===0)acts.push(`<button data-m="${c.id}" class="pill">🔒 Залог +${fmt(c.price/2)}</button>`);
     if(m)acts.push(`<button data-u="${c.id}" class="pill" ${p.money<Math.ceil(c.price*0.55)?"disabled":""}>🔓 Выкуп −${fmt(Math.ceil(c.price*0.55))}</button>`);
     return `<div class="prop-row"><span class="dotc" style="background:${GROUP_COLORS[c.g]}"></span>
-      <span style="flex:1;">${c.ic} ${c.nm}${m?" <span class='muted'>(залог)</span>":""}${h>0?` ${h>=5?"🏰":"🏠".repeat(h)}`:""}</span>
+      ${rowIcon(c)}
+      <span style="flex:1;">${esc(c.nm)}${m?" <span class='muted'>(залог)</span>":""}${h>0?` ${h>=5?`<img class="coin-inline" src="${ASSET}buildings/castle.png" alt="">`:Array.from({length:h},()=>`<img class="coin-inline" src="${ASSET}buildings/house.png" alt="">`).join("")}`:""}</span>
       <span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">${acts.join("")}</span></div>`;
   }).join("")||"<p class='muted'>У тебя пока нет собственности.</p>";
   openModal(`<h3>💼 Хозяйство: ${esc(p.name)} · ${fmt(p.money)}</h3>
@@ -455,7 +490,7 @@ function openTradeBuilder(p,o,preset){
     if(!props.length)return "<p class='muted'>Нет свободной собственности (постройки надо продать до обмена).</p>";
     return props.map(c=>`<div class="prop-row ${set.has(c.id)?"sel":""}" data-${attr}="${c.id}" style="cursor:pointer;">
       <span class="dotc" style="background:${GROUP_COLORS[c.g]}"></span>
-      <span style="flex:1;">${c.ic} ${c.nm}${S.mort[c.id]?" <span class='muted'>(залог)</span>":""}</span><b>${fmt(c.price)}</b></div>`).join("");
+      ${rowIcon(c)}<span style="flex:1;">${esc(c.nm)}${S.mort[c.id]?" <span class='muted'>(залог)</span>":""}</span><b>${fmtHtml(c.price)}</b></div>`).join("");
   }
   function draw(){
     openModal(`<h3>🤝 Обмен: ${esc(p.name)} ⇄ ${esc(o.name)}</h3>
@@ -486,7 +521,7 @@ function openTradeBuilder(p,o,preset){
   draw();
 }
 function tradeText(p,o,tr){
-  const li=ids=>ids.map(id=>`${BOARD[id].ic} ${BOARD[id].nm}`).join(", ");
+  const li=ids=>ids.map(id=>`${rowIcon(BOARD[id])} ${esc(BOARD[id].nm)}`).join(", ");
   return `<b style="color:${p.color}">${esc(p.name)}</b> отдаёт: ${li(tr.give)||"—"}${tr.giveM?` + ${fmt(tr.giveM)}`:""}<br>
      <b style="color:${o.color}">${esc(o.name)}</b> отдаёт: ${li(tr.get)||"—"}${tr.getM?` + ${fmt(tr.getM)}`:""}`;
 }
@@ -613,7 +648,7 @@ function buildBoard(){
     d.className="cell"+(c.t==="go"||c.t==="jail"||c.t==="free"||c.t==="gotojail"?" corner":"");
     d.style.gridArea=`${r}/${cl}`;
     d.dataset.i=i;
-    d.innerHTML=`${c.g?`<div class="cbar" style="background:${GROUP_COLORS[c.g]}"></div>`:""}<span>${c.ic}</span>
+    d.innerHTML=`${c.g?`<div class="cbar" style="background:${GROUP_COLORS[c.g]};color:${GROUP_COLORS[c.g]}"></div>`:""}<span class="cell-icon"><img src="${cellIconSrc(c)}" alt=""></span>
       <div class="own"></div><div class="hs"></div><div class="tok"></div>`;
     d.onclick=()=>openCellInfo(i);
     boardEl.appendChild(d);
@@ -628,20 +663,20 @@ function renderAll(){
   // игроки
   document.getElementById("playersBar").innerHTML=S.players.map(p=>
     `<div class="pchip ${p.i===S.turn?"turn":""} ${p.dead?"dead":""}" style="border-color:${p.i===S.turn?p.color:"transparent"}">
-      <span style="color:${p.color}">${p.tok}</span> ${esc(p.name)} · <b>${fmt(p.money)}</b>${p.jail>0?" ⛓":""}${p.jailCards>0?" 🎴":""}</div>`).join("");
+      ${tokenImg(p,"token-chip")}<span>${esc(p.name)}</span> · <b>${fmtHtml(p.money)}</b>${p.jail>0?" ⛓":""}${p.jailCards>0?" 🎴":""}</div>`).join("");
   // клетки
   BOARD.forEach((c,i)=>{
     const el=boardEl.querySelector(`[data-i="${i}"]`);if(!el)return;
     const own=el.querySelector(".own");
     own.style.borderColor=S.own[i]!=null?S.players[S.own[i]].color:"transparent";
     own.style.opacity=S.mort[i]?"0.4":"1";
-    el.querySelector(".hs").textContent=S.houses[i]>=5?"🏰":"🏠".repeat(S.houses[i]);
-    el.querySelector(".tok").innerHTML=S.players.filter(p=>!p.dead&&p.pos===i).map(p=>`<i style="background:${p.color}"></i>`).join("");
+    el.querySelector(".hs").innerHTML=S.houses[i]>=5?`<img class="building-icon" src="${ASSET}buildings/castle.png" alt="">`:Array.from({length:S.houses[i]},()=>`<img class="building-icon" src="${ASSET}buildings/house.png" alt="">`).join("");
+    el.querySelector(".tok").innerHTML=S.players.filter(p=>!p.dead&&p.pos===i).map(p=>tokenImg(p,"token-mini")).join("");
     el.classList.toggle("here",cur().pos===i&&!cur().dead);
   });
   const p=cur();
-  document.getElementById("turnWho").innerHTML=`<span style="color:${p.color}">${p.tok} ${esc(p.name)}</span>${p.isAI?" 🤖":""}`;
-  document.getElementById("dice").textContent=S.dice[0]?`${"⚀⚁⚂⚃⚄⚅"[S.dice[0]-1]} ${"⚀⚁⚂⚃⚄⚅"[S.dice[1]-1]}`:"🎲";
+  document.getElementById("turnWho").innerHTML=`${tokenImg(p,"token-turn")}<span style="color:${p.color}">${esc(p.name)}</span>${p.isAI?" 🤖":""}`;
+  document.getElementById("dice").innerHTML=S.dice[0]?S.dice.map(d=>`<img class="die" src="${ASSET}dice/${d}.png" alt="">`).join(""):`<img class="die die-idle" src="${ASSET}dice/1.png" alt="">`;
   renderCenterLog();
   renderActions();
 }
@@ -705,7 +740,7 @@ function openCellInfo(i){
   if(c.t==="prop"){
     const own=S.own[i]!=null?S.players[S.own[i]]:null;
     body=`<p class="muted">${GROUP_NAMES[c.g]} · цена ${fmt(c.price)} · постройка ${fmt(HOUSE_COST(i))}</p>
-      ${own?`<p>Владелец: <b style="color:${own.color}">${own.tok} ${esc(own.name)}</b>${S.mort[i]?" (в залоге)":""}</p>`:"<p>Свободно</p>"}
+      ${own?`<p>Владелец: <b style="color:${own.color}">${tokenImg(own,"row-icon")} ${esc(own.name)}</b>${S.mort[i]?" (в залоге)":""}</p>`:"<p>Свободно</p>"}
       <div class="rentline"><span>Аренда</span><b>${fmt(c.rent[0])}</b></div>
       <div class="rentline"><span>— с монополией</span><b>${fmt(c.rent[0]*2)}</b></div>
       ${[1,2,3,4].map(h=>`<div class="rentline"><span>— ${"🏠".repeat(h)}</span><b>${fmt(c.rent[h])}</b></div>`).join("")}
@@ -723,7 +758,7 @@ function openCellInfo(i){
       tax:`Заплати ${fmt(c.amount||0)}.`,chance:"Тяни Карту Мародёров — что угодно может случиться.",chest:"Шоколадная лягушка с сюрпризом внутри."}[c.t]||"";
     body=`<p style="line-height:1.5;">${desc}</p>`;
   }
-  openModal(`<h3>${c.ic} ${esc(c.nm)}</h3>${body}`);
+  openModal(`<h3>${modalIcon(c)} ${esc(c.nm)}</h3>${body}`);
 }
 
 /* ================= МОДАЛКИ ================= */
@@ -741,7 +776,7 @@ function renderSetup(){
   const list=document.getElementById("seatList");
   list.innerHTML=seats.map((s,i)=>`<div class="setup-seat">
     <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:18px;">${TOKENS[i]}</span>
+      ${tokenImgByIndex(i,"seat-token")}
       <input data-i="${i}" class="seatname" style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;width:130px;" value="${esc(s.name)}"/>
     </div>
     <button class="pill" data-t="${i}" style="${s.isAI?"":"background:#2f8f6b;"}">${s.isAI?"🤖 Бот":"🧑 Человек"}</button>
