@@ -2,8 +2,8 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../catan/catan.css";
 
-// Мурдоку: детективная судоку по мотивам Хогвартса — standalone iframe, без backend.
-export function MurdokuScreen() {
+// Гарридоку: детективная судоку по мотивам Хогвартса — standalone iframe, без backend.
+export function GarridokuScreen() {
   const nav = useNavigate();
 
   useEffect(() => {
@@ -23,8 +23,8 @@ export function MurdokuScreen() {
     <div className="catan-fs" style={{ paddingTop: "var(--safe-top, 0px)" }}>
       <iframe
         className="catan-fs-frame"
-        title="Мурдоку · Тайны Хогвартса"
-        src="/games/murdoku/index.html"
+        title="Гарридоку · Тайны Хогвартса"
+        src="/games/garridoku/index.html"
         allow="autoplay; fullscreen"
       />
     </div>

@@ -23,7 +23,7 @@ import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
 import { TicketToSonnetScreen } from "./features/ticketToSonnet/TicketToSonnetScreen";
 import { CarcassonneScreen } from "./features/carcassonne/CarcassonneScreen";
 import { MonopolyHpScreen } from "./features/monopolyHp/MonopolyHpScreen";
-import { MurdokuScreen } from "./features/murdoku/MurdokuScreen";
+import { GarridokuScreen } from "./features/garridoku/GarridokuScreen";
 import { BunkerScreen } from "./features/bunker/BunkerScreen";
 import { ReaderScreen } from "./features/reader/ReaderScreen";
 import { PdfStudioScreen } from "./features/pdfStudio/PdfStudioScreen";
@@ -74,7 +74,7 @@ export function App() {
         <Route path="/ticket-to-sonnet" element={<Protected><TicketToSonnetScreen /></Protected>} />
         <Route path="/carcassonne" element={<Protected><CarcassonneScreen /></Protected>} />
         <Route path="/monopoly-hp" element={<Protected><MonopolyHpScreen /></Protected>} />
-        <Route path="/murdoku" element={<Protected><MurdokuScreen /></Protected>} />
+        <Route path="/garridoku" element={<Protected><GarridokuScreen /></Protected>} />
         <Route path="/bunker" element={<Protected><BunkerScreen /></Protected>} />
         <Route path="/reader" element={<Protected><ReaderScreen /></Protected>} />
         <Route path="/pdf-studio" element={<Protected><PdfStudioScreen /></Protected>} />
