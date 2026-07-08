@@ -120,8 +120,10 @@ const cv=document.getElementById("cv"),cx=cv.getContext("2d");
 const mk=()=>Array.from({length:H},()=>Array(W).fill(null));
 const MAX_UPGRADE_LEVEL=20;
 const ORE={iron:"#9fb9d4",copper:"#d9813f",coal:"#23262d",stone:"#a09b8a",gold:"#e8c84b",crystal:"#8be0e8"};
+const ORE_LABEL={iron:"железо",copper:"медь",coal:"уголь",stone:"камень",gold:"золото",crystal:"кристаллы"};
 const ORE_NM={iron:"⛏ Железная руда",copper:"⛏ Медная руда",coal:"⚫ Уголь",stone:"🪨 Камень",gold:"🪙 Золотая жила",crystal:"💎 Кристаллы"};
 const ORE_ICON={iron:"⛓",copper:"🟧",coal:"⚫",stone:"🪨",gold:"🪙",crystal:"💎"};
+const ORE_KEYS=["iron","copper","coal","stone","gold","crystal"];
 const ITEM_COL={iron:"#9fb9d4",copper:"#d9813f",coal:"#2a2e36",stone:"#a09b8a",wood:"#8a6a3d",
   ironPlate:"#c8d4e2",copperPlate:"#e8955a",steelPlate:"#93a0b4",gear:"#b9c2cf",wire:"#d9813f",circuit:"#4dbb72",science:"#7aa2ff",
   gold:"#e8c84b",crystal:"#8be0e8",goldBar:"#f5d76e",lens:"#aef0f5",module:"#c58cff",science2:"#e07af0",food:"#e8a25b"};
@@ -129,6 +131,61 @@ const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ угол�
   ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука",
   gold:"🪙 золото",crystal:"💎 кристалл",goldBar:"🥇 слиток",lens:"🔍 линза",module:"🧩 модуль",science2:"🔮 синт-наука",food:"🍞 еда"};
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+
+function seedHashText(s){
+  let h=2166136261>>>0;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}
+  return h>>>0;
+}
+function seeded(seed){
+  let t=seed>>>0;
+  return ()=>{t+=0x6D2B79F5;let r=t;r=Math.imul(r^r>>>15,r|1);r^=r+Math.imul(r^r>>>7,r|61);return ((r^r>>>14)>>>0)/4294967296}
+}
+function pick(r,arr){return arr[Math.floor(r()*arr.length)]}
+function uniquePush(a,v){if(!a.includes(v))a.push(v);return a}
+function shadeHex(hex,mul){
+  const n=parseInt(String(hex).replace("#",""),16);
+  const r=Math.max(0,Math.min(255,Math.round(((n>>16)&255)*mul)));
+  const g=Math.max(0,Math.min(255,Math.round(((n>>8)&255)*mul)));
+  const b=Math.max(0,Math.min(255,Math.round((n&255)*mul)));
+  return "#"+[r,g,b].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+const ORE_VARIANTS={
+  iron:[
+    {nm:"метеоритное железо",ic:"☄️",color:"#a7c7e7"},{nm:"синежильное железо",ic:"⛓",color:"#6f9ed7"},
+    {nm:"красное железо",ic:"🧲",color:"#b88579"},{nm:"ледяное железо",ic:"❄️",color:"#b8d9ef"}
+  ],
+  copper:[
+    {nm:"пламенная медь",ic:"🔥",color:"#ef8b38"},{nm:"бирюзовая медь",ic:"🟦",color:"#2fb7a1"},
+    {nm:"старая медь",ic:"🟧",color:"#b56a36"},{nm:"розовая медь",ic:"🔶",color:"#e78a77"}
+  ],
+  coal:[
+    {nm:"чёрный уголь",ic:"⚫",color:"#23262d"},{nm:"стеклянный уголь",ic:"◼️",color:"#3e4c62"},
+    {nm:"серный уголь",ic:"🟡",color:"#56523a"},{nm:"звёздный уголь",ic:"✦",color:"#1a2239"}
+  ],
+  stone:[
+    {nm:"лунный камень",ic:"🌘",color:"#b6b4a8"},{nm:"базальтовый камень",ic:"⬛",color:"#6f7480"},
+    {nm:"меловой камень",ic:"⬜",color:"#d4ceb8"},{nm:"зелёный камень",ic:"🪨",color:"#84997c"}
+  ],
+  gold:[
+    {nm:"солнечная золотая жила",ic:"☀️",color:"#f1ca4e"},{nm:"белое золото",ic:"🪙",color:"#e7d99b"},
+    {nm:"красное золото",ic:"🔆",color:"#d69442"},{nm:"электровое золото",ic:"⚡️",color:"#f6e06b"}
+  ],
+  crystal:[
+    {nm:"голубые кристаллы",ic:"💎",color:"#8be0e8"},{nm:"фиолетовые кристаллы",ic:"🔮",color:"#b28cff"},
+    {nm:"зелёные кристаллы",ic:"🟩",color:"#7ee0a8"},{nm:"розовые кристаллы",ic:"💠",color:"#f09ee5"}
+  ],
+};
+function activeOreSkin(k){return typeof S!=="undefined"&&S.oreSkins&&S.oreSkins[k]?S.oreSkins[k]:null}
+function oreColor(k){return activeOreSkin(k)?.color||ORE[k]||"#b8c1cc"}
+function oreName(k){return activeOreSkin(k)?`${activeOreSkin(k).ic||ORE_ICON[k]||"⛏"} ${activeOreSkin(k).nm}`:(ORE_NM[k]||"⛏ Руда")}
+function oreIcon(k){return activeOreSkin(k)?.ic||ORE_ICON[k]||"⛏"}
+function oreFaces(k){
+  const s=activeOreSkin(k);
+  if(s?.faces)return s.faces;
+  const c=oreColor(k);
+  return [shadeHex(c,1.28),c,shadeHex(c,.62),shadeHex(c,1.55)];
+}
 
 /* ---------- карты ---------- */
 const MAPS={
@@ -139,12 +196,79 @@ const MAPS={
   isles: {nm:"🏝 Архипелаг",desc:"озёра и рощи мешают строить",oreMul:1.2,water:true,trees:9,
     pal:["#4a6138","#465c35","#4f6a3d","#435832"],dirt:"#6b5a3d",grass:true},
 };
+function mapStyle(mapId){
+  const base=MAPS[mapId]||MAPS.valley;
+  const skin=typeof S!=="undefined"&&S.worldSkin?S.worldSkin:null;
+  return skin?{...base,...skin}:base;
+}
 const WORLD_MISSIONS=[
   {id:"verdant",map:"valley",depth:1,nm:"🌿 Вердант-9",desc:"безопасная лесная планета для расширения базы",res:"железо, медь, уголь, дерево, немного золота",bonus:[["iron",2,36],["copper",2,30],["gold",1,20]]},
   {id:"aurelia",map:"desert",depth:2,nm:"🪙 Аурелия",desc:"сухая богатая планета для золотой цепочки",res:"много золота, уголь, камень, железо",bonus:[["gold",4,34],["coal",2,36],["stone",2,30]]},
   {id:"cryora",map:"isles",depth:3,nm:"💎 Криора",desc:"островная кристальная планета для синт-науки",res:"кристаллы, медь, вода, немного золота",bonus:[["crystal",4,26],["copper",2,34],["gold",1,24]]},
 ];
-const worldById=id=>WORLD_MISSIONS.find(w=>w.id===id);
+const PLANET_BIOMES=[
+  {map:"valley",ic:"🌿",desc:"мягкая биосфера, много дерева",trees:18,oreMul:.95,grass:true},
+  {map:"desert",ic:"🏜",desc:"сухая корка, богатые жилы",trees:2,oreMul:1.45,grass:false},
+  {map:"isles",ic:"🏝",desc:"острова и озёра режут логистику",trees:10,oreMul:1.15,grass:true},
+];
+const PLANET_PALETTES=[
+  {nm:"малахитовая",pal:["#345d47","#3f6d50","#315440","#496f49"],dirt:"#5f4d38",water:"#1d5a68"},
+  {nm:"янтарная",pal:["#7f714c","#8d7c54","#756743","#97845b"],dirt:"#6c5537",water:"#245c75"},
+  {nm:"пепельная",pal:["#515a5d","#485055","#5b6260","#434a4d"],dirt:"#51483f",water:"#263d53"},
+  {nm:"индиговая",pal:["#33455f","#2d3d58","#3d4f6d","#28364f"],dirt:"#4e4559",water:"#203f70"},
+  {nm:"рубиновая",pal:["#64423e","#6e4a45","#593936","#754f46"],dirt:"#5a3d32",water:"#4e2d58"},
+  {nm:"меловая",pal:["#7a806e","#858a78","#707866","#8d907c"],dirt:"#6f654d",water:"#38646b"},
+];
+const PLANET_PREFIX=["Ара","Вей","Кора","Мир","Нова","Ори","Тау","Эли","Зен","Руа","Лира","Соль","Кси","Фер","Ио","Вар"];
+const PLANET_SUFFIX=["дор","мир","тис","лон","ра","векс","он","лия","нокс","прайм","-7","-12","-Ω","-К","-М"];
+const PLANET_MOOD=[
+  "тихая орбита","магнитные бури","низкая гравитация","длинные сумерки","пыльные ветра","яркая ночь","тонкая атмосфера","богатый разлом"
+];
+function makeGalaxySeed(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function ensureGalaxySeed(){
+  if(!S.galaxySeed)S.galaxySeed=makeGalaxySeed();
+  return S.galaxySeed;
+}
+function makeOreSkins(r){
+  const skins={};
+  ORE_KEYS.forEach(k=>{
+    const v=pick(r,ORE_VARIANTS[k]);
+    const color=shadeHex(v.color,.92+r()*.22);
+    skins[k]={nm:v.nm,ic:v.ic,color,faces:[shadeHex(color,1.28),color,shadeHex(color,.62),shadeHex(color,1.55)]};
+  });
+  return skins;
+}
+function makeProceduralWorld(index){
+  const seed=seedHashText(ensureGalaxySeed()+":"+index);
+  const r=seeded(seed);
+  const tier=1+Math.floor(index/3);
+  const biome=pick(r,PLANET_BIOMES),pal=pick(r,PLANET_PALETTES),oreSkins=makeOreSkins(r);
+  const richness=+(1+Math.min(5,tier*.16)+r()*.22).toFixed(2);
+  const main=[];
+  if(tier===1)uniquePush(main,"gold"); // первый пояс всегда ведёт к золотой цепочке
+  if(index%3===2)uniquePush(main,"crystal");
+  const common=["iron","copper","coal","stone"],rare=tier>=2?["gold","crystal","gold","crystal"]:["gold","gold","crystal"];
+  while(main.length<4)uniquePush(main,pick(r,r()<.55?common:rare));
+  const bonus=main.map((k,i)=>[k,Math.max(1,Math.round((k==="gold"||k==="crystal"?1.5:2.4)+tier*.32+(i===0?1:0))),Math.round((k==="gold"||k==="crystal"?22:34)*(1+Math.min(tier,18)*.035)),richness]);
+  const nm=`${biome.ic} ${pick(r,PLANET_PREFIX)}${pick(r,PLANET_SUFFIX)}-${(seed%997).toString(36).toUpperCase()}`;
+  const res=main.map(k=>`${oreSkins[k].ic} ${oreSkins[k].nm}`).join(", ");
+  const mood=pick(r,PLANET_MOOD);
+  return {
+    id:`proc-${index}-${seed.toString(36)}`,proc:true,index,seed,map:biome.map,depth:tier,nm,
+    desc:`${pal.nm} планета: ${biome.desc}, ${mood}, богатство ×${richness}`,
+    res,
+    bonus,
+    skin:{pal:pal.pal,dirt:pal.dirt,waterColor:pal.water,trees:Math.max(0,Math.round((biome.trees||0)*(0.75+r()*.6))),oreMul:biome.oreMul*richness,grass:biome.grass},
+    oreSkins,
+    codex:`пояс ${tier} · сигнал ${(index%3)+1}/3 · seed ${seed.toString(36).toUpperCase()}`
+  };
+}
+function proceduralWorldById(id){
+  const m=String(id||"").match(/^proc-(\d+)-/);
+  return m?makeProceduralWorld(+m[1]):null;
+}
+function worldById(id){return WORLD_MISSIONS.find(w=>w.id===id)||proceduralWorldById(id)}
+function spaceCandidates(){const base=(S.launches||0)*3;return [0,1,2].map(i=>makeProceduralWorld(base+i))}
 let ore=mk();
 let oreAmt=mk(); // остаток залежи: руда КОНЕЧНА, выкопал — ищи новую (или новые земли)
 let terr=mk(); // "water"|"tree"|null
@@ -168,7 +292,7 @@ function scatterOre(kind,blobs,size,mul){
 function resizeTerrCanvas(){terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;terrDirty=true}
 function genMap(mapId,depth){
   depth=depth||0; // глубина = номер земли: дальше — богаче и экзотичнее
-  const m=MAPS[mapId];
+  const m=mapStyle(mapId);
   W=W0;H=H0;ore=mk();oreAmt=mk();terr=mk();grid=mk();drops={};animals=[];resizeTerrCanvas(); // новый мир — сброс к стартовому размеру
   if(m.water){ // озёра-кляксы
     for(let i=0;i<7;i++){let x=rnd(4,W-5),y=rnd(4,H-5);
@@ -206,7 +330,7 @@ function expandWorld(margin){
   const newDrops={};for(const key in drops){const [dx2,dy2]=key.split(",").map(Number);newDrops[(dx2+sh)+","+(dy2+sh)]=drops[key]}
   drops=newDrops;
   const inRing=(x,y)=>x<sh||y<sh||x>=sh+oldW||y>=sh+oldH;
-  const m=MAPS[S.map]||MAPS.valley;
+  const m=mapStyle(S.map);
   if(m.water){for(let i=0;i<Math.round(margin/2);i++){let x=rnd(2,W-3),y=rnd(2,H-3);
     for(let j=0;j<48;j++){if(inRing(x,y)&&x>1&&y>1&&x<W-2&&y<H-2)terr[y][x]="water";x+=rnd(-1,1);y+=rnd(-1,1)}}}
   const blob=(kind,n)=>{let x=rnd(2,W-3),y=rnd(2,H-3),g=0;
@@ -276,7 +400,7 @@ const GOALS=[
   {txt:"Большая индустрия: 30 🔩 стали и 25 🟩 плат",chk:s=>s.made.steelPlate>=30&&s.made.circuit>=25},
   {txt:"Посёлок: 6 рабочих и 3 работающих генератора",chk:()=>workers.length>=6&&grid.flat().filter(c=>c&&c.t==="gen"&&c.fuel>0).length>=3},
   {txt:"Накорми людей: исследуй «Хозяйство», построй 🌾 или 🏹 и добудь 15 🍞",chk:s=>tech("t_farm")&&s.made.food>=15},
-  {txt:"Запусти ракету на первую планету (⋯ → 🗺 → 🚀) — там золото",chk:()=>(S.launches||0)>=1},
+  {txt:"Запусти ракету на первую процедурную планету (⋯ → 🗺 → 🚀) — первый пояс всегда даёт золото",chk:()=>(S.launches||0)>=1},
   {txt:"Золотая лихорадка: выплави 8 🥇 слитков",chk:s=>s.made.goldBar>=8},
   {txt:"Высокие технологии: 5 🧩 модулей и 8 🔮 синт-науки",chk:s=>s.made.module>=5&&s.made.science2>=8},
   {txt:"Космос и Fable-ядро: ЦУП, ракета, планеты, 140 🧪 + 60 🔮 + 25 🧩",chk:s=>tech("t_win")},
@@ -317,7 +441,7 @@ const HAND=[
   {out:"wire",in:{copperPlate:1}},
 ];
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null,
-  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0};
+  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
@@ -543,7 +667,7 @@ function workerStep(w){
         w.carryCell.oreKind=ore[j.y][j.x];w.carryCell.prog=0;
         grid[j.y][j.x]=w.carryCell;w.carryCell=null;
         puff(j.x,j.y,"#7aa2ff",4);giveXp(w,6);
-        say(`🧍 ${SPECS[w.spec].nm} перенёс бур на ${ORE_NM[ore[j.y][j.x]]||"новую залежь"}`);
+        say(`🧍 ${SPECS[w.spec].nm} перенёс бур на ${oreName(ore[j.y][j.x])||"новую залежь"}`);
       } // клетку заняли, пока шли — на следующем тике поищет другую
     }
   } else if(j.kind==="return"){
@@ -915,7 +1039,7 @@ function openCtx(x,y,sx,sy){
     acts.push({ic:"ℹ️",l:"Что это?",wide:true,f:()=>describe(x,y)});
   } else {
     const onOre=ore[y][x];
-    title=onOre?`${ORE_NM[onOre]} — что строим?`:"Что построить?";
+    title=onOre?`${oreName(onOre)} — что строим?`:"Что построить?";
     buildables().forEach(t=>{
       if(t==="miner"&&!onOre)return;
       const d=DEFS[t],ok=canPay(d.cost);
@@ -994,7 +1118,8 @@ function mapSheet(){
       <button id="mZin" style="flex:1;text-align:center;font-size:1.1rem">➕</button>
       <button id="mZout" style="flex:1;text-align:center;font-size:1.1rem">➖</button>
       <button id="mFit" style="flex:1;text-align:center">🗺 Вся карта</button></div>
-    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">📍 <b style="color:var(--ink)">${S.regionName||"Родная земля"}</b> · ${W}×${H} клеток. Руда конечна: выкопал — расширяй текущую карту или запускай ракету к новой планете.</div>
+    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">📍 <b style="color:var(--ink)">${S.regionName||"Родная земля"}</b> · ${W}×${H} клеток. Руда конечна: выкопал — расширяй текущую карту или запускай ракету к новой планете.
+      ${S.worldInfo?`<br>🪐 ${S.worldInfo.desc}<br>Ресурсы: ${S.worldInfo.res}`:""}</div>
     ${regionRows}
     <div style="display:flex;gap:8px;margin-top:6px">
       <button id="mExp" style="flex:1;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌱 Расширить эту</button>
@@ -1015,12 +1140,12 @@ function spaceSheet(){
     countBuildingsAll("control")<1?"построить 🛰️ ЦУП":null,
     countBuildingsAll("rocket")<1?"построить 🚀 Ракету":null,
   ].filter(Boolean).join(", ");
-  const cards=WORLD_MISSIONS.map(w=>`<button class="techBtn" data-world="${w.id}" ${ready&&canPay(cost)?"":"disabled"}>
-    ${w.nm}<small>${w.desc}<br>Ресурсы: ${w.res}<br>Запуск: ${costStr(cost)}</small>
+  const cards=spaceCandidates().map(w=>`<button class="techBtn" data-world="${w.id}" ${ready&&canPay(cost)?"":"disabled"}>
+    ${w.nm}<small>${w.desc}<br>Ресурсы: ${w.res}<br>${w.codex}<br>Запуск: ${costStr(cost)}</small>
   </button>`).join("");
   sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.45">
       <b style="color:var(--ink)">🚀 Центр управления полётами</b><br>
-      ${ready?`Выбери планету. Каждая миссия генерирует новую карту со своей логикой ресурсов. Постройки остаются на своих планетах, а склад и жители летят с тобой.`:`Пока нельзя лететь: ${missing}.`}
+      ${ready?`Сканер держит три координаты. После каждого запуска появится новая тройка: миры, палитра, залежи и вид ресурсов генерируются процедурно без потолка. Постройки остаются на своих планетах, а склад и жители летят с тобой.`:`Пока нельзя лететь: ${missing}.`}
     </div>
     ${cards}
     <button class="techBtn" id="mBack"><small>← Назад к карте</small></button>`;
@@ -1034,7 +1159,7 @@ function launchToWorld(worldId){
   if(!canPay(cost))return toast("На запуск нужно: "+costStr(cost));
   pay(cost);S.launches=(S.launches||0)+1;drawInv();saveGame();
   overlay(`<h2 style="margin-bottom:8px">🚀 Старт: ${w.nm}</h2>
-    <p style="color:var(--dim);font-size:.86rem;line-height:1.45">Ракета выходит на траекторию. ЦУП переносит рабочих и склад на новую планету: ${w.res}.</p>`);
+    <p style="color:var(--dim);font-size:.86rem;line-height:1.45">Ракета выходит на траекторию. ЦУП переносит рабочих и склад на новую планету: ${w.res}. После посадки сканер откроет следующую тройку координат.</p>`);
   snd("win");
   setTimeout(()=>{hideOverlay();travelNew(worldId)},850);
 }
@@ -1098,7 +1223,7 @@ function runAuto(o){
   if(o.tech&&!tech(o.tech))return {err:"Сначала исследуй технологию в 🔬 Науке"};
   if(o.ore){ // цепочка добычи: бур (+ лента + процессор)
     const at=findOreNearCam(o.ore);
-    if(!at)return {err:"Не вижу залежь "+ORE_NM[o.ore]+" — расширь карту (🗺)"};
+    if(!at)return {err:"Не вижу залежь "+oreName(o.ore)+" — расширь карту (🗺)"};
     let procPos=null,path=null;
     const costs=[DEFS.miner.cost];
     if(o.proc){
@@ -1176,10 +1301,11 @@ function drawMinimap(){
   if(mmapEl.width!==mw)mmapEl.width=mw;
   if(mmapEl.height!==mh)mmapEl.height=mh;
   const g=mmapCx;
+  const m=mapStyle(S.map);
   g.fillStyle="#101a12";g.fillRect(0,0,mw,mh);
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    if(terr[y][x]==="water"){g.fillStyle="#1b4a63";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
-    else if(ore[y][x]){g.fillStyle=ORE[ore[y][x]];g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
+    if(terr[y][x]==="water"){g.fillStyle=m.waterColor||"#1b4a63";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
+    else if(ore[y][x]){g.fillStyle=oreColor(ore[y][x]);g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
     const c=grid[y][x];
     if(c){g.fillStyle=c.t==="gen"?"#ffd45e":c.t==="belt"?"#6b7480":"#e8eef7";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
   }
@@ -1289,10 +1415,10 @@ function doPrestige(){
   const p=(S.prestige||0)+1;
   const shards=(S.coreShards||0)+1;
   W=W0;H=H0;grid=mk();drops={};enemies=[];parts=[];animals=[];workers=[];
-  S.prestige=p;S.coreShards=shards;S.epoch=1;S.epochReady=1;S.epochSeen=1;S.bestEpoch=Math.max(S.bestEpoch||1,EPOCHS.length);S.launches=0;
+  S.prestige=p;S.coreShards=shards;S.epoch=1;S.epochReady=1;S.epochSeen=1;S.bestEpoch=Math.max(S.bestEpoch||1,EPOCHS.length);S.launches=0;S.galaxySeed=makeGalaxySeed();
   S.coreBuilt=false;S.win=false;S.over=false;S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.tut=-1;
   S.mode=mode;S.map=map;S.sessionId=sessionId;S.sessionName=sessionName||`Prestige ${p}`;
-  S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;
+  S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;
   S.autoAll=true;S.builtCount=0;S.hint=null;
   resetMade();resetInventoryForPrestige(p);
   TECHS.forEach(t=>t.done=false);
@@ -1396,7 +1522,7 @@ function describe(x,y){
   if(c){
     const d=DEFS[c.t];
     msg=`${d.ic} ${d.nm} ур.${cellLevel(c)}/${MAX_UPGRADE_LEVEL}`;
-    if(c.t==="miner")msg+=` — добывает ${ORE_NM[ore[y][x]]||"…"}; без ленты складывает кучей (тапни кучу — соберёшь)`;
+    if(c.t==="miner")msg+=` — добывает ${ore[y][x]?oreName(ore[y][x]):"…"}; без ленты складывает кучей (тапни кучу — соберёшь)`;
     if(c.t==="gen")msg+=` — питает радиус ${genRadius()} клеток (до ${genCap(c)}⚡️); топливо: ${c.fuel>0?"горит ("+Math.ceil(c.fuel/60)+"с)":"НЕТ"}; в бункере ⚫${c.buf.coal||0} 🌲${c.buf.wood||0}${c.auto!==false?"; сам берёт со склада":""}`;
     if(c.t==="belt")msg+=" — везёт предметы по стрелке; тап → 🔄 Повернуть";
     if(RECIPES[c.t])msg+=` — рецепты: ${RECIPES[c.t].map(r=>recipeStr(r)).join("; ")}`;
@@ -1407,7 +1533,7 @@ function describe(x,y){
     if(buf&&c.t!=="gen")msg+=` · внутри: ${buf}`;
     if(c.hp<DEFS[c.t].hp)msg+=` · HP ${c.hp}/${DEFS[c.t].hp}`;
   }
-  else if(ore[y][x])msg=`${ORE_NM[ore[y][x]]} — осталось ${oreAmt[y][x]||"?"} ед. Тапни и выбери 🛠 Бур`;
+  else if(ore[y][x])msg=`${oreName(ore[y][x])} — осталось ${oreAmt[y][x]||"?"} ед. Тапни и выбери 🛠 Бур`;
   else if(terr[y][x]==="water")msg="🌊 Вода — строить нельзя, обходи";
   else if(terr[y][x]==="tree")msg="🌲 Дерево — тапни → 🪓 Срубить: даст древесину (горит в генераторе)";
   else msg="Пустая земля — тапни, чтобы выбрать постройку";
@@ -1517,7 +1643,7 @@ function step(){
         const k=ore[y][x];
         if(!k){c.prog=0;continue} // залежь исчерпана — рабочие перенесут бур
         if(outputTo(x,y,k)||dropAt(x,y,k)){
-          c.prog=0;S.made[k]++;minedMin[k]=(minedMin[k]||0)+1;if(S.tick%180<90)puff(x,y,ORE[k],1);
+          c.prog=0;S.made[k]++;minedMin[k]=(minedMin[k]||0)+1;if(S.tick%180<90)puff(x,y,oreColor(k),1);
           if(--oreAmt[y][x]<=0){ // руда КОНЕЧНА
             ore[y][x]=null;oreAmt[y][x]=0;terrDirty=true;
             say("⛏ Залежь под буром исчерпана — рабочие поищут новую");
@@ -1668,7 +1794,7 @@ const TUT=[
   {txt:"Сталь: тап по плавильне → 📥 Загрузить, когда есть 2 листа + уголь (или вези конвейером) — 🔩 сталь нужна для целей.",
    chk:()=>S.made.steelPlate>0,
    target:()=>findB("furnace")},
-  {txt:"Дальше цепочка: медь → провода → 🟩 платы → Наука → Космическая программа → 🛰️ ЦУП + 🚀 Ракета → новые планеты → Fable-ядро. Задания мастера Фейбла — в ⋯ → 📜. Удачи!",
+  {txt:"Дальше цепочка: медь → провода → 🟩 платы → Наука → Космическая программа → 🛰️ ЦУП + 🚀 Ракета → бесконечные процедурные планеты → Fable-ядро. Задания мастера Фейбла — в ⋯ → 📜. Удачи!",
    chk:()=>false,target:()=>null,last:true},
 ];
 const tutEl=document.getElementById("tut");
@@ -1785,9 +1911,9 @@ function showBook(){
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌾 Ферма · 🏹 Охота · 🦌 звери</div>
         <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
-        <div style="font-size:.82rem">только на ПЛАНЕТАХ (⋯ → 🗺 → 🚀): сначала исследуй космопрограмму, построй 🛰️ ЦУП и 🚀 ракету. Золото и кристаллы ведут к модулям, 🔮 синт-науке и Fable-ядру</div></div>
+        <div style="font-size:.82rem">только на ПЛАНЕТАХ (⋯ → 🗺 → 🚀): сначала исследуй космопрограмму, построй 🛰️ ЦУП и 🚀 ракету. ЦУП всегда показывает 3 новых сигнала; после запуска появляется следующая тройка. Золото и кристаллы ведут к модулям, 🔮 синт-науке и Fable-ядру</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
-        <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень.</div></div>
+        <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). На родной земле цвета базовые, а на планетах залежи получают процедурный вид: метеоритное железо всё ещё идёт в железные рецепты, бирюзовая медь — в медные, звёздный уголь — в топливо.</div></div>
       <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
     </div>
     <button style="width:100%;margin-top:12px;text-align:center" onclick="hideOverlay()">Понятно</button>`);
@@ -1810,7 +1936,7 @@ const ORE_FACES={ // [светлая грань, тело, тёмная гран
   crystal:["#c8f4f8","#8bd8e0","#4fa3ac","#eefdff"],
 };
 function drawOreSprite(g,k,x,y){
-  const C=ORE_FACES[k],rn=lcg(hash(x,y));
+  const C=oreFaces(k),rn=lcg(hash(x,y));
   g.save();g.translate(x*TS+TS/2,y*TS+TS/2);
   g.fillStyle="rgba(48,38,26,.5)"; // вытоптанная земля под рудой
   g.beginPath();g.ellipse(0,1.5,TS*.46,TS*.36,0,0,7);g.fill();
@@ -1848,7 +1974,7 @@ function drawTreeSprite(g,x,y){
   g.moveTo(cx0,cy0-TS*.17-TS*.25*h*1.15);g.lineTo(cx0-TS*.14*h,cy0-TS*.17);g.lineTo(cx0-TS*.04,cy0-TS*.17);g.closePath();g.fill();
 }
 function drawGround(g,x,y){
-  const m=MAPS[S.map]||MAPS.valley,h=hash(x,y);
+  const m=mapStyle(S.map),h=hash(x,y);
   g.fillStyle=m.pal[h%m.pal.length];
   g.fillRect(x*TS,y*TS,TS,TS);
   if(h%7===0){g.fillStyle="rgba(0,0,0,.07)";g.fillRect(x*TS+(h>>3)%10,y*TS+(h>>5)%10,TS*.6,TS*.45)}
@@ -1860,7 +1986,8 @@ function drawGround(g,x,y){
       g.beginPath();g.moveTo(gx,gy+3);g.lineTo(gx+1.2,gy);g.stroke()}}
 }
 function drawWater(g,x,y){
-  g.fillStyle="#1b4a63";g.fillRect(x*TS,y*TS,TS,TS);
+  const m=mapStyle(S.map);
+  g.fillStyle=m.waterColor||"#1b4a63";g.fillRect(x*TS,y*TS,TS,TS);
   const shore=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{
     const nx=x+dx,ny=y+dy;return nx>=0&&ny>=0&&nx<W&&ny<H&&terr[ny][nx]!=="water"});
   if(shore){g.fillStyle="rgba(120,205,235,.16)";g.fillRect(x*TS,y*TS,TS,TS)}
@@ -1895,7 +2022,7 @@ function render(){
   if(terrDirty)redrawTerrain();
   cx.drawImage(terrCv,0,0,terrCv.width,terrCv.height,0,0,W*TS,H*TS);
   // живая вода: бегущие блики поверх кэша
-  if((MAPS[S.map]||{}).water){
+  if((mapStyle(S.map)||{}).water){
     cx.fillStyle="rgba(255,255,255,.06)";
     for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)
       if(terr[y][x]==="water"&&(x+y+Math.floor(S.tick/40))%5===0)cx.fillRect(x*TS+4,y*TS+TS/2,TS-8,1.5);
@@ -1930,9 +2057,9 @@ function render(){
       const prod=RECIPES[c.t]?(c.rec?c.rec.out:(c.recSel!=null&&RECIPES[c.t][c.recSel]?RECIPES[c.t][c.recSel].out:null)):null;
       const mk2=c.t==="miner"?(ore[y][x]||c.oreKind):null;
       if(mk2){
-        cx.fillStyle=ORE[mk2];cx.beginPath();cx.arc(px,py+1,6.5,0,7);cx.fill();
+        cx.fillStyle=oreColor(mk2);cx.beginPath();cx.arc(px,py+1,6.5,0,7);cx.fill();
         cx.strokeStyle="rgba(0,0,0,.55)";cx.stroke();
-        cx.font="10px sans-serif";cx.fillText(ORE_ICON[mk2]||"⛏",px,py+1.5);
+        cx.font="10px sans-serif";cx.fillText(oreIcon(mk2),px,py+1.5);
         cx.font="9px sans-serif";cx.fillText("🛠",x*TS+7,y*TS+7);cx.font="16px sans-serif";
       } else if(prod){
         cx.fillText(ITEM[prod].split(" ")[0],px,py+1);
@@ -2102,10 +2229,12 @@ function regionDefaults(){ // дефолты для машин/буров пос
 function serializeRegion(){
   return {nm:S.regionName,map:S.map,w:W,h:H,ore,oreAmt,terr,
     grid:grid.map(r=>r.map(serCell)),drops,animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
+    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,
     wave:S.wave,nextWave:S.nextWave};
 }
 function loadRegion(rg){
   W=rg.w;H=rg.h;S.map=rg.map;S.regionName=rg.nm;
+  S.worldSkin=rg.worldSkin||null;S.oreSkins=rg.oreSkins||null;S.worldInfo=rg.worldInfo||null;
   ore=rg.ore;oreAmt=rg.oreAmt||mk();terr=rg.terr;
   grid=rg.grid.map(r=>r.map(c=>c?{...c,rec:null}:null));
   drops=rg.drops||{};
@@ -2128,7 +2257,7 @@ function travelTo(idx){
   toast("🌍 Вернулись: "+S.regionName);snd("research");closeSheet();saveGame();
 }
 function applyWorldBonus(w,depth){
-  (w.bonus||[]).forEach(([kind,blobs,size])=>scatterOre(kind,blobs,size,1+depth*.18));
+  (w.bonus||[]).forEach(([kind,blobs,size,mul])=>scatterOre(kind,blobs,size,(mul||1)*(1+depth*.18)));
   seedOreAmounts(1+depth*.15);
   terrDirty=true;
 }
@@ -2138,12 +2267,15 @@ function travelNew(targetId){
   S.regions=S.regions||[];
   S.regions[S.curRegion||0]=serializeRegion();
   S.curRegion=S.regions.length;
-  const depth=w?w.depth+(S.launches||0)-1:S.curRegion;
+  const depth=w?(w.proc?w.depth:w.depth+(S.launches||0)-1):S.curRegion;
+  S.worldSkin=w?(w.skin||null):null;
+  S.oreSkins=w?(w.oreSkins||null):null;
+  S.worldInfo=w?{id:w.id,nm:w.nm,desc:w.desc,res:w.res,codex:w.codex||"",seed:w.seed||0,index:w.index??null}:null;
   genMap(mapId,depth);S.map=mapId;
   if(w)applyWorldBonus(w,depth);
   S.regionName=w?`${w.nm} · планета ${S.curRegion+1}`:`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
   S.regions.push(serializeRegion());
-  workers.forEach(w=>{w.x=W/2+(Math.random()-0.5)*3;w.y=H/2+(Math.random()-0.5)*3;w.job=null;w.carryCell=null;});
+  workers.forEach(wrk=>{wrk.x=W/2+(Math.random()-0.5)*3;wrk.y=H/2+(Math.random()-0.5)*3;wrk.job=null;wrk.carryCell=null;});
   enemies=[];undoStack.length=0;S.hint=null;
   fitAll();cam.z=1.15;clampCam();
   if(S.mode==="survival")toast("⚠️ Ядро осталось в родной земле — не бросай его надолго!");
@@ -2163,6 +2295,7 @@ function saveGame(){
     workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl,name:w.name,look:w.look,belly:w.belly,hungry:w.hungry})),
     animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
+    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,galaxySeed:S.galaxySeed||ensureGalaxySeed(),
     autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
@@ -2195,6 +2328,9 @@ function loadGame(d){
   S.supplyPct=d.supplyPct??100;
   S.regions=d.regions||[];S.curRegion=d.curRegion||0;
   S.regionName=d.regionName||`${(MAPS[d.map||"valley"]||MAPS.valley).nm} · земля 1`;
+  S.galaxySeed=d.galaxySeed||makeGalaxySeed();
+  const curRg=S.regions[S.curRegion]||{};
+  S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=d.worldInfo||curRg.worldInfo||null;
   S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
@@ -2219,10 +2355,10 @@ function startGame(opts){
   else{
     resetMade();resetInventoryForPrestige(0);TECHS.forEach(t=>t.done=false);
     S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.win=false;S.over=false;
-    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;
+    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
-    S.map=opts.map;genMap(opts.map);
+    S.map=opts.map;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;genMap(opts.map);
     S.curRegion=0;S.regions=[];S.regionName=`${MAPS[opts.map].nm} · земля 1`;S.autoAll=true;S.builtCount=0;
     S.tut=opts.tutorial?0:-1;
     if(opts.mode==="survival"){
