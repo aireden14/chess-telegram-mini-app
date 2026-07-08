@@ -274,7 +274,7 @@ let oreAmt=mk(); // остаток залежи: руда КОНЕЧНА, вык
 let terr=mk(); // "water"|"tree"|null
 function seedOreAmounts(mul){
   for(let y=0;y<H;y++)for(let x=0;x<W;x++)
-    if(ore[y][x]&&!oreAmt[y][x])oreAmt[y][x]=Math.round(rnd(70,180)*(mul||1));
+    if(ore[y][x]&&!oreAmt[y][x])oreAmt[y][x]=Math.max(18,Math.round(rnd(70,180)*(mul||1)*scenarioOreFactor(ore[y][x])));
 }
 function scatterOre(kind,blobs,size,mul){
   for(let b=0;b<blobs;b++){
@@ -440,8 +440,99 @@ const HAND=[
   {out:"gear",in:{ironPlate:2}},
   {out:"wire",in:{copperPlate:1}},
 ];
+const SCENARIOS=[
+  {id:"coal_winter",title:"Угольная зима",tag:"энергия дорогая",scarce:"coal",bonus:"wood",oreMul:{coal:.62,stone:1.15},startAdd:{wood:24,stone:8},startCut:{coal:18},mandate:"Топливо быстро станет узким местом. Выгодные обмены на уголь важнее раннего масштаба."},
+  {id:"copper_silence",title:"Медная тишина",tag:"платы через торговлю",scarce:"copper",bonus:"iron",oreMul:{copper:.68,iron:1.18},startAdd:{ironPlate:8,gear:4},startCut:{copper:0},mandate:"Медь редкая, поэтому провода и платы придётся вытягивать обменом или ранней экспедицией."},
+  {id:"stone_frontier",title:"Каменный фронтир",tag:"строительство через карьеры",scarce:"stone",bonus:"coal",oreMul:{stone:.72,coal:1.2},startAdd:{coal:18,wood:10},startCut:{stone:10},mandate:"Камень в дефиците: генераторы, стены и ранние печи сильнее завязаны на торговые караваны."},
+  {id:"gold_license",title:"Золотая лицензия",tag:"патенты у соседей",scarce:"gold",bonus:"circuit",oreMul:{gold:.58,crystal:1.12},startAdd:{circuit:3,copperPlate:6},startCut:{gear:3},mandate:"Первые точные механизмы проще получить через поселения: золото и линзы появляются на рынке раньше, чем в твоей цепочке."},
+  {id:"crystal_race",title:"Кристальная гонка",tag:"конкурент спешит к синт-науке",scarce:"crystal",bonus:"science",oreMul:{crystal:.62,gold:1.2},startAdd:{science:2,steelPlate:4},startCut:{ironPlate:6},mandate:"Кристаллы редкие, зато конкуренты активно развивают оптику. Следи за рынком и не отдавай им слишком много плат."},
+  {id:"settler_boom",title:"Поселенческий бум",tag:"еда и рабочие решают",scarce:"food",bonus:"wood",oreMul:{iron:1.05,copper:1.05},startAdd:{food:12,wood:20},startCut:{coal:8},mandate:"Соседние поселения быстро растут и хотят еду. Торговля хлебом может дать редкие материалы без долгого бурения."},
+];
+const RIVAL_NAMES=[
+  ["🤖","Автоматонный Синдикат","роботы ускоряют производство"],
+  ["🛰️","Орбитальная Дирекция","строит радары и колонии"],
+  ["🏭","Стальной Концерн","давит рынком и сталью"],
+  ["🔮","Лига Синт-науки","гонится к Fable-ядру"],
+  ["⚙️","Механический Совет","скупает платы и модули"],
+];
+const SETTLEMENT_ARCHETYPES=[
+  {ic:"⚫",base:"Угольный Причал",offers:["coal","steelPlate"],wants:["food","copperPlate","gear"],tech:"котлы глубокого горения",trait:"держит топливо и сталь"},
+  {ic:"🟧",base:"Медный Купол",offers:["copper","copperPlate","wire"],wants:["ironPlate","coal","food"],tech:"тонкая проводка",trait:"закрывает медный дефицит"},
+  {ic:"🪨",base:"Каменный Картель",offers:["stone","ironPlate","steelPlate"],wants:["wood","food","gear"],tech:"карьерные краны",trait:"даёт камень и стройматериалы"},
+  {ic:"🌾",base:"Фермерская Лига",offers:["food","wood"],wants:["stone","gear","copperPlate"],tech:"биопластик и питание рабочих",trait:"кормит посёлки"},
+  {ic:"🪙",base:"Золотой Анклав",offers:["gold","goldBar","lens"],wants:["circuit","science","steelPlate"],tech:"лицензии на точные механизмы",trait:"даёт золото до богатых планет"},
+  {ic:"💎",base:"Кристальная Обсерватория",offers:["crystal","lens","science2"],wants:["goldBar","science","circuit"],tech:"оптика и синт-наука",trait:"держит редкую оптику"},
+  {ic:"🧩",base:"Модульная Гильдия",offers:["module","circuit","science"],wants:["lens","goldBar","steelPlate"],tech:"контракты на модули",trait:"продаёт поздние компоненты"},
+];
+const SCARCE_SETTLEMENT={coal:0,copper:1,stone:2,food:3,gold:4,crystal:5};
+function scenarioOreFactor(k){return S.scenario?.oreMul?.[k]??1}
+function itemTier(k){
+  if(["iron","copper","coal","stone","wood","food"].includes(k))return 1;
+  if(["ironPlate","copperPlate","wire","gear"].includes(k))return 2;
+  if(["steelPlate","circuit","science","gold","crystal"].includes(k))return 4;
+  if(["goldBar","lens","module","science2"].includes(k))return 7;
+  return 3;
+}
+function tradeNumbers(offer,want,r){
+  const ot=itemTier(offer),wt=itemTier(want);
+  const give=Math.max(1,Math.round((7+r()*8)/ot));
+  const take=Math.max(1,Math.round(give*ot/wt*(1.15+r()*.65)));
+  return {give,take};
+}
+function makeSettlement(r,i,scenario){
+  const a=SETTLEMENT_ARCHETYPES[i===0&&SCARCE_SETTLEMENT[scenario.scarce]!=null?SCARCE_SETTLEMENT[scenario.scarce]:i%SETTLEMENT_ARCHETYPES.length];
+  const offer=i===0&&scenario.scarce&&ITEM[scenario.scarce]?scenario.scarce:pick(r,a.offers);
+  const want=i===0&&scenario.bonus&&scenario.bonus!==offer&&ITEM[scenario.bonus]?scenario.bonus:pick(r,a.wants.filter(k=>k!==offer));
+  const n=tradeNumbers(offer,want,r);
+  const suffix=["Север","Юг","Кольцо","Мост","Терра","Форпост","Станция","Узел"][Math.floor(r()*8)];
+  return {id:`s${i}-${Math.floor(r()*9999).toString(36)}`,ic:a.ic,nm:`${a.base} «${suffix}»`,trait:a.trait,tech:a.tech,
+    offer,want,give:n.give,take:n.take,stock:Math.max(n.give*2,Math.round(n.give*(3+r()*4))),rep:0,dev:Math.round(r()*12),growth:1+r()*1.8,trades:0};
+}
+function makeScenario(map,mode,seed){
+  const r=seeded(seedHashText((seed||makeGalaxySeed())+":scenario:"+map+":"+mode));
+  const sc={...pick(r,SCENARIOS)};
+  const [ic,nm,focus]=pick(r,RIVAL_NAMES);
+  const settlementCount=3+Math.floor(r()*3);
+  sc.seed=Math.floor(r()*1e9).toString(36).toUpperCase();
+  sc.rival={ic,nm,focus,progress:Math.round(r()*10),planets:0,lastMark:0};
+  sc.turn=0;sc.trades=0;
+  sc.settlements=Array.from({length:settlementCount},(_,i)=>makeSettlement(r,i,sc));
+  return sc;
+}
+function ensureScenario(){
+  if(!S.scenario)S.scenario=makeScenario(S.map||"valley",S.mode||"peace",S.galaxySeed||makeGalaxySeed());
+  S.scenario.settlements=S.scenario.settlements||[];
+  S.scenario.rival=S.scenario.rival||{ic:"🤖",nm:"Автоматонный Синдикат",focus:"догоняет фабрику",progress:0,planets:0,lastMark:0};
+  return S.scenario;
+}
+function applyScenarioStart(sc){
+  Object.entries(sc.startCut||{}).forEach(([k,n])=>inv[k]=Math.max(0,(inv[k]||0)-n));
+  Object.entries(sc.startAdd||{}).forEach(([k,n])=>inv[k]=(inv[k]||0)+n);
+}
+function tradeCost(st){
+  const discount=Math.min(4,Math.floor((st.rep||0)/3));
+  return {[st.want]:Math.max(1,(st.take||1)-discount)};
+}
+function tradeGain(st){
+  const bonus=Math.floor((st.rep||0)/5);
+  return {[st.offer]:(st.give||1)+bonus};
+}
+function scenarioTick(){
+  const sc=ensureScenario();
+  sc.turn=(sc.turn||0)+1;
+  sc.settlements.forEach(st=>{
+    st.dev=Math.min(100,(st.dev||0)+(st.growth||1));
+    st.stock=Math.min(999,(st.stock||0)+Math.max(1,Math.round((st.give||1)*(1+(st.dev||0)/85))));
+  });
+  const rv=sc.rival;
+  rv.progress=Math.min(100,(rv.progress||0)+1.6+(sc.turn%4===0?2:0)+(S.launches||0)*.15);
+  if(rv.progress>=35&&rv.lastMark<35){rv.lastMark=35;say(`${rv.ic} ${rv.nm}: конкурент открыл устойчивую промышленную цепочку.`)}
+  if(rv.progress>=60&&rv.lastMark<60){rv.lastMark=60;rv.planets=(rv.planets||0)+1;say(`${rv.ic} ${rv.nm}: конкурент готовит собственную экспедицию. Позже понадобится шпионский радар.`)}
+  if(rv.progress>=85&&rv.lastMark<85){rv.lastMark=85;say(`${rv.ic} ${rv.nm}: конкурент близко к стратегическому прорыву.`)}
+  if(S.sheet==="trade")tradeSheet();
+}
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null,
-  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null};
+  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
@@ -1065,7 +1156,7 @@ function openRecipeMenu(x,y,sx,sy){
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",x20:"🏭 Развитие x20"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",x20:"🏭 Развитие x20"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -1081,6 +1172,7 @@ function renderSheet(){
   else if(S.sheet==="auto")autoSheet();
   else if(S.sheet==="crew")crewSheet();
   else if(S.sheet==="eco")ecoSheet();
+  else if(S.sheet==="trade")tradeSheet();
   else if(S.sheet==="x20")progressionSheet();
 }
 function handSheet(){
@@ -1357,6 +1449,54 @@ function ecoSheet(){
   sl.onchange=()=>{S.supplyPct=+sl.value;rolloverEconomy();toast("📊 Производству — "+sl.value+"% добычи в минуту");};
 }
 
+function tradeSheet(){
+  const sc=ensureScenario(),rv=sc.rival;
+  const rows=sc.settlements.map((st,i)=>{
+    const cost=tradeCost(st),gain=tradeGain(st),ok=canPay(cost)&&(st.stock||0)>=Object.values(gain)[0];
+    const prog=Math.min(100,Math.round(st.dev||0));
+    return `<button class="techBtn" data-trade="${i}" ${ok?"":"disabled"}>
+      ${st.ic} <b>${st.nm}</b>
+      <small>${st.trait} · технология: ${st.tech}<br>
+      Обмен: ${costStr(cost)} → ${costStr(gain)} · запас ${st.stock||0} ${ITEM[st.offer].split(" ")[0]}<br>
+      Репутация ${st.rep||0} · развитие поселения ${prog}%</small>
+    </button>`;
+  }).join("");
+  sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);line-height:1.45;margin-bottom:10px">
+      <b style="color:var(--gold)">🎲 ${sc.title}</b> <span style="color:var(--dim)">· ${sc.tag}</span><br>
+      ${sc.mandate}<br>
+      <span style="color:var(--ink)">Дефицит:</span> ${ITEM[sc.scarce]?.split(" ")[0]||sc.scarce} ·
+      <span style="color:var(--ink)">бонус:</span> ${ITEM[sc.bonus]?.split(" ")[0]||sc.bonus} ·
+      seed ${sc.seed}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div class="pill" style="position:static;text-align:center">${rv.ic} ${Math.round(rv.progress||0)}% конкурент</div>
+      <div class="pill" style="position:static;text-align:center">🤝 ${sc.trades||0} сделок</div>
+    </div>
+    <div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">
+      ${rv.nm}: ${rv.focus}. Поселения пополняют запас и развиваются каждую игровую минуту.
+      Чем выше репутация, тем выгоднее курс.
+    </div>
+    ${rows}
+    <button class="techBtn" id="tradeHint"><small>Позже сюда лягут шпионский радар, маршруты и власть ботов на оставленных планетах.</small></button>`;
+  sheetBody.querySelectorAll("[data-trade]").forEach(b=>b.onclick=()=>doTrade(+b.dataset.trade));
+  const h=sheetBody.querySelector("#tradeHint");
+  if(h)h.onclick=()=>toast("🛰️ Следующий слой: радар, маршруты конкурента и захват старых планет");
+}
+function doTrade(i){
+  const sc=ensureScenario(),st=sc.settlements[i];
+  if(!st)return;
+  const cost=tradeCost(st),gain=tradeGain(st),amount=Object.values(gain)[0];
+  if((st.stock||0)<amount)return toast(`${st.nm}: запас закончился, подожди пополнения`);
+  if(!canPay(cost))return toast("На обмен нужно: "+costStr(cost));
+  pay(cost);
+  Object.entries(gain).forEach(([k,n])=>{inv[k]=(inv[k]||0)+n;S.made[k]=(S.made[k]||0)+n});
+  st.stock-=amount;st.rep=(st.rep||0)+1;st.trades=(st.trades||0)+1;st.dev=Math.min(100,(st.dev||0)+2);
+  sc.trades=(sc.trades||0)+1;
+  toast(`🤝 ${st.nm}: ${costStr(cost)} → ${costStr(gain)}`);
+  say(`🤝 Сделка с ${st.nm}: ${costStr(cost)} → ${costStr(gain)}. Репутация ${st.rep}.`);
+  snd("research");drawInv();drawHud();saveGame();tradeSheet();
+}
+
 /* ---------- 🏭 x20 развитие и престиж ---------- */
 function calcEpochReady(){
   let ready=1;
@@ -1416,11 +1556,12 @@ function doPrestige(){
   const shards=(S.coreShards||0)+1;
   W=W0;H=H0;grid=mk();drops={};enemies=[];parts=[];animals=[];workers=[];
   S.prestige=p;S.coreShards=shards;S.epoch=1;S.epochReady=1;S.epochSeen=1;S.bestEpoch=Math.max(S.bestEpoch||1,EPOCHS.length);S.launches=0;S.galaxySeed=makeGalaxySeed();
+  S.scenario=makeScenario(map,mode,S.galaxySeed);
   S.coreBuilt=false;S.win=false;S.over=false;S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.tut=-1;
   S.mode=mode;S.map=map;S.sessionId=sessionId;S.sessionName=sessionName||`Prestige ${p}`;
   S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;
   S.autoAll=true;S.builtCount=0;S.hint=null;
-  resetMade();resetInventoryForPrestige(p);
+  resetMade();resetInventoryForPrestige(p);applyScenarioStart(S.scenario);
   TECHS.forEach(t=>t.done=false);
   genMap(map);
   if(mode==="survival"){
@@ -1486,6 +1627,7 @@ function smartItems(){return [
   {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
   {k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
   {k:"📊",l:"Экономика",f:()=>openSheet("eco")},
+  {k:"🤝",l:"Поселения / обмен",f:()=>openSheet("trade")},
   {k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
     S.autoAll=S.autoAll===false;
     toast(S.autoAll!==false?"📥 Все здания снова сами берут со склада":"⛔️ Авто-пополнение выключено ВЕЗДЕ — загружай вручную (📥/⛽️), склад не тратится");
@@ -1601,7 +1743,7 @@ function step(){
   if(S.tick%15===0)recomputePower(); // зоны питания: ближайший генератор кормит своих
   workers.forEach(workerStep);
   animals.forEach(animalStep);
-  if(S.tick%3600===0){rolloverEconomy();if(animals.length<8)spawnAnimals(1);}
+  if(S.tick%3600===0){rolloverEconomy();scenarioTick();if(animals.length<8)spawnAnimals(1);}
   if(S.tick%30===0)drawMinimap();
   const speed=tech("t_speed")?2:1;
   const beltPeriod=beltTickPeriod();
@@ -1910,6 +2052,8 @@ function showBook(){
         <div style="font-size:.82rem">собирают кучи, кормят генераторы, переносят буры с пустых залежей. Тап по человечку — профессия (+30% к своему делу). С 4+ жителей хотят 🍞 есть (голодные — вдвое медленнее). Список: ⋯ → 🧍 Жители</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌾 Ферма · 🏹 Охота · 🦌 звери</div>
         <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🤝 Поселения · обмен</div>
+        <div style="font-size:.82rem">каждая партия получает уникальный сценарий, соседние поселения и конкурента. В ⋯ → 🤝 можно менять свои ресурсы на дефицитные: уголь, медь, золото, кристаллы, линзы, модули. Поселения развиваются и пополняют запас, а репутация улучшает курс</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
         <div style="font-size:.82rem">только на ПЛАНЕТАХ (⋯ → 🗺 → 🚀): сначала исследуй космопрограмму, построй 🛰️ ЦУП и 🚀 ракету. ЦУП всегда показывает 3 новых сигнала; после запуска появляется следующая тройка. Золото и кристаллы ведут к модулям, 🔮 синт-науке и Fable-ядру</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
@@ -2295,7 +2439,7 @@ function saveGame(){
     workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl,name:w.name,look:w.look,belly:w.belly,hungry:w.hungry})),
     animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
-    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,galaxySeed:S.galaxySeed||ensureGalaxySeed(),
+    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,galaxySeed:S.galaxySeed||ensureGalaxySeed(),scenario:S.scenario||ensureScenario(),
     autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
@@ -2329,6 +2473,8 @@ function loadGame(d){
   S.regions=d.regions||[];S.curRegion=d.curRegion||0;
   S.regionName=d.regionName||`${(MAPS[d.map||"valley"]||MAPS.valley).nm} · земля 1`;
   S.galaxySeed=d.galaxySeed||makeGalaxySeed();
+  S.scenario=d.scenario||makeScenario(d.map||"valley",d.mode||"peace",S.galaxySeed);
+  ensureScenario();
   const curRg=S.regions[S.curRegion]||{};
   S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=d.worldInfo||curRg.worldInfo||null;
   S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
@@ -2356,8 +2502,10 @@ function startGame(opts){
     resetMade();resetInventoryForPrestige(0);TECHS.forEach(t=>t.done=false);
     S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.win=false;S.over=false;
     S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();
+    S.scenario=makeScenario(opts.map,opts.mode,S.galaxySeed);
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
+    applyScenarioStart(S.scenario);
     S.map=opts.map;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;genMap(opts.map);
     S.curRegion=0;S.regions=[];S.regionName=`${MAPS[opts.map].nm} · земля 1`;S.autoAll=true;S.builtCount=0;
     S.tut=opts.tutorial?0:-1;
@@ -2379,7 +2527,9 @@ function startGame(opts){
   mmapEl.style.display="block";drawMinimap();
   drawGoal();drawHud();tutShow();
   say("Fable Factory: тап по клетке — меню постройки. Все панели — в ⋯ справа снизу.");
-  toast(opts.session?"Партия продолжена 💾":opts.mode==="survival"?"Выживание: 90с до волны!":"Тапни по клетке, чтобы строить 🏭");
+  const sc=ensureScenario();
+  say(`🎲 Сценарий: ${sc.title} — ${sc.mandate}`);
+  toast(opts.session?"Партия продолжена 💾":`🎲 ${sc.title}: ${sc.tag}`);
 }
 setInterval(()=>{if(!S.win&&!S.over)saveGame()},5000);
 
