@@ -362,6 +362,7 @@ const DEFS={
   lab:   {nm:"Лаборатория",ic:"🧪",cost:{ironPlate:10,circuit:2},power:4,unlock:"t_lab",hp:150},
   control:{nm:"ЦУП",ic:"🛰️",cost:{steelPlate:30,circuit:20,science:15},power:8,unlock:"t_space",hp:240},
   rocket:{nm:"Ракета",ic:"🚀",cost:{steelPlate:60,circuit:35,gear:30,coal:80},power:6,unlock:"t_space",hp:300},
+  radar:{nm:"Шпионский радар",ic:"📡",cost:{steelPlate:24,circuit:24,science:18,goldBar:4},power:7,unlock:"t_space",hp:180},
   turret:{nm:"Турель",ic:"🗼",cost:{ironPlate:6,gear:4},power:2,unlock:"t_def",hp:220},
   wall:  {nm:"Стена",ic:"🧿",cost:{stone:2},power:0,unlock:"t_def",hp:420},
   farm:  {nm:"Ферма",ic:"🌾",cost:{ironPlate:6,wood:10},power:2,unlock:"t_farm",hp:120},
@@ -389,7 +390,7 @@ const TECHS=[
   {id:"t_grid",nm:"Энергосеть (15 🧪)",cost:{science:15},done:false,desc:"Зона генератора +3 клетки, мощность +4"},
   {id:"t_farm",nm:"Хозяйство (10 ⚙️)",cost:{gear:10},done:false,desc:"Ферма 🌾 и хижина охотника 🏹 — еда для посёлка"},
   {id:"t_mod",nm:"Тонкое дело (6 🥇)",cost:{goldBar:6},done:false,desc:"Линзы 🔍, модули 🧩 и синт-наука 🔮 (золото и кристаллы ищи в новых землях)"},
-  {id:"t_space",nm:"Космическая программа (60 🧪 + 40 🔩 + 25 🟩)",cost:{science:60,steelPlate:40,circuit:25},done:false,desc:"Открывает ЦУП, ракету и полёты на планеты"},
+  {id:"t_space",nm:"Космическая программа (60 🧪 + 40 🔩 + 25 🟩)",cost:{science:60,steelPlate:40,circuit:25},done:false,desc:"Открывает ЦУП, ракету, 📡 радар и полёты на планеты"},
 ];
 const GOALS=[
   {txt:"Скрафти 10 жел.листов",chk:s=>s.made.ironPlate>=10},
@@ -531,8 +532,59 @@ function scenarioTick(){
   if(rv.progress>=85&&rv.lastMark<85){rv.lastMark=85;say(`${rv.ic} ${rv.nm}: конкурент близко к стратегическому прорыву.`)}
   if(S.sheet==="trade")tradeSheet();
 }
+function defaultGov(idx){
+  return {bot:0,captured:false,robots:0,lastVisit:S.tick||0,lastSim:S.tick||0,alert30:false,alert45:false,alert51:false,idx};
+}
+function ensureGov(g,idx){
+  const d=defaultGov(idx);
+  const out={...d,...(g||{})};
+  out.bot=Math.max(0,Math.min(100,Math.round(out.bot||0)));
+  out.captured=!!out.captured||out.bot>=51;
+  return out;
+}
+function currentGov(){S.regionGov=ensureGov(S.regionGov,S.curRegion||0);return S.regionGov}
+function radarOnline(){
+  return countBuildingsAll("radar")>0;
+}
+function regionCaptured(){const g=currentGov();return g.captured||g.bot>=51}
+function authorityLabel(g){
+  g=ensureGov(g,0);
+  if(g.captured)return `🤖 захвачена · власть ${g.bot}%`;
+  if(g.bot>=45)return `⚠️ переворот близко · ${g.bot}%`;
+  if(g.bot>=30)return `🟡 администрация усиливается · ${g.bot}%`;
+  if(g.bot>0)return `🟢 под контролем · влияние ${g.bot}%`;
+  return "🟢 под полным контролем";
+}
+function updateAuthority(){
+  if(!S.started)return;
+  S.regions=S.regions||[];
+  if(S.regions[S.curRegion||0])S.regions[S.curRegion||0]=serializeRegion();
+  const sc=ensureScenario(),rival=sc.rival||{};
+  S.regions.forEach((rg,i)=>{
+    if(!rg)return;
+    rg.gov=ensureGov(rg.gov,i);
+    if(i===(S.curRegion||0))return;
+    const growth=2+(rival.progress||0)/55+(rg.gov.captured?1.4:0)+(S.launches||0)*.12;
+    rg.gov.bot=Math.min(100,Math.round(rg.gov.bot+growth));
+    if(rg.gov.bot>=30&&!rg.gov.alert30){rg.gov.alert30=true;say(`⚠️ ${rg.nm}: администрация бота уже ${rg.gov.bot}%. Вернись или строй 📡 радар.`)}
+    if(rg.gov.bot>=45&&!rg.gov.alert45){rg.gov.alert45=true;toast(`⚠️ ${rg.nm}: переворот близко`);say(`⚠️ ${rg.nm}: бот почти контролирует планету (${rg.gov.bot}%).`)}
+    if(rg.gov.bot>=51&&!rg.gov.captured){
+      rg.gov.captured=true;rg.gov.alert51=true;rg.gov.robots=Math.max(rg.gov.robots||0,3);
+      toast(`🤖 ${rg.nm}: планета захвачена`);
+      say(`🤖 ${rg.nm}: бот перешёл 51% власти, заменяет жителей роботами и милитаризует завод.`);
+    }
+  });
+  const g=currentGov();
+  if(g.bot>0){
+    const pressure=(radarOnline()?5:2)+(g.captured&&enemies.length===0?2:0);
+    g.bot=Math.max(0,Math.round(g.bot-pressure));
+    if(g.captured&&g.bot<51){g.captured=false;toast("🟢 Контроль над планетой возвращён");say(`🟢 ${S.regionName}: власть бота упала ниже 51%, управление снова твоё.`)}
+  }
+  if(S.regions[S.curRegion||0])S.regions[S.curRegion||0].gov=g;
+  if(S.sheet==="authority")authoritySheet();
+}
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null,
-  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null};
+  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null,regionGov:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
@@ -891,11 +943,11 @@ function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" 
 function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
 function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
 function drawBuild(){} // постройки теперь в контекстном меню по клетке — панели нет
-const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","control","rocket","farm","lodge","turret","wall"];
+const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","control","rocket","radar","farm","lodge","turret","wall"];
 function buildables(){return BUILD_ORDER.filter(t=>{
   const d=DEFS[t];
   if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)return false;
-  if((t==="turret"||t==="wall")&&S.mode!=="survival")return false;
+  if((t==="turret"||t==="wall")&&S.mode!=="survival"&&currentGov().bot<30)return false;
   return true;
 });}
 function drawInv(){if(S.sheet==="inv")renderSheet()}
@@ -921,6 +973,8 @@ function drawHud(){
   const idlePill=idle>0?`<div class="pill bad">⏸ простаивает: ${idle} — нет сырья</div>`:"";
   const hungry=workers.filter(w=>w.hungry).length;
   const hungryPill=hungry>0?`<div class="pill bad">🍽 голодают: ${hungry} — нужна 🌾 еда</div>`:"";
+  const gov=currentGov();
+  const govPill=gov.bot>0?`<div class="pill ${gov.captured?"bad":""}">${gov.captured?"🤖 захват":"🛡 власть бота"} ${gov.bot}%</div>`:"";
   let powerPill=`<div class="pill ${S.powerOk?"":"bad"}">⚡️ ${ps.fed}/${ps.need}`;
   if(ps.noZone)powerPill+=` · ${ps.noZone} вне зоны генератора`;
   if(ps.over)powerPill+=` · нужен ещё генератор`;
@@ -930,7 +984,7 @@ function drawHud(){
   const epochPill=`<div class="pill">🏭 эпоха ${S.epoch||1}/${EPOCHS.length} · ${epoch.nm}${readyMark}${(S.prestige||0)>0?` · 💠${S.prestige}`:""}</div>`;
   // ресурсы в HUD не показываем — склад живёт в ⋯ → 📦 (просьба игрока: меньше шума)
   document.getElementById("hud").innerHTML=
-    epochPill+powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill+hungryPill;
+    epochPill+powerPill+govPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill+hungryPill;
 }
 function toggleResFold(){resFold=!resFold;localStorage.setItem("ff.resfold",resFold?"1":"0");drawHud()}
 function applyZen(){document.body.classList.toggle("zen",zen)}
@@ -1112,6 +1166,7 @@ function openCtx(x,y,sx,sy){
     if(c.t==="gen")acts.push({ic:"⛽️",l:"Заправить",f:()=>refuel(x,y)});
     if(c.t==="gen")acts.push({ic:"⚫",l:c.auto!==false?"Авто-уголь: ВКЛ":"Авто-уголь: выкл",sub:c.auto!==false?"берёт со склада сам":"заправляй тапом",f:()=>{c.auto=c.auto===false;toast(c.auto!==false?"⚫ Генератор сам берёт топливо со склада":"⚫ Авто-заправка выключена");}});
     if(c.t==="control")acts.push({ic:"🚀",l:"Планеты",sub:"ЦУП миссий",f:()=>openSheet("map")});
+    if(c.t==="control"||c.t==="radar")acts.push({ic:"🛡",l:"Власть",sub:"боты и радар",f:()=>openSheet("authority")});
     if(RECIPES[c.t]&&RECIPES[c.t].length>1){
       const cur=c.recSel!=null?ITEM[RECIPES[c.t][c.recSel].out]:"авто";
       acts.push({ic:"🎛",l:"Рецепт",sub:cur,f:()=>openRecipeMenu(x,y,sx,sy)});
@@ -1156,7 +1211,7 @@ function openRecipeMenu(x,y,sx,sy){
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",x20:"🏭 Развитие x20"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",authority:"🛡 Власть / радар",x20:"🏭 Развитие x20"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -1173,6 +1228,7 @@ function renderSheet(){
   else if(S.sheet==="crew")crewSheet();
   else if(S.sheet==="eco")ecoSheet();
   else if(S.sheet==="trade")tradeSheet();
+  else if(S.sheet==="authority")authoritySheet();
   else if(S.sheet==="x20")progressionSheet();
 }
 function handSheet(){
@@ -1204,7 +1260,7 @@ function techSheet(){
 }
 function mapSheet(){
   const regionRows=(S.regions&&S.regions.length>1?S.regions:[]).map((rg,i)=>
-    `<button class="techBtn" data-rg="${i}" ${i===(S.curRegion||0)?"disabled":""}>${i===(S.curRegion||0)?"📍":"🌍"} ${rg?rg.nm||("Земля "+(i+1)):(S.regionName||"Земля "+(i+1))}<small>${i===(S.curRegion||0)?"ты здесь":"вернуться сюда"}</small></button>`).join("");
+    `<button class="techBtn" data-rg="${i}" ${i===(S.curRegion||0)?"disabled":""}>${i===(S.curRegion||0)?"📍":"🌍"} ${rg?rg.nm||("Земля "+(i+1)):(S.regionName||"Земля "+(i+1))}<small>${i===(S.curRegion||0)?"ты здесь":"вернуться сюда"} · ${authorityLabel(rg?.gov)}</small></button>`).join("");
   const ready=spaceProgramReady(),cost=launchCost();
   sheetBody.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px">
       <button id="mZin" style="flex:1;text-align:center;font-size:1.1rem">➕</button>
@@ -1217,6 +1273,7 @@ function mapSheet(){
       <button id="mExp" style="flex:1;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌱 Расширить эту</button>
       <button id="mNew" style="flex:1;text-align:center;background:linear-gradient(180deg,#5b7bd5,#263b78);color:#eaf0ff;font-weight:700;border:none;padding:11px">🚀 Планеты</button>
     </div>
+    <button id="mAuth" class="techBtn" style="margin-top:7px;text-align:center">🛡 Власть / 📡 радар<small>${authorityLabel(currentGov())}</small></button>
     <div style="font-size:.78rem;color:var(--dim);margin-top:8px;line-height:1.35">${ready?`🚀 Запуск готов. Стоимость миссии: ${costStr(cost)}`:`🔒 Полёты требуют: исследовать «Космическую программу», построить 🛰️ ЦУП и 🚀 Ракету.`}</div>`;
   sheetBody.querySelector("#mZin").onclick=zoomIn;
   sheetBody.querySelector("#mZout").onclick=zoomOut;
@@ -1224,6 +1281,7 @@ function mapSheet(){
   sheetBody.querySelector("#mExp").onclick=()=>{expandWorld(14);updateProgression(true);mapSheet();toast("🌱 Карта расширена: новое кольцо земли с ресурсами");snd("research")};
   sheetBody.querySelectorAll("[data-rg]").forEach(b=>b.onclick=()=>travelTo(+b.dataset.rg));
   sheetBody.querySelector("#mNew").onclick=spaceSheet;
+  sheetBody.querySelector("#mAuth").onclick=authoritySheet;
 }
 function spaceSheet(){
   const ready=spaceProgramReady(),cost=launchCost();
@@ -1497,6 +1555,59 @@ function doTrade(i){
   snd("research");drawInv();drawHud();saveGame();tradeSheet();
 }
 
+function authoritySheet(){
+  S.regions=S.regions||[];
+  if(S.regions[S.curRegion||0])S.regions[S.curRegion||0]=serializeRegion();
+  const radar=radarOnline(),sc=ensureScenario(),rv=sc.rival||{},cur=currentGov();
+  const rows=(S.regions.length?S.regions:[serializeRegion()]).map((rg,i)=>{
+    const g=ensureGov(rg.gov,i),here=i===(S.curRegion||0);
+    return `<button class="techBtn" data-auth-rg="${i}" ${here?"disabled":""}>
+      ${here?"📍":"🌍"} <b>${rg.nm||("Планета "+(i+1))}</b>
+      <small>${authorityLabel(g)}${g.robots?` · роботов ${g.robots}`:""}${here?" · ты здесь":" · перейти"}${!radar&&g.bot<30&&!here?" · точные данные скрыты":""}</small>
+    </button>`;
+  }).join("");
+  const radarTxt=radar?`📡 Радар онлайн: видны власть бота, захваты и след конкурента.`:`🔒 Построй 📡 Шпионский радар, чтобы видеть направление экспедиций конкурента и точные данные по далёким планетам.`;
+  const trail=radar?`След конкурента: ${rv.planets||0} экспедиций, прогресс ${Math.round(rv.progress||0)}%. ${rv.progress>=60?"Можно будет лететь за ним следующим обновлением.":"Пока он копит промышленную базу."}`:"Без радара видны только тревоги после 30% влияния.";
+  sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);line-height:1.45;margin-bottom:10px">
+      <b style="color:var(--gold)">🛡 ${S.regionName||"Планета"}</b><br>
+      Текущая власть бота: <b style="color:${cur.captured?"var(--bad)":"var(--gold)"}">${cur.bot||0}%</b>.
+      До 51% ты возвращаешь полный контроль; после 51% планета захвачена и начинает производить роботов.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div class="pill" style="position:static;text-align:center">${radar?"📡 радар онлайн":"📡 радара нет"}</div>
+      <div class="pill" style="position:static;text-align:center">${rv.ic||"🤖"} ${Math.round(rv.progress||0)}% конкурент</div>
+    </div>
+    <div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">${radarTxt}<br>${trail}</div>
+    ${rows}
+    <button class="techBtn" id="rivalTrace" ${radar&&spaceProgramReady()&&(rv.progress||0)>=60&&canPay(launchCost())?"":"disabled"}>
+      🛰️ Лететь по следу конкурента
+      <small>${radar?((rv.progress||0)>=60?`Запуск: ${costStr(launchCost())} · цель будет враждебной`:"Конкурент ещё не оставил устойчивый след"):"Нужен 📡 Шпионский радар"}</small>
+    </button>
+    <button class="techBtn" id="authBack"><small>← К карте</small></button>`;
+  sheetBody.querySelectorAll("[data-auth-rg]").forEach(b=>b.onclick=()=>travelTo(+b.dataset.authRg));
+  sheetBody.querySelector("#rivalTrace").onclick=launchToRivalTrace;
+  sheetBody.querySelector("#authBack").onclick=mapSheet;
+}
+function launchToRivalTrace(){
+  const sc=ensureScenario(),rv=sc.rival||{},cost=launchCost();
+  if(!radarOnline())return toast("Нужен 📡 Шпионский радар");
+  if(!spaceProgramReady())return toast("Нужны ЦУП и ракета");
+  if((rv.progress||0)<60)return toast("Конкурент ещё не оставил устойчивый след");
+  if(!canPay(cost))return toast("На запуск нужно: "+costStr(cost));
+  pay(cost);S.launches=(S.launches||0)+1;rv.chases=(rv.chases||0)+1;drawInv();saveGame();
+  const target=makeProceduralWorld(1000+(rv.planets||1)*11+rv.chases);
+  overlay(`<h2 style="margin-bottom:8px">🛰️ Погоня: ${rv.nm}</h2>
+    <p style="color:var(--dim);font-size:.86rem;line-height:1.45">Радар поймал след конкурента. Планета уже частично захвачена ботом: ожидай роботов и сопротивление.</p>`);
+  snd("wave");
+  setTimeout(()=>{
+    hideOverlay();travelNew(target.id);
+    const g=currentGov();g.bot=68;g.captured=true;g.robots=4;g.alert30=true;g.alert45=true;g.alert51=true;
+    say(`🛰️ Радар вывел на след ${rv.nm}: ${S.regionName} уже под властью бота (${g.bot}%).`);
+    toast("🤖 Высадка на враждебной планете");
+    saveGame();
+  },850);
+}
+
 /* ---------- 🏭 x20 развитие и престиж ---------- */
 function calcEpochReady(){
   let ready=1;
@@ -1559,7 +1670,7 @@ function doPrestige(){
   S.scenario=makeScenario(map,mode,S.galaxySeed);
   S.coreBuilt=false;S.win=false;S.over=false;S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.tut=-1;
   S.mode=mode;S.map=map;S.sessionId=sessionId;S.sessionName=sessionName||`Prestige ${p}`;
-  S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;
+  S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;S.regionGov=defaultGov(0);
   S.autoAll=true;S.builtCount=0;S.hint=null;
   resetMade();resetInventoryForPrestige(p);applyScenarioStart(S.scenario);
   TECHS.forEach(t=>t.done=false);
@@ -1628,6 +1739,7 @@ function smartItems(){return [
   {k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
   {k:"📊",l:"Экономика",f:()=>openSheet("eco")},
   {k:"🤝",l:"Поселения / обмен",f:()=>openSheet("trade")},
+  {k:"🛡",l:"Власть / радар",f:()=>openSheet("authority")},
   {k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
     S.autoAll=S.autoAll===false;
     toast(S.autoAll!==false?"📥 Все здания снова сами берут со склада":"⛔️ Авто-пополнение выключено ВЕЗДЕ — загружай вручную (📥/⛽️), склад не тратится");
@@ -1743,7 +1855,7 @@ function step(){
   if(S.tick%15===0)recomputePower(); // зоны питания: ближайший генератор кормит своих
   workers.forEach(workerStep);
   animals.forEach(animalStep);
-  if(S.tick%3600===0){rolloverEconomy();scenarioTick();if(animals.length<8)spawnAnimals(1);}
+  if(S.tick%3600===0){rolloverEconomy();scenarioTick();updateAuthority();if(animals.length<8)spawnAnimals(1);}
   if(S.tick%30===0)drawMinimap();
   const speed=tech("t_speed")?2:1;
   const beltPeriod=beltTickPeriod();
@@ -1849,9 +1961,10 @@ function step(){
     const [dx,dy]=DIRS[c.dir],nx=x+dx,ny=y+dy;
     if(nx<0||ny<0||nx>=W||ny>=H){inv[c.item]++;S.made[c.item]++;c.item=null}
   });
-  /* выживание */
-  if(S.mode==="survival"){
-    if(S.tick>=S.nextWave){
+  /* выживание и захваченные ботом планеты */
+  const botHostile=regionCaptured();
+  if(S.mode==="survival"||botHostile){
+    if(S.mode==="survival"&&S.tick>=S.nextWave){
       S.wave++;S.nextWave+=S.map==="desert"?2400:3000;
       const n=2+S.wave, hp=25+(S.map==="desert"?8:6)*S.wave;
       for(let i=0;i<n;i++){
@@ -1861,6 +1974,21 @@ function step(){
         enemies.push({x:ex,y:ey,hp,maxHp:hp});
       }
       toast(`🌊 Волна ${S.wave}: ${n} рейдеров!`);say(`🌊 Волна ${S.wave} (${n} врагов)`);snd("wave");
+    }
+    if(botHostile&&S.tick%2400===0){
+      const g=currentGov(),maxBots=3+Math.floor((g.bot||51)/18);
+      if(enemies.filter(e=>e.robot).length<maxBots){
+        const n=Math.max(1,Math.min(3,maxBots-enemies.filter(e=>e.robot).length));
+        for(let i=0;i<n;i++){
+          const side=Math.floor(Math.random()*4);
+          const ex=side===0?0:side===1?W-1:Math.random()*W;
+          const ey=side===2?0:side===3?H-1:Math.random()*H;
+          enemies.push({x:ex,y:ey,hp:42+g.bot,maxHp:42+g.bot,robot:true});
+        }
+        g.robots=(g.robots||0)+n;
+        toast(`🤖 Роботы бота высадились: ${n}`);
+        say(`🤖 ${S.regionName}: бот отправил ${n} роботов защищать захваченную власть.`);
+      }
     }
     const bl=[];
     for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(grid[y][x])bl.push([x,y]);
@@ -2054,6 +2182,8 @@ function showBook(){
         <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🤝 Поселения · обмен</div>
         <div style="font-size:.82rem">каждая партия получает уникальный сценарий, соседние поселения и конкурента. В ⋯ → 🤝 можно менять свои ресурсы на дефицитные: уголь, медь, золото, кристаллы, линзы, модули. Поселения развиваются и пополняют запас, а репутация улучшает курс</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🛡 Власть · 📡 радар</div>
+        <div style="font-size:.82rem">когда улетаешь, старая планета остаётся под авто-администрацией. Влияние бота растёт; до 51% возвращение сбивает его вниз, после 51% планета захвачена и производит 🤖 роботов. 📡 Шпионский радар показывает захваты и позволяет лететь по следу конкурента</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
         <div style="font-size:.82rem">только на ПЛАНЕТАХ (⋯ → 🗺 → 🚀): сначала исследуй космопрограмму, построй 🛰️ ЦУП и 🚀 ракету. ЦУП всегда показывает 3 новых сигнала; после запуска появляется следующая тройка. Золото и кристаллы ведут к модулям, 🔮 синт-науке и Fable-ядру</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
@@ -2286,8 +2416,9 @@ function render(){
   }
   cx.font="16px sans-serif";
   enemies.forEach(en=>{
-    cx.fillStyle="#c03a3a";cx.beginPath();cx.arc(en.x*TS,en.y*TS,6,0,7);cx.fill();
-    cx.strokeStyle="#5c1010";cx.stroke();
+    cx.fillStyle=en.robot?"#8a9bb8":"#c03a3a";cx.beginPath();cx.arc(en.x*TS,en.y*TS,6,0,7);cx.fill();
+    cx.strokeStyle=en.robot?"#26364f":"#5c1010";cx.stroke();
+    if(en.robot){cx.font="9px sans-serif";cx.fillText("🤖",en.x*TS,en.y*TS-9);cx.font="16px sans-serif";}
     cx.fillStyle="#000";cx.fillRect(en.x*TS-7,en.y*TS-11,14,3);
     cx.fillStyle="#ffb14b";cx.fillRect(en.x*TS-7,en.y*TS-11,14*en.hp/en.maxHp,3);
   });
@@ -2373,12 +2504,12 @@ function regionDefaults(){ // дефолты для машин/буров пос
 function serializeRegion(){
   return {nm:S.regionName,map:S.map,w:W,h:H,ore,oreAmt,terr,
     grid:grid.map(r=>r.map(serCell)),drops,animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
-    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,
+    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,gov:currentGov(),
     wave:S.wave,nextWave:S.nextWave};
 }
 function loadRegion(rg){
   W=rg.w;H=rg.h;S.map=rg.map;S.regionName=rg.nm;
-  S.worldSkin=rg.worldSkin||null;S.oreSkins=rg.oreSkins||null;S.worldInfo=rg.worldInfo||null;
+  S.worldSkin=rg.worldSkin||null;S.oreSkins=rg.oreSkins||null;S.worldInfo=rg.worldInfo||null;S.regionGov=ensureGov(rg.gov,S.curRegion||0);S.regionGov.lastVisit=S.tick||0;
   ore=rg.ore;oreAmt=rg.oreAmt||mk();terr=rg.terr;
   grid=rg.grid.map(r=>r.map(c=>c?{...c,rec:null}:null));
   drops=rg.drops||{};
@@ -2398,7 +2529,11 @@ function travelTo(idx){
   S.regions[S.curRegion]=serializeRegion();
   S.curRegion=idx;
   loadRegion(S.regions[idx]);
-  toast("🌍 Вернулись: "+S.regionName);snd("research");closeSheet();saveGame();
+  const g=currentGov();
+  toast(g.captured?`🤖 Вернулись в захваченную зону: ${S.regionName}`:"🌍 Вернулись: "+S.regionName);
+  if(g.captured)say(`🤖 ${S.regionName}: власть бота ${g.bot}%. Роботы считают эту планету своей.`);
+  else if(g.bot>0)say(`🟢 ${S.regionName}: ты снова на месте, влияние бота начнёт падать с ${g.bot}%.`);
+  snd("research");closeSheet();saveGame();
 }
 function applyWorldBonus(w,depth){
   (w.bonus||[]).forEach(([kind,blobs,size,mul])=>scatterOre(kind,blobs,size,(mul||1)*(1+depth*.18)));
@@ -2409,12 +2544,15 @@ function travelNew(targetId){
   const w=worldById(targetId);
   const mapId=w?w.map:targetId;
   S.regions=S.regions||[];
+  const oldName=S.regionName||"прошлая планета";
   S.regions[S.curRegion||0]=serializeRegion();
+  say(`🛰️ ${oldName}: оставлена авто-администрации. Если долго не возвращаться, власть бота начнёт расти.`);
   S.curRegion=S.regions.length;
   const depth=w?(w.proc?w.depth:w.depth+(S.launches||0)-1):S.curRegion;
   S.worldSkin=w?(w.skin||null):null;
   S.oreSkins=w?(w.oreSkins||null):null;
   S.worldInfo=w?{id:w.id,nm:w.nm,desc:w.desc,res:w.res,codex:w.codex||"",seed:w.seed||0,index:w.index??null}:null;
+  S.regionGov=defaultGov(S.curRegion);
   genMap(mapId,depth);S.map=mapId;
   if(w)applyWorldBonus(w,depth);
   S.regionName=w?`${w.nm} · планета ${S.curRegion+1}`:`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
@@ -2439,7 +2577,7 @@ function saveGame(){
     workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl,name:w.name,look:w.look,belly:w.belly,hungry:w.hungry})),
     animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
-    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,galaxySeed:S.galaxySeed||ensureGalaxySeed(),scenario:S.scenario||ensureScenario(),
+    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,regionGov:currentGov(),galaxySeed:S.galaxySeed||ensureGalaxySeed(),scenario:S.scenario||ensureScenario(),
     autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
@@ -2476,7 +2614,7 @@ function loadGame(d){
   S.scenario=d.scenario||makeScenario(d.map||"valley",d.mode||"peace",S.galaxySeed);
   ensureScenario();
   const curRg=S.regions[S.curRegion]||{};
-  S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=d.worldInfo||curRg.worldInfo||null;
+  S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=d.worldInfo||curRg.worldInfo||null;S.regionGov=ensureGov(d.regionGov||curRg.gov,S.curRegion||0);
   S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
@@ -2506,7 +2644,7 @@ function startGame(opts){
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
     applyScenarioStart(S.scenario);
-    S.map=opts.map;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;genMap(opts.map);
+    S.map=opts.map;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;S.regionGov=defaultGov(0);genMap(opts.map);
     S.curRegion=0;S.regions=[];S.regionName=`${MAPS[opts.map].nm} · земля 1`;S.autoAll=true;S.builtCount=0;
     S.tut=opts.tutorial?0:-1;
     if(opts.mode==="survival"){
