@@ -139,12 +139,31 @@ const MAPS={
   isles: {nm:"🏝 Архипелаг",desc:"озёра и рощи мешают строить",oreMul:1.2,water:true,trees:9,
     pal:["#4a6138","#465c35","#4f6a3d","#435832"],dirt:"#6b5a3d",grass:true},
 };
+const WORLD_MISSIONS=[
+  {id:"verdant",map:"valley",depth:1,nm:"🌿 Вердант-9",desc:"безопасная лесная планета для расширения базы",res:"железо, медь, уголь, дерево, немного золота",bonus:[["iron",2,36],["copper",2,30],["gold",1,20]]},
+  {id:"aurelia",map:"desert",depth:2,nm:"🪙 Аурелия",desc:"сухая богатая планета для золотой цепочки",res:"много золота, уголь, камень, железо",bonus:[["gold",4,34],["coal",2,36],["stone",2,30]]},
+  {id:"cryora",map:"isles",depth:3,nm:"💎 Криора",desc:"островная кристальная планета для синт-науки",res:"кристаллы, медь, вода, немного золота",bonus:[["crystal",4,26],["copper",2,34],["gold",1,24]]},
+];
+const worldById=id=>WORLD_MISSIONS.find(w=>w.id===id);
 let ore=mk();
 let oreAmt=mk(); // остаток залежи: руда КОНЕЧНА, выкопал — ищи новую (или новые земли)
 let terr=mk(); // "water"|"tree"|null
 function seedOreAmounts(mul){
   for(let y=0;y<H;y++)for(let x=0;x<W;x++)
     if(ore[y][x]&&!oreAmt[y][x])oreAmt[y][x]=Math.round(rnd(70,180)*(mul||1));
+}
+function scatterOre(kind,blobs,size,mul){
+  for(let b=0;b<blobs;b++){
+    let x=rnd(3,W-4),y=rnd(3,H-4),guard=0;
+    while((terr[y][x]==="water"||grid[y][x])&&guard++<60){x=rnd(3,W-4);y=rnd(3,H-4)}
+    for(let i=0;i<size;i++){
+      if(x>0&&y>0&&x<W-1&&y<H-1&&!terr[y][x]&&!grid[y][x]){
+        ore[y][x]=kind;
+        oreAmt[y][x]=Math.round(rnd(90,210)*(mul||1));
+      }
+      x+=rnd(-1,1);y+=rnd(-1,1);
+    }
+  }
 }
 function resizeTerrCanvas(){terrCv.width=W*TS*SS;terrCv.height=H*TS*SS;terrDirty=true}
 function genMap(mapId,depth){
@@ -217,6 +236,8 @@ const DEFS={
   gen:   {nm:"Генератор",ic:"⚡️",cost:{ironPlate:4,stone:4},power:-8,unlock:null,hp:150},
   asm:   {nm:"Сборщик",ic:"🏭",cost:{ironPlate:8,gear:4},power:3,unlock:"t_asm",hp:150},
   lab:   {nm:"Лаборатория",ic:"🧪",cost:{ironPlate:10,circuit:2},power:4,unlock:"t_lab",hp:150},
+  control:{nm:"ЦУП",ic:"🛰️",cost:{steelPlate:30,circuit:20,science:15},power:8,unlock:"t_space",hp:240},
+  rocket:{nm:"Ракета",ic:"🚀",cost:{steelPlate:60,circuit:35,gear:30,coal:80},power:6,unlock:"t_space",hp:300},
   turret:{nm:"Турель",ic:"🗼",cost:{ironPlate:6,gear:4},power:2,unlock:"t_def",hp:220},
   wall:  {nm:"Стена",ic:"🧿",cost:{stone:2},power:0,unlock:"t_def",hp:420},
   farm:  {nm:"Ферма",ic:"🌾",cost:{ironPlate:6,wood:10},power:2,unlock:"t_farm",hp:120},
@@ -238,12 +259,13 @@ const TECHS=[
   {id:"t_lab",nm:"Наука (8 🟩)",cost:{circuit:8},done:false,desc:"Открывает Лабораторию"},
   {id:"t_belt",nm:"Быстрые конвейеры (4 🧪)",cost:{science:4},done:false,desc:"Конвейеры ×2"},
   {id:"t_speed",nm:"Турбо-буры (5 🧪)",cost:{science:5},done:false,desc:"Буры ×2 быстрее"},
-  {id:"t_win",nm:"Fable-ядро (40 🧪 + 10 🔮 + 3 🧩)",cost:{science:40,science2:10,module:3},done:false,desc:"Открывает бесконечный цикл и престиж"},
+  {id:"t_win",nm:"Fable-ядро (140 🧪 + 60 🔮 + 25 🧩)",cost:{science:140,science2:60,module:25},done:false,req:"t_space",desc:"Финальный проект после космической программы"},
   // новые техи ДОБАВЛЯТЬ ТОЛЬКО В КОНЕЦ: сейвы хранят done по индексу
   {id:"t_workers",nm:"Эргономика (12 🧪)",cost:{science:12},done:false,desc:"Рабочие бегают на 25% быстрее"},
   {id:"t_grid",nm:"Энергосеть (15 🧪)",cost:{science:15},done:false,desc:"Зона генератора +3 клетки, мощность +4"},
   {id:"t_farm",nm:"Хозяйство (10 ⚙️)",cost:{gear:10},done:false,desc:"Ферма 🌾 и хижина охотника 🏹 — еда для посёлка"},
   {id:"t_mod",nm:"Тонкое дело (6 🥇)",cost:{goldBar:6},done:false,desc:"Линзы 🔍, модули 🧩 и синт-наука 🔮 (золото и кристаллы ищи в новых землях)"},
+  {id:"t_space",nm:"Космическая программа (60 🧪 + 40 🔩 + 25 🟩)",cost:{science:60,steelPlate:40,circuit:25},done:false,desc:"Открывает ЦУП, ракету и полёты на планеты"},
 ];
 const GOALS=[
   {txt:"Скрафти 10 жел.листов",chk:s=>s.made.ironPlate>=10},
@@ -254,10 +276,10 @@ const GOALS=[
   {txt:"Большая индустрия: 30 🔩 стали и 25 🟩 плат",chk:s=>s.made.steelPlate>=30&&s.made.circuit>=25},
   {txt:"Посёлок: 6 рабочих и 3 работающих генератора",chk:()=>workers.length>=6&&grid.flat().filter(c=>c&&c.t==="gen"&&c.fuel>0).length>=3},
   {txt:"Накорми людей: исследуй «Хозяйство», построй 🌾 или 🏹 и добудь 15 🍞",chk:s=>tech("t_farm")&&s.made.food>=15},
-  {txt:"Разведай новые земли (⋯ → 🗺 → 🚀) — там золото",chk:()=>(S.regions||[]).length>1},
+  {txt:"Запусти ракету на первую планету (⋯ → 🗺 → 🚀) — там золото",chk:()=>(S.launches||0)>=1},
   {txt:"Золотая лихорадка: выплави 8 🥇 слитков",chk:s=>s.made.goldBar>=8},
   {txt:"Высокие технологии: 5 🧩 модулей и 8 🔮 синт-науки",chk:s=>s.made.module>=5&&s.made.science2>=8},
-  {txt:"Собери Fable-ядро (40 🧪 + 10 🔮 + 3 🧩)",chk:s=>tech("t_win")},
+  {txt:"Космос и Fable-ядро: ЦУП, ракета, планеты, 140 🧪 + 60 🔮 + 25 🧩",chk:s=>tech("t_win")},
 ];
 const EPOCHS=[
   {nm:"Ручной цех",need:"старт",chk:()=>true,perk:"+ базовый завод"},
@@ -269,8 +291,8 @@ const EPOCHS=[
   {nm:"Логистика",need:"40 конвейеров + здание ур.3",chk:()=>countBuildings("belt")>=40&&maxBuildingLevel()>=3,perk:"ленты стабильнее"},
   {nm:"Посёлок",need:"5 рабочих + 3 работающих генератора",chk:()=>workers.length>=5&&poweredGenerators()>=3,perk:"жители быстрее"},
   {nm:"Хозяйство",need:"ферма/охота + 60 🍞 еды",chk:s=>tech("t_farm")&&(countBuildings("farm")+countBuildings("lodge"))>=1&&s.made.food>=60,perk:"меньше голода"},
-  {nm:"Новые земли",need:"2 земли + 12 🥇 слитков",chk:s=>(S.regions||[]).length>=2&&s.made.goldBar>=12,perk:"+ стартовая разведка"},
-  {nm:"Золото",need:"30 🥇 слитков + здание ур.5",chk:s=>s.made.goldBar>=30&&maxBuildingLevel()>=5,perk:"открывает дорогие апгрейды"},
+  {nm:"Космопорт",need:"космическая программа + ЦУП + ракета",chk:()=>spaceProgramReady(),perk:"открывает планеты"},
+  {nm:"Первый полёт",need:"1 запуск + 12 🥇 слитков",chk:s=>(S.launches||0)>=1&&s.made.goldBar>=12,perk:"новые ресурсы"},
   {nm:"Тонкое дело",need:"технология 🥇 + 8 🔍 линз + 6 🧩",chk:s=>tech("t_mod")&&s.made.lens>=8&&s.made.module>=6,perk:"линзы и модули"},
   {nm:"Синт-наука",need:"25 🔮 синт-науки + 10 🧩",chk:s=>s.made.science2>=25&&s.made.module>=10,perk:"ускоряет поздний гринд"},
   {nm:"Мегацех",need:"55 зданий, 70 лент, 5 генераторов",chk:()=>totalBuildings()>=55&&countBuildings("belt")>=70&&poweredGenerators()>=5,perk:"бонус за масштаб"},
@@ -295,7 +317,7 @@ const HAND=[
   {out:"wire",in:{copperPlate:1}},
 ];
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null,
-  prestige:0,coreShards:0,epoch:1,bestEpoch:1,epochSeen:1,coreBuilt:false};
+  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
@@ -541,6 +563,8 @@ const tech=id=>TECHS.find(t=>t.id===id).done;
 function cellLevel(c){return Math.max(1,Math.min(MAX_UPGRADE_LEVEL,c?.lv||c?.level||1))}
 function totalBuildings(){return grid.flat().filter(c=>c).length}
 function countBuildings(t){return grid.flat().filter(c=>c&&c.t===t).length}
+function countBuildingsInRegion(rg,t){return (rg?.grid||[]).reduce((n,row)=>n+row.filter(c=>c&&c.t===t).length,0)}
+function countBuildingsAll(t){return countBuildings(t)+(S.regions||[]).reduce((n,rg,i)=>i===(S.curRegion||0)?n:n+countBuildingsInRegion(rg,t),0)}
 function maxLevelOf(t){return grid.flat().reduce((m,c)=>c&&c.t===t?Math.max(m,cellLevel(c)):m,1)}
 function maxBuildingLevel(){return grid.flat().reduce((m,c)=>c?Math.max(m,cellLevel(c)):m,1)}
 function totalUpgradeLevels(){return grid.flat().reduce((m,c)=>c?m+cellLevel(c)-1:m,0)}
@@ -552,6 +576,14 @@ function beltTickPeriod(){return Math.max(3,(tech("t_belt")?6:12)-Math.floor((ma
 function workerCap(){return WORKER_MAX+(S.prestige||0)}
 function powerNeed(c){return Math.max(0,Math.ceil((DEFS[c.t].power||0)*(1+(cellLevel(c)-1)*0.055)))}
 function canUseMasterLevels(){return maxBuildingLevel()<10||S.epoch>=15||S.coreBuilt}
+function spaceProgramReady(){return tech("t_space")&&countBuildingsAll("control")>=1&&countBuildingsAll("rocket")>=1}
+function launchCost(){
+  const n=S.launches||0;
+  const c={coal:120+n*45,steelPlate:25+n*15,circuit:15+n*8,science:20+n*12};
+  if(n>=1)c.goldBar=8+n*4;
+  if(n>=2)c.module=4+n*2;
+  return c;
+}
 
 const logEl=document.getElementById("log");
 function say(t){const d=document.createElement("div");d.textContent=t;logEl.appendChild(d);logEl.scrollTop=1e9}
@@ -644,7 +676,7 @@ function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" 
 function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
 function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
 function drawBuild(){} // постройки теперь в контекстном меню по клетке — панели нет
-const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","farm","lodge","turret","wall"];
+const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","control","rocket","farm","lodge","turret","wall"];
 function buildables(){return BUILD_ORDER.filter(t=>{
   const d=DEFS[t];
   if(d.unlock&&!TECHS.find(x=>x.id===d.unlock).done)return false;
@@ -679,7 +711,8 @@ function drawHud(){
   if(ps.over)powerPill+=` · нужен ещё генератор`;
   powerPill+=`</div>`;
   const epoch=EPOCHS[(S.epoch||1)-1]||EPOCHS[0];
-  const epochPill=`<div class="pill">🏭 эпоха ${S.epoch||1}/${EPOCHS.length} · ${epoch.nm}${(S.prestige||0)>0?` · 💠${S.prestige}`:""}</div>`;
+  const readyMark=(S.epochReady||1)>(S.epoch||1)?` · готова ${Math.min(EPOCHS.length,(S.epoch||1)+1)}`:"";
+  const epochPill=`<div class="pill">🏭 эпоха ${S.epoch||1}/${EPOCHS.length} · ${epoch.nm}${readyMark}${(S.prestige||0)>0?` · 💠${S.prestige}`:""}</div>`;
   // ресурсы в HUD не показываем — склад живёт в ⋯ → 📦 (просьба игрока: меньше шума)
   document.getElementById("hud").innerHTML=
     epochPill+powerPill+(noFuel?`<div class="pill bad">⚫ есть генератор без топлива</div>`:"")+wavePill+idlePill+hungryPill;
@@ -863,6 +896,7 @@ function openCtx(x,y,sx,sy){
     if(c.t==="belt")acts.push({ic:"🔄",l:"Повернуть",f:()=>{pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate")}});
     if(c.t==="gen")acts.push({ic:"⛽️",l:"Заправить",f:()=>refuel(x,y)});
     if(c.t==="gen")acts.push({ic:"⚫",l:c.auto!==false?"Авто-уголь: ВКЛ":"Авто-уголь: выкл",sub:c.auto!==false?"берёт со склада сам":"заправляй тапом",f:()=>{c.auto=c.auto===false;toast(c.auto!==false?"⚫ Генератор сам берёт топливо со склада":"⚫ Авто-заправка выключена");}});
+    if(c.t==="control")acts.push({ic:"🚀",l:"Планеты",sub:"ЦУП миссий",f:()=>openSheet("map")});
     if(RECIPES[c.t]&&RECIPES[c.t].length>1){
       const cur=c.recSel!=null?ITEM[RECIPES[c.t][c.recSel].out]:"авто";
       acts.push({ic:"🎛",l:"Рецепт",sub:cur,f:()=>openRecipeMenu(x,y,sx,sy)});
@@ -942,9 +976,11 @@ function invHtml(){
 function techSheet(){
   sheetBody.innerHTML="";
   TECHS.forEach(t=>{const b=document.createElement("button");
+    const reqOk=!t.req||tech(t.req);
+    const reqTxt=t.req?TECHS.find(x=>x.id===t.req)?.nm:"";
     b.className="techBtn"+(t.done?" done":"");
-    b.innerHTML=`${t.done?"✅":"🔬"} ${t.nm}<small>${t.desc}</small>`;
-    b.disabled=t.done||!canPay(t.cost);
+    b.innerHTML=`${t.done?"✅":reqOk?"🔬":"🔒"} ${t.nm}<small>${reqOk?t.desc:"Сначала: "+reqTxt}</small>`;
+    b.disabled=t.done||!reqOk||!canPay(t.cost);
     b.onclick=()=>{pay(t.cost);t.done=true;say("Исследовано: "+t.nm);toast("🔬 "+t.nm);snd("research");
       if(t.id==="t_win")winGame();
       updateProgression(true);techSheet();drawInv();drawHud()};
@@ -953,28 +989,54 @@ function techSheet(){
 function mapSheet(){
   const regionRows=(S.regions&&S.regions.length>1?S.regions:[]).map((rg,i)=>
     `<button class="techBtn" data-rg="${i}" ${i===(S.curRegion||0)?"disabled":""}>${i===(S.curRegion||0)?"📍":"🌍"} ${rg?rg.nm||("Земля "+(i+1)):(S.regionName||"Земля "+(i+1))}<small>${i===(S.curRegion||0)?"ты здесь":"вернуться сюда"}</small></button>`).join("");
+  const ready=spaceProgramReady(),cost=launchCost();
   sheetBody.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px">
       <button id="mZin" style="flex:1;text-align:center;font-size:1.1rem">➕</button>
       <button id="mZout" style="flex:1;text-align:center;font-size:1.1rem">➖</button>
       <button id="mFit" style="flex:1;text-align:center">🗺 Вся карта</button></div>
-    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">📍 <b style="color:var(--ink)">${S.regionName||"Родная земля"}</b> · ${W}×${H} клеток. Руда конечна: выкопал — расширяй карту или уходи в новые земли (постройки и склад общие, рабочие идут с тобой).</div>
+    <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">📍 <b style="color:var(--ink)">${S.regionName||"Родная земля"}</b> · ${W}×${H} клеток. Руда конечна: выкопал — расширяй текущую карту или запускай ракету к новой планете.</div>
     ${regionRows}
     <div style="display:flex;gap:8px;margin-top:6px">
       <button id="mExp" style="flex:1;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌱 Расширить эту</button>
-      <button id="mNew" style="flex:1;text-align:center;background:linear-gradient(180deg,#5b7bd5,#37549e);color:#eaf0ff;font-weight:700;border:none;padding:11px">🚀 Новые земли</button>
-    </div>`;
+      <button id="mNew" style="flex:1;text-align:center;background:linear-gradient(180deg,#5b7bd5,#263b78);color:#eaf0ff;font-weight:700;border:none;padding:11px">🚀 Планеты</button>
+    </div>
+    <div style="font-size:.78rem;color:var(--dim);margin-top:8px;line-height:1.35">${ready?`🚀 Запуск готов. Стоимость миссии: ${costStr(cost)}`:`🔒 Полёты требуют: исследовать «Космическую программу», построить 🛰️ ЦУП и 🚀 Ракету.`}</div>`;
   sheetBody.querySelector("#mZin").onclick=zoomIn;
   sheetBody.querySelector("#mZout").onclick=zoomOut;
   sheetBody.querySelector("#mFit").onclick=()=>{fitAll();closeSheet()};
   sheetBody.querySelector("#mExp").onclick=()=>{expandWorld(14);updateProgression(true);mapSheet();toast("🌱 Карта расширена: новое кольцо земли с ресурсами");snd("research")};
   sheetBody.querySelectorAll("[data-rg]").forEach(b=>b.onclick=()=>travelTo(+b.dataset.rg));
-  sheetBody.querySelector("#mNew").onclick=()=>{
-    sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Куда отправляемся? Новая земля — свежая карта, полная руды. Назад можно вернуться в любой момент (🗺 → список земель).</div>`+
-      Object.entries(MAPS).map(([id,m])=>`<button class="techBtn" data-nm="${id}">${m.nm}<small>${m.desc}</small></button>`).join("")+
-      `<button class="techBtn" id="mBack"><small>← Назад</small></button>`;
-    sheetBody.querySelectorAll("[data-nm]").forEach(b=>b.onclick=()=>travelNew(b.dataset.nm));
-    sheetBody.querySelector("#mBack").onclick=mapSheet;
-  };
+  sheetBody.querySelector("#mNew").onclick=spaceSheet;
+}
+function spaceSheet(){
+  const ready=spaceProgramReady(),cost=launchCost();
+  const missing=[
+    !tech("t_space")?"исследовать «Космическую программу»":null,
+    countBuildingsAll("control")<1?"построить 🛰️ ЦУП":null,
+    countBuildingsAll("rocket")<1?"построить 🚀 Ракету":null,
+  ].filter(Boolean).join(", ");
+  const cards=WORLD_MISSIONS.map(w=>`<button class="techBtn" data-world="${w.id}" ${ready&&canPay(cost)?"":"disabled"}>
+    ${w.nm}<small>${w.desc}<br>Ресурсы: ${w.res}<br>Запуск: ${costStr(cost)}</small>
+  </button>`).join("");
+  sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.45">
+      <b style="color:var(--ink)">🚀 Центр управления полётами</b><br>
+      ${ready?`Выбери планету. Каждая миссия генерирует новую карту со своей логикой ресурсов. Постройки остаются на своих планетах, а склад и жители летят с тобой.`:`Пока нельзя лететь: ${missing}.`}
+    </div>
+    ${cards}
+    <button class="techBtn" id="mBack"><small>← Назад к карте</small></button>`;
+  sheetBody.querySelectorAll("[data-world]").forEach(b=>b.onclick=()=>launchToWorld(b.dataset.world));
+  sheetBody.querySelector("#mBack").onclick=mapSheet;
+}
+function launchToWorld(worldId){
+  const w=worldById(worldId),cost=launchCost();
+  if(!w)return;
+  if(!spaceProgramReady())return toast("Нужны Космическая программа, ЦУП и Ракета");
+  if(!canPay(cost))return toast("На запуск нужно: "+costStr(cost));
+  pay(cost);S.launches=(S.launches||0)+1;drawInv();saveGame();
+  overlay(`<h2 style="margin-bottom:8px">🚀 Старт: ${w.nm}</h2>
+    <p style="color:var(--dim);font-size:.86rem;line-height:1.45">Ракета выходит на траекторию. ЦУП переносит рабочих и склад на новую планету: ${w.res}.</p>`);
+  snd("win");
+  setTimeout(()=>{hideOverlay();travelNew(worldId)},850);
 }
 
 /* ---------- ⚙️ Автоматизация: сам строит цепочку и тратит ресурсы ---------- */
@@ -1022,7 +1084,7 @@ function autoOptions(){return [
  {id:"copper",l:"🟧 Медные листы",     sub:"бур на медь → лента → плавильня «мед.лист»", ore:"copper", proc:"furnace", rec:1},
  {id:"stone", l:"🪨 Камень",           sub:"бур на камень — кучи собирай тапом", ore:"stone", proc:null},
  {id:"steel", l:"🔩 Сталь",            sub:"плавильня «сталь»: сама берёт ▪️ листы и ⚫ уголь со склада", proc:"furnace", rec:2},
- {id:"goldore",l:"🥇 Золотые слитки",  sub:"бур на золото → плавильня «слиток» (золото — в новых землях)", ore:"gold", proc:"furnace", rec:3},
+ {id:"goldore",l:"🥇 Золотые слитки",  sub:"бур на золото → плавильня «слиток» (золото — на планетах)", ore:"gold", proc:"furnace", rec:3},
  {id:"food",  l:"🍞 Ферма",            sub:"растит еду для посёлка (нужно «Хозяйство»)", proc:"farm", tech:"t_farm"},
  {id:"lens",  l:"🔍 Линзы",            sub:"сборщик «линза»: 2 💎 кристалла (нужно «Тонкое дело»)", proc:"asm", rec:3, tech:"t_mod"},
  {id:"module",l:"🧩 Модули",           sub:"сборщик «модуль»: плата + слиток (нужно «Тонкое дело»)", proc:"asm", rec:4, tech:"t_mod"},
@@ -1170,21 +1232,38 @@ function ecoSheet(){
 }
 
 /* ---------- 🏭 x20 развитие и престиж ---------- */
-function updateProgression(announce){
-  let lvl=1;
+function calcEpochReady(){
+  let ready=1;
   for(let i=1;i<EPOCHS.length;i++){
-    if(EPOCHS[i].chk(S))lvl=i+1;
+    if(EPOCHS[i].chk(S))ready=i+1;
     else break;
   }
-  const old=S.epoch||1;
-  S.epoch=lvl;
-  S.bestEpoch=Math.max(S.bestEpoch||1,lvl);
-  if(announce&&lvl>old){
-    const e=EPOCHS[lvl-1];
-    toast(`🏭 Эпоха ${lvl}/${EPOCHS.length}: ${e.nm}`);
-    say(`🏭 Новая эпоха: ${e.nm}. Бонус: ${e.perk}`);
+  return ready;
+}
+function updateProgression(announce){
+  const ready=Math.max(S.epoch||1,calcEpochReady());
+  const oldReady=S.epochReady||S.epoch||1;
+  S.epochReady=ready;
+  S.bestEpoch=Math.max(S.bestEpoch||1,S.epoch||1);
+  if(announce&&ready>(S.epoch||1)&&ready!==oldReady){
+    const e=EPOCHS[(S.epoch||1)];
+    toast(`🏭 Рубеж готов: ${e.nm}`);
+    say(`🏭 Готов переход в эпоху ${S.epoch+1}: ${e.nm}. Закрой его в «Развитие x20».`);
     snd("research");
   }
+}
+function claimEpoch(){
+  updateProgression(false);
+  const ready=S.epochReady||1,next=(S.epoch||1)+1;
+  if(ready<next){
+    const e=EPOCHS[next-1];
+    return toast(e?`Для эпохи ${next}: ${e.need}`:"Все эпохи уже закрыты");
+  }
+  S.epoch=next;S.bestEpoch=Math.max(S.bestEpoch||1,S.epoch);S.epochSeen=S.epoch;
+  const e=EPOCHS[S.epoch-1];
+  toast(`🏭 Эпоха ${S.epoch}/${EPOCHS.length}: ${e.nm}`);
+  say(`🏭 Эпоха закрыта: ${e.nm}. Бонус: ${e.perk}`);
+  snd("research");drawHud();saveGame();progressionSheet();
 }
 function prestigeCost(){
   const p=S.prestige||0;
@@ -1210,7 +1289,7 @@ function doPrestige(){
   const p=(S.prestige||0)+1;
   const shards=(S.coreShards||0)+1;
   W=W0;H=H0;grid=mk();drops={};enemies=[];parts=[];animals=[];workers=[];
-  S.prestige=p;S.coreShards=shards;S.epoch=1;S.epochSeen=1;S.bestEpoch=Math.max(S.bestEpoch||1,EPOCHS.length);
+  S.prestige=p;S.coreShards=shards;S.epoch=1;S.epochReady=1;S.epochSeen=1;S.bestEpoch=Math.max(S.bestEpoch||1,EPOCHS.length);S.launches=0;
   S.coreBuilt=false;S.win=false;S.over=false;S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.tut=-1;
   S.mode=mode;S.map=map;S.sessionId=sessionId;S.sessionName=sessionName||`Prestige ${p}`;
   S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;
@@ -1237,13 +1316,15 @@ function progressionSheet(){
   updateProgression(false);
   const maxLv=maxBuildingLevel();
   const next=EPOCHS[S.epoch||1];
+  const readyLevel=S.epochReady||1;
+  const canClaim=readyLevel>(S.epoch||1);
   const ready=prestigeReady();
   const pc=prestigeCost();
   const rows=EPOCHS.map((e,i)=>{
-    const n=i+1,done=n<=(S.epoch||1),active=n===(S.epoch||1)+1;
+    const n=i+1,done=n<=(S.epoch||1),active=n===(S.epoch||1)+1,prepared=n<=readyLevel&&!done;
     return `<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:.5px solid rgba(255,255,255,.07);opacity:${done?1:.62}">
-      <b style="min-width:34px;color:${done?"var(--gold)":"var(--dim)"}">${done?"✓":"·"} ${n}</b>
-      <div style="flex:1"><div style="font-weight:700">${e.nm}${active?" <span style='color:var(--gold)'>следующая</span>":""}</div>
+      <b style="min-width:34px;color:${done||prepared?"var(--gold)":"var(--dim)"}">${done?"✓":prepared?"!":"·"} ${n}</b>
+      <div style="flex:1"><div style="font-weight:700">${e.nm}${active?` <span style='color:var(--gold)'>${prepared?"готово":"следующая"}</span>`:""}</div>
       <small style="color:var(--dim)">Нужно: ${e.need} · ${e.perk}</small></div>
     </div>`;
   }).join("");
@@ -1258,10 +1339,16 @@ function progressionSheet(){
       <div class="pill" style="position:static;text-align:center">🧍 лимит ${workers.length}/${workerCap()}</div>
     </div>
     ${rows}
+    <button id="epochClaimBtn" class="techBtn" ${canClaim?"":"disabled"} style="margin-top:10px;background:linear-gradient(180deg,#e8b04b,#9d6c20);color:#231809;border:none">
+      🏭 ${next?`Закрыть эпоху ${(S.epoch||1)+1}`:"Все эпохи закрыты"}
+      <small>${canClaim?`Переход: ${EPOCHS[S.epoch].nm}`:(next?`Сначала: ${next.need}`:"Все эпохи закрыты")}</small>
+    </button>
     <button id="prestigeBtn" class="techBtn" ${ready&&canPay(pc)?"":"disabled"} style="margin-top:10px;background:linear-gradient(180deg,#5f46c7,#2e255f);color:#f4f0ff;border:none">
       💠 Перезапустить Fable-ядро
       <small>${ready?`Цена: ${costStr(pc)} · награда: +8% производство и +1 лимит жителей`:"Нужно эпоха 20 + Fable-ядро"}</small>
     </button>`;
+  const eb=sheetBody.querySelector("#epochClaimBtn");
+  if(eb)eb.onclick=claimEpoch;
   const b=sheetBody.querySelector("#prestigeBtn");
   if(b)b.onclick=doPrestige;
 }
@@ -1581,7 +1668,7 @@ const TUT=[
   {txt:"Сталь: тап по плавильне → 📥 Загрузить, когда есть 2 листа + уголь (или вези конвейером) — 🔩 сталь нужна для целей.",
    chk:()=>S.made.steelPlate>0,
    target:()=>findB("furnace")},
-  {txt:"Дальше цепочка: медь → провода → 🟩 платы → Наука → Лаборатория → 25 🧪 → Fable-ядро. Задания мастера Фейбла — в ⋯ → 📜. Мало руды? ⋯ → 🗺 → Расширить карту. Удачи!",
+  {txt:"Дальше цепочка: медь → провода → 🟩 платы → Наука → Космическая программа → 🛰️ ЦУП + 🚀 Ракета → новые планеты → Fable-ядро. Задания мастера Фейбла — в ⋯ → 📜. Удачи!",
    chk:()=>false,target:()=>null,last:true},
 ];
 const tutEl=document.getElementById("tut");
@@ -1626,7 +1713,7 @@ const QUESTS=[
   {t:"Мегафабрика",s:"«Тысяча листов. Дым до небес — в хорошем смысле».",chk:s=>s.made.ironPlate>=1000,rw:{science:15}},
   {t:"Гений Фейблдона",s:"«Сто колб науки. Ты превзошёл мастера».",chk:s=>s.made.science>=100,rw:{steelPlate:50}},
   {t:"Хлеб насущный",s:"«Голодный рабочий — медленный рабочий». Добудь 30 еды.",chk:s=>s.made.food>=30,rw:{gear:10}},
-  {t:"Первопроходец",s:"«За горизонтом всегда есть ещё земля». Открой 3 земли.",chk:()=>(S.regions||[]).length>=3,rw:{science:8}},
+  {t:"Первопроходец",s:"«За горизонтом всегда есть ещё планета». Соверши 2 запуска.",chk:()=>(S.launches||0)>=2,rw:{science:8}},
   {t:"Золотые руки",s:"«Золото не для украшений — для точных механизмов». 20 слитков.",chk:s=>s.made.goldBar>=20,rw:{crystal:6}},
   {t:"Хрустальный путь",s:"«Кристалл держит свет, как ты держишь слово». 15 линз.",chk:s=>s.made.lens>=15,rw:{goldBar:8}},
   {t:"Наставник",s:"«Учитель гордится учениками». Подними троих рабочих до 5 уровня.",chk:()=>workers.filter(w=>(w.lvl||1)>=5).length>=3,rw:{science2:3}},
@@ -1698,7 +1785,7 @@ function showBook(){
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌾 Ферма · 🏹 Охота · 🦌 звери</div>
         <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
-        <div style="font-size:.82rem">только в НОВЫХ землях (⋯ → 🗺 → 🚀): золото со 2-й земли, кристаллы с 3-й. Слитки → модули → 🔮 синт-наука → Fable-ядро</div></div>
+        <div style="font-size:.82rem">только на ПЛАНЕТАХ (⋯ → 🗺 → 🚀): сначала исследуй космопрограмму, построй 🛰️ ЦУП и 🚀 ракету. Золото и кристаллы ведут к модулям, 🔮 синт-науке и Fable-ядру</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
         <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). Залежи различаются по виду: <b style="color:#9fb9d4">голубовато-серые камни</b> — железо, <b style="color:#d9813f">рыжие</b> — медь, <b>чёрные блестящие</b> — уголь, <b style="color:#a09b8a">серые валуны</b> — камень.</div></div>
       <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
@@ -1984,12 +2071,20 @@ function recordRating(result){
   localStorage.setItem(RATE_KEY,JSON.stringify(list.slice(0,10)));
   return score;
 }
+function runTimeText(ticks){
+  const sec=Math.max(0,Math.round((ticks||0)/60));
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  if(h>0)return `${h} ч ${m} мин`;
+  if(m>0)return `${m} мин ${s} сек`;
+  return `${s} сек`;
+}
 function winGame(){
   if(S.coreBuilt)return;
   S.coreBuilt=true;snd("win");updateProgression(true);saveGame();const sc=recordRating("won");
-  say("💠 Fable-ядро собрано за "+Math.round(S.tick/60)+" сек. Теперь открыт бесконечный цикл.");
+  const rt=runTimeText(S.tick);
+  say("💠 Fable-ядро собрано за "+rt+". Теперь открыт бесконечный цикл.");
   overlay(`<h2 style="margin-bottom:8px">💠 Fable-ядро запущено</h2>
-    <p style="color:var(--dim);font-size:.85rem">Это больше не конец партии. Дожимай эпоху 20, качай здания до ур.20 и перезапускай ядро ради постоянного бонуса. Рейтинг milestone: <b>${sc}</b> 🏅</p>
+    <p style="color:var(--dim);font-size:.85rem">Время проекта: <b>${rt}</b>. Это больше не конец партии. Дожимай эпоху 20, качай здания до ур.20 и перезапускай ядро ради постоянного бонуса. Рейтинг milestone: <b>${sc}</b> 🏅</p>
     <div style="display:flex;gap:8px;margin-top:14px">
     <button style="flex:1" onclick="hideOverlay()">Продолжить</button>
     <button style="flex:1" onclick="hideOverlay();openSheet('x20')">Развитие</button></div>`);
@@ -2032,18 +2127,27 @@ function travelTo(idx){
   loadRegion(S.regions[idx]);
   toast("🌍 Вернулись: "+S.regionName);snd("research");closeSheet();saveGame();
 }
-function travelNew(mapId){
+function applyWorldBonus(w,depth){
+  (w.bonus||[]).forEach(([kind,blobs,size])=>scatterOre(kind,blobs,size,1+depth*.18));
+  seedOreAmounts(1+depth*.15);
+  terrDirty=true;
+}
+function travelNew(targetId){
+  const w=worldById(targetId);
+  const mapId=w?w.map:targetId;
   S.regions=S.regions||[];
   S.regions[S.curRegion||0]=serializeRegion();
   S.curRegion=S.regions.length;
-  genMap(mapId,S.curRegion);S.map=mapId;
-  S.regionName=`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
+  const depth=w?w.depth+(S.launches||0)-1:S.curRegion;
+  genMap(mapId,depth);S.map=mapId;
+  if(w)applyWorldBonus(w,depth);
+  S.regionName=w?`${w.nm} · планета ${S.curRegion+1}`:`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
   S.regions.push(serializeRegion());
   workers.forEach(w=>{w.x=W/2+(Math.random()-0.5)*3;w.y=H/2+(Math.random()-0.5)*3;w.job=null;w.carryCell=null;});
   enemies=[];undoStack.length=0;S.hint=null;
   fitAll();cam.z=1.15;clampCam();
   if(S.mode==="survival")toast("⚠️ Ядро осталось в родной земле — не бросай его надолго!");
-  else toast("🌍 Новая земля: "+S.regionName+" — свежая руда ждёт");
+  else toast((w?"🚀 Посадка: ":"🌍 Новая земля: ")+S.regionName+" — свежая руда ждёт");
   snd("research");closeSheet();recomputePower();updateProgression(true);drawHud();saveGame();
 }
 
@@ -2061,7 +2165,7 @@ function saveGame(){
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
     autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
-    prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,
+    prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
     status:S.coreBuilt?"💠":S.win?"🏆":S.over?"💀":"▶"};
   const list=sessionsList();
@@ -2094,11 +2198,16 @@ function loadGame(d){
   S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
-  S.prestige=d.prestige||0;S.coreShards=d.coreShards||0;S.epoch=d.epoch||1;S.bestEpoch=d.bestEpoch||S.epoch||1;S.coreBuilt=!!d.coreBuilt;
+  S.prestige=d.prestige||0;S.coreShards=d.coreShards||0;S.epoch=d.epoch||1;S.epochReady=d.epochReady||S.epoch||1;S.bestEpoch=d.bestEpoch||S.epoch||1;S.coreBuilt=!!d.coreBuilt;S.launches=d.launches||0;
   // завершённые партии можно продолжать строить (song-of-factorio); рейтинг уже записан
   S.win=false;S.over=false;
   const savedTechs=d.techs||[];
   TECHS.forEach((t,i)=>t.done=!!savedTechs[i]);
+  if(d.epochReady===undefined){
+    const real=calcEpochReady();
+    if((S.epoch||1)>real)S.epoch=real;
+  }
+  updateProgression(false);
   terrDirty=true;
 }
 function startGame(opts){
@@ -2110,7 +2219,7 @@ function startGame(opts){
   else{
     resetMade();resetInventoryForPrestige(0);TECHS.forEach(t=>t.done=false);
     S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.win=false;S.over=false;
-    S.prestige=0;S.coreShards=0;S.epoch=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;
+    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
     S.map=opts.map;genMap(opts.map);
