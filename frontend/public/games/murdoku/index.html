@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>МУРДОКУ · Тайны Хогвартса</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#0c0a14; --panel:#171326; --panel2:#1f1934; --ink:#ece6da;
+    --muted:#9a91b0; --line:#2e2748; --thick:#5a4f7a;
+    --accent:#c9a24b; --accent2:#e6c766; --danger:#c8483f; --ok:#4a9d6b;
+    --scene:#7a2c6a; --given:#cfc7dc; --cell:#141024; --cellsel:#33285a;
+    --cellpeer:#1c1730; --cellsame:#2a2350;
+    --safe-top:env(safe-area-inset-top,0px);
+    --font:"Georgia","Times New Roman",serif;
+    --mono:"Courier New",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 50% -10%,#241b3e 0%,transparent 60%),
+      radial-gradient(800px 500px at 90% 110%,#2a1533 0%,transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:var(--font);
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100%; padding:0 12px 40px; gap:12px;
+  }
+  .wrap{width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px}
+
+  /* top bar (below Telegram controls) */
+  .topbar{
+    position:sticky;top:0;z-index:20;
+    padding-top:calc(var(--safe-top) + 8px);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:linear-gradient(180deg,var(--bg) 70%,transparent);
+  }
+  .exit{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);padding:8px 12px;border-radius:9px;cursor:pointer;font-size:12px;
+  }
+  .exit:active{background:var(--panel2)}
+  .brand{font-size:16px;letter-spacing:4px;font-weight:bold;color:var(--ink);text-shadow:0 0 18px rgba(201,162,75,.3)}
+  .brand .x{color:var(--accent)}
+
+  /* Case file card */
+  .case{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .case .stamp{
+    float:right;border:2px solid var(--scene);color:#d98cc8;
+    font-size:9px;letter-spacing:2px;padding:3px 6px;border-radius:4px;
+    transform:rotate(6deg);opacity:.9;font-weight:bold;font-family:var(--mono);
+  }
+  .case h2{margin:0 0 4px;font-size:14px;letter-spacing:1px;color:var(--accent2);font-family:var(--mono)}
+  .case p{margin:0;font-size:13px;line-height:1.5;color:var(--muted)}
+  .case .place{color:var(--ink);font-style:italic}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{
+    background:transparent;border:0;color:var(--muted);font-family:var(--mono);
+    padding:8px 10px;font-size:11px;letter-spacing:1px;cursor:pointer;
+  }
+  .seg button.on{background:var(--accent);color:#1a1408;font-weight:bold}
+  .stats{display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--muted);flex-wrap:wrap;font-family:var(--mono)}
+  .stats b{color:var(--ink)}
+  .stats .mist b{color:var(--danger)}
+
+  .boardwrap{position:relative;width:100%;aspect-ratio:1/1}
+  .board{
+    width:100%;height:100%;display:grid;
+    grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);
+    background:var(--thick);gap:1px;border:3px solid var(--thick);
+    border-radius:8px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.6);
+  }
+  .cell{
+    position:relative;background:var(--cell);display:flex;align-items:center;justify-content:center;
+    font-size:clamp(18px,6.4vw,30px);cursor:pointer;user-select:none;transition:background .08s;
+  }
+  .cell.br{border-right:2px solid var(--thick)}
+  .cell.bb{border-bottom:2px solid var(--thick)}
+  .cell.peer{background:var(--cellpeer)}
+  .cell.same{background:var(--cellsame)}
+  .cell.sel{background:var(--cellsel);box-shadow:inset 0 0 0 2px var(--accent)}
+  .cell.given .g{color:var(--given);text-shadow:0 1px 0 #000}
+  .cell .g{line-height:1}
+  .cell.user .g{filter:drop-shadow(0 0 6px rgba(230,199,102,.5))}
+  .cell.bad .g{filter:none;color:var(--danger);animation:shake .3s}
+  .cell.scene{box-shadow:inset 0 0 0 2px var(--scene)}
+  .cell.scene::after{content:"⚑";position:absolute;top:1px;left:3px;font-size:9px;color:#d98cc8;opacity:.85}
+  .notes{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);font-size:clamp(7px,2.4vw,11px);color:var(--muted);
+    padding:2px;pointer-events:none}
+  .notes span{display:flex;align-items:center;justify-content:center;line-height:1}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+
+  .overlay{
+    position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(10,8,18,.95);border-radius:8px;z-index:5;text-align:center;padding:22px;animation:fade .4s;
+  }
+  .overlay.show{display:flex}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .overlay .big{font-size:56px;margin-bottom:6px}
+  .overlay h3{margin:0;color:#d98cc8;letter-spacing:3px;font-size:18px;font-family:var(--mono)}
+  .overlay .culprit{color:var(--accent2);font-size:22px;margin:8px 0;font-weight:bold}
+  .overlay p{color:var(--muted);font-size:13px;line-height:1.6;max-width:340px;margin:6px 0 14px}
+  .overlay button{
+    background:var(--accent);border:0;color:#1a1408;font-family:var(--mono);font-weight:bold;
+    padding:11px 20px;border-radius:8px;letter-spacing:2px;cursor:pointer;font-size:13px;
+  }
+
+  .palette{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}
+  .sus{
+    background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;position:relative;transition:transform .06s,background .1s;
+  }
+  .sus:active{transform:scale(.92)}
+  .sus .ico{font-size:clamp(16px,5.2vw,24px);line-height:1}
+  .sus .cnt{position:absolute;top:1px;right:3px;font-size:8px;color:var(--muted);font-family:var(--mono)}
+  .sus.done{opacity:.3;pointer-events:none}
+  .sus.hl{background:var(--accent)}
+
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .actions button{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);padding:11px 4px;border-radius:9px;cursor:pointer;
+    font-size:11px;letter-spacing:1px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  }
+  .actions button:active{background:var(--panel2)}
+  .actions button .k{font-size:17px}
+  .actions button.notesOn{background:var(--accent);color:#1a1408;border-color:var(--accent)}
+
+  .legend{font-size:11px;color:var(--muted);text-align:center;line-height:1.7}
+  .legend b{color:var(--accent2)}
+  .suspects-legend{font-size:10px;color:var(--muted);text-align:center;line-height:1.9;font-family:var(--mono)}
+  footer{font-size:10px;color:#4a4560;text-align:center;letter-spacing:1px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <button class="exit" id="exitBtn">← Выход</button>
+    <div class="brand">МУР<span class="x">DO</span>КУ</div>
+    <div style="width:64px"></div>
+  </div>
+
+  <div class="case">
+    <div class="stamp">СОВ. СЕКРЕТНО</div>
+    <h2>ДЕЛО №<span id="caseNo">01</span> · <span id="caseTotal">/30</span></h2>
+    <p id="caseText">Загрузка материалов дела…</p>
+  </div>
+
+  <div class="toolbar">
+    <div class="seg" id="diffSeg">
+      <button data-d="easy">ПЕРВОКУРСНИК</button>
+      <button data-d="medium" class="on">СТАРОСТА</button>
+      <button data-d="hard">МРАКОБОРЕЦ</button>
+      <button data-d="evil">ДАМБЛДОР</button>
+    </div>
+    <div class="seg"><button id="newBtn">◆ НОВОЕ ДЕЛО</button></div>
+  </div>
+
+  <div class="stats">
+    <span>⏱ <b id="timer">00:00</b></span>
+    <span class="mist">✖ Промахов: <b id="mistakes">0</b></span>
+    <span>🔍 Улик: <b id="hintsUsed">0</b></span>
+  </div>
+
+  <div class="boardwrap">
+    <div class="board" id="board"></div>
+    <div class="overlay" id="overlay">
+      <div class="big" id="ovIco">🕵️</div>
+      <h3>ДЕЛО РАСКРЫТО</h3>
+      <div class="culprit" id="ovCulprit">—</div>
+      <p id="ovText"></p>
+      <button id="ovBtn">СЛЕДУЮЩЕЕ ДЕЛО →</button>
+    </div>
+  </div>
+
+  <div class="palette" id="palette"></div>
+
+  <div class="actions">
+    <button id="notesBtn"><span class="k">✎</span>ЗАМЕТКИ</button>
+    <button id="eraseBtn"><span class="k">⌫</span>СТЕРЕТЬ</button>
+    <button id="hintBtn"><span class="k">🔍</span>УЛИКА</button>
+    <button id="checkBtn"><span class="k">✓</span>СВЕРКА</button>
+  </div>
+
+  <div class="legend">
+    Каждый <b>подозреваемый</b> ровно раз в строке, столбце и секторе 3×3.
+    Клетка с меткой <b>⚑</b> — место, где найдена улика. Кто окажется в ней при верном решении — <b>тот и виновник</b>.
+  </div>
+  <div class="suspects-legend" id="suspectsLegend"></div>
+
+  <footer>МУРДОКУ · Тайны Хогвартса · 30 дел · клавиши 1–9, ✎ заметки, Del стереть</footer>
+</div>
+
+<script>
+/* ============ TELEGRAM BOOTSTRAP ============ */
+(function(){
+  try{
+    const tg=window.Telegram&&window.Telegram.WebApp;
+    if(tg){
+      tg.ready(); tg.expand();
+      if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();
+      const st=tg.safeAreaInset||tg.contentSafeAreaInset;
+      if(st&&typeof st.top==='number'){
+        document.documentElement.style.setProperty('--safe-top',(st.top+8)+'px');
+      }
+    }
+  }catch(e){}
+})();
+document.getElementById('exitBtn').addEventListener('click',()=>{
+  try{parent.postMessage('hexland:exit','*');}catch(e){}
+});
+
+/* ============ SUSPECTS (Hogwarts cast) ============ */
+const SUSPECTS = [
+  {ico:"⚡", name:"Гарри Поттер"},
+  {ico:"📖", name:"Гермиона Грейнджер"},
+  {ico:"🦁", name:"Рон Уизли"},
+  {ico:"🐍", name:"Драко Малфой"},
+  {ico:"🌙", name:"Полумна Лавгуд"},
+  {ico:"🦡", name:"Седрик Диггори"},
+  {ico:"🧙", name:"Альбус Дамблдор"},
+  {ico:"🦇", name:"Северус Снейп"},
+  {ico:"🐉", name:"Рубеус Хагрид"},
+];
+
+/* ============ 30 CASES ============ */
+const CASES = [
+  {place:"Большой зал", text:"Кто-то заколдовал зачарованный потолок — среди ужина на столы обрушился снег, а свечи погасли разом."},
+  {place:"Гостиная Гриффиндора", text:"Ночью пропал пароль Полной Дамы, и кто-то из девяти пробрался внутрь незамеченным."},
+  {place:"Тайная комната", text:"Вход снова открыт — кто-то прошипел пароль на змеином языке и спустился вниз."},
+  {place:"Кабинет зельеварения", text:"Из личных запасов профессора исчезла жаброводоросль накануне Турнира."},
+  {place:"Квиддичное поле", text:"Один бладжер словно взбесился и гонялся за ловцом — кто наложил заклятие?"},
+  {place:"Запретный лес", text:"Кто-то тайком кормил акромантулов, хотя это строго запрещено."},
+  {place:"Совятня", text:"Все письма перепутаны, а совы разлетелись — чья это ночная шалость?"},
+  {place:"Выручай-комната", text:"Внутри спрятали запретный артефакт; комната открылась лишь тому, кто знал нужную мысль."},
+  {place:"Хижина Хагрида", text:"Из-под котла у огня исчезло драконье яйцо, за которым присматривали."},
+  {place:"Кубок огня", text:"Четвёртое имя в Кубок бросил кто-то из девяти, обойдя возрастную черту."},
+  {place:"Гринготтс, сейф 713", text:"Кто-то пытался вынести содержимое старого сейфа за миг до того, как его опустошили."},
+  {place:"Астрономическая башня", text:"Ночью с башни подавали сигналы — в небе на миг вспыхнула Тёмная метка."},
+  {place:"Запретная секция библиотеки", text:"Из редкого тома о древней магии вырвана страница про крестражи."},
+  {place:"Кабинет директора", text:"Кто-то тянулся к мечу Гриффиндора в стеклянной витрине — феникс поднял тревогу."},
+  {place:"Больничное крыло", text:"Запас костероста подменили на подкрашенную воду прямо перед матчем."},
+  {place:"Платформа 9¾", text:"Барьер между мирами запечатали, отрезав путь к «Хогвартс-экспрессу»."},
+  {place:"Штаб мракоборцев", text:"Утекли планы ночной охраны замка — их видел лишь узкий круг."},
+  {place:"Дуэльный клуб", text:"На тренировке кто-то применил запрещённое заклятие вместо учебного."},
+  {place:"Сладкое королевство", text:"Из Хогсмида исчезли все шоколадные лягушки — витрины опустели за ночь."},
+  {place:"Комната с маховиками времени", text:"Один из маховиков разбит, и часть песка времени рассыпана по полу."},
+  {place:"Сейф Лестрейнджей", text:"Глубоко в Гринготтсе сработала защита — внутри кто-то побывал."},
+  {place:"Кабинет ЗОТИ", text:"Боггарта выпустили из шкафа, и по коридорам расползлись чужие страхи."},
+  {place:"Чёрное озеро", text:"Русалочью деревню на дне кто-то потревожил, и вода забурлила."},
+  {place:"Теплицы", text:"Мандрагоры пересажены не в те горшки — крик стоял всю ночь напролёт."},
+  {place:"Кухня Хогвартса", text:"Домовым эльфам подсунули одежду, освободив половину прислуги разом."},
+  {place:"Зал пророчеств", text:"С высокой полки исчез запылённый шар с пророчеством."},
+  {place:"Гостиная Слизерина", text:"Кто-то пронёс в подземелья готовое оборотное зелье в трёх флаконах."},
+  {place:"Гремучая ива", text:"Кто-то знал тайный проход под ивой и воспользовался им этой ночью."},
+  {place:"Церемония распределения", text:"Распределяющую шляпу заколдовали молчать перед новым набором."},
+  {place:"Кубок школы", text:"За ночь баллы факультетов кто-то тайно подтасовал в песочных часах."},
+];
+
+/* ============ SUDOKU ENGINE ============ */
+const N=9, B=3;
+function emptyGrid(){return Array.from({length:N},()=>Array(N).fill(0));}
+function deepCopy(g){return g.map(r=>r.slice());}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function isSafe(g,r,c,v){
+  for(let i=0;i<N;i++){if(g[r][i]===v||g[i][c]===v)return false;}
+  const br=r-r%B, bc=c-c%B;
+  for(let i=0;i<B;i++)for(let j=0;j<B;j++)if(g[br+i][bc+j]===v)return false;
+  return true;
+}
+function fillGrid(g){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    if(g[r][c]===0){
+      const nums=shuffle([1,2,3,4,5,6,7,8,9]);
+      for(const v of nums){if(isSafe(g,r,c,v)){g[r][c]=v; if(fillGrid(g))return true; g[r][c]=0;}}
+      return false;
+    }
+  }
+  return true;
+}
+function countSolutions(g,limit=2){
+  let count=0;
+  function solve(){
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+      if(g[r][c]===0){
+        for(let v=1;v<=9;v++){if(isSafe(g,r,c,v)){g[r][c]=v; solve(); g[r][c]=0; if(count>=limit)return;}}
+        return;
+      }
+    }
+    count++;
+  }
+  solve();
+  return count;
+}
+function generatePuzzle(cluesTarget){
+  const solved=emptyGrid(); fillGrid(solved);
+  const puzzle=deepCopy(solved);
+  const cells=shuffle([...Array(81).keys()]);
+  let removed=0, toRemove=81-cluesTarget;
+  for(const idx of cells){
+    if(removed>=toRemove)break;
+    const r=Math.floor(idx/9), c=idx%9;
+    if(puzzle[r][c]===0)continue;
+    const backup=puzzle[r][c]; puzzle[r][c]=0;
+    const test=deepCopy(puzzle);
+    if(countSolutions(test,2)!==1){puzzle[r][c]=backup;} else {removed++;}
+  }
+  return {solved,puzzle};
+}
+const DIFF={easy:40, medium:32, hard:27, evil:23};
+
+/* ============ GAME STATE ============ */
+let solved, puzzle, given, cur, notes, selected=null, notesMode=false;
+let sceneCell, mistakes=0, hintsUsed=0, timerInt=null, startTs=0, solvedFlag=false;
+let caseBag=[], caseIdx=0;
+
+const boardEl=document.getElementById('board');
+const paletteEl=document.getElementById('palette');
+function idx(r,c){return r*9+c;}
+
+function nextCaseIndex(){
+  if(caseBag.length===0) caseBag=shuffle([...CASES.keys()]);
+  return caseBag.pop();
+}
+
+function newGame(diff){
+  clearInterval(timerInt);
+  solvedFlag=false; mistakes=0; hintsUsed=0; selected=null; notesMode=false;
+  document.getElementById('notesBtn').classList.remove('notesOn');
+  document.getElementById('overlay').classList.remove('show');
+  const clues=DIFF[diff]||32;
+  const gen=generatePuzzle(clues);
+  solved=gen.solved; puzzle=gen.puzzle;
+  cur=deepCopy(puzzle);
+  given=puzzle.map(row=>row.map(v=>v!==0));
+  notes=Array.from({length:81},()=>new Set());
+  const empties=[];
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(!given[r][c])empties.push([r,c]);
+  sceneCell=empties[Math.floor(Math.random()*empties.length)];
+  caseIdx=nextCaseIndex();
+  renderCase();
+  buildBoard();
+  updateStats();
+  startTs=Date.now();
+  timerInt=setInterval(updateTimer,500);
+}
+
+function renderCase(){
+  const cs=CASES[caseIdx];
+  document.getElementById('caseNo').textContent=String(caseIdx+1).padStart(2,'0');
+  document.getElementById('caseTotal').textContent='/'+CASES.length;
+  document.getElementById('caseText').innerHTML=`<span class="place">«${cs.place}».</span> ${cs.text} Расставь всех по местам — и виновник встанет под метку ⚑.`;
+}
+
+function buildBoard(){
+  boardEl.innerHTML='';
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const d=document.createElement('div');
+    d.className='cell';
+    if(c%3===2&&c!==8)d.classList.add('br');
+    if(r%3===2&&r!==8)d.classList.add('bb');
+    if(given[r][c])d.classList.add('given');
+    if(sceneCell[0]===r&&sceneCell[1]===c)d.classList.add('scene');
+    d.addEventListener('click',()=>selectCell(r,c));
+    boardEl.appendChild(d);
+  }
+  buildPalette(); paint();
+}
+function buildPalette(){
+  paletteEl.innerHTML='';
+  SUSPECTS.forEach((s,i)=>{
+    const v=i+1;
+    const el=document.createElement('div');
+    el.className='sus'; el.title=s.name;
+    el.innerHTML=`<span class="ico">${s.ico}</span><span class="cnt"></span>`;
+    el.addEventListener('click',()=>inputValue(v));
+    paletteEl.appendChild(el);
+  });
+  document.getElementById('suspectsLegend').innerHTML=
+    'Подозреваемые: '+SUSPECTS.map(s=>`${s.ico} ${s.name}`).join(' · ');
+}
+
+function selectCell(r,c){ selected=[r,c]; paint(); }
+function inputValue(v){
+  if(!selected||solvedFlag)return;
+  const [r,c]=selected;
+  if(given[r][c])return;
+  if(notesMode){
+    if(cur[r][c]!==0)return;
+    const s=notes[idx(r,c)];
+    s.has(v)?s.delete(v):s.add(v);
+    paint(); return;
+  }
+  if(cur[r][c]===v){cur[r][c]=0;}
+  else{
+    cur[r][c]=v; notes[idx(r,c)].clear();
+    if(v!==solved[r][c]) mistakes++;
+    clearPeerNotes(r,c,v);
+  }
+  updateStats(); paint(); checkWin();
+}
+function clearPeerNotes(r,c,v){
+  for(let i=0;i<9;i++){notes[idx(r,i)].delete(v); notes[idx(i,c)].delete(v);}
+  const br=r-r%3,bc=c-c%3;
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++)notes[idx(br+i,bc+j)].delete(v);
+}
+function erase(){
+  if(!selected||solvedFlag)return;
+  const [r,c]=selected;
+  if(given[r][c])return;
+  cur[r][c]=0; notes[idx(r,c)].clear();
+  paint(); updateStats();
+}
+function peersOf(r,c){
+  const set=new Set();
+  for(let i=0;i<9;i++){set.add(idx(r,i));set.add(idx(i,c));}
+  const br=r-r%3,bc=c-c%3;
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++)set.add(idx(br+i,bc+j));
+  set.delete(idx(r,c));
+  return set;
+}
+function paint(){
+  const cells=boardEl.children;
+  const selV = selected ? cur[selected[0]][selected[1]] : 0;
+  const peerSet = selected ? peersOf(selected[0],selected[1]) : new Set();
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const el=cells[idx(r,c)];
+    el.classList.remove('sel','peer','same','user','bad');
+    const v=cur[r][c];
+    if(v!==0){
+      el.innerHTML=`<span class="g">${SUSPECTS[v-1].ico}</span>`;
+      if(!given[r][c])el.classList.add('user');
+      if(!given[r][c]&&v!==solved[r][c])el.classList.add('bad');
+    } else {
+      const s=notes[idx(r,c)];
+      if(s.size){
+        let html='<div class="notes">';
+        for(let n=1;n<=9;n++)html+=`<span>${s.has(n)?SUSPECTS[n-1].ico:''}</span>`;
+        html+='</div>';
+        el.innerHTML=html;
+      } else el.innerHTML='';
+    }
+    if(selected){
+      if(peerSet.has(idx(r,c)))el.classList.add('peer');
+      if(selV!==0&&v===selV)el.classList.add('same');
+      if(selected[0]===r&&selected[1]===c)el.classList.add('sel');
+    }
+  }
+  const counts=Array(10).fill(0);
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(cur[r][c])counts[cur[r][c]]++;
+  [...paletteEl.children].forEach((el,i)=>{
+    const v=i+1;
+    el.querySelector('.cnt').textContent=(9-counts[v])>0?(9-counts[v]):'';
+    el.classList.toggle('done',counts[v]>=9);
+    el.classList.toggle('hl', selV===v && selV!==0);
+  });
+}
+function hint(){
+  if(solvedFlag)return;
+  const empties=[];
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(!given[r][c] && (cur[r][c]===0||cur[r][c]!==solved[r][c])) empties.push([r,c]);
+  if(!empties.length)return;
+  const [r,c]=empties[Math.floor(Math.random()*empties.length)];
+  cur[r][c]=solved[r][c]; notes[idx(r,c)].clear();
+  clearPeerNotes(r,c,solved[r][c]);
+  hintsUsed++; selected=[r,c];
+  updateStats(); paint(); checkWin();
+}
+function checkAll(){
+  const cells=boardEl.children;
+  let any=false;
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    if(!given[r][c]&&cur[r][c]!==0&&cur[r][c]!==solved[r][c]){
+      cells[idx(r,c)].classList.remove('bad'); void cells[idx(r,c)].offsetWidth;
+      cells[idx(r,c)].classList.add('bad'); any=true;
+    }
+  }
+  if(!any){
+    const btn=document.getElementById('checkBtn');
+    const old=btn.innerHTML; btn.innerHTML='<span class="k">✓</span>ЧИСТО';
+    setTimeout(()=>btn.innerHTML=old,900);
+  }
+}
+function isComplete(){
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(cur[r][c]!==solved[r][c])return false;
+  return true;
+}
+function checkWin(){
+  if(isComplete()&&!solvedFlag){
+    solvedFlag=true; clearInterval(timerInt);
+    const [sr,sc]=sceneCell;
+    const culprit=SUSPECTS[solved[sr][sc]-1];
+    const cs=CASES[caseIdx];
+    document.getElementById('ovIco').textContent=culprit.ico;
+    document.getElementById('ovCulprit').textContent=culprit.name;
+    const t=document.getElementById('timer').textContent;
+    document.getElementById('ovText').innerHTML=
+      `«${cs.place}»: улики сошлись под меткой ⚑. За этим стоит <b>${culprit.name}</b>.<br>`+
+      `Время: ${t} · промахов: ${mistakes} · улик: ${hintsUsed}.`;
+    try{ if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.HapticFeedback)
+      window.Telegram.WebApp.HapticFeedback.notificationOccurred('success'); }catch(e){}
+    setTimeout(()=>document.getElementById('overlay').classList.add('show'),350);
+  }
+}
+function updateStats(){
+  document.getElementById('mistakes').textContent=mistakes;
+  document.getElementById('hintsUsed').textContent=hintsUsed;
+}
+function updateTimer(){
+  const s=Math.floor((Date.now()-startTs)/1000);
+  const m=String(Math.floor(s/60)).padStart(2,'0');
+  const ss=String(s%60).padStart(2,'0');
+  document.getElementById('timer').textContent=`${m}:${ss}`;
+}
+
+let curDiff='medium';
+document.getElementById('diffSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  [...e.currentTarget.children].forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); curDiff=b.dataset.d; newGame(curDiff);
+});
+document.getElementById('newBtn').addEventListener('click',()=>newGame(curDiff));
+document.getElementById('ovBtn').addEventListener('click',()=>newGame(curDiff));
+document.getElementById('eraseBtn').addEventListener('click',erase);
+document.getElementById('hintBtn').addEventListener('click',hint);
+document.getElementById('checkBtn').addEventListener('click',checkAll);
+document.getElementById('notesBtn').addEventListener('click',()=>{
+  notesMode=!notesMode;
+  document.getElementById('notesBtn').classList.toggle('notesOn',notesMode);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key>='1'&&e.key<='9'){inputValue(parseInt(e.key));}
+  else if(e.key==='Backspace'||e.key==='Delete'||e.key==='0'){erase();}
+  else if(e.key.toLowerCase()==='n'||e.key.toLowerCase()==='т'){document.getElementById('notesBtn').click();}
+  else if(e.key.toLowerCase()==='h'||e.key.toLowerCase()==='р'){hint();}
+  else if(selected){
+    let [r,c]=selected;
+    if(e.key==='ArrowUp')r=(r+8)%9;
+    else if(e.key==='ArrowDown')r=(r+1)%9;
+    else if(e.key==='ArrowLeft')c=(c+8)%9;
+    else if(e.key==='ArrowRight')c=(c+1)%9;
+    else return;
+    e.preventDefault(); selectCell(r,c);
+  }
+});
+
+newGame('medium');
+</script>
+</body>
+</html>
