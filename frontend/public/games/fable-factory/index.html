@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Fable Factory</title>
+<link rel="icon" type="image/png" href="assets/fable-nova/nova-res-science.png">
 <style>
   :root{
     --bg:#0b0f14; --panel:#141b24; --panel2:#1b2532; --line:#2a3646;
@@ -27,6 +28,10 @@
   #resline::-webkit-scrollbar{display:none}
   #resline .rpill{flex:0 0 auto;background:var(--glass);border:.5px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 9px;font-size:.72rem;display:flex;gap:4px;align-items:center;font-variant-numeric:tabular-nums;box-shadow:0 4px 16px rgba(0,0,0,.35)}
   #resline .rpill b{font-weight:700;color:var(--ink)}
+  .artItem{display:inline-flex;align-items:center;gap:5px;vertical-align:middle}
+  .artIcon{width:18px;height:18px;object-fit:contain;vertical-align:-4px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+  .invGrid .artIcon,.rpill .artIcon{width:17px;height:17px}
+  #ctx .artIcon,#smartList .artIcon{width:21px;height:21px;vertical-align:-5px}
   #goal{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;border-radius:14px;padding:8px 12px;font-size:.78rem;max-width:210px;cursor:pointer;z-index:20;border-color:rgba(232,176,75,.45)}
   #goal b{color:var(--gold)}
   #goal .gmin{display:none}
@@ -41,6 +46,8 @@
   @keyframes pop{0%{transform:translateY(10px) scale(.96);opacity:0}100%{transform:none;opacity:1}}
   /* умная кнопка (dynamic-island) */
   #smart{position:fixed;right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:40}
+  #artThemeBtn{height:38px;border-radius:999px;padding:0 13px;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;gap:7px}
+  #artThemeBtn .artIcon{width:20px;height:20px}
   #smartBtn{width:54px;height:54px;border-radius:50%;font-size:1.35rem;padding:0;display:grid;place-items:center}
   #smartMenu{display:none;flex-direction:column;gap:7px;width:232px;max-height:min(80vh,660px);padding:4px;box-sizing:border-box}
   #smartMenu::-webkit-scrollbar{display:none}
@@ -104,6 +111,22 @@
   #ovl .pickMark{display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);align-items:center;justify-content:center;border-radius:999px;background:var(--gold);color:#241a08;font-size:.66rem;font-weight:800;padding:3px 7px;box-shadow:0 4px 14px rgba(232,176,75,.24)}
   #ovl .modeBtn .pickMark{width:22px;height:22px;padding:0;font-size:.78rem}
   #ovl .choiceBtn.armed .pickMark{display:inline-flex}
+  /* Phone-first: keep the map tappable while the tutorial is open. */
+  @media (max-width:480px){
+    #hud{top:calc(env(safe-area-inset-top) + 6px);left:6px;gap:4px;max-width:55vw}
+    .pill{padding:4px 8px;font-size:.7rem}
+    #resline{gap:4px}
+    #resline .rpill{padding:3px 7px;font-size:.68rem}
+    #goal{top:calc(env(safe-area-inset-top) + 6px);right:6px;max-width:166px;padding:7px 9px;font-size:.72rem}
+    #tut{left:8px;right:88px;max-width:none;bottom:calc(env(safe-area-inset-bottom) + 76px);padding:11px 12px;font-size:.8rem}
+    #mmap{left:auto;right:8px;top:calc(env(safe-area-inset-top) + 70px);bottom:auto}
+    #smart{right:8px;bottom:calc(env(safe-area-inset-bottom) + 8px)}
+    #artThemeBtn{height:36px;padding:0 11px}
+    #smartBtn{width:52px;height:52px}
+    #smartMenu{width:min(232px,calc(100vw - 20px));max-height:72vh}
+    #ctx{max-width:calc(100vw - 18px)}
+    #sheet{max-height:78vh;padding:12px 12px calc(env(safe-area-inset-bottom) + 14px)}
+  }
 </style>
 </head>
 <body>
@@ -117,6 +140,7 @@
 <div id="smartShade"></div>
 <div id="smart">
   <div id="smartMenu"></div>
+  <button id="artThemeBtn" class="glass" title="Переключить стиль"></button>
   <button id="smartBtn" class="glass">⋯</button>
 </div>
 <div id="sheet" class="glass">
@@ -144,6 +168,89 @@ const ITEM_COL={iron:"#9fb9d4",copper:"#d9813f",coal:"#2a2e36",stone:"#a09b8a",w
 const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",wood:"🌲 древесина",
   ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука",
   gold:"🪙 золото",crystal:"💎 кристалл",goldBar:"🥇 слиток",lens:"🔍 линза",module:"🧩 модуль",science2:"🔮 синт-наука",food:"🍞 еда",sample:"🧬 образец"};
+const ART_THEME_KEY="ff.artTheme";
+let artTheme=localStorage.getItem(ART_THEME_KEY)==="classic"?"classic":"nova";
+const ART_BASE="assets/fable-nova/";
+const ART_LABEL={
+  iron:"жел.руда",copper:"медь",coal:"уголь",stone:"камень",wood:"древесина",
+  ironPlate:"жел.лист",copperPlate:"мед.лист",steelPlate:"сталь",gear:"шестерня",wire:"провод",circuit:"плата",science:"наука",
+  gold:"золото",crystal:"кристалл",goldBar:"слиток",lens:"линза",module:"модуль",science2:"синт-наука",food:"еда",sample:"образец"
+};
+const ART_SRC={
+  iron:ART_BASE+"nova-res-iron-ore.png",copper:ART_BASE+"nova-res-copper-ore.png",coal:ART_BASE+"nova-res-coal.png",stone:ART_BASE+"nova-res-stone.png",wood:ART_BASE+"nova-res-wood.png",
+  ironPlate:ART_BASE+"nova-res-iron-plate.png",copperPlate:ART_BASE+"nova-res-copper-plate.png",steelPlate:ART_BASE+"nova-res-iron-plate.png",gear:ART_BASE+"nova-res-gear.png",wire:ART_BASE+"nova-res-copper-plate.png",circuit:ART_BASE+"nova-res-circuit.png",science:ART_BASE+"nova-res-science.png",
+  gold:ART_BASE+"nova-res-gold.png",crystal:ART_BASE+"nova-res-crystal.png",goldBar:ART_BASE+"nova-res-gold-bar.png",lens:ART_BASE+"nova-res-lens.png",module:ART_BASE+"nova-res-module.png",science2:ART_BASE+"nova-res-science2.png",food:ART_BASE+"nova-res-food.png",sample:ART_BASE+"nova-res-sample.png"
+};
+const BUILD_SRC={
+  belt:ART_BASE+"nova-build-belt.png",miner:ART_BASE+"nova-build-drill.png",furnace:ART_BASE+"nova-build-furnace.png",gen:ART_BASE+"nova-build-power.png",asm:ART_BASE+"nova-build-assembler.png",lab:ART_BASE+"nova-build-lab.png",
+  control:ART_BASE+"nova-build-control.png",rocket:ART_BASE+"nova-build-rocket.png",radar:ART_BASE+"nova-build-radar.png",beacon:ART_BASE+"nova-build-beacon.png",turret:ART_BASE+"nova-build-turret.png",wall:ART_BASE+"nova-build-wall.png",farm:ART_BASE+"nova-build-farm.png",lodge:ART_BASE+"nova-build-lodge.png",core:ART_BASE+"nova-build-core.png"
+};
+const TILE_SRC={
+  grass:ART_BASE+"nova-hex-moss.png",plain:ART_BASE+"nova-hex-empty.png",water:ART_BASE+"nova-hex-water.png",
+  iron:ART_BASE+"nova-hex-iron.png",copper:ART_BASE+"nova-hex-copper.png",coal:ART_BASE+"nova-hex-coal.png",stone:ART_BASE+"nova-hex-stone.png"
+};
+const SPRITE_SRC={
+  tree:ART_BASE+"nova-sprite-tree.png",worker:ART_BASE+"nova-sprite-worker.png",
+  deer:ART_BASE+"nova-sprite-deer.png",raider:ART_BASE+"nova-sprite-raider.png"
+};
+const ART_CACHE={};
+function artNova(){return artTheme!=="classic"}
+function queueArt(src){
+  if(!src||ART_CACHE[src])return;
+  const img=new Image();
+  img.onload=()=>{try{if(typeof terrDirty!=="undefined")terrDirty=true}catch(e){}};
+  img.src=src;
+  ART_CACHE[src]=img;
+}
+[...Object.values(ART_SRC),...Object.values(BUILD_SRC),...Object.values(TILE_SRC),...Object.values(SPRITE_SRC)].forEach(queueArt);
+function itemText(k){return artNova()?(ART_LABEL[k]||k):(ITEM[k]||k)}
+function itemShort(k){return (artNova()?(ART_LABEL[k]||k):(ITEM[k]||k)).split(" ")[0]}
+function itemHtml(k,short=false){
+  const label=short?itemShort(k):itemText(k);
+  return artNova()&&ART_SRC[k]?`<span class="artItem"><img class="artIcon" src="${ART_SRC[k]}" alt="">${label}</span>`:(ITEM[k]||label);
+}
+function itemShortHtml(k){
+  return artNova()&&ART_SRC[k]?`<span class="artItem"><img class="artIcon" src="${ART_SRC[k]}" alt="">${itemShort(k)}</span>`:(ITEM[k]?.split(" ")[0]||k);
+}
+function buildIconHtml(t){return artNova()&&BUILD_SRC[t]?`<img class="artIcon" src="${BUILD_SRC[t]}" alt="">`:(DEFS[t]?.ic||"▫️")}
+function drawAsset(g,src,x,y,size,alpha=1,shadow=true){
+  if(!artNova()||!src)return false;
+  const img=ART_CACHE[src];
+  if(!img||!img.complete||!img.naturalWidth)return false;
+  g.save();
+  g.globalAlpha*=alpha;
+  if(shadow){g.shadowColor="rgba(0,0,0,.4)";g.shadowBlur=Math.max(2,size*.08);g.shadowOffsetY=Math.max(1,size*.035)}
+  g.drawImage(img,x-size/2,y-size/2,size,size);
+  g.restore();
+  return true;
+}
+function drawItemArt(g,k,x,y,size,alpha=1){return drawAsset(g,ART_SRC[k],x,y,size,alpha,true)}
+function drawBuildArt(g,t,x,y,size,alpha=1){return drawAsset(g,BUILD_SRC[t],x,y,size,alpha,true)}
+function drawTileArt(g,key,x,y,w,h,alpha=.24){
+  if(!artNova()||!TILE_SRC[key])return false;
+  const img=ART_CACHE[TILE_SRC[key]];
+  if(!img||!img.complete||!img.naturalWidth)return false;
+  g.save();g.globalAlpha*=alpha;g.drawImage(img,x,y,w,h);g.restore();
+  return true;
+}
+function syncArtThemeUi(){
+  document.body.classList.toggle("theme-nova",artNova());
+  const b=document.getElementById("artThemeBtn");
+  if(b){
+    b.innerHTML=artNova()?`<img class="artIcon" src="${ART_SRC.science}" alt=""> Nova`:"🙂 Classic";
+    b.title=artNova()?"PNG-тема включена. Тап — вернуть эмоджи":"Classic emoji включён. Тап — включить PNG-тему";
+  }
+}
+function setArtTheme(v){
+  artTheme=v==="classic"?"classic":"nova";
+  localStorage.setItem(ART_THEME_KEY,artTheme);
+  syncArtThemeUi();
+  try{if(typeof terrDirty!=="undefined")terrDirty=true}catch(e){}
+  if(typeof drawHud==="function")drawHud();
+  if(typeof renderSheet==="function")renderSheet();
+  if(typeof buildSmart==="function"&&document.getElementById("smart")?.classList.contains("open"))buildSmart();
+}
+function toggleArtTheme(){setArtTheme(artNova()?"classic":"nova");toast(artNova()?"PNG-тема Nova":"Classic emoji")}
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 
 function seedHashText(s){
@@ -208,8 +315,12 @@ const ORE_TRAITS={
 };
 function activeOreSkin(k){return typeof S!=="undefined"&&S.oreSkins&&S.oreSkins[k]?S.oreSkins[k]:null}
 function oreColor(k){return activeOreSkin(k)?.color||ORE[k]||"#b8c1cc"}
-function oreName(k){return activeOreSkin(k)?`${activeOreSkin(k).ic||ORE_ICON[k]||"⛏"} ${activeOreSkin(k).nm}`:(ORE_NM[k]||"⛏ Руда")}
-function oreTraitText(k){const t=activeOreSkin(k)?.trait;return t?`${t.nm}: шанс +${ITEM[t.bonus]?.split(" ")[0]||t.bonus}`:""}
+function oreName(k){
+  const s=activeOreSkin(k);
+  if(s)return artNova()?s.nm:`${s.ic||ORE_ICON[k]||"⛏"} ${s.nm}`;
+  return artNova()?(ORE_LABEL[k]||"руда"):(ORE_NM[k]||"⛏ Руда");
+}
+function oreTraitText(k){const t=activeOreSkin(k)?.trait;return t?`${t.nm}: шанс +${itemShort(t.bonus)}`:""}
 function oreIcon(k){return activeOreSkin(k)?.ic||ORE_ICON[k]||"⛏"}
 function oreFaces(k){
   const s=activeOreSkin(k);
@@ -672,7 +783,7 @@ function ensureSettlementShape(st,i){
   st.portRatio=st.portRatio||((itemTier(st.offer)>=4||i===0)?2:3);
   return st;
 }
-function portLabel(st){return st.portRatio===2?`порт 2:1 на ${ITEM[st.offer].split(" ")[0]}`:"порт 3:1 караванов"}
+function portLabel(st){return st.portRatio===2?`порт 2:1 на ${itemShort(st.offer)}`:"порт 3:1 караванов"}
 function ensureRivalShape(rv){
   rv.progress=Math.max(0,rv.progress||0);
   rv.planets=rv.planets||0;
@@ -829,7 +940,7 @@ function authorityLabel(g){
 function stockTotal(stock){return Object.values(stock||{}).reduce((a,b)=>a+(+b||0),0)}
 function stockPreview(stock){
   const rows=Object.entries(stock||{}).filter(([,n])=>n>0).slice(0,4);
-  return rows.length?rows.map(([k,n])=>`${n} ${ITEM[k]?.split(" ")[0]||k}`).join(" "):"—";
+  return rows.length?rows.map(([k,n])=>`${n} ${itemShort(k)}`).join(" "):"—";
 }
 function defaultCosmic(){return {prod:0,logi:0,crew:0,power:0,colony:0,deep:0,seen:{}}}
 function ensureCosmic(){
@@ -881,7 +992,7 @@ function maybeCollectOreTrait(k,x,y){
   if(!tr?.bonus||!ITEM[tr.bonus]||tr.chance<=0)return;
   if(Math.random()>tr.chance)return;
   inv[tr.bonus]=(inv[tr.bonus]||0)+1;S.made[tr.bonus]=(S.made[tr.bonus]||0)+1;
-  puff(x,y,ITEM_COL[tr.bonus]||oreColor(k),3,"+"+ITEM[tr.bonus].split(" ")[0]);
+  puff(x,y,ITEM_COL[tr.bonus]||oreColor(k),3,"+"+itemShort(tr.bonus));
 }
 function addBotStock(g,k,n){
   if(!ITEM[k]||n<=0)return;
@@ -1344,7 +1455,7 @@ cv.addEventListener("pointerup",e=>{
 cv.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);panStart=null});
 
 /* ---------- UI helpers ---------- */
-function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" ")[0]).join(" ")||"—"}
+function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+itemShort(k)).join(" ")||"—"}
 function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
 function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
 function needHtml(c){
@@ -1352,14 +1463,14 @@ function needHtml(c){
   if(!rows.length)return "—";
   return rows.map(([k,n])=>{
     const have=inv[k]||0,ok=have>=n;
-    return `<span style="color:${ok?"var(--ok)":"var(--bad)"}">${ITEM[k]?.split(" ")[0]||k} <b>${have}/${n}</b></span>`;
+    return `<span style="color:${ok?"var(--ok)":"var(--bad)"}">${itemShortHtml(k)} <b>${have}/${n}</b></span>`;
   }).join(" ");
 }
 function missingText(c){
-  const miss=Object.entries(c||{}).filter(([k,n])=>(inv[k]||0)<n).map(([k,n])=>`${n-(inv[k]||0)} ${ITEM[k]?.split(" ")[0]||k}`);
+  const miss=Object.entries(c||{}).filter(([k,n])=>(inv[k]||0)<n).map(([k,n])=>`${n-(inv[k]||0)} ${itemShort(k)}`);
   return miss.length?miss.join(", "):"ничего";
 }
-function recipeNeedHtml(r){return `${needHtml(r.in)} <span style="color:var(--dim)">→</span> <span style="color:var(--ink)">${ITEM[r.out]}</span>`}
+function recipeNeedHtml(r){return `${needHtml(r.in)} <span style="color:var(--dim)">→</span> <span style="color:var(--ink)">${itemHtml(r.out)}</span>`}
 const FUEL_POLICIES={
   coal:{nm:"⚫ уголь",desc:"уголь держится под свет, фабрики не забирают последний запас",order:["coal","wood"],reserve:true},
   wood:{nm:"🌲 дерево",desc:"дерево горит первым, уголь свободнее уходит в рецепты",order:["wood","coal"],reserve:true},
@@ -1529,7 +1640,7 @@ function dropAt(x,y,k){
 }
 function collectDrops(x,y){
   const key=x+","+y,d=drops[key];if(!d)return false;
-  const parts2=Object.entries(d).map(([k,n])=>{inv[k]+=n;return "+"+n+" "+ITEM[k].split(" ")[0]});
+  const parts2=Object.entries(d).map(([k,n])=>{inv[k]+=n;return "+"+n+" "+itemShort(k)});
   delete drops[key];
   toast("📥 "+parts2.join("  "));snd("craft");puff(x,y,"#e8b04b",5);
   drawInv();drawHud();return true;
@@ -1553,7 +1664,7 @@ function doDelete(x,y){
 }
 function refuel(x,y){const c=grid[y][x];
   const fuel=loadFuelByPolicy(c);
-  if(fuel){pushU(x,y);toast(`${ITEM[fuel.k].split(" ")[0]} в генератор: ${fuel.n}`);snd("place");drawInv();return}
+  if(fuel){pushU(x,y);toast(`${itemShort(fuel.k)} в генератор: ${fuel.n}`);snd("place");drawInv();return}
   toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
 }
 const activeRecipes=c=>{
@@ -1569,17 +1680,17 @@ function feed(x,y){const c=grid[y][x];let fed=[];
   const reserved=[];
   needs.forEach(k=>{
     const take=Math.min(autoSpendable(k),5);
-    if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}
-    else if((inv[k]||0)>0&&k===fuelPrimary()&&fuelPolicy().reserve)reserved.push(ITEM[k].split(" ")[0]);
+    if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+itemShort(k))}
+    else if((inv[k]||0)>0&&k===fuelPrimary()&&fuelPolicy().reserve)reserved.push(itemShort(k));
   });
   if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}
   else if(reserved.length)toast(`Резерв топлива: ${reserved.join(", ")} держится для генераторов. Измени приоритет в ⋯ → 📊 Экономика`);
-  else toast(`${DEFS[c.t].nm}: нужно ${activeRecipes(c).map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖 Рецепты`);
+  else toast(`${DEFS[c.t].nm}: нужно ${activeRecipes(c).map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+itemText(k)).join(" + ")).join(" / ")} — см. 📖 Рецепты`);
 }
 
 /* ---------- быстрая укладка ---------- */
 function armQuick(t){S.quick=t;S.quickLast=null;
-  document.getElementById("quickTxt").innerHTML=`Быстро: ${DEFS[t].ic} ${DEFS[t].nm} — тапай по клеткам`;
+  document.getElementById("quickTxt").innerHTML=`Быстро: ${buildIconHtml(t)} ${DEFS[t].nm} — тапай по клеткам`;
   document.getElementById("quick").classList.add("on");}
 function clearQuick(){S.quick=null;S.quickLast=null;S.moveFrom=null;document.getElementById("quick").classList.remove("on")}
 document.getElementById("quickX").onclick=clearQuick;
@@ -1604,7 +1715,7 @@ function renderCtx(title,acts,sx,sy){
 function openCtx(x,y,sx,sy){
   const c=grid[y][x],acts=[];let title;
   if(c){
-    title=`${DEFS[c.t].ic} ${DEFS[c.t].nm} · ур.${cellLevel(c)}/${MAX_UPGRADE_LEVEL}`;
+    title=`${buildIconHtml(c.t)} ${DEFS[c.t].nm} · ур.${cellLevel(c)}/${MAX_UPGRADE_LEVEL}`;
     if(c.t!=="core"){
       const uc=upgradeCost(c);
       acts.push({ic:"⬆️",l:cellLevel(c)>=MAX_UPGRADE_LEVEL?"Максимум":"Улучшить",sub:uc?needHtml(uc):"уровень 20",dis:cellLevel(c)>=MAX_UPGRADE_LEVEL,f:()=>upgradeCell(x,y)});
@@ -1615,7 +1726,7 @@ function openCtx(x,y,sx,sy){
     if(c.t==="control")acts.push({ic:"🚀",l:"Планеты",sub:"ЦУП миссий",f:()=>openSheet("map")});
     if(c.t==="control"||c.t==="radar"||c.t==="beacon")acts.push({ic:"🛡",l:"Власть",sub:"боты, радар и колонии",f:()=>openSheet("authority")});
     if(RECIPES[c.t]&&RECIPES[c.t].length>1){
-      const cur=c.recSel!=null?ITEM[RECIPES[c.t][c.recSel].out]:"авто";
+      const cur=c.recSel!=null?itemText(RECIPES[c.t][c.recSel].out):"авто";
       acts.push({ic:"🎛",l:"Рецепт",sub:cur,f:()=>openRecipeMenu(x,y,sx,sy)});
     }
     if(RECIPES[c.t])acts.push({ic:"📥",l:c.auto!==false?"Авто-склад: ВКЛ":"Авто-склад: выкл",sub:c.auto!==false?"берёт сырьё сам":"тап → Загрузить",f:()=>{c.auto=c.auto===false;toast(c.auto!==false?"📥 Сам берёт сырьё со склада":"📥 Авто-загрузка выключена");}});
@@ -1636,7 +1747,7 @@ function openCtx(x,y,sx,sy){
     buildables().forEach(t=>{
       if(t==="miner"&&!onOre)return;
       const d=DEFS[t],ok=canPay(d.cost);
-      acts.push({ic:d.ic,l:d.nm,sub:needHtml(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)){if(t==="belt"){armQuick("belt");chainBelt(x,y)}else if(RECIPES[t])openRecipeMenu(x,y,sx,sy)}}});
+      acts.push({ic:buildIconHtml(t),l:d.nm,sub:needHtml(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)){if(t==="belt"){armQuick("belt");chainBelt(x,y)}else if(RECIPES[t])openRecipeMenu(x,y,sx,sy)}}});
     });
     acts.push({ic:"ℹ️",l:onOre?"Что за руда?":"Осмотреть",wide:true,f:()=>describe(x,y)});
   }
@@ -1647,10 +1758,10 @@ function openRecipeMenu(x,y,sx,sy){
   const c=grid[y][x],recs=RECIPES[c.t];
   const pick=i=>{c.recSel=i;if(c.prog===0)c.rec=null;
     S.recipePref=S.recipePref||{};S.recipePref[c.t]=i;
-    toast(i==null?"♻️ Рецепт: авто (по содержимому)":"🎛 Рецепт: "+ITEM[recs[i].out]);snd("rotate");saveGame();};
+    toast(i==null?"♻️ Рецепт: авто (по содержимому)":"🎛 Рецепт: "+itemText(recs[i].out));snd("rotate");saveGame();};
   const acts=recs.map((r,i)=>{
     const locked=r.req&&!tech(r.req);
-    return {ic:locked?"🔒":(c.recSel===i?"✅":"▫️"),l:ITEM[r.out],
+    return {ic:locked?"🔒":(c.recSel===i?"✅":itemShortHtml(r.out)),l:itemText(r.out),
       sub:locked?"нужна технология: "+TECHS.find(t=>t.id===r.req).nm:recipeNeedHtml(r),wide:true,dis:locked,f:()=>pick(i)};
   });
   acts.push({ic:c.recSel==null?"✅":"♻️",l:"Авто",sub:"что привезут — то и делает",wide:true,f:()=>pick(null)});
@@ -1685,14 +1796,14 @@ function handSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Пока нет конвейеров или не хватает построек — крафти руками из того, что на складе. Медленнее автоматики, зато не застрянешь.</div>`;
   HAND.forEach(r=>{const b=document.createElement("button");
     b.className="techBtn";b.style.display="flex";b.style.justifyContent="space-between";b.style.alignItems="center";
-    b.innerHTML=`<span>${ITEM[r.out]}</span><span style="font-size:.78rem;text-align:right">${needHtml(r.in)} <span style="color:var(--dim)">→</span></span>`;
+    b.innerHTML=`<span>${itemHtml(r.out)}</span><span style="font-size:.78rem;text-align:right">${needHtml(r.in)} <span style="color:var(--dim)">→</span></span>`;
     b.disabled=!canPay(r.in);
-    b.onclick=()=>{pay(r.in);inv[r.out]++;S.made[r.out]++;snd("craft");toast("✋ +1 "+ITEM[r.out].split(" ")[0]);drawInv();drawHud();handSheet()};
+    b.onclick=()=>{pay(r.in);inv[r.out]++;S.made[r.out]++;snd("craft");toast("✋ +1 "+itemShort(r.out));drawInv();drawHud();handSheet()};
     sheetBody.appendChild(b);});
 }
 function invHtml(){
   const rows=Object.entries(ITEM).filter(([k])=>inv[k]>0||["coal","ironPlate","steelPlate","gear","circuit","science"].includes(k))
-    .map(([k,nm])=>`<div><span>${nm}</span><span class="n">${inv[k]}</span></div>`).join("");
+    .map(([k])=>`<div><span>${itemHtml(k)}</span><span class="n">${inv[k]}</span></div>`).join("");
   return `<div class="invGrid">${rows}</div>`;
 }
 function techSheet(){
@@ -1854,7 +1965,7 @@ function runAuto(o){
     }
     cam.x=at[0]*TS;cam.y=at[1]*TS;clampCam();
     snd("research");
-    return {ok:`⚙️ Готово: 🛠 бур${path?` → ${path.length} лент → ${DEFS[o.proc].ic} ${DEFS[o.proc].nm}`:" (кучи собирай тапом)"}`};
+    return {ok:`⚙️ Готово: 🛠 бур${path?` → ${path.length} лент → ${DEFS[o.proc].nm}`:" (кучи собирай тапом)"}`};
   }
   // только переработка: здание с рецептом + авто-склад
   const d=DEFS[o.proc];
@@ -1868,7 +1979,7 @@ function runAuto(o){
   if(RECIPES[o.proc]){pc.recSel=o.rec??0;pc.auto=true;}
   cam.x=pos[0]*TS;cam.y=pos[1]*TS;clampCam();
   snd("research");
-  return {ok:`⚙️ Готово: ${d.ic} ${d.nm}${RECIPES[o.proc]?` · рецепт «${ITEM[RECIPES[o.proc][o.rec??0].out]}» · сырьё берёт со склада сам`:" — работает сама"}`};
+  return {ok:`⚙️ Готово: ${d.nm}${RECIPES[o.proc]?` · рецепт «${itemText(RECIPES[o.proc][o.rec??0].out)}» · сырьё берёт со склада сам`:" — работает сама"}`};
 }
 function autoSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Выбери, что автоматизировать. Я сам поставлю постройки, дотяну ленту, выберу рецепт и спишу ресурсы со склада. Здания с рецептом дальше сами берут сырьё со склада (📥 авто).</div>`;
@@ -1944,7 +2055,7 @@ function ecoSheet(){
   const pct=S.supplyPct??100;
   const fp=fuelPolicy();
   const rate=Object.entries(S.mineRate||{}).filter(([,n])=>n>0)
-    .map(([k,n])=>`<span class="rpill" style="position:static">${ITEM[k].split(" ")[0]}<b>${n}</b></span>`).join(" ")||"<span style='color:var(--dim)'>пока пусто — добывай</span>";
+    .map(([k,n])=>`<span class="rpill" style="position:static">${itemShortHtml(k)}<b>${n}</b></span>`).join(" ")||"<span style='color:var(--dim)'>пока пусто — добывай</span>";
   const fuelBtns=Object.entries(FUEL_POLICIES).map(([id,p])=>`<button class="techBtn" data-fuel="${id}" style="margin-bottom:0;${id===(S.fuelPolicy||"coal")?"border-color:rgba(232,176,75,.78);box-shadow:0 0 0 1px rgba(232,176,75,.22)":""}">
       ${id===(S.fuelPolicy||"coal")?"✅":"▫️"} ${p.nm}
       <small>${p.desc}</small>
@@ -1957,7 +2068,7 @@ function ecoSheet(){
     </div>
     <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px">⚡️ Приоритет топлива</div>
     <div style="display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:10px">${fuelBtns}</div>
-    <div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">Сейчас: <b style="color:var(--gold)">${fp.nm}</b>${fp.reserve?` · резерв ${fuelReserveAmount()} ${ITEM[fuelPrimary()].split(" ")[0]} для генераторов`:" · резерва нет"}.</div>
+    <div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">Сейчас: <b style="color:var(--gold)">${fp.nm}</b>${fp.reserve?` · резерв ${fuelReserveAmount()} ${itemShort(fuelPrimary())} для генераторов`:" · резерва нет"}.</div>
     <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px">⛏ Добыча за прошлую минуту</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap">${rate}</div>
     <div style="font-size:.75rem;color:var(--dim);margin-top:12px;line-height:1.4">Генераторы под лимит не попадают — свет важнее. Полное отключение авто-подачи: ⋯ → ⛔️ Авто-склад.</div>`;
@@ -1980,7 +2091,7 @@ function tradeSheet(){
       <button class="techBtn" data-trade="${i}" ${ok?"":"disabled"}>
         ${st.ic} <b>${st.nm}</b> ${st.contract?"📜":st.route?"🛣":embargo?"🚧":""}
         <small>${st.trait} · технология: ${st.tech}<br>
-        Обмен: ${costStr(cost)} → ${costStr(gain)} · запас ${st.stock||0} ${ITEM[st.offer].split(" ")[0]}<br>
+        Обмен: ${costStr(cost)} → ${costStr(gain)} · запас ${st.stock||0} ${itemShort(st.offer)}<br>
         Репутация ${st.rep||0} · развитие ${prog}% · ${portLabel(st)}${embargo?` · эмбарго ${st.embargo} мин`:""}</small>
       </button>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:-2px">
@@ -1990,7 +2101,7 @@ function tradeSheet(){
         </button>
         <button class="techBtn" data-caravan="${i}" ${st.route&&(st.caravan||0)>0?"":"disabled"} style="margin-bottom:0">
           📦 Караван ${st.caravan||0}
-          <small>${st.route?`${st.caravan||0} ${ITEM[st.offer].split(" ")[0]} без оплаты`:"Сначала маршрут"}</small>
+          <small>${st.route?`${st.caravan||0} ${itemShort(st.offer)} без оплаты`:"Сначала маршрут"}</small>
         </button>
         <button class="techBtn" data-contract="${i}" ${contractOpen&&canPay(contractC)?"":"disabled"} style="margin-bottom:0">
           ${st.contract?"📜 Контракт подписан":"📜 Контракт"}
@@ -2007,8 +2118,8 @@ function tradeSheet(){
       <b style="color:var(--gold)">🎲 ${sc.title}</b> <span style="color:var(--dim)">· ${sc.tag}</span><br>
       ${sc.mandate}<br>
       <span style="color:var(--ink)">Правила партии:</span> ${rulesLine(sc)}<br>
-      <span style="color:var(--ink)">Дефицит:</span> ${ITEM[sc.scarce]?.split(" ")[0]||sc.scarce} ·
-      <span style="color:var(--ink)">бонус:</span> ${ITEM[sc.bonus]?.split(" ")[0]||sc.bonus} ·
+      <span style="color:var(--ink)">Дефицит:</span> ${itemShort(sc.scarce)} ·
+      <span style="color:var(--ink)">бонус:</span> ${itemShort(sc.bonus)} ·
       seed ${sc.seed}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
@@ -2058,7 +2169,7 @@ function buildTradeRoute(i){
   pay(cost);st.route=true;st.embargo=0;st.rep=(st.rep||0)+1;st.caravan=Math.max(st.caravan||0,1);
   sc.rival.progress=Math.max(0,(sc.rival.progress||0)-4);
   toast(`🛣 Маршрут открыт: ${st.nm}`);
-  say(`🛣 ${st.nm}: открыт ${portLabel(st)}. Караваны начнут копить ${ITEM[st.offer].split(" ")[0]}.`);
+  say(`🛣 ${st.nm}: открыт ${portLabel(st)}. Караваны начнут копить ${itemShort(st.offer)}.`);
   snd("research");drawInv();drawHud();saveGame();tradeSheet();
 }
 function claimCaravan(i){
@@ -2070,8 +2181,8 @@ function claimCaravan(i){
   if(n<=0)return toast("Караван ещё не готов");
   inv[st.offer]=(inv[st.offer]||0)+n;S.made[st.offer]=(S.made[st.offer]||0)+n;
   st.caravan=0;st.rep=(st.rep||0)+1;sc.trades=(sc.trades||0)+1;
-  toast(`📦 Караван: +${n} ${ITEM[st.offer].split(" ")[0]}`);
-  say(`📦 ${st.nm}: караван доставил +${n} ${ITEM[st.offer].split(" ")[0]}.`);
+  toast(`📦 Караван: +${n} ${itemShort(st.offer)}`);
+  say(`📦 ${st.nm}: караван доставил +${n} ${itemShort(st.offer)}.`);
   snd("craft");drawInv();drawHud();saveGame();tradeSheet();
 }
 function signTradeContract(i){
@@ -2503,6 +2614,7 @@ function smartItems(){return [
   {c:"sys",   k:"↩️",l:"Отменить",f:()=>doUndo()},
   {c:"sys",   k:"💡",l:"Подсказка",f:()=>doHint()},
   {c:"sys",   k:zen?"👁":"🙈",l:zen?"Показать панели":"Скрыть панели",f:()=>toggleZen()},
+  {c:"sys",   stay:true,k:artNova()?`<img class="artIcon" src="${ART_SRC.science}" alt="">`:"🙂",l:artNova()?"Тема: Nova PNG":"Тема: Classic emoji",f:()=>toggleArtTheme()},
   {c:"sys",   stay:true,k:muted?"🔇":"🔊",l:"Звук",f:()=>toggleMute()},
   {c:"sys",   k:"🏠",l:"Главное меню",f:()=>showMenu()},
   {c:"sys",   k:"🎮",l:"К играм",f:()=>exitGame()},
@@ -2570,6 +2682,8 @@ smartBtn.onclick=()=>{
   document.getElementById("smartShade").classList.add("on"); // тень: меню не закроется случайным тапом по карте
 };
 document.getElementById("smartShade").onclick=closeSmart;
+document.getElementById("artThemeBtn").onclick=toggleArtTheme;
+syncArtThemeUi();
 
 /* ℹ️ инспектор: объясняет, что это */
 function describe(x,y){
@@ -2585,7 +2699,7 @@ function describe(x,y){
     if(c.t==="turret")msg+=" — стреляет по рейдерам рядом (нужна энергия)";
     if(c.t==="wall")msg+=" — прочная преграда для рейдеров";
     if(c.t==="core")msg+=" — сердце базы: потеряешь его — конец";
-    const buf=Object.entries(c.buf||{}).filter(([,n])=>n>0).map(([k,n])=>n+" "+ITEM[k]).join(", ");
+    const buf=Object.entries(c.buf||{}).filter(([,n])=>n>0).map(([k,n])=>n+" "+itemText(k)).join(", ");
     if(buf&&c.t!=="gen")msg+=` · внутри: ${buf}`;
     if(c.hp<DEFS[c.t].hp)msg+=` · HP ${c.hp}/${DEFS[c.t].hp}`;
   }
@@ -2756,7 +2870,7 @@ function step(){
           // как у бура: без ленты продукт копится КУЧЕЙ у здания (собирают тапом или рабочие)
           if(outputTo(x,y,out)||dropAt(x,y,out)){
             S.made[out]++;c.prog=0;c.rec=null;
-            snd("craft");puff(x,y,"#4dbb72",2,"+1 "+ITEM[out].split(" ")[0]);
+            snd("craft");puff(x,y,"#4dbb72",2,"+1 "+itemShort(out));
           } else c.prog=c.rec.t; // куча полна — ждём, пока заберут
         }
       }
@@ -2929,7 +3043,7 @@ const QUESTS=[
 function questSheetHtml(){
   const q=QUESTS[S.quest];
   if(!q)return `<div style="color:var(--gold)">🏅 Все задания мастера выполнены!</div>`;
-  const rw=Object.entries(q.rw).map(([k,n])=>"+"+n+" "+ITEM[k].split(" ")[0]).join(" ");
+  const rw=Object.entries(q.rw).map(([k,n])=>"+"+n+" "+itemShort(k)).join(" ");
   return `<div style="color:var(--gold);font-weight:600;font-size:.95rem">📜 ${S.quest+1}/${QUESTS.length}: ${q.t}</div>
     <div style="color:var(--dim);margin:6px 0;line-height:1.4">${q.s}</div>
     <div style="font-size:.85rem">Награда: <b>${rw}</b></div>`;
@@ -2939,7 +3053,7 @@ function questCheck(){
   const q=QUESTS[S.quest];
   if(!q||!q.chk(S))return;
   Object.entries(q.rw).forEach(([k,n])=>inv[k]+=n);
-  const rw=Object.entries(q.rw).map(([k,n])=>"+"+n+" "+ITEM[k].split(" ")[0]).join(" ");
+  const rw=Object.entries(q.rw).map(([k,n])=>"+"+n+" "+itemShort(k)).join(" ");
   say(`📜 Задание «${q.t}» выполнено! ${rw}`);toast(`📜 ${q.t} ✓ ${rw}`);snd("research");
   S.quest++;drawQuest();drawInv();
 }
@@ -2974,7 +3088,7 @@ function doHint(){
 }
 
 /* ---------- 📖 справочник производства (генерится из RECIPES) ---------- */
-const recipeStr=r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")+" → "+ITEM[r.out];
+const recipeStr=r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+itemText(k)).join(" + ")+" → "+itemText(r.out);
 function showBook(){
   const bl={furnace:"🔥 Плавильня",asm:"🏭 Сборщик",lab:"🧪 Лаборатория"};
   const rows=Object.entries(RECIPES).map(([b,recs])=>
@@ -3032,6 +3146,7 @@ function drawOreSprite(g,k,x,y){
   const C=oreFaces(k),rn=lcg(hash(x,y));
   const skin=activeOreSkin(k),form=skin?.form||"chunks";
   g.save();g.translate(x*TS+TS/2,y*TS+TS/2);
+  if(drawItemArt(g,k,0,.5,TS*1.04,.98)){g.restore();g.lineWidth=1;return}
   g.fillStyle="rgba(48,38,26,.5)"; // вытоптанная земля под рудой
   g.beginPath();g.ellipse(0,1.5,TS*.46,TS*.36,0,0,7);g.fill();
   const n=4+Math.floor(rn()*3);
@@ -3074,6 +3189,7 @@ function drawOreSprite(g,k,x,y){
 function drawTreeSprite(g,x,y){
   const rn=lcg(hash(x,y)^0x5eed);
   const cx0=x*TS+TS/2+(rn()-.5)*5,cy0=y*TS+TS/2+(rn()-.5)*4,h=.85+rn()*.35;
+  if(drawAsset(g,SPRITE_SRC.tree,cx0,cy0,TS*1.34,.98))return;
   g.fillStyle="rgba(0,0,0,.28)";g.beginPath();g.ellipse(cx0+2,cy0+TS*.32,TS*.3,TS*.1,0,0,7);g.fill();
   g.fillStyle="#4a3826";g.fillRect(cx0-2,cy0+TS*.08,4,TS*.28); // ствол видно под кроной
   // хвойная крона: три яруса-треугольника, свет слева-сверху
@@ -3089,6 +3205,7 @@ function drawGround(g,x,y){
   const m=mapStyle(S.map),h=hash(x,y);
   g.fillStyle=m.pal[h%m.pal.length];
   g.fillRect(x*TS,y*TS,TS,TS);
+  drawTileArt(g,m.grass?"grass":"plain",x*TS,y*TS,TS,TS,m.grass?.18:.22);
   if(h%7===0){g.fillStyle="rgba(0,0,0,.07)";g.fillRect(x*TS+(h>>3)%10,y*TS+(h>>5)%10,TS*.6,TS*.45)}
   if(h%11===3){g.fillStyle="rgba(255,250,220,.06)";g.fillRect(x*TS+(h>>4)%14,y*TS+(h>>6)%14,5,4)}
   if(h%13===5){g.fillStyle=m.dirt;g.globalAlpha=.22;
@@ -3112,6 +3229,7 @@ function drawGround(g,x,y){
 function drawWater(g,x,y){
   const m=mapStyle(S.map);
   g.fillStyle=m.waterColor||"#1b4a63";g.fillRect(x*TS,y*TS,TS,TS);
+  drawTileArt(g,"water",x*TS,y*TS,TS,TS,.55);
   const shore=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{
     const nx=x+dx,ny=y+dy;return nx>=0&&ny>=0&&nx<W&&ny<H&&terr[ny][nx]!=="water"});
   if(shore){g.fillStyle="rgba(120,205,235,.16)";g.fillRect(x*TS,y*TS,TS,TS)}
@@ -3168,9 +3286,12 @@ function render(){
       if(c.item){ // плавное движение к следующей клетке
         const f=Math.min(1,((S.tick%beltPeriod)+1)/beltPeriod)*0.55;
         const [dx,dy]=DIRS[c.dir];
-        cx.fillStyle=ITEM_COL[c.item]||"#c9d4e0";
-        cx.beginPath();cx.arc(px+dx*TS*f*0.5,py+dy*TS*f*0.5,5,0,7);cx.fill();
-        cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
+        const ix=px+dx*TS*f*0.5,iy=py+dy*TS*f*0.5;
+        if(!drawItemArt(cx,c.item,ix,iy,12)){
+          cx.fillStyle=ITEM_COL[c.item]||"#c9d4e0";
+          cx.beginPath();cx.arc(ix,iy,5,0,7);cx.fill();
+          cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
+        }
       }
       if(cellLevel(c)>1){cx.font="7px sans-serif";cx.fillStyle="#ffd98a";cx.fillText("L"+cellLevel(c),x*TS+TS-7,y*TS+7);cx.font="16px sans-serif";}
     } else {
@@ -3187,14 +3308,18 @@ function render(){
       const prod=RECIPES[c.t]?(c.rec?c.rec.out:(c.recSel!=null&&RECIPES[c.t][c.recSel]?RECIPES[c.t][c.recSel].out:null)):null;
       const mk2=c.t==="miner"?(ore[y][x]||c.oreKind):null;
       if(mk2){
-        cx.fillStyle=oreColor(mk2);cx.beginPath();cx.arc(px,py+1,6.5,0,7);cx.fill();
-        cx.strokeStyle="rgba(0,0,0,.55)";cx.stroke();
-        cx.font="10px sans-serif";cx.fillText(oreIcon(mk2),px,py+1.5);
-        cx.font="9px sans-serif";cx.fillText("🛠",x*TS+7,y*TS+7);cx.font="16px sans-serif";
+        if(!drawItemArt(cx,mk2,px,py+1,18)){
+          cx.fillStyle=oreColor(mk2);cx.beginPath();cx.arc(px,py+1,6.5,0,7);cx.fill();
+          cx.strokeStyle="rgba(0,0,0,.55)";cx.stroke();
+          cx.font="10px sans-serif";cx.fillText(oreIcon(mk2),px,py+1.5);
+        }
+        if(!drawBuildArt(cx,c.t,x*TS+7,y*TS+7,12,.92)){cx.font="9px sans-serif";cx.fillText("🛠",x*TS+7,y*TS+7);}
+        cx.font="16px sans-serif";
       } else if(prod){
-        cx.fillText(ITEM[prod].split(" ")[0],px,py+1);
-        cx.font="9px sans-serif";cx.fillText(DEFS[c.t].ic,x*TS+7,y*TS+7);cx.font="16px sans-serif";
-      } else cx.fillText(DEFS[c.t].ic,px,py);
+        if(!drawItemArt(cx,prod,px,py+1,18))cx.fillText(ITEM[prod].split(" ")[0],px,py+1);
+        if(!drawBuildArt(cx,c.t,x*TS+7,y*TS+7,12,.92)){cx.font="9px sans-serif";cx.fillText(DEFS[c.t].ic,x*TS+7,y*TS+7);}
+        cx.font="16px sans-serif";
+      } else if(!drawBuildArt(cx,c.t,px,py,21))cx.fillText(DEFS[c.t].ic,px,py);
       if(cellLevel(c)>1){cx.font="7px sans-serif";cx.fillStyle="#ffd98a";cx.fillText("L"+cellLevel(c),x*TS+TS-7,y*TS+7);cx.font="16px sans-serif";}
       if((c.t==="farm"||c.t==="lodge")&&c.prog>0){ // полоска созревания/охоты
         cx.fillStyle="#e8a25b";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*Math.min(1,c.prog/(c.t==="farm"?1100:1400)),2);
@@ -3227,26 +3352,33 @@ function render(){
       cx.beginPath();cx.arc(x*TS+TS/2,y*TS+TS/2,genRadius()*TS,0,7);cx.stroke();cx.lineWidth=1;
     }
   }
-  // 🦌 животные
+  // животные: Nova использует отдельный иллюстрированный спрайт, Classic — исходные значки.
   cx.font="13px sans-serif";
   animals.forEach(an=>{
     if(an.x*TS<x0*TS-30||an.x*TS>x1*TS+30||an.y*TS<y0*TS-30||an.y*TS>y1*TS+30)return;
-    cx.fillText(ANIMAL_KINDS[an.k].ic,an.x*TS,an.y*TS);
+    if(!drawAsset(cx,SPRITE_SRC.deer,an.x*TS,an.y*TS,TS*1.08,.96))cx.fillText(ANIMAL_KINDS[an.k].ic,an.x*TS,an.y*TS);
   });
   cx.font="16px sans-serif";
-  // 🧍 рабочие (у каждого свой облик)
+  // Nova сохраняет отличимость рабочих через груз, профессию и уровень; Classic — через старые цвета.
   workers.forEach(w=>{
     const wx=w.x*TS,wy=w.y*TS,run=w.job?Math.sin(S.tick/3+w.ph)*1.6:0;
     const lk=w.look||{skin:"#e8c39a",shirt:"#4a6a8f",hat:null};
-    cx.fillStyle="rgba(0,0,0,.3)";cx.beginPath();cx.ellipse(wx,wy+5,4.5,1.8,0,0,7);cx.fill();
-    cx.fillStyle=lk.shirt;cx.fillRect(wx-2.5,wy-3+Math.abs(run)*.3,5,7); // тело
-    cx.fillStyle=lk.skin;cx.beginPath();cx.arc(wx,wy-5,3,0,7);cx.fill(); // голова
-    if(lk.hat){cx.fillStyle=lk.hat;cx.fillRect(wx-3.5,wy-8.5,7,2);cx.fillRect(wx-2,wy-10.5,4,2.5);} // шляпа
-    cx.fillStyle="#2f3f52";cx.fillRect(wx-2.5,wy+3,2,2+run);cx.fillRect(wx+0.5,wy+3,2,2-run); // ноги
-    if(w.hungry&&S.tick%50<32){cx.font="8px sans-serif";cx.fillText("🍽",wx+5,wy-8);cx.font="16px sans-serif";}
+    const novaWorker=drawAsset(cx,SPRITE_SRC.worker,wx,wy-1+run*.18,TS*1.12,.98);
+    if(!novaWorker){
+      cx.fillStyle="rgba(0,0,0,.3)";cx.beginPath();cx.ellipse(wx,wy+5,4.5,1.8,0,0,7);cx.fill();
+      cx.fillStyle=lk.shirt;cx.fillRect(wx-2.5,wy-3+Math.abs(run)*.3,5,7);
+      cx.fillStyle=lk.skin;cx.beginPath();cx.arc(wx,wy-5,3,0,7);cx.fill();
+      if(lk.hat){cx.fillStyle=lk.hat;cx.fillRect(wx-3.5,wy-8.5,7,2);cx.fillRect(wx-2,wy-10.5,4,2.5);}
+      cx.fillStyle="#2f3f52";cx.fillRect(wx-2.5,wy+3,2,2+run);cx.fillRect(wx+0.5,wy+3,2,2-run);
+    }
+    if(w.hungry&&S.tick%50<32){
+      if(!drawItemArt(cx,"food",wx+5,wy-8,7,.95)){cx.font="8px sans-serif";cx.fillText("🍽",wx+5,wy-8);cx.font="16px sans-serif";}
+    }
     if(w.carry){const k=Object.keys(w.carry)[0];
-      cx.fillStyle=ITEM_COL[k]||"#c9d4e0";cx.beginPath();cx.arc(wx+4,wy-2,2.6,0,7);cx.fill();
-      cx.strokeStyle="rgba(0,0,0,.4)";cx.stroke();}
+      if(!drawItemArt(cx,k,wx+4,wy-2,7,.95)){
+        cx.fillStyle=ITEM_COL[k]||"#c9d4e0";cx.beginPath();cx.arc(wx+4,wy-2,2.6,0,7);cx.fill();
+        cx.strokeStyle="rgba(0,0,0,.4)";cx.stroke();
+      }}
     if(w.spec&&w.spec!=="any"){cx.font="8px sans-serif";cx.fillText(SPECS[w.spec].ic,wx,wy-10);cx.font="16px sans-serif";}
     if(w.carryCell){cx.font="9px sans-serif";cx.fillText("🛠",wx+5,wy-7);cx.font="16px sans-serif";}
     if((w.lvl||1)>1){cx.font="7px sans-serif";cx.fillStyle="#ffd98a";cx.fillText("★"+w.lvl,wx-6,wy-9);cx.font="16px sans-serif";}
@@ -3261,9 +3393,11 @@ function render(){
       const n=Math.min(5,Math.ceil(d[k]/8));
       for(let m=0;m<n;m++){
         const ox=ddx*TS+TS/2+(rn()-.5)*TS*.62,oy=ddy*TS+TS/2+(rn()-.5)*TS*.5+3;
-        cx.fillStyle=ITEM_COL[k]||"#c9d4e0";
-        cx.beginPath();cx.arc(ox,oy,3.2,0,7);cx.fill();
-        cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
+        if(!drawItemArt(cx,k,ox,oy,8,.94)){
+          cx.fillStyle=ITEM_COL[k]||"#c9d4e0";
+          cx.beginPath();cx.arc(ox,oy,3.2,0,7);cx.fill();
+          cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
+        }
       }
     }
     const bx=ddx*TS+TS/2,by=ddy*TS+4;
@@ -3272,11 +3406,15 @@ function render(){
   }
   cx.font="16px sans-serif";
   enemies.forEach(en=>{
-    cx.fillStyle=en.robot?"#8a9bb8":"#c03a3a";cx.beginPath();cx.arc(en.x*TS,en.y*TS,6,0,7);cx.fill();
-    cx.strokeStyle=en.robot?"#26364f":"#5c1010";cx.stroke();
-    if(en.robot){cx.font="9px sans-serif";cx.fillText("🤖",en.x*TS,en.y*TS-9);cx.font="16px sans-serif";}
-    cx.fillStyle="#000";cx.fillRect(en.x*TS-7,en.y*TS-11,14,3);
-    cx.fillStyle="#ffb14b";cx.fillRect(en.x*TS-7,en.y*TS-11,14*en.hp/en.maxHp,3);
+    const ex=en.x*TS,ey=en.y*TS;
+    const novaRaider=drawAsset(cx,SPRITE_SRC.raider,ex,ey,TS*1.36,en.robot?1:.82);
+    if(!novaRaider){
+      cx.fillStyle=en.robot?"#8a9bb8":"#c03a3a";cx.beginPath();cx.arc(ex,ey,6,0,7);cx.fill();
+      cx.strokeStyle=en.robot?"#26364f":"#5c1010";cx.stroke();
+      if(en.robot){cx.font="9px sans-serif";cx.fillText("🤖",ex,ey-9);cx.font="16px sans-serif";}
+    }
+    cx.fillStyle="#000";cx.fillRect(ex-8,ey-15,16,3);
+    cx.fillStyle="#ffb14b";cx.fillRect(ex-8,ey-15,16*en.hp/en.maxHp,3);
   });
   // частицы и всплывающие +1
   parts=parts.filter(p=>p.life>0);
