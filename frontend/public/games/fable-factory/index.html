@@ -126,10 +126,10 @@ const ORE_ICON={iron:"⛓",copper:"🟧",coal:"⚫",stone:"🪨",gold:"🪙",cry
 const ORE_KEYS=["iron","copper","coal","stone","gold","crystal"];
 const ITEM_COL={iron:"#9fb9d4",copper:"#d9813f",coal:"#2a2e36",stone:"#a09b8a",wood:"#8a6a3d",
   ironPlate:"#c8d4e2",copperPlate:"#e8955a",steelPlate:"#93a0b4",gear:"#b9c2cf",wire:"#d9813f",circuit:"#4dbb72",science:"#7aa2ff",
-  gold:"#e8c84b",crystal:"#8be0e8",goldBar:"#f5d76e",lens:"#aef0f5",module:"#c58cff",science2:"#e07af0",food:"#e8a25b"};
+  gold:"#e8c84b",crystal:"#8be0e8",goldBar:"#f5d76e",lens:"#aef0f5",module:"#c58cff",science2:"#e07af0",food:"#e8a25b",sample:"#9bf5dd"};
 const ITEM={iron:"⛏ жел.руда",copper:"⛏ медь",coal:"⚫ уголь",stone:"🪨 камень",wood:"🌲 древесина",
   ironPlate:"▪️ жел.лист",copperPlate:"🟧 мед.лист",steelPlate:"🔩 сталь",gear:"⚙️ шестерня",wire:"〰️ провод",circuit:"🟩 плата",science:"🧪 наука",
-  gold:"🪙 золото",crystal:"💎 кристалл",goldBar:"🥇 слиток",lens:"🔍 линза",module:"🧩 модуль",science2:"🔮 синт-наука",food:"🍞 еда"};
+  gold:"🪙 золото",crystal:"💎 кристалл",goldBar:"🥇 слиток",lens:"🔍 линза",module:"🧩 модуль",science2:"🔮 синт-наука",food:"🍞 еда",sample:"🧬 образец"};
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 
 function seedHashText(s){
@@ -224,6 +224,24 @@ const PLANET_SUFFIX=["дор","мир","тис","лон","ра","векс","он
 const PLANET_MOOD=[
   "тихая орбита","магнитные бури","низкая гравитация","длинные сумерки","пыльные ветра","яркая ночь","тонкая атмосфера","богатый разлом"
 ];
+const SUBSTANCE_PREFIX=["аион","кварк","лумен","ферро","крио","солар","вита","эхо","грави","обсидиан","плазма","миро"];
+const SUBSTANCE_CORE=["пыль","нить","изотоп","спора","кристалл","соль","гель","смола","осколок","пепел","руна","зерно"];
+const SUBSTANCE_ICONS=["🧬","⚛️","✨","🌌","🫧","🔷","🟣","🟢","🧿","💠"];
+const PLANET_RESEARCH=[
+  {id:"prod",ic:"⚙️",nm:"Резонанс машин",desc:"+2% к скорости всех зданий за уровень"},
+  {id:"logi",ic:"🛣",nm:"Логистическая вязь",desc:"конвейеры двигаются чаще каждые 4 уровня"},
+  {id:"crew",ic:"🧍",nm:"Колониальная эргономика",desc:"+1 к лимиту жителей каждые 3 уровня"},
+  {id:"power",ic:"⚡️",nm:"Силовая матрица",desc:"постройки требуют на 2% меньше энергии за уровень"},
+  {id:"colony",ic:"📶",nm:"Протокол колоний",desc:"маяки дают больше дани и сильнее сдерживают бота"},
+  {id:"deep",ic:"🚀",nm:"Глубокий космос",desc:"запуски дешевеют на 1.5% за уровень"},
+];
+function makePlanetSubstance(r,index,tier,seed){
+  const focus=pick(r,PLANET_RESEARCH);
+  const nm=`${pick(r,SUBSTANCE_PREFIX)}-${pick(r,SUBSTANCE_CORE)}`;
+  const ic=pick(r,SUBSTANCE_ICONS);
+  const hue=pick(r,["#9bf5dd","#8be0e8","#b28cff","#f09ee5","#f6e06b","#7ee0a8","#7aa2ff"]);
+  return {id:`sub-${index}-${seed.toString(36)}`,ic,nm,color:shadeHex(hue,.9+r()*.25),field:focus.id,effect:focus.desc,rarity:`пояс ${tier}`};
+}
 function makeGalaxySeed(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function ensureGalaxySeed(){
   if(!S.galaxySeed)S.galaxySeed=makeGalaxySeed();
@@ -253,6 +271,7 @@ function makeProceduralWorld(index){
   const nm=`${biome.ic} ${pick(r,PLANET_PREFIX)}${pick(r,PLANET_SUFFIX)}-${(seed%997).toString(36).toUpperCase()}`;
   const res=main.map(k=>`${oreSkins[k].ic} ${oreSkins[k].nm}`).join(", ");
   const mood=pick(r,PLANET_MOOD);
+  const substance=makePlanetSubstance(r,index,tier,seed);
   return {
     id:`proc-${index}-${seed.toString(36)}`,proc:true,index,seed,map:biome.map,depth:tier,nm,
     desc:`${pal.nm} планета: ${biome.desc}, ${mood}, богатство ×${richness}`,
@@ -260,7 +279,8 @@ function makeProceduralWorld(index){
     bonus,
     skin:{pal:pal.pal,dirt:pal.dirt,waterColor:pal.water,trees:Math.max(0,Math.round((biome.trees||0)*(0.75+r()*.6))),oreMul:biome.oreMul*richness,grass:biome.grass},
     oreSkins,
-    codex:`пояс ${tier} · сигнал ${(index%3)+1}/3 · seed ${seed.toString(36).toUpperCase()}`
+    substance,
+    codex:`пояс ${tier} · ${substance.ic} ${substance.nm}: ${substance.effect} · seed ${seed.toString(36).toUpperCase()}`
   };
 }
 function proceduralWorldById(id){
@@ -269,6 +289,14 @@ function proceduralWorldById(id){
 }
 function worldById(id){return WORLD_MISSIONS.find(w=>w.id===id)||proceduralWorldById(id)}
 function spaceCandidates(){const base=(S.launches||0)*3;return [0,1,2].map(i=>makeProceduralWorld(base+i))}
+function restoreWorldInfo(info){
+  if(!info)return null;
+  if(info.id&&!info.substance){
+    const w=worldById(info.id);
+    if(w?.substance)return {...info,substance:w.substance,codex:info.codex||w.codex};
+  }
+  return info;
+}
 let ore=mk();
 let oreAmt=mk(); // остаток залежи: руда КОНЕЧНА, выкопал — ищи новую (или новые земли)
 let terr=mk(); // "water"|"tree"|null
@@ -433,7 +461,7 @@ const EPOCHS=[
 /* ---------- состояние ---------- */
 let grid=mk();
 const START_INV={iron:0,copper:0,coal:30,stone:18,wood:0,ironPlate:22,copperPlate:0,steelPlate:0,gear:10,wire:0,circuit:0,science:0,
-  gold:0,crystal:0,goldBar:0,lens:0,module:0,science2:0,food:6};
+  gold:0,crystal:0,goldBar:0,lens:0,module:0,science2:0,food:6,sample:0};
 const inv={...START_INV};
 /* ручной крафт: страховка от тупика (нет шестерён/листов — производи руками, пока не встал конвейер) */
 const HAND=[
@@ -764,6 +792,51 @@ function stockPreview(stock){
   const rows=Object.entries(stock||{}).filter(([,n])=>n>0).slice(0,4);
   return rows.length?rows.map(([k,n])=>`${n} ${ITEM[k]?.split(" ")[0]||k}`).join(" "):"—";
 }
+function defaultCosmic(){return {prod:0,logi:0,crew:0,power:0,colony:0,deep:0,seen:{}}}
+function ensureCosmic(){
+  const d=defaultCosmic(),src=S.cosmic||{};
+  S.cosmic={...d,...src,seen:{...(src.seen||{})}};
+  PLANET_RESEARCH.forEach(r=>S.cosmic[r.id]=Math.max(0,Math.round(S.cosmic[r.id]||0)));
+  return S.cosmic;
+}
+function cosmicLevel(id){return ensureCosmic()[id]||0}
+function cosmicTotal(){const c=ensureCosmic();return PLANET_RESEARCH.reduce((n,r)=>n+(c[r.id]||0),0)}
+function currentSubstance(){return S.worldInfo?.substance||null}
+function noteSubstance(sub){
+  if(!sub?.id)return;
+  const c=ensureCosmic();
+  c.seen[sub.id]=`${sub.ic||"🧬"} ${sub.nm||"субстанция"}`;
+}
+function cosmicCost(id){
+  const lv=cosmicLevel(id),c={sample:4+lv*3,science:10+lv*5};
+  if(lv>=4)c.science2=3+(lv-3)*2;
+  if(lv>=7)c.module=1+Math.floor((lv-7)/2);
+  return c;
+}
+function buyCosmic(id){
+  const r=PLANET_RESEARCH.find(x=>x.id===id);
+  if(!r)return;
+  if(!tech("t_space"))return toast("Нужна Космическая программа");
+  const cost=cosmicCost(id);
+  if(!canPay(cost))return toast("Нужно: "+costStr(cost));
+  pay(cost);
+  const c=ensureCosmic();
+  c[id]=(c[id]||0)+1;
+  toast(`${r.ic} ${r.nm}: ур.${c[id]}`);
+  say(`🧬 Планетарное исследование: ${r.nm} ур.${c[id]}. ${r.desc}.`);
+  snd("research");drawInv();drawHud();saveGame();cosmicSheet();
+}
+function maybeCollectPlanetSample(k,x,y){
+  const sub=currentSubstance();
+  if(!sub)return;
+  const rare=(k==="gold"||k==="crystal")?.055:.022;
+  const deep=Math.min(.04,(S.worldInfo?.index||0)*.002);
+  if(Math.random()>rare+deep)return;
+  noteSubstance(sub);
+  inv.sample=(inv.sample||0)+1;S.made.sample=(S.made.sample||0)+1;
+  if((S.made.sample||0)===1)say(`🧬 Первый образец: ${sub.ic} ${sub.nm}. Открой ⋯ → 🧬 Планетарные исследования.`);
+  if(S.tick%180<90)puff(x,y,sub.color||"#9bf5dd",3,"+🧬");
+}
 function addBotStock(g,k,n){
   if(!ITEM[k]||n<=0)return;
   g.stock=g.stock||{};
@@ -783,7 +856,8 @@ function regionBotBase(rg,i){
 function regionColonyBase(rg,i){
   const beacon=countBuildingsInRegion(rg,"beacon");
   if(!beacon)return 0;
-  return Math.max(1,beacon*2+countBuildingsInRegion(rg,"miner")*.8+countBuildingsInRegion(rg,"furnace")+countBuildingsInRegion(rg,"asm")*1.2+countBuildingsInRegion(rg,"lab")*1.5+Math.min(8,Math.floor((rg?.worldInfo?.index||i)/2)));
+  const raw=beacon*2+countBuildingsInRegion(rg,"miner")*.8+countBuildingsInRegion(rg,"furnace")+countBuildingsInRegion(rg,"asm")*1.2+countBuildingsInRegion(rg,"lab")*1.5+Math.min(8,Math.floor((rg?.worldInfo?.index||i)/2));
+  return Math.max(1,raw*(1+cosmicLevel("colony")*.1));
 }
 function simulateColonyRegion(rg,i){
   const g=rg.gov=ensureGov(rg.gov,i),base=regionColonyBase(rg,i);
@@ -800,6 +874,7 @@ function simulateColonyRegion(rg,i){
     if(countBuildingsInRegion(rg,"farm")+countBuildingsInRegion(rg,"lodge")>0)addColonyStock(g,"food",Math.max(1,Math.floor(pulse/2)));
     if((rg.worldInfo?.index||0)>=1)addColonyStock(g,"gold",Math.max(1,Math.floor(pulse/4)));
     if((rg.worldInfo?.index||0)>=2)addColonyStock(g,"crystal",Math.max(1,Math.floor(pulse/5)));
+    if(rg.worldInfo?.substance){noteSubstance(rg.worldInfo.substance);addColonyStock(g,"sample",Math.max(1,Math.floor(pulse/5)))}
   }
   g.colonyYield=Math.min(999,stockTotal(g.colonyStock));
   return g;
@@ -842,7 +917,7 @@ function updateAuthority(){
     if(i===(S.curRegion||0))return;
     const botMul=scenarioRules(S.scenario).doctrine?.botMul||1;
     const colony=regionColonyBase(rg,i);
-    const growth=Math.max(.4,(2+(rival.progress||0)/55+(rg.gov.captured?1.4:0)+(S.launches||0)*.12)*botMul-(colony?0.55+colony*.12:0));
+    const growth=Math.max(.35,(2+(rival.progress||0)/55+(rg.gov.captured?1.4:0)+(S.launches||0)*.12)*botMul-(colony?0.55+colony*.12+cosmicLevel("colony")*.08:0));
     rg.gov.bot=Math.min(100,Math.round(rg.gov.bot+growth));
     if(rg.gov.bot>=30&&!rg.gov.alert30){rg.gov.alert30=true;say(`⚠️ ${rg.nm}: администрация бота уже ${rg.gov.bot}%. Вернись или строй 📡 радар.`)}
     if(rg.gov.bot>=45&&!rg.gov.alert45){rg.gov.alert45=true;toast(`⚠️ ${rg.nm}: переворот близко`);say(`⚠️ ${rg.nm}: бот почти контролирует планету (${rg.gov.bot}%).`)}
@@ -866,7 +941,7 @@ function updateAuthority(){
   if(S.sheet==="authority")authoritySheet();
 }
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null,
-  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null,regionGov:null};
+  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null,regionGov:null,cosmic:null};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
@@ -1120,10 +1195,10 @@ function totalUpgradeLevels(){return grid.flat().reduce((m,c)=>c?m+cellLevel(c)-
 function poweredGenerators(){return grid.flat().filter(c=>c&&c.t==="gen"&&c.fuel>0).length}
 function prestigeMult(){return 1+(S.prestige||0)*0.08}
 function epochMult(){return 1+Math.max(0,(S.epoch||1)-1)*0.018}
-function machineMult(c){return (1+(cellLevel(c)-1)*0.16)*prestigeMult()*epochMult()}
-function beltTickPeriod(){return Math.max(3,(tech("t_belt")?6:12)-Math.floor((maxLevelOf("belt")-1)/4)-Math.min(3,S.prestige||0))}
-function workerCap(){return WORKER_MAX+(S.prestige||0)}
-function powerNeed(c){return Math.max(0,Math.ceil((DEFS[c.t].power||0)*(1+(cellLevel(c)-1)*0.055)))}
+function machineMult(c){return (1+(cellLevel(c)-1)*0.16)*prestigeMult()*epochMult()*(1+cosmicLevel("prod")*.02)}
+function beltTickPeriod(){return Math.max(2,(tech("t_belt")?6:12)-Math.floor((maxLevelOf("belt")-1)/4)-Math.min(3,S.prestige||0)-Math.floor(cosmicLevel("logi")/4))}
+function workerCap(){return WORKER_MAX+(S.prestige||0)+Math.floor(cosmicLevel("crew")/3)}
+function powerNeed(c){return Math.max(0,Math.ceil((DEFS[c.t].power||0)*(1+(cellLevel(c)-1)*0.055)*Math.max(.55,1-cosmicLevel("power")*.02)))}
 function canUseMasterLevels(){return maxBuildingLevel()<10||S.epoch>=15||S.coreBuilt}
 function spaceProgramReady(){return tech("t_space")&&countBuildingsAll("control")>=1&&countBuildingsAll("rocket")>=1}
 function launchCost(){
@@ -1131,7 +1206,7 @@ function launchCost(){
   const c={coal:120+n*45,steelPlate:25+n*15,circuit:15+n*8,science:20+n*12};
   if(n>=1)c.goldBar=8+n*4;
   if(n>=2)c.module=4+n*2;
-  const mul=scenarioRules(S.scenario).anomaly?.launchMul||1;
+  const mul=(scenarioRules(S.scenario).anomaly?.launchMul||1)*Math.max(.65,1-cosmicLevel("deep")*.015);
   Object.keys(c).forEach(k=>c[k]=Math.max(1,Math.ceil(c[k]*mul)));
   return c;
 }
@@ -1495,7 +1570,7 @@ function openRecipeMenu(x,y,sx,sy){
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",dev:"🎴 Карты развития",authority:"🛡 Власть / радар",x20:"🏭 Развитие x20"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",dev:"🎴 Карты развития",authority:"🛡 Власть / радар",cosmic:"🧬 Планетарные исследования",x20:"🏭 Развитие x20"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -1514,6 +1589,7 @@ function renderSheet(){
   else if(S.sheet==="trade")tradeSheet();
   else if(S.sheet==="dev")devSheet();
   else if(S.sheet==="authority")authoritySheet();
+  else if(S.sheet==="cosmic")cosmicSheet();
   else if(S.sheet==="x20")progressionSheet();
 }
 function handSheet(){
@@ -1547,12 +1623,13 @@ function mapSheet(){
   const regionRows=(S.regions&&S.regions.length>1?S.regions:[]).map((rg,i)=>
     `<button class="techBtn" data-rg="${i}" ${i===(S.curRegion||0)?"disabled":""}>${i===(S.curRegion||0)?"📍":"🌍"} ${rg?rg.nm||("Земля "+(i+1)):(S.regionName||"Земля "+(i+1))}<small>${i===(S.curRegion||0)?"ты здесь":"вернуться сюда"} · ${authorityLabel(rg?.gov)}</small></button>`).join("");
   const ready=spaceProgramReady(),cost=launchCost();
+  const sub=S.worldInfo?.substance;
   sheetBody.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px">
       <button id="mZin" style="flex:1;text-align:center;font-size:1.1rem">➕</button>
       <button id="mZout" style="flex:1;text-align:center;font-size:1.1rem">➖</button>
       <button id="mFit" style="flex:1;text-align:center">🗺 Вся карта</button></div>
     <div style="font-size:.84rem;color:var(--dim);margin-bottom:10px;line-height:1.4">📍 <b style="color:var(--ink)">${S.regionName||"Родная земля"}</b> · ${W}×${H} клеток. Руда конечна: выкопал — расширяй текущую карту или запускай ракету к новой планете.
-      ${S.worldInfo?`<br>🪐 ${S.worldInfo.desc}<br>Ресурсы: ${S.worldInfo.res}`:""}</div>
+      ${S.worldInfo?`<br>🪐 ${S.worldInfo.desc}<br>Ресурсы: ${S.worldInfo.res}${sub?`<br>${sub.ic} Субстанция: ${sub.nm} — ${sub.effect}`:""}`:""}</div>
     ${regionRows}
     <div style="display:flex;gap:8px;margin-top:6px">
       <button id="mExp" style="flex:1;text-align:center;background:linear-gradient(180deg,#4d8560,#2f5a3e);color:#eafff0;font-weight:700;border:none;padding:11px">🌱 Расширить эту</button>
@@ -1980,6 +2057,31 @@ function playDevCard(i){
 function addInvItems(obj){
   Object.entries(obj).forEach(([k,n])=>{if(ITEM[k]&&n>0){inv[k]=(inv[k]||0)+n;S.made[k]=(S.made[k]||0)+n}});
 }
+function cosmicSheet(){
+  const c=ensureCosmic(),sub=currentSubstance(),seenAll=Object.values(c.seen||{}),seen=seenAll.slice(-6);
+  const total=cosmicTotal();
+  const rows=PLANET_RESEARCH.map(r=>{
+    const lv=c[r.id]||0,cost=cosmicCost(r.id),hot=sub?.field===r.id;
+    return `<button class="techBtn" data-cosmic="${r.id}" ${tech("t_space")&&canPay(cost)?"":"disabled"} style="${hot?"border-color:rgba(155,245,221,.8);box-shadow:0 0 0 1px rgba(155,245,221,.22)":""}">
+      ${hot?"✦ ":""}${r.ic} <b>${r.nm}</b> · ур.${lv}
+      <small>${r.desc}<br>Цена: ${costStr(cost)}${hot?`<br>${sub.ic} ${sub.nm} резонирует с этим направлением`:""}</small>
+    </button>`;
+  }).join("");
+  sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);line-height:1.45;margin-bottom:10px">
+      <b style="color:var(--gold)">🧬 Образцы: ${inv.sample||0}</b> · всего уровней: <b>${total}</b> · открыто субстанций: <b>${seenAll.length}</b>.<br>
+      Образцы дают посадка на новые планеты, добыча на процедурных мирах и мирные колонии с 📶 маяками.
+      ${sub?`<br>Текущая планета: <b style="color:var(--ink)">${sub.ic} ${sub.nm}</b> · ${sub.effect}.`:`<br>Сначала долети до процедурной планеты, чтобы открыть первую субстанцию.`}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div class="pill" style="position:static;text-align:center">⚙️ машины x${(1+cosmicLevel("prod")*.02).toFixed(2)}</div>
+      <div class="pill" style="position:static;text-align:center">⚡️ энергия -${Math.min(45,cosmicLevel("power")*2)}%</div>
+      <div class="pill" style="position:static;text-align:center">🧍 лимит +${Math.floor(cosmicLevel("crew")/3)}</div>
+      <div class="pill" style="position:static;text-align:center">🚀 запуск -${Math.min(35,Math.round(cosmicLevel("deep")*1.5))}%</div>
+    </div>
+    ${seen.length?`<div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">Последние субстанции: ${seen.join(", ")}</div>`:""}
+    ${rows}`;
+  sheetBody.querySelectorAll("[data-cosmic]").forEach(b=>b.onclick=()=>buyCosmic(b.dataset.cosmic));
+}
 function applyDevCard(id,sc){
   const rv=ensureRivalShape(sc.rival);
   if(id==="plenty"){
@@ -2283,6 +2385,7 @@ function progressionSheet(){
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
   {k:"🏭",l:"Развитие x20",f:()=>openSheet("x20")},
+  {k:"🧬",l:"Планетарные исследования",f:()=>openSheet("cosmic")},
   {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
   {k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
   {k:"📊",l:"Экономика",f:()=>openSheet("eco")},
@@ -2447,6 +2550,7 @@ function step(){
         if(!k){c.prog=0;continue} // залежь исчерпана — рабочие перенесут бур
         if(outputTo(x,y,k)||dropAt(x,y,k)){
           c.prog=0;S.made[k]++;minedMin[k]=(minedMin[k]||0)+1;if(S.tick%180<90)puff(x,y,oreColor(k),1);
+          maybeCollectPlanetSample(k,x,y);
           if(--oreAmt[y][x]<=0){ // руда КОНЕЧНА
             ore[y][x]=null;oreAmt[y][x]=0;terrDirty=true;
             say("⛏ Залежь под буром исчерпана — рабочие поищут новую");
@@ -2744,6 +2848,8 @@ function showBook(){
         <div style="font-size:.82rem">когда улетаешь, старая планета остаётся под авто-администрацией. Влияние бота растёт; до 51% возвращение сбивает его вниз, после 51% планета захвачена, копит индустрию, склады и 🤖 роботов. 📡 Шпионский радар показывает захваты и след конкурента. 📶 Колониальный маяк превращает оставленную мирную планету в колонию: она медленнее теряет контроль и копит дань, которую можно забрать в панели власти</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
         <div style="font-size:.82rem">только на ПЛАНЕТАХ (⋯ → 🗺 → 🚀): сначала исследуй космопрограмму, построй 🛰️ ЦУП и 🚀 ракету. ЦУП всегда показывает 3 новых сигнала; после запуска появляется следующая тройка. Золото и кристаллы ведут к модулям, 🔮 синт-науке и Fable-ядру</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🧬 Образцы · планетарные исследования</div>
+        <div style="font-size:.82rem">каждая процедурная планета имеет уникальную субстанцию. Посадка, добыча и колонии с 📶 маяками дают 🧬 образцы. В ⋯ → 🧬 они тратятся на бесконечные уровни: скорость машин, ленты, энергию, лимит жителей, колонии и удешевление запусков</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
         <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). На родной земле цвета базовые, а на планетах залежи получают процедурный вид: метеоритное железо всё ещё идёт в железные рецепты, бирюзовая медь — в медные, звёздный уголь — в топливо.</div></div>
       <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
@@ -3067,7 +3173,7 @@ function serializeRegion(){
 }
 function loadRegion(rg){
   W=rg.w;H=rg.h;S.map=rg.map;S.regionName=rg.nm;
-  S.worldSkin=rg.worldSkin||null;S.oreSkins=rg.oreSkins||null;S.worldInfo=rg.worldInfo||null;S.regionGov=ensureGov(rg.gov,S.curRegion||0);S.regionGov.lastVisit=S.tick||0;
+  S.worldSkin=rg.worldSkin||null;S.oreSkins=rg.oreSkins||null;S.worldInfo=restoreWorldInfo(rg.worldInfo);S.regionGov=ensureGov(rg.gov,S.curRegion||0);S.regionGov.lastVisit=S.tick||0;
   ore=rg.ore;oreAmt=rg.oreAmt||mk();terr=rg.terr;
   grid=rg.grid.map(r=>r.map(c=>c?{...c,rec:null}:null));
   drops=rg.drops||{};
@@ -3109,10 +3215,16 @@ function travelNew(targetId){
   const depth=w?(w.proc?w.depth:w.depth+(S.launches||0)-1):S.curRegion;
   S.worldSkin=w?(w.skin||null):null;
   S.oreSkins=w?(w.oreSkins||null):null;
-  S.worldInfo=w?{id:w.id,nm:w.nm,desc:w.desc,res:w.res,codex:w.codex||"",seed:w.seed||0,index:w.index??null}:null;
+  S.worldInfo=w?restoreWorldInfo({id:w.id,nm:w.nm,desc:w.desc,res:w.res,codex:w.codex||"",seed:w.seed||0,index:w.index??null,substance:w.substance||null}):null;
   S.regionGov=defaultGov(S.curRegion);
   genMap(mapId,depth);S.map=mapId;
   if(w)applyWorldBonus(w,depth);
+  if(w?.substance){
+    noteSubstance(w.substance);
+    const n=Math.max(2,Math.ceil(depth/2));
+    addInvItems({sample:n});
+    say(`🧬 Посадка дала ${n} образц.: ${w.substance.ic} ${w.substance.nm}. ${w.substance.effect}.`);
+  }
   S.regionName=w?`${w.nm} · планета ${S.curRegion+1}`:`${MAPS[mapId].nm} · земля ${S.curRegion+1}`;
   S.regions.push(serializeRegion());
   workers.forEach(wrk=>{wrk.x=W/2+(Math.random()-0.5)*3;wrk.y=H/2+(Math.random()-0.5)*3;wrk.job=null;wrk.carryCell=null;});
@@ -3135,7 +3247,7 @@ function saveGame(){
     workers:workers.map(w=>({x:w.x,y:w.y,spec:w.spec,xp:w.xp,lvl:w.lvl,name:w.name,look:w.look,belly:w.belly,hungry:w.hungry})),
     animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
-    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,regionGov:currentGov(),galaxySeed:S.galaxySeed||ensureGalaxySeed(),scenario:S.scenario||ensureScenario(),
+    worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,regionGov:currentGov(),galaxySeed:S.galaxySeed||ensureGalaxySeed(),scenario:S.scenario||ensureScenario(),cosmic:ensureCosmic(),
     autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
@@ -3172,11 +3284,11 @@ function loadGame(d){
   S.scenario=d.scenario||makeScenario(d.map||"valley",d.mode||"peace",S.galaxySeed);
   ensureScenario();
   const curRg=S.regions[S.curRegion]||{};
-  S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=d.worldInfo||curRg.worldInfo||null;S.regionGov=ensureGov(d.regionGov||curRg.gov,S.curRegion||0);
+  S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=restoreWorldInfo(d.worldInfo||curRg.worldInfo);S.regionGov=ensureGov(d.regionGov||curRg.gov,S.curRegion||0);
   S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
-  S.prestige=d.prestige||0;S.coreShards=d.coreShards||0;S.epoch=d.epoch||1;S.epochReady=d.epochReady||S.epoch||1;S.bestEpoch=d.bestEpoch||S.epoch||1;S.coreBuilt=!!d.coreBuilt;S.launches=d.launches||0;
+  S.prestige=d.prestige||0;S.coreShards=d.coreShards||0;S.epoch=d.epoch||1;S.epochReady=d.epochReady||S.epoch||1;S.bestEpoch=d.bestEpoch||S.epoch||1;S.coreBuilt=!!d.coreBuilt;S.launches=d.launches||0;S.cosmic=d.cosmic||defaultCosmic();ensureCosmic();
   // завершённые партии можно продолжать строить (song-of-factorio); рейтинг уже записан
   S.win=false;S.over=false;
   const savedTechs=d.techs||[];
@@ -3197,7 +3309,7 @@ function startGame(opts){
   else{
     resetMade();resetInventoryForPrestige(0);TECHS.forEach(t=>t.done=false);
     S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.win=false;S.over=false;
-    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();
+    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();S.cosmic=defaultCosmic();
     S.scenario=makeScenario(opts.map,opts.mode,S.galaxySeed);
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
