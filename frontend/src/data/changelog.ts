@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.10.9",
+    date: "2026-07-10",
+    title: "Overquest: разломы и боты",
+    items: [
+      "🌀 В GamePass появилась Overquest — карточный dungeon-run с двумя ботами, экипировкой, проклятиями и попытками сбежать из боя",
+      "🎭 Каждый новый забег собирает отдельный мини-сюжет, антагониста, набор угроз и реплики ботов",
+      "⚔️ Цель — первым добраться до 8 уровня; финальный уровень даёт только победа в бою",
+    ],
+  },
+  {
     version: "2.10.8",
     date: "2026-07-09",
     title: "Fable Factory: читаемость фабрики",

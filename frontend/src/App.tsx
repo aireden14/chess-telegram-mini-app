@@ -24,6 +24,7 @@ import { TicketToSonnetScreen } from "./features/ticketToSonnet/TicketToSonnetSc
 import { CarcassonneScreen } from "./features/carcassonne/CarcassonneScreen";
 import { MonopolyHpScreen } from "./features/monopolyHp/MonopolyHpScreen";
 import { GarridokuScreen } from "./features/garridoku/GarridokuScreen";
+import { OverquestScreen } from "./features/overquest/OverquestScreen";
 import { BunkerScreen } from "./features/bunker/BunkerScreen";
 import { ReaderScreen } from "./features/reader/ReaderScreen";
 import { PdfStudioScreen } from "./features/pdfStudio/PdfStudioScreen";
@@ -75,6 +76,7 @@ export function App() {
         <Route path="/carcassonne" element={<Protected><CarcassonneScreen /></Protected>} />
         <Route path="/monopoly-hp" element={<Protected><MonopolyHpScreen /></Protected>} />
         <Route path="/garridoku" element={<Protected><GarridokuScreen /></Protected>} />
+        <Route path="/overquest" element={<Protected><OverquestScreen /></Protected>} />
         <Route path="/bunker" element={<Protected><BunkerScreen /></Protected>} />
         <Route path="/reader" element={<Protected><ReaderScreen /></Protected>} />
         <Route path="/pdf-studio" element={<Protected><PdfStudioScreen /></Protected>} />
