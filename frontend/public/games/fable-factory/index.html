@@ -466,6 +466,14 @@ const SETTLEMENT_ARCHETYPES=[
   {ic:"🧩",base:"Модульная Гильдия",offers:["module","circuit","science"],wants:["lens","goldBar","steelPlate"],tech:"контракты на модули",trait:"продаёт поздние компоненты"},
 ];
 const SCARCE_SETTLEMENT={coal:0,copper:1,stone:2,food:3,gold:4,crystal:5};
+const DEV_CARDS=[
+  {id:"plenty",ic:"🌾",nm:"Год изобилия",desc:"получить дефицитный ресурс сценария и стартовый бонус"},
+  {id:"monopoly",ic:"🪙",nm:"Монополия",desc:"собрать часть запасов с рынков всех поселений"},
+  {id:"roads",ic:"🛣",nm:"Две дороги",desc:"открыть бесплатный маршрут или усилить караваны"},
+  {id:"spy",ic:"🕵️",nm:"Шпионский отчёт",desc:"снять эмбарго, замедлить конкурента и оставить след для радара"},
+  {id:"engineer",ic:"🔧",nm:"Инженерный прорыв",desc:"получить технологические компоненты под текущую эпоху"},
+  {id:"liberator",ic:"🛡",nm:"Отряд освобождения",desc:"снизить власть и индустрию ботов на планетах"},
+];
 function scenarioOreFactor(k){return S.scenario?.oreMul?.[k]??1}
 function itemTier(k){
   if(["iron","copper","coal","stone","wood","food"].includes(k))return 1;
@@ -506,9 +514,26 @@ function ensureScenario(){
   S.scenario.settlements=S.scenario.settlements||[];
   S.scenario.rival=S.scenario.rival||{ic:"🤖",nm:"Автоматонный Синдикат",focus:"догоняет фабрику",progress:0,planets:0,lastMark:0};
   S.scenario.contracts=S.scenario.contracts||0;
+  S.scenario.devHand=Array.isArray(S.scenario.devHand)?S.scenario.devHand:[];
+  S.scenario.devDeck=Array.isArray(S.scenario.devDeck)?S.scenario.devDeck:[];
+  S.scenario.devBought=S.scenario.devBought||0;
+  S.scenario.devPlayed=S.scenario.devPlayed||0;
+  if(S.scenario.devDeck.length<4)S.scenario.devDeck=S.scenario.devDeck.concat(makeDevDeck(S.scenario));
   S.scenario.settlements.forEach((st,i)=>ensureSettlementShape(st,i));
   ensureRivalShape(S.scenario.rival);
   return S.scenario;
+}
+function cardById(id){return DEV_CARDS.find(c=>c.id===id)||DEV_CARDS[0]}
+function makeDevDeck(sc){
+  const r=seeded(seedHashText(`${sc.seed||"S"}:${ensureGalaxySeed()}:dev:${sc.devBought||0}:${sc.devPlayed||0}`));
+  const ids=["plenty","monopoly","roads","spy","engineer","liberator","plenty","roads","engineer","spy","monopoly","liberator"];
+  for(let i=ids.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
+  return ids;
+}
+function devCardCost(){
+  const sc=ensureScenario(),n=sc.devBought||0,c={science:6+n*2,circuit:4+Math.floor(n/2),gear:6+Math.floor(n/3)};
+  if(n>=2)c.goldBar=2+Math.floor(n/2);
+  return c;
 }
 function ensureSettlementShape(st,i){
   st.route=!!st.route;
@@ -1358,7 +1383,7 @@ function openRecipeMenu(x,y,sx,sy){
 
 /* ---------- нижний лист (склад/наука/задания/карта) ---------- */
 const sheetEl=document.getElementById("sheet"),sheetBody=document.getElementById("sheetBody");
-const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",authority:"🛡 Власть / радар",x20:"🏭 Развитие x20"};
+const SHEET_TITLE={inv:"📦 Склад",tech:"🔬 Исследования",quest:"📜 Задание мастера Фейбла",map:"🗺 Карта и рост мира",hand:"✋ Ручной крафт",auto:"⚙️ Автоматизация",crew:"🧍 Жители",eco:"📊 Экономика",trade:"🤝 Поселения",dev:"🎴 Карты развития",authority:"🛡 Власть / радар",x20:"🏭 Развитие x20"};
 function openSheet(kind){S.sheet=kind;closeCtx();
   document.getElementById("sheetTitle").textContent=SHEET_TITLE[kind]||"";
   renderSheet();sheetEl.classList.add("on");}
@@ -1375,6 +1400,7 @@ function renderSheet(){
   else if(S.sheet==="crew")crewSheet();
   else if(S.sheet==="eco")ecoSheet();
   else if(S.sheet==="trade")tradeSheet();
+  else if(S.sheet==="dev")devSheet();
   else if(S.sheet==="authority")authoritySheet();
   else if(S.sheet==="x20")progressionSheet();
 }
@@ -1706,12 +1732,14 @@ function tradeSheet(){
       Маршруты работают как порты: улучшают курс, копят караваны и защищают от эмбарго конкурента.
     </div>
     ${rows}
+    <button class="techBtn" id="devCardsBtn">🎴 Карты развития<small>монополия, изобилие, две дороги, шпионаж и освобождение</small></button>
     <button class="techBtn" id="tradeHint"><small>Рынок влияет на гонку: поселения растут, конкурент запускает экспедиции, а оставленные планеты требуют контроля через 📡 радар и 🛡 власть.</small></button>`;
   sheetBody.querySelectorAll("[data-trade]").forEach(b=>b.onclick=()=>doTrade(+b.dataset.trade));
   sheetBody.querySelectorAll("[data-route]").forEach(b=>b.onclick=()=>buildTradeRoute(+b.dataset.route));
   sheetBody.querySelectorAll("[data-caravan]").forEach(b=>b.onclick=()=>claimCaravan(+b.dataset.caravan));
   sheetBody.querySelectorAll("[data-contract]").forEach(b=>b.onclick=()=>signTradeContract(+b.dataset.contract));
   sheetBody.querySelectorAll("[data-embargo]").forEach(b=>b.onclick=()=>breakEmbargo(+b.dataset.embargo));
+  sheetBody.querySelector("#devCardsBtn").onclick=devSheet;
   const h=sheetBody.querySelector("#tradeHint");
   if(h)h.onclick=()=>openSheet("authority");
 }
@@ -1784,6 +1812,108 @@ function breakEmbargo(i){
   toast(`🕊 Эмбарго снято: ${st.nm}`);
   say(`🕊 ${st.nm}: эмбарго снято дипломатией. Постоянно защитит только маршрут.`);
   snd("research");drawInv();drawHud();saveGame();tradeSheet();
+}
+
+function devSheet(){
+  const sc=ensureScenario(),cost=devCardCost(),hand=sc.devHand||[];
+  const cards=hand.map((id,i)=>{const c=cardById(id);
+    return `<button class="techBtn" data-dev-card="${i}">
+      ${c.ic} <b>${c.nm}</b>
+      <small>${c.desc}</small>
+    </button>`;
+  }).join("")||`<div style="font-size:.82rem;color:var(--dim);line-height:1.4;margin-bottom:10px">Руки пока нет. Купи карту развития за науку и платы: она даст разовый ход против рынка, конкурента или ботов.</div>`;
+  sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);line-height:1.45;margin-bottom:10px">
+      <b style="color:var(--gold)">🎴 Карты развития</b><br>
+      Это Catan-подобные тактические ходы для фабрики: монополия, изобилие, две дороги, шпионаж, инженерный прорыв и освобождение планет.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div class="pill" style="position:static;text-align:center">🎴 рука ${hand.length}</div>
+      <div class="pill" style="position:static;text-align:center">сыграно ${sc.devPlayed||0}</div>
+    </div>
+    <button class="techBtn" id="buyDevCard" ${canPay(cost)&&hand.length<6?"":"disabled"}>
+      🎴 Купить карту развития
+      <small>${hand.length>=6?"Рука полна":costStr(cost)}</small>
+    </button>
+    ${cards}
+    <button class="techBtn" id="devTrade"><small>← К поселениям и маршрутам</small></button>`;
+  sheetBody.querySelector("#buyDevCard").onclick=buyDevCard;
+  sheetBody.querySelectorAll("[data-dev-card]").forEach(b=>b.onclick=()=>playDevCard(+b.dataset.devCard));
+  sheetBody.querySelector("#devTrade").onclick=tradeSheet;
+}
+function buyDevCard(){
+  const sc=ensureScenario(),cost=devCardCost();
+  if((sc.devHand||[]).length>=6)return toast("Рука полна: сыграй карту");
+  if(!canPay(cost))return toast("На карту нужно: "+costStr(cost));
+  if(!sc.devDeck.length)sc.devDeck=makeDevDeck(sc);
+  pay(cost);
+  const id=sc.devDeck.shift();
+  sc.devHand.push(id);sc.devBought=(sc.devBought||0)+1;
+  const c=cardById(id);
+  toast(`🎴 ${c.nm}`);
+  say(`🎴 Куплена карта развития: ${c.nm}.`);
+  snd("research");drawInv();saveGame();devSheet();
+}
+function playDevCard(i){
+  const sc=ensureScenario(),id=sc.devHand[i],c=cardById(id);
+  if(!id)return;
+  sc.devHand.splice(i,1);sc.devPlayed=(sc.devPlayed||0)+1;
+  const result=applyDevCard(id,sc);
+  toast(`${c.ic} ${c.nm}`);
+  say(`🎴 ${c.nm}: ${result}`);
+  snd(id==="liberator"||id==="spy"?"wave":"win");
+  drawInv();drawHud();saveGame();devSheet();
+}
+function addInvItems(obj){
+  Object.entries(obj).forEach(([k,n])=>{if(ITEM[k]&&n>0){inv[k]=(inv[k]||0)+n;S.made[k]=(S.made[k]||0)+n}});
+}
+function applyDevCard(id,sc){
+  const rv=ensureRivalShape(sc.rival);
+  if(id==="plenty"){
+    const gain={};
+    if(ITEM[sc.scarce])gain[sc.scarce]=Math.max(2,Math.round(10/itemTier(sc.scarce)));
+    if(ITEM[sc.bonus])gain[sc.bonus]=(gain[sc.bonus]||0)+Math.max(2,Math.round(8/itemTier(sc.bonus)));
+    addInvItems(gain);
+    return `изобилие принесло ${costStr(gain)}`;
+  }
+  if(id==="monopoly"){
+    const gain={};let taken=0;
+    sc.settlements.forEach((st,i)=>{
+      ensureSettlementShape(st,i);
+      const n=Math.min(st.stock||0,Math.max(1,st.give||1)+(st.route?1:0)+(st.contract?1:0));
+      if(n>0){st.stock-=n;gain[st.offer]=(gain[st.offer]||0)+n;taken+=n;}
+    });
+    addInvItems(gain);
+    rv.progress=Math.max(0,(rv.progress||0)-4);
+    return taken?`монополия собрала ${costStr(gain)}`:"рынок пуст, но конкурент потерял темп";
+  }
+  if(id==="roads"){
+    let best=-1,bestCost=1e9;
+    sc.settlements.forEach((st,i)=>{ensureSettlementShape(st,i);if(!st.route){const v=Object.values(routeCost(st,i)).reduce((a,b)=>a+b,0);if(v<bestCost){bestCost=v;best=i}}});
+    if(best>=0){
+      const st=sc.settlements[best];st.route=true;st.embargo=0;st.rep=(st.rep||0)+1;st.caravan=Math.max(st.caravan||0,2);
+      return `открыт бесплатный маршрут к ${st.nm}`;
+    }
+    sc.settlements.forEach((st,i)=>{ensureSettlementShape(st,i);if(st.route)st.caravan=Math.min(60,(st.caravan||0)+2)});
+    return "все маршруты уже открыты, караваны усилены";
+  }
+  if(id==="spy"){
+    let cleared=0;
+    sc.settlements.forEach((st,i)=>{ensureSettlementShape(st,i);if(st.embargo){cleared++;st.embargo=0}});
+    rv.progress=Math.max(0,(rv.progress||0)-18);
+    const tr=spawnRivalTrace(rv,true);
+    return `снято эмбарго: ${cleared}, конкурент замедлен, найден след ${tr.nm}`;
+  }
+  if(id==="engineer"){
+    const gain=tech("t_mod")?{module:2,science2:6,lens:4}:{circuit:8,science:8,steelPlate:6};
+    addInvItems(gain);
+    return `инженеры выдали ${costStr(gain)}`;
+  }
+  if(id==="liberator"){
+    const g=currentGov();g.bot=Math.max(0,(g.bot||0)-16);g.industry=Math.max(0,+(g.industry||0)-12);g.robots=Math.max(0,(g.robots||0)-3);g.captured=g.bot>=51;
+    (S.regions||[]).forEach((rg,i)=>{if(!rg)return;rg.gov=ensureGov(rg.gov,i);rg.gov.bot=Math.max(0,rg.gov.bot-6);rg.gov.industry=Math.max(0,(rg.gov.industry||0)-4);rg.gov.robots=Math.max(0,(rg.gov.robots||0)-1);rg.gov.captured=rg.gov.bot>=51});
+    return "отряд снизил власть, индустрию и гарнизоны ботов";
+  }
+  return "карта сыграна";
 }
 
 function claimBotSpoils(){
@@ -2011,6 +2141,7 @@ function smartItems(){return [
   {k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
   {k:"📊",l:"Экономика",f:()=>openSheet("eco")},
   {k:"🤝",l:"Поселения / обмен",f:()=>openSheet("trade")},
+  {k:"🎴",l:"Карты развития",f:()=>openSheet("dev")},
   {k:"🛡",l:"Власть / радар",f:()=>openSheet("authority")},
   {k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
     S.autoAll=S.autoAll===false;
@@ -2459,6 +2590,8 @@ function showBook(){
         <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🤝 Поселения · обмен</div>
         <div style="font-size:.82rem">каждая партия получает уникальный сценарий, соседние поселения и конкурента. В ⋯ → 🤝 можно менять свои ресурсы на дефицитные: уголь, медь, золото, кристаллы, линзы, модули. Маршруты работают как порты Катана: улучшают курс, копят бесплатные караваны и защищают от эмбарго. После репутации 2 и развития 35% можно подписать технологический контракт</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🎴 Карты развития</div>
+        <div style="font-size:.82rem">тактические карты из ⋯ → 🎴 покупаются за науку и платы. Они дают Catan-подобные ходы: «Год изобилия», «Монополия», «Две дороги», шпионский отчёт, инженерный прорыв и отряд освобождения против ботов</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🛡 Власть · 📡 радар</div>
         <div style="font-size:.82rem">когда улетаешь, старая планета остаётся под авто-администрацией. Влияние бота растёт; до 51% возвращение сбивает его вниз, после 51% планета захвачена, копит индустрию, склады и 🤖 роботов. 📡 Шпионский радар показывает захваты, очередь экспедиций конкурента и позволяет лететь за ним на новые враждебные планеты</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🪙 Золото · 💎 Кристаллы</div>
