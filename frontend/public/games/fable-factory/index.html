@@ -16,7 +16,7 @@
   #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
   .glass{background:var(--glass);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:.5px solid rgba(255,255,255,.16);box-shadow:0 10px 30px rgba(0,0,0,.5)}
   button{font:inherit;color:var(--ink);background:rgba(255,255,255,.11);border:.5px solid rgba(255,255,255,.18);border-radius:13px;padding:8px 10px;cursor:pointer;font-size:.82rem;font-weight:500;transition:transform .16s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s}
-  button:disabled{opacity:.32;cursor:default}
+  button:disabled{opacity:.58;cursor:default}
   button:active:not(:disabled){transform:scale(.93)}
   button small{color:var(--dim);display:block;font-size:.68rem;font-weight:400}
   /* верхний HUD */
@@ -176,9 +176,26 @@ const ORE_VARIANTS={
     {nm:"зелёные кристаллы",ic:"🟩",color:"#7ee0a8"},{nm:"розовые кристаллы",ic:"💠",color:"#f09ee5"}
   ],
 };
+const ORE_FORMS={
+  iron:["chunks","plates","meteor"],
+  copper:["veins","plates","dust"],
+  coal:["chunks","dust","glass"],
+  stone:["blocks","plates","glyph"],
+  gold:["veins","nuggets","dust"],
+  crystal:["spikes","geode","shards"],
+};
+const ORE_TRAITS={
+  iron:[{nm:"пластинчатое",bonus:"ironPlate",chance:.045},{nm:"пружинное",bonus:"gear",chance:.025}],
+  copper:[{nm:"проводящее",bonus:"wire",chance:.045},{nm:"чистое",bonus:"copperPlate",chance:.035}],
+  coal:[{nm:"горючее",bonus:"coal",chance:.05},{nm:"звёздное",bonus:"sample",chance:.025}],
+  stone:[{nm:"строевое",bonus:"stone",chance:.05},{nm:"искристое",bonus:"sample",chance:.022}],
+  gold:[{nm:"самородное",bonus:"goldBar",chance:.035},{nm:"линзовое",bonus:"lens",chance:.02}],
+  crystal:[{nm:"резонансное",bonus:"science2",chance:.022},{nm:"осколочное",bonus:"sample",chance:.04}],
+};
 function activeOreSkin(k){return typeof S!=="undefined"&&S.oreSkins&&S.oreSkins[k]?S.oreSkins[k]:null}
 function oreColor(k){return activeOreSkin(k)?.color||ORE[k]||"#b8c1cc"}
 function oreName(k){return activeOreSkin(k)?`${activeOreSkin(k).ic||ORE_ICON[k]||"⛏"} ${activeOreSkin(k).nm}`:(ORE_NM[k]||"⛏ Руда")}
+function oreTraitText(k){const t=activeOreSkin(k)?.trait;return t?`${t.nm}: шанс +${ITEM[t.bonus]?.split(" ")[0]||t.bonus}`:""}
 function oreIcon(k){return activeOreSkin(k)?.ic||ORE_ICON[k]||"⛏"}
 function oreFaces(k){
   const s=activeOreSkin(k);
@@ -224,6 +241,14 @@ const PLANET_SUFFIX=["дор","мир","тис","лон","ра","векс","он
 const PLANET_MOOD=[
   "тихая орбита","магнитные бури","низкая гравитация","длинные сумерки","пыльные ветра","яркая ночь","тонкая атмосфера","богатый разлом"
 ];
+const PLANET_FEATURES=[
+  {id:"cracks",nm:"светящиеся разломы",accent:"#f6e06b"},
+  {id:"spores",nm:"биолюминесцентные споры",accent:"#7ee0a8"},
+  {id:"rings",nm:"кольцевые минералы",accent:"#8be0e8"},
+  {id:"veins",nm:"жидкие жилы",accent:"#f09ee5"},
+  {id:"ash",nm:"пепельные шрамы",accent:"#c8d4e2"},
+  {id:"glyphs",nm:"каменные глифы",accent:"#b28cff"},
+];
 const SUBSTANCE_PREFIX=["аион","кварк","лумен","ферро","крио","солар","вита","эхо","грави","обсидиан","плазма","миро"];
 const SUBSTANCE_CORE=["пыль","нить","изотоп","спора","кристалл","соль","гель","смола","осколок","пепел","руна","зерно"];
 const SUBSTANCE_ICONS=["🧬","⚛️","✨","🌌","🫧","🔷","🟣","🟢","🧿","💠"];
@@ -252,7 +277,7 @@ function makeOreSkins(r){
   ORE_KEYS.forEach(k=>{
     const v=pick(r,ORE_VARIANTS[k]);
     const color=shadeHex(v.color,.92+r()*.22);
-    skins[k]={nm:v.nm,ic:v.ic,color,faces:[shadeHex(color,1.28),color,shadeHex(color,.62),shadeHex(color,1.55)]};
+    skins[k]={nm:v.nm,ic:v.ic,color,form:pick(r,ORE_FORMS[k]||["chunks"]),trait:pick(r,ORE_TRAITS[k]||[{nm:"обычное",bonus:k,chance:0}]),faces:[shadeHex(color,1.28),color,shadeHex(color,.62),shadeHex(color,1.55)]};
   });
   return skins;
 }
@@ -260,7 +285,7 @@ function makeProceduralWorld(index){
   const seed=seedHashText(ensureGalaxySeed()+":"+index);
   const r=seeded(seed);
   const tier=1+Math.floor(index/3);
-  const biome=pick(r,PLANET_BIOMES),pal=pick(r,PLANET_PALETTES),oreSkins=makeOreSkins(r);
+  const biome=pick(r,PLANET_BIOMES),pal=pick(r,PLANET_PALETTES),feature=pick(r,PLANET_FEATURES),oreSkins=makeOreSkins(r);
   const richness=+(1+Math.min(5,tier*.16)+r()*.22).toFixed(2);
   const main=[];
   if(tier===1)uniquePush(main,"gold"); // первый пояс всегда ведёт к золотой цепочке
@@ -269,15 +294,15 @@ function makeProceduralWorld(index){
   while(main.length<4)uniquePush(main,pick(r,r()<.55?common:rare));
   const bonus=main.map((k,i)=>[k,Math.max(1,Math.round((k==="gold"||k==="crystal"?1.5:2.4)+tier*.32+(i===0?1:0))),Math.round((k==="gold"||k==="crystal"?22:34)*(1+Math.min(tier,18)*.035)),richness]);
   const nm=`${biome.ic} ${pick(r,PLANET_PREFIX)}${pick(r,PLANET_SUFFIX)}-${(seed%997).toString(36).toUpperCase()}`;
-  const res=main.map(k=>`${oreSkins[k].ic} ${oreSkins[k].nm}`).join(", ");
+  const res=main.map(k=>`${oreSkins[k].ic} ${oreSkins[k].nm} (${oreSkins[k].trait.nm})`).join(", ");
   const mood=pick(r,PLANET_MOOD);
   const substance=makePlanetSubstance(r,index,tier,seed);
   return {
     id:`proc-${index}-${seed.toString(36)}`,proc:true,index,seed,map:biome.map,depth:tier,nm,
-    desc:`${pal.nm} планета: ${biome.desc}, ${mood}, богатство ×${richness}`,
+    desc:`${pal.nm} планета: ${biome.desc}, ${feature.nm}, ${mood}, богатство ×${richness}`,
     res,
     bonus,
-    skin:{pal:pal.pal,dirt:pal.dirt,waterColor:pal.water,trees:Math.max(0,Math.round((biome.trees||0)*(0.75+r()*.6))),oreMul:biome.oreMul*richness,grass:biome.grass},
+    skin:{pal:pal.pal,dirt:pal.dirt,waterColor:pal.water,trees:Math.max(0,Math.round((biome.trees||0)*(0.75+r()*.6))),oreMul:biome.oreMul*richness,grass:biome.grass,feature:feature.id,accent:feature.accent},
     oreSkins,
     substance,
     codex:`пояс ${tier} · ${substance.ic} ${substance.nm}: ${substance.effect} · seed ${seed.toString(36).toUpperCase()}`
@@ -837,6 +862,13 @@ function maybeCollectPlanetSample(k,x,y){
   if((S.made.sample||0)===1)say(`🧬 Первый образец: ${sub.ic} ${sub.nm}. Открой ⋯ → 🧬 Планетарные исследования.`);
   if(S.tick%180<90)puff(x,y,sub.color||"#9bf5dd",3,"+🧬");
 }
+function maybeCollectOreTrait(k,x,y){
+  const tr=activeOreSkin(k)?.trait;
+  if(!tr?.bonus||!ITEM[tr.bonus]||tr.chance<=0)return;
+  if(Math.random()>tr.chance)return;
+  inv[tr.bonus]=(inv[tr.bonus]||0)+1;S.made[tr.bonus]=(S.made[tr.bonus]||0)+1;
+  puff(x,y,ITEM_COL[tr.bonus]||oreColor(k),3,"+"+ITEM[tr.bonus].split(" ")[0]);
+}
 function addBotStock(g,k,n){
   if(!ITEM[k]||n<=0)return;
   g.stock=g.stock||{};
@@ -941,7 +973,8 @@ function updateAuthority(){
   if(S.sheet==="authority")authoritySheet();
 }
 const S={quick:null,sheet:null,goal:0,quest:0,made:{},tick:0,win:false,over:false,mode:"peace",map:"valley",wave:0,nextWave:5400,started:false,tut:-1,hint:null,
-  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null,regionGov:null,cosmic:null};
+  prestige:0,coreShards:0,epoch:1,epochReady:1,bestEpoch:1,epochSeen:1,coreBuilt:false,launches:0,galaxySeed:null,worldSkin:null,oreSkins:null,worldInfo:null,scenario:null,regionGov:null,cosmic:null,
+  fuelPolicy:"coal",recipePref:{}};
 Object.keys(ITEM).forEach(k=>S.made[k]=0);
 let enemies=[]; let parts=[]; // частицы {x,y,vx,vy,life,color,text}
 let drops={}; // кучи ресурсов на земле: "x,y" -> {item:count}; собираются тапом
@@ -991,8 +1024,8 @@ function recomputePower(){
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const c=grid[y][x];if(!c)continue;
     if(c.t==="gen"){c.pw=c.fuel>0;if(c.fuel>0)gens.push({x,y,cap:genCap(c)});}
-    else if(DEFS[c.t].power>0){c.pw=false;cons.push({x,y,c,need:powerNeed(c)});}
-    else c.pw=true;
+    else if(DEFS[c.t].power>0){c.pw=false;c.pwState="off";cons.push({x,y,c,need:powerNeed(c)});}
+    else {c.pw=true;c.pwState="ok";}
   }
   let fed=0,noZone=0,over=0;
   cons.forEach(u=>{ // питается от БЛИЖАЙШЕГО генератора со свободной мощностью
@@ -1001,8 +1034,9 @@ function recomputePower(){
       const d=Math.hypot(g.x-u.x,g.y-u.y);
       if(d<=genRadius()){inZone=true;if(g.cap>=u.need&&d<bd){bd=d;best=g;}}
     });
-    if(best){best.cap-=u.need;u.c.pw=true;fed++;}
-    else if(inZone)over++;else noZone++;
+    if(best){best.cap-=u.need;u.c.pw=true;u.c.pwState="ok";fed++;}
+    else if(inZone){u.c.pwState="over";over++;}
+    else {u.c.pwState="noZone";noZone++;}
   });
   powerStat={fed,need:cons.length,noZone,over};
   S.powerOk=noZone===0&&over===0;
@@ -1153,9 +1187,7 @@ function workerStep(w){
     const c=grid[j.y]&&grid[j.y][j.x];
     if(c&&c.t==="gen"&&S.autoAll!==false){
       const cap=w.spec==="power"?6:3;
-      const tc=Math.min(inv.coal,cap);
-      if(tc>0){inv.coal-=tc;c.buf.coal=(c.buf.coal||0)+tc;}
-      else {const tw=Math.min(inv.wood,cap+1);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;}
+      loadFuelByPolicy(c,cap,cap+1);
       puff(j.x,j.y,"#5c6a7d",2);giveXp(w,2);
     }
   } else if(j.kind==="fixMiner"){
@@ -1301,6 +1333,38 @@ cv.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);panStart=nu
 function costStr(c){return Object.entries(c).map(([k,n])=>n+" "+ITEM[k].split(" ")[0]).join(" ")||"—"}
 function canPay(c){return Object.entries(c).every(([k,n])=>inv[k]>=n)}
 function pay(c){Object.entries(c).forEach(([k,n])=>inv[k]-=n)}
+function needHtml(c){
+  const rows=Object.entries(c||{});
+  if(!rows.length)return "—";
+  return rows.map(([k,n])=>{
+    const have=inv[k]||0,ok=have>=n;
+    return `<span style="color:${ok?"var(--ok)":"var(--bad)"}">${ITEM[k]?.split(" ")[0]||k} <b>${have}/${n}</b></span>`;
+  }).join(" ");
+}
+function missingText(c){
+  const miss=Object.entries(c||{}).filter(([k,n])=>(inv[k]||0)<n).map(([k,n])=>`${n-(inv[k]||0)} ${ITEM[k]?.split(" ")[0]||k}`);
+  return miss.length?miss.join(", "):"ничего";
+}
+function recipeNeedHtml(r){return `${needHtml(r.in)} <span style="color:var(--dim)">→</span> <span style="color:var(--ink)">${ITEM[r.out]}</span>`}
+const FUEL_POLICIES={
+  coal:{nm:"⚫ уголь",desc:"уголь держится под свет, фабрики не забирают последний запас",order:["coal","wood"],reserve:true},
+  wood:{nm:"🌲 дерево",desc:"дерево горит первым, уголь свободнее уходит в рецепты",order:["wood","coal"],reserve:true},
+  free:{nm:"♻️ без резерва",desc:"авто-производство может тратить весь уголь",order:["coal","wood"],reserve:false},
+};
+function fuelPolicy(){return FUEL_POLICIES[S.fuelPolicy]||FUEL_POLICIES.coal}
+function fuelReserveAmount(){return fuelPolicy().reserve?Math.max(8,countBuildings("gen")*6):0}
+function fuelPrimary(){return fuelPolicy().order[0]}
+function autoSpendable(k){
+  if(k===fuelPrimary())return Math.max(0,(inv[k]||0)-fuelReserveAmount());
+  return inv[k]||0;
+}
+function loadFuelByPolicy(c,coalCap=3,woodCap=4){
+  for(const fk of fuelPolicy().order){
+    const take=Math.min(inv[fk]||0,fk==="coal"?coalCap:woodCap);
+    if(take>0){inv[fk]-=take;c.buf[fk]=(c.buf[fk]||0)+take;return {k:fk,n:take}}
+  }
+  return null;
+}
 function drawBuild(){} // постройки теперь в контекстном меню по клетке — панели нет
 const BUILD_ORDER=["belt","miner","furnace","gen","asm","lab","control","rocket","radar","beacon","farm","lodge","turret","wall"];
 function buildables(){return BUILD_ORDER.filter(t=>{
@@ -1376,7 +1440,7 @@ function upgradeCell(x,y){
   if(lv>=MAX_UPGRADE_LEVEL)return toast("Уже максимум: уровень "+MAX_UPGRADE_LEVEL);
   if(lv>=10&&!canUseMasterLevels())return toast("Мастер-уровни 11-20 откроются на эпохе 15");
   const cost=upgradeCost(c);
-  if(!cost||!canPay(cost))return toast("На апгрейд нужно: "+costStr(cost));
+  if(!cost||!canPay(cost))return toast("Не хватает: "+missingText(cost));
   pushU(x,y);pay(cost);
   c.lv=lv+1;
   c.hp=Math.max(c.hp||0,DEFS[c.t].hp+Math.round(DEFS[c.t].hp*(c.lv-1)*0.08));
@@ -1389,10 +1453,15 @@ function buildAt(x,y,t){
   const d=DEFS[t];
   if(t==="miner"&&!ore[y][x]){toast("🛠 Бур ставится только на залежь");return false}
   if(t==="gen"&&ore[y][x]){toast("⚡️ Генератор — только на пустую землю, залежь не закапываем");return false}
-  if(!canPay(d.cost)){toast("Не хватает ресурсов на "+d.nm);return false}
+  if(!canPay(d.cost)){toast("Не хватает на "+d.nm+": "+missingText(d.cost));return false}
   pushU(x,y);pay(d.cost);
   const cell={t,dir:0,item:null,prog:0,buf:{},hp:d.hp,fuel:0,lv:1};
-  if(RECIPES[t]){cell.recSel=0;cell.auto=true} // рецепт по умолчанию + авто-загрузка со склада
+  if(RECIPES[t]){
+    const pref=S.recipePref?.[t];
+    cell.recSel=(pref===null||RECIPES[t][pref])?pref:0;
+    if(cell.recSel!=null&&RECIPES[t][cell.recSel]?.req&&!tech(RECIPES[t][cell.recSel].req))cell.recSel=0;
+    cell.auto=true;
+  } // последний выбранный рецепт + авто-загрузка со склада
   if(t==="miner")cell.oreKind=ore[y][x]; // помним, что копаем — для авто-перестановки рабочими
   grid[y][x]=cell;
   if(t==="belt")cell.dir=smartBeltDir(x,y); // умная ориентация — не крутить руками
@@ -1469,10 +1538,9 @@ function doDelete(x,y){
   drawInv();drawHud();
 }
 function refuel(x,y){const c=grid[y][x];
-  const take=Math.min(inv.coal,3), tw=take>0?0:Math.min(inv.wood,4);
-  if(take>0){pushU(x,y);inv.coal-=take;c.buf.coal=(c.buf.coal||0)+take;toast("⚫ Уголь в генератор: "+take);snd("place");drawInv()}
-  else if(tw>0){pushU(x,y);inv.wood-=tw;c.buf.wood=(c.buf.wood||0)+tw;toast("🌲 Древесина в генератор: "+tw);snd("place");drawInv()}
-  else toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
+  const fuel=loadFuelByPolicy(c);
+  if(fuel){pushU(x,y);toast(`${ITEM[fuel.k].split(" ")[0]} в генератор: ${fuel.n}`);snd("place");drawInv();return}
+  toast("Нет топлива: добудь ⚫ уголь или сруби 🌲 деревья");
 }
 const activeRecipes=c=>{
   if(c.recSel!=null&&RECIPES[c.t][c.recSel]){
@@ -1484,8 +1552,14 @@ const activeRecipes=c=>{
 function feed(x,y){const c=grid[y][x];let fed=[];
   const needs=new Set();activeRecipes(c).forEach(r=>Object.keys(r.in).forEach(k=>needs.add(k)));
   pushU(x,y);
-  needs.forEach(k=>{const take=Math.min(inv[k],5);if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}});
+  const reserved=[];
+  needs.forEach(k=>{
+    const take=Math.min(autoSpendable(k),5);
+    if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;fed.push(take+" "+ITEM[k].split(" ")[0])}
+    else if((inv[k]||0)>0&&k===fuelPrimary()&&fuelPolicy().reserve)reserved.push(ITEM[k].split(" ")[0]);
+  });
   if(fed.length){toast("Загружено: "+fed.join(", "));snd("place");drawInv()}
+  else if(reserved.length)toast(`Резерв топлива: ${reserved.join(", ")} держится для генераторов. Измени приоритет в ⋯ → 📊 Экономика`);
   else toast(`${DEFS[c.t].nm}: нужно ${activeRecipes(c).map(r=>Object.entries(r.in).map(([k,n])=>(n>1?n+"× ":"")+ITEM[k]).join(" + ")).join(" / ")} — см. 📖 Рецепты`);
 }
 
@@ -1519,7 +1593,7 @@ function openCtx(x,y,sx,sy){
     title=`${DEFS[c.t].ic} ${DEFS[c.t].nm} · ур.${cellLevel(c)}/${MAX_UPGRADE_LEVEL}`;
     if(c.t!=="core"){
       const uc=upgradeCost(c);
-      acts.push({ic:"⬆️",l:cellLevel(c)>=MAX_UPGRADE_LEVEL?"Максимум":"Улучшить",sub:uc?costStr(uc):"уровень 20",dis:cellLevel(c)>=MAX_UPGRADE_LEVEL,f:()=>upgradeCell(x,y)});
+      acts.push({ic:"⬆️",l:cellLevel(c)>=MAX_UPGRADE_LEVEL?"Максимум":"Улучшить",sub:uc?needHtml(uc):"уровень 20",dis:cellLevel(c)>=MAX_UPGRADE_LEVEL,f:()=>upgradeCell(x,y)});
     }
     if(c.t==="belt")acts.push({ic:"🔄",l:"Повернуть",f:()=>{pushU(x,y);c.dir=(c.dir+1)%4;snd("rotate")}});
     if(c.t==="gen")acts.push({ic:"⛽️",l:"Заправить",f:()=>refuel(x,y)});
@@ -1548,7 +1622,7 @@ function openCtx(x,y,sx,sy){
     buildables().forEach(t=>{
       if(t==="miner"&&!onOre)return;
       const d=DEFS[t],ok=canPay(d.cost);
-      acts.push({ic:d.ic,l:d.nm,sub:costStr(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)&&t==="belt"){armQuick("belt");chainBelt(x,y)}}});
+      acts.push({ic:d.ic,l:d.nm,sub:needHtml(d.cost),dis:!ok,f:()=>{if(buildAt(x,y,t)){if(t==="belt"){armQuick("belt");chainBelt(x,y)}else if(RECIPES[t])openRecipeMenu(x,y,sx,sy)}}});
     });
     acts.push({ic:"ℹ️",l:onOre?"Что за руда?":"Осмотреть",wide:true,f:()=>describe(x,y)});
   }
@@ -1558,11 +1632,12 @@ function openCtx(x,y,sx,sy){
 function openRecipeMenu(x,y,sx,sy){
   const c=grid[y][x],recs=RECIPES[c.t];
   const pick=i=>{c.recSel=i;if(c.prog===0)c.rec=null;
-    toast(i==null?"♻️ Рецепт: авто (по содержимому)":"🎛 Рецепт: "+ITEM[recs[i].out]);snd("rotate")};
+    S.recipePref=S.recipePref||{};S.recipePref[c.t]=i;
+    toast(i==null?"♻️ Рецепт: авто (по содержимому)":"🎛 Рецепт: "+ITEM[recs[i].out]);snd("rotate");saveGame();};
   const acts=recs.map((r,i)=>{
     const locked=r.req&&!tech(r.req);
     return {ic:locked?"🔒":(c.recSel===i?"✅":"▫️"),l:ITEM[r.out],
-      sub:locked?"нужна технология: "+TECHS.find(t=>t.id===r.req).nm:recipeStr(r),wide:true,dis:locked,f:()=>pick(i)};
+      sub:locked?"нужна технология: "+TECHS.find(t=>t.id===r.req).nm:recipeNeedHtml(r),wide:true,dis:locked,f:()=>pick(i)};
   });
   acts.push({ic:c.recSel==null?"✅":"♻️",l:"Авто",sub:"что привезут — то и делает",wide:true,f:()=>pick(null)});
   renderCtx("🎛 Что производить?",acts,sx,sy);
@@ -1596,7 +1671,7 @@ function handSheet(){
   sheetBody.innerHTML=`<div style="font-size:.82rem;color:var(--dim);margin-bottom:10px;line-height:1.4">Пока нет конвейеров или не хватает построек — крафти руками из того, что на складе. Медленнее автоматики, зато не застрянешь.</div>`;
   HAND.forEach(r=>{const b=document.createElement("button");
     b.className="techBtn";b.style.display="flex";b.style.justifyContent="space-between";b.style.alignItems="center";
-    b.innerHTML=`<span>${ITEM[r.out]}</span><span style="color:var(--dim);font-size:.78rem">${costStr(r.in)} →</span>`;
+    b.innerHTML=`<span>${ITEM[r.out]}</span><span style="font-size:.78rem;text-align:right">${needHtml(r.in)} <span style="color:var(--dim)">→</span></span>`;
     b.disabled=!canPay(r.in);
     b.onclick=()=>{pay(r.in);inv[r.out]++;S.made[r.out]++;snd("craft");toast("✋ +1 "+ITEM[r.out].split(" ")[0]);drawInv();drawHud();handSheet()};
     sheetBody.appendChild(b);});
@@ -1612,7 +1687,7 @@ function techSheet(){
     const reqOk=!t.req||tech(t.req);
     const reqTxt=t.req?TECHS.find(x=>x.id===t.req)?.nm:"";
     b.className="techBtn"+(t.done?" done":"");
-    b.innerHTML=`${t.done?"✅":reqOk?"🔬":"🔒"} ${t.nm}<small>${reqOk?t.desc:"Сначала: "+reqTxt}</small>`;
+    b.innerHTML=`${t.done?"✅":reqOk?"🔬":"🔒"} ${t.nm}<small>${reqOk?`${t.desc}<br>${needHtml(t.cost)}`:"Сначала: "+reqTxt}</small>`;
     b.disabled=t.done||!reqOk||!canPay(t.cost);
     b.onclick=()=>{pay(t.cost);t.done=true;say("Исследовано: "+t.nm);toast("🔬 "+t.nm);snd("research");
       if(t.id==="t_win")winGame();
@@ -1819,7 +1894,7 @@ function drawMinimap(){
     if(terr[y][x]==="water"){g.fillStyle=m.waterColor||"#1b4a63";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
     else if(ore[y][x]){g.fillStyle=oreColor(ore[y][x]);g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
     const c=grid[y][x];
-    if(c){g.fillStyle=c.t==="gen"?"#ffd45e":c.t==="belt"?"#6b7480":"#e8eef7";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
+    if(c){g.fillStyle=DEFS[c.t].power>0&&!c.pw?(c.pwState==="noZone"?"#ff5454":"#ffb74d"):c.t==="gen"?"#ffd45e":c.t==="belt"?"#6b7480":"#e8eef7";g.fillRect(x*sc,y*sc,Math.ceil(sc),Math.ceil(sc));}
   }
   g.fillStyle="#ffd98a";
   workers.forEach(w=>g.fillRect(w.x*sc-1,w.y*sc-1,2,2));
@@ -1853,20 +1928,29 @@ function crewSheet(){
 /* ---------- 📊 Экономика: доля добычи на авто-производство ---------- */
 function ecoSheet(){
   const pct=S.supplyPct??100;
+  const fp=fuelPolicy();
   const rate=Object.entries(S.mineRate||{}).filter(([,n])=>n>0)
     .map(([k,n])=>`<span class="rpill" style="position:static">${ITEM[k].split(" ")[0]}<b>${n}</b></span>`).join(" ")||"<span style='color:var(--dim)'>пока пусто — добывай</span>";
+  const fuelBtns=Object.entries(FUEL_POLICIES).map(([id,p])=>`<button class="techBtn" data-fuel="${id}" style="margin-bottom:0;${id===(S.fuelPolicy||"coal")?"border-color:rgba(232,176,75,.78);box-shadow:0 0 0 1px rgba(232,176,75,.22)":""}">
+      ${id===(S.fuelPolicy||"coal")?"✅":"▫️"} ${p.nm}
+      <small>${p.desc}</small>
+    </button>`).join("");
   sheetBody.innerHTML=`
     <div style="font-size:.82rem;color:var(--dim);line-height:1.45;margin-bottom:10px">Сколько добычи в минуту разрешено авто-производству? Остальное копится на складе — на постройки, науку и ручное распределение. 100% = без лимита.</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
       <input type="range" id="ecoPct" min="0" max="100" step="5" value="${pct}" style="flex:1">
       <b id="ecoPctL" style="min-width:52px;text-align:right;font-size:1.05rem">${pct}%</b>
     </div>
+    <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px">⚡️ Приоритет топлива</div>
+    <div style="display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:10px">${fuelBtns}</div>
+    <div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">Сейчас: <b style="color:var(--gold)">${fp.nm}</b>${fp.reserve?` · резерв ${fuelReserveAmount()} ${ITEM[fuelPrimary()].split(" ")[0]} для генераторов`:" · резерва нет"}.</div>
     <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px">⛏ Добыча за прошлую минуту</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap">${rate}</div>
     <div style="font-size:.75rem;color:var(--dim);margin-top:12px;line-height:1.4">Генераторы под лимит не попадают — свет важнее. Полное отключение авто-подачи: ⋯ → ⛔️ Авто-склад.</div>`;
   const sl=sheetBody.querySelector("#ecoPct"),lb=sheetBody.querySelector("#ecoPctL");
   sl.oninput=()=>{lb.textContent=sl.value+"%";};
   sl.onchange=()=>{S.supplyPct=+sl.value;rolloverEconomy();toast("📊 Производству — "+sl.value+"% добычи в минуту");};
+  sheetBody.querySelectorAll("[data-fuel]").forEach(b=>b.onclick=()=>{S.fuelPolicy=b.dataset.fuel;toast("⚡️ Топливо: "+FUEL_POLICIES[S.fuelPolicy].nm);saveGame();ecoSheet()});
 }
 
 function tradeSheet(){
@@ -2439,7 +2523,7 @@ function describe(x,y){
     if(buf&&c.t!=="gen")msg+=` · внутри: ${buf}`;
     if(c.hp<DEFS[c.t].hp)msg+=` · HP ${c.hp}/${DEFS[c.t].hp}`;
   }
-  else if(ore[y][x])msg=`${oreName(ore[y][x])} — осталось ${oreAmt[y][x]||"?"} ед. Тапни и выбери 🛠 Бур`;
+  else if(ore[y][x]){const k=ore[y][x],tr=oreTraitText(k);msg=`${oreName(k)} — осталось ${oreAmt[y][x]||"?"} ед.${tr?` Свойство: ${tr}.`:""} Тапни и выбери 🛠 Бур`;}
   else if(terr[y][x]==="water")msg="🌊 Вода — строить нельзя, обходи";
   else if(terr[y][x]==="tree")msg="🌲 Дерево — тапни → 🪓 Срубить: даст древесину (горит в генераторе)";
   else msg="Пустая земля — тапни, чтобы выбрать постройку";
@@ -2537,8 +2621,10 @@ function step(){
       else if(c.fuel<=0&&(c.buf.wood||0)>0){c.buf.wood--;c.fuel=600;puff(x,y,"#4dbb72",1)} // 1 древесина ≈ 10с
       // авто-уголь со склада: свет не гаснет, пока на складе есть топливо (выкл. тапом по генератору)
       else if(c.fuel<=0&&c.auto!==false&&S.autoAll!==false){
-        if(inv.coal>0){const t2=Math.min(inv.coal,3);inv.coal-=t2;c.buf.coal=(c.buf.coal||0)+t2;}
-        else if(inv.wood>0){const t2=Math.min(inv.wood,4);inv.wood-=t2;c.buf.wood=(c.buf.wood||0)+t2;}
+        for(const fk of fuelPolicy().order){
+          const batch=fk==="coal"?3:4;
+          if((inv[fk]||0)>0){const t2=Math.min(inv[fk],batch);inv[fk]-=t2;c.buf[fk]=(c.buf[fk]||0)+t2;break}
+        }
       }
       continue;
     }
@@ -2551,6 +2637,7 @@ function step(){
         if(outputTo(x,y,k)||dropAt(x,y,k)){
           c.prog=0;S.made[k]++;minedMin[k]=(minedMin[k]||0)+1;if(S.tick%180<90)puff(x,y,oreColor(k),1);
           maybeCollectPlanetSample(k,x,y);
+          maybeCollectOreTrait(k,x,y);
           if(--oreAmt[y][x]<=0){ // руда КОНЕЧНА
             ore[y][x]=null;oreAmt[y][x]=0;terrDirty=true;
             say("⛏ Залежь под буром исчерпана — рабочие поищут новую");
@@ -2584,7 +2671,7 @@ function step(){
       if(DEFS[c.t].power>0&&!c.pw)continue;
       if(c.auto!==false&&S.autoAll!==false&&c.recSel!=null&&S.tick%90===(x*7+y*13)%90){ // авто-подсос сырья со склада под выбранный рецепт
         activeRecipes(c).forEach(r=>Object.entries(r.in).forEach(([k,n])=>{
-          let take=Math.min(n*2-(c.buf[k]||0),inv[k]);
+          let take=Math.min(n*2-(c.buf[k]||0),autoSpendable(k));
           if(supplyBudget)take=Math.min(take,supplyBudget[k]||0); // 📊 лимит: не больше доли добычи в минуту
           if(take>0){inv[k]-=take;c.buf[k]=(c.buf[k]||0)+take;if(supplyBudget)supplyBudget[k]-=take}
         }));
@@ -2833,7 +2920,7 @@ function showBook(){
         <div style="font-size:.82rem">ставится на залежь → добывает её ресурс (⛏ железо, медь, ⚫ уголь, 🪨 камень)</div></div>
       ${rows}
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">⚡️ Генератор</div>
-        <div style="font-size:.82rem">питает постройки в радиусе ${GEN_RADIUS} клеток (жёлтое кольцо), до ${GEN_CAP}⚡️ каждый — далёкому цеху нужен свой генератор. Ест ⚫ уголь (1 ≈ 25с) или 🌲 древесину (1 ≈ 10с), сам берёт со склада; вручную — тап → ⛽️ или конвейер</div></div>
+        <div style="font-size:.82rem">питает постройки в радиусе ${GEN_RADIUS} клеток (жёлтое кольцо), до ${GEN_CAP}⚡️ каждый — далёкому цеху нужен свой генератор. Красная подсветка означает «нет зоны», оранжевая — «генератор перегружен». Приоритет топлива меняется в ⋯ → 📊 Экономика</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🧍 Рабочие</div>
         <div style="font-size:.82rem">собирают кучи, кормят генераторы, переносят буры с пустых залежей. Тап по человечку — профессия (+30% к своему делу). С 4+ жителей хотят 🍞 есть (голодные — вдвое медленнее). Список: ⋯ → 🧍 Жители</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌾 Ферма · 🏹 Охота · 🦌 звери</div>
@@ -2851,7 +2938,9 @@ function showBook(){
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🧬 Образцы · планетарные исследования</div>
         <div style="font-size:.82rem">каждая процедурная планета имеет уникальную субстанцию. Посадка, добыча и колонии с 📶 маяками дают 🧬 образцы. В ⋯ → 🧬 они тратятся на бесконечные уровни: скорость машин, ленты, энергию, лимит жителей, колонии и удешевление запусков</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🌲 Деревья · залежи</div>
-        <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). На родной земле цвета базовые, а на планетах залежи получают процедурный вид: метеоритное железо всё ещё идёт в железные рецепты, бирюзовая медь — в медные, звёздный уголь — в топливо.</div></div>
+        <div style="font-size:.82rem">Дерево рубится 🪓 (тап по дереву → Срубить, +3 древесины). На планетах земля получает свой узор, а залежи — форму и свойство: метеоритное железо всё ещё идёт в железные рецепты, но может иногда давать побочный бонус вроде ▪️ листа или ⚙️ шестерни.</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🎛 Рецепты · память построек</div>
+        <div style="font-size:.82rem">когда ставишь плавильню, сборщик или лабораторию, игра сразу открывает выбор рецепта. Следующая такая же постройка сама возьмёт последний выбранный рецепт, пока ты его не поменяешь</div></div>
       <div style="color:var(--dim);font-size:.78rem">Строить: тап по клетке → выбери постройку. Доставка входов: конвейером в здание или тап по зданию → 📥 Загрузить (возьмёт со склада). Снос возвращает 100% ресурсов.</div>
     </div>
     <button style="width:100%;margin-top:12px;text-align:center" onclick="hideOverlay()">Понятно</button>`);
@@ -2875,6 +2964,7 @@ const ORE_FACES={ // [светлая грань, тело, тёмная гран
 };
 function drawOreSprite(g,k,x,y){
   const C=oreFaces(k),rn=lcg(hash(x,y));
+  const skin=activeOreSkin(k),form=skin?.form||"chunks";
   g.save();g.translate(x*TS+TS/2,y*TS+TS/2);
   g.fillStyle="rgba(48,38,26,.5)"; // вытоптанная земля под рудой
   g.beginPath();g.ellipse(0,1.5,TS*.46,TS*.36,0,0,7);g.fill();
@@ -2894,6 +2984,24 @@ function drawOreSprite(g,k,x,y){
     g.beginPath();g.moveTo(ox-r*.4,oy-r*.1);g.lineTo(ox+r*.1,oy-r*.6);g.lineTo(ox+r*.45,oy-r*.15);g.closePath();
     g.fillStyle=C[0];g.fill();
     g.fillStyle=C[3];g.fillRect(ox-r*.15,oy-r*.35,Math.max(1.2,r*.2),Math.max(1.2,r*.2));
+  }
+  if(form==="spikes"||form==="geode"||form==="shards"){
+    for(let i=0;i<4;i++){
+      const ox=(i-1.5)*4+(rn()-.5)*3,hh=9+rn()*8;
+      g.fillStyle=C[0];g.beginPath();g.moveTo(ox, -hh);g.lineTo(ox+3,5);g.lineTo(ox-3,5);g.closePath();g.fill();
+      g.strokeStyle=C[2];g.stroke();
+    }
+  } else if(form==="veins"||form==="meteor"){
+    g.strokeStyle=C[0];g.lineWidth=2;
+    for(let i=0;i<3;i++){g.beginPath();g.moveTo(-11+rn()*5,-6+rn()*12);g.quadraticCurveTo(0,-10+rn()*20,11-rn()*4,-6+rn()*12);g.stroke()}
+    g.lineWidth=1;
+  } else if(form==="plates"||form==="blocks"||form==="glass"){
+    for(let i=0;i<3;i++){g.fillStyle=i%2?C[1]:C[0];g.fillRect(-10+i*7,-7+rn()*5,7,5+rn()*4);g.strokeStyle=C[2];g.strokeRect(-10+i*7,-7+rn()*5,7,6)}
+  }
+  if(skin){
+    g.font="10px sans-serif";g.textAlign="center";g.textBaseline="middle";
+    g.fillStyle="rgba(8,12,18,.72)";g.beginPath();g.arc(0,0,7,0,7);g.fill();
+    g.fillText(skin.ic||ORE_ICON[k]||"⛏",0,.8);
   }
   g.restore();g.lineWidth=1;
 }
@@ -2922,6 +3030,18 @@ function drawGround(g,x,y){
   if(m.grass&&h%5<2){g.strokeStyle="rgba(200,235,150,.2)";g.lineWidth=1;
     for(let i=0;i<3;i++){const gx=x*TS+3+((h>>i)%(TS-6)),gy=y*TS+3+((h>>(i+3))%(TS-6));
       g.beginPath();g.moveTo(gx,gy+3);g.lineTo(gx+1.2,gy);g.stroke()}}
+  if(m.feature&&h%8<3){
+    const a=m.accent||"#8be0e8";
+    g.save();g.globalAlpha=.32;g.strokeStyle=a;g.fillStyle=a;g.lineWidth=1.2;
+    const cx=x*TS+TS/2,cy=y*TS+TS/2;
+    if(m.feature==="cracks"){g.beginPath();g.moveTo(cx-9,cy-5);g.lineTo(cx-2,cy+1);g.lineTo(cx+8,cy-3);g.stroke();}
+    else if(m.feature==="spores"){g.beginPath();g.arc(cx-4,cy-2,2.2,0,7);g.arc(cx+5,cy+4,1.8,0,7);g.fill();}
+    else if(m.feature==="rings"){g.beginPath();g.arc(cx,cy,7,0,7);g.stroke();g.beginPath();g.arc(cx,cy,3,0,7);g.stroke();}
+    else if(m.feature==="veins"){g.beginPath();g.moveTo(cx-10,cy+7);g.quadraticCurveTo(cx,cy-8,cx+10,cy+4);g.stroke();}
+    else if(m.feature==="ash"){g.fillRect(cx-8,cy+5,16,2);g.fillRect(cx-3,cy-5,9,1.5);}
+    else if(m.feature==="glyphs"){g.font="9px sans-serif";g.fillText("⌁",cx,cy);}
+    g.restore();
+  }
 }
 function drawWater(g,x,y){
   const m=mapStyle(S.map);
@@ -2991,6 +3111,12 @@ function render(){
       cx.fillStyle="#3a414c";cx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2); // металлическая рама
       cx.fillStyle="#232932";cx.fillRect(x*TS+3,y*TS+3,TS-6,TS-6);
       cx.strokeStyle=DEFS[c.t].power<0?(c.fuel>0?"#e8b04b":"#7d3535"):"#4c5560";cx.strokeRect(x*TS+1.5,y*TS+1.5,TS-3,TS-3);
+      if(DEFS[c.t].power>0&&!c.pw){
+        const col=c.pwState==="noZone"?"255,84,84":"255,183,77";
+        const pulse=.18+.1*Math.sin(S.tick/7);
+        cx.fillStyle=`rgba(${col},${pulse})`;cx.fillRect(x*TS+2,y*TS+2,TS-4,TS-4);
+        cx.strokeStyle=`rgba(${col},.95)`;cx.lineWidth=2.2;cx.strokeRect(x*TS+1.5,y*TS+1.5,TS-3,TS-3);cx.lineWidth=1;
+      }
       // машины показывают продукт, бур — понятный значок руды + мини-значок здания в углу
       const prod=RECIPES[c.t]?(c.rec?c.rec.out:(c.recSel!=null&&RECIPES[c.t][c.recSel]?RECIPES[c.t][c.recSel].out:null)):null;
       const mk2=c.t==="miner"?(ore[y][x]||c.oreKind):null;
@@ -3008,10 +3134,10 @@ function render(){
         cx.fillStyle="#e8a25b";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*Math.min(1,c.prog/(c.t==="farm"?1100:1400)),2);
       }
       // нет питания — мигающий значок
-      if(DEFS[c.t].power>0&&!c.pw&&S.tick%40<26){
+      if(DEFS[c.t].power>0&&!c.pw&&S.tick%40<30){
         cx.font="10px sans-serif";
-        cx.fillStyle="rgba(10,12,16,.8)";cx.fillRect(x*TS+TS-12,y*TS+1,11,11);
-        cx.fillText("⚡️",x*TS+TS-6.5,y*TS+7);cx.font="16px sans-serif";
+        cx.fillStyle=c.pwState==="noZone"?"rgba(120,20,20,.92)":"rgba(112,70,10,.92)";cx.fillRect(x*TS+TS-13,y*TS+1,12,12);
+        cx.fillStyle="#fff";cx.fillText(c.pwState==="noZone"?"⛔":"⚡",x*TS+TS-7,y*TS+7);cx.font="16px sans-serif";
       }
       if(c.prog>0&&c.rec){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/c.rec.t,2)}
       if(c.t==="miner"&&c.prog>0){cx.fillStyle="#4dbb72";cx.fillRect(x*TS+2,y*TS+TS-4,(TS-4)*c.prog/90,2)}
@@ -3248,7 +3374,7 @@ function saveGame(){
     animals:animals.map(a=>({x:a.x,y:a.y,k:a.k})),
     regions:S.regions,curRegion:S.curRegion||0,regionName:S.regionName,
     worldSkin:S.worldSkin||null,oreSkins:S.oreSkins||null,worldInfo:S.worldInfo||null,regionGov:currentGov(),galaxySeed:S.galaxySeed||ensureGalaxySeed(),scenario:S.scenario||ensureScenario(),cosmic:ensureCosmic(),
-    autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,
+    autoAll:S.autoAll,builtCount:S.builtCount,supplyPct:S.supplyPct,fuelPolicy:S.fuelPolicy||"coal",recipePref:S.recipePref||{},
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
@@ -3285,7 +3411,7 @@ function loadGame(d){
   ensureScenario();
   const curRg=S.regions[S.curRegion]||{};
   S.worldSkin=d.worldSkin||curRg.worldSkin||null;S.oreSkins=d.oreSkins||curRg.oreSkins||null;S.worldInfo=restoreWorldInfo(d.worldInfo||curRg.worldInfo);S.regionGov=ensureGov(d.regionGov||curRg.gov,S.curRegion||0);
-  S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;
+  S.autoAll=d.autoAll!==false;S.builtCount=d.builtCount??grid.flat().filter(c=>c&&c.t!=="belt").length;S.fuelPolicy=d.fuelPolicy||"coal";S.recipePref=d.recipePref||{};
   Object.assign(inv,d.inv);Object.assign(S.made,d.made);
   S.goal=d.goal;S.quest=d.quest||0;S.tick=d.tick;S.mode=d.mode;S.map=d.map||"valley";S.wave=d.wave;S.nextWave=d.nextWave;S.tut=d.tut??-1;
   S.prestige=d.prestige||0;S.coreShards=d.coreShards||0;S.epoch=d.epoch||1;S.epochReady=d.epochReady||S.epoch||1;S.bestEpoch=d.bestEpoch||S.epoch||1;S.coreBuilt=!!d.coreBuilt;S.launches=d.launches||0;S.cosmic=d.cosmic||defaultCosmic();ensureCosmic();
@@ -3309,7 +3435,7 @@ function startGame(opts){
   else{
     resetMade();resetInventoryForPrestige(0);TECHS.forEach(t=>t.done=false);
     S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.win=false;S.over=false;
-    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();S.cosmic=defaultCosmic();
+    S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();S.cosmic=defaultCosmic();S.fuelPolicy="coal";S.recipePref={};
     S.scenario=makeScenario(opts.map,opts.mode,S.galaxySeed);
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
