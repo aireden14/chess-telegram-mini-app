@@ -474,7 +474,57 @@ const DEV_CARDS=[
   {id:"engineer",ic:"🔧",nm:"Инженерный прорыв",desc:"получить технологические компоненты под текущую эпоху"},
   {id:"liberator",ic:"🛡",nm:"Отряд освобождения",desc:"снизить власть и индустрию ботов на планетах"},
 ];
-function scenarioOreFactor(k){return S.scenario?.oreMul?.[k]??1}
+const START_PROTOCOLS=[
+  {id:"warehouse",ic:"📦",nm:"Запасной склад",desc:"богатый старт, но рынок быстрее дорожает",startAdd:{ironPlate:16,gear:6,coal:18},rivalAdd:.2},
+  {id:"survey",ic:"🧭",nm:"Разведбригада",desc:"меньше сырья, зато ранняя карта развития",startAdd:{science:2,circuit:2},startCut:{ironPlate:8,gear:3},freeCard:"roads"},
+  {id:"ration",ic:"🍞",nm:"Пайковый режим",desc:"еда и дерево есть сразу, уголь придётся искать",startAdd:{food:10,wood:22},startCut:{coal:18},oreMul:{coal:.86}},
+  {id:"charter",ic:"🛣",nm:"Торговая хартия",desc:"первый маршрут открыт с начала партии",startAdd:{wood:8,stone:4},routeFirst:true},
+  {id:"scrap",ic:"🔩",nm:"Склад металлолома",desc:"сталь раньше обычного, но медь проседает",startAdd:{steelPlate:6,ironPlate:8},startCut:{copperPlate:4},oreMul:{copper:.9}},
+];
+const MARKET_LAWS=[
+  {id:"freeports",ic:"⚓",nm:"Свободные порты",desc:"маршруты выгоднее и караваны быстрее",routeDiscount:1,caravanMul:1.25,stockMul:1.08,devMul:.92},
+  {id:"tariffs",ic:"📜",nm:"Тарифный совет",desc:"обычные обмены дороже, контракты дешевле",costAdd:1,contractMul:.82,stockMul:1.16},
+  {id:"scarcity",ic:"⚖️",nm:"Дефицитный рынок",desc:"поселения копят меньше, но обмен даёт больше",stockMul:.82,gainAdd:1,embargoRisk:1},
+  {id:"guilds",ic:"🏛",nm:"Гильдейские квоты",desc:"репутация сильнее снижает цену",repBonus:1,devMul:.88},
+  {id:"black",ic:"🕶",nm:"Серый рынок",desc:"эмбарго чаще, карты развития дешевле",embargoRisk:2,devMul:.78},
+];
+const RIVAL_DOCTRINES=[
+  {id:"colonizer",ic:"🚀",nm:"Колонизатор",desc:"конкурент чаще запускает экспедиции",rivalMul:1.16,traceBias:1},
+  {id:"broker",ic:"🤝",nm:"Брокер",desc:"конкурент сильнее давит на рынки",rivalMul:1.04,embargoRisk:2},
+  {id:"warden",ic:"🤖",nm:"Комендант",desc:"захваченные планеты быстрее копят роботов",rivalMul:1.02,botMul:1.22},
+  {id:"scientist",ic:"🔮",nm:"Синт-учёный",desc:"гонится к поздним технологиям",rivalMul:1.1,rivalAdd:.25},
+  {id:"patient",ic:"🧊",nm:"Терпеливый стратег",desc:"медленнее стартует, но опаснее после космоса",rivalMul:.88,launchPressure:.32},
+];
+const WORLD_ANOMALIES=[
+  {id:"rich_iron",ic:"⛓",nm:"Железный пояс",desc:"больше железа, дороже запуски",oreMul:{iron:1.22},launchMul:1.06},
+  {id:"thin_coal",ic:"⚫",nm:"Тонкий уголь",desc:"угля меньше, карты развития дешевле",oreMul:{coal:.78},devMul:.9},
+  {id:"crystal_noise",ic:"💎",nm:"Кристальный шум",desc:"кристаллы богаче, радарные следы опаснее",oreMul:{crystal:1.25},traceThreat:8},
+  {id:"soft_trade",ic:"🌾",nm:"Мягкая биосфера",desc:"еда и дерево растут легче, рынок спокойнее",oreMul:{wood:1.1},embargoRisk:-1,stockMul:1.06},
+  {id:"deep_gold",ic:"🪙",nm:"Глубокое золото",desc:"золото богаче на планетах, но старт беднее",oreMul:{gold:1.28},startCut:{gear:2}},
+];
+function scenarioRules(sc){return sc?.rules||{}}
+function makeScenarioRules(r){
+  return {protocol:pick(r,START_PROTOCOLS),market:pick(r,MARKET_LAWS),doctrine:pick(r,RIVAL_DOCTRINES),anomaly:pick(r,WORLD_ANOMALIES)};
+}
+function ensureScenarioRules(sc){
+  if(!sc.rules){
+    const r=seeded(seedHashText(`${sc.seed||"scenario"}:${ensureGalaxySeed()}:rules`));
+    sc.rules=makeScenarioRules(r);
+  }
+  sc.rules.protocol=sc.rules.protocol||START_PROTOCOLS[0];
+  sc.rules.market=sc.rules.market||MARKET_LAWS[0];
+  sc.rules.doctrine=sc.rules.doctrine||RIVAL_DOCTRINES[0];
+  sc.rules.anomaly=sc.rules.anomaly||WORLD_ANOMALIES[0];
+  return sc.rules;
+}
+function rulesLine(sc){
+  const r=ensureScenarioRules(sc);
+  return `${r.protocol.ic} ${r.protocol.nm} · ${r.market.ic} ${r.market.nm} · ${r.doctrine.ic} ${r.doctrine.nm} · ${r.anomaly.ic} ${r.anomaly.nm}`;
+}
+function scenarioOreFactor(k){
+  const sc=S.scenario||{},r=sc.rules||{};
+  return (sc.oreMul?.[k]??1)*(r.protocol?.oreMul?.[k]??1)*(r.anomaly?.oreMul?.[k]??1);
+}
 function itemTier(k){
   if(["iron","copper","coal","stone","wood","food"].includes(k))return 1;
   if(["ironPlate","copperPlate","wire","gear"].includes(k))return 2;
@@ -507,12 +557,15 @@ function makeScenario(map,mode,seed){
   sc.rival={ic,nm,focus,progress:Math.round(r()*10),planets:0,lastMark:0};
   sc.turn=0;sc.trades=0;
   sc.settlements=Array.from({length:settlementCount},(_,i)=>makeSettlement(r,i,sc));
+  sc.rules=makeScenarioRules(r);
+  sc.contracts=0;sc.devHand=[];sc.devDeck=makeDevDeck(sc);sc.devBought=0;sc.devPlayed=0;
   return sc;
 }
 function ensureScenario(){
   if(!S.scenario)S.scenario=makeScenario(S.map||"valley",S.mode||"peace",S.galaxySeed||makeGalaxySeed());
   S.scenario.settlements=S.scenario.settlements||[];
   S.scenario.rival=S.scenario.rival||{ic:"🤖",nm:"Автоматонный Синдикат",focus:"догоняет фабрику",progress:0,planets:0,lastMark:0};
+  ensureScenarioRules(S.scenario);
   S.scenario.contracts=S.scenario.contracts||0;
   S.scenario.devHand=Array.isArray(S.scenario.devHand)?S.scenario.devHand:[];
   S.scenario.devDeck=Array.isArray(S.scenario.devDeck)?S.scenario.devDeck:[];
@@ -533,6 +586,8 @@ function makeDevDeck(sc){
 function devCardCost(){
   const sc=ensureScenario(),n=sc.devBought||0,c={science:6+n*2,circuit:4+Math.floor(n/2),gear:6+Math.floor(n/3)};
   if(n>=2)c.goldBar=2+Math.floor(n/2);
+  const mul=(scenarioRules(sc).market?.devMul||1)*(scenarioRules(sc).anomaly?.devMul||1);
+  Object.keys(c).forEach(k=>c[k]=Math.max(1,Math.ceil(c[k]*mul)));
   return c;
 }
 function ensureSettlementShape(st,i){
@@ -564,7 +619,8 @@ function rivalWorldIndex(n){
 }
 function makeRivalTrace(rv,n,hot){
   const w=makeProceduralWorld(rivalWorldIndex(n));
-  const threat=Math.min(96,Math.max(58,Math.round(54+n*4+(rv.progress||0)*.18+(hot?8:0))));
+  const rules=scenarioRules(S.scenario),threatBonus=(rules.anomaly?.traceThreat||0)+(rules.doctrine?.traceBias||0)*4;
+  const threat=Math.min(96,Math.max(58,Math.round(54+n*4+(rv.progress||0)*.18+(hot?8:0)+threatBonus)));
   return {id:`trace-${n}-${w.seed.toString(36)}`,n,worldId:w.id,nm:w.nm,res:w.res,desc:w.desc,threat,age:0,hot:!!hot};
 }
 function spawnRivalTrace(rv,hot){
@@ -581,11 +637,22 @@ function visibleRivalTraces(rv){
 function applyScenarioStart(sc){
   Object.entries(sc.startCut||{}).forEach(([k,n])=>inv[k]=Math.max(0,(inv[k]||0)-n));
   Object.entries(sc.startAdd||{}).forEach(([k,n])=>inv[k]=(inv[k]||0)+n);
+  const r=ensureScenarioRules(sc),p=r.protocol,a=r.anomaly;
+  [p,a].forEach(rule=>{
+    Object.entries(rule.startCut||{}).forEach(([k,n])=>inv[k]=Math.max(0,(inv[k]||0)-n));
+    Object.entries(rule.startAdd||{}).forEach(([k,n])=>inv[k]=(inv[k]||0)+n);
+  });
+  if(p.freeCard)sc.devHand=[...(sc.devHand||[]),p.freeCard];
+  if(p.routeFirst&&sc.settlements?.[0]){
+    const st=sc.settlements[0];st.route=true;st.embargo=0;st.rep=(st.rep||0)+1;st.caravan=Math.max(st.caravan||0,2);
+  }
 }
 function routeCost(st,i){
   const tier=itemTier(st.offer),c={wood:10+i*2,stone:6+i*2,gear:3+Math.floor(i/2)};
   if(tier>=4)c.steelPlate=3+i;
   if(tier>=7)c.circuit=4+i;
+  const mul=scenarioRules(S.scenario).market?.routeMul||1;
+  Object.keys(c).forEach(k=>c[k]=Math.max(1,Math.ceil(c[k]*mul)));
   return c;
 }
 function diplomacyCost(st){
@@ -597,6 +664,8 @@ function contractCost(st){
   const tier=itemTier(st.offer),c={circuit:4+tier,science:2+Math.ceil(tier/2)};
   if(tier>=4)c.steelPlate=5+Math.floor(tier/2);
   if(tier>=7)c.goldBar=2;
+  const mul=scenarioRules(S.scenario).market?.contractMul||1;
+  Object.keys(c).forEach(k=>c[k]=Math.max(1,Math.ceil(c[k]*mul)));
   return c;
 }
 function contractReward(st){
@@ -607,26 +676,28 @@ function contractReward(st){
 }
 function tradeCost(st){
   ensureSettlementShape(st,0);
-  const discount=Math.min(4,Math.floor((st.rep||0)/3))+(st.route?st.portRatio===2?2:1:0)+(st.contract?1:0);
+  const market=scenarioRules(S.scenario).market||{};
+  const discount=Math.min(4,Math.floor((st.rep||0)/(market.repBonus?2:3)))+(st.route?st.portRatio===2?2:1:0)+(st.contract?1:0)+(st.route?(market.routeDiscount||0):0);
   const tariff=st.embargo&&!st.route&&!st.contract?Math.max(1,Math.ceil((st.take||1)*0.45)):0;
-  return {[st.want]:Math.max(1,(st.take||1)+tariff-discount)};
+  return {[st.want]:Math.max(1,(st.take||1)+(market.costAdd||0)+tariff-discount)};
 }
 function tradeGain(st){
   ensureSettlementShape(st,0);
-  const bonus=Math.floor((st.rep||0)/5)+(st.route?1:0)+(st.contract?2:0);
+  const market=scenarioRules(S.scenario).market||{};
+  const bonus=Math.floor((st.rep||0)/5)+(st.route?1:0)+(st.contract?2:0)+(market.gainAdd||0);
   return {[st.offer]:(st.give||1)+bonus};
 }
 function scenarioTick(){
   const sc=ensureScenario();
   sc.turn=(sc.turn||0)+1;
-  const rv=ensureRivalShape(sc.rival);
+  const rv=ensureRivalShape(sc.rival),rules=scenarioRules(sc),market=rules.market||{},doc=rules.doctrine||{},anom=rules.anomaly||{};
   sc.settlements.forEach((st,i)=>{
     ensureSettlementShape(st,i);
     st.dev=Math.min(100,(st.dev||0)+(st.growth||1));
-    st.stock=Math.min(999,(st.stock||0)+Math.max(1,Math.round((st.give||1)*(1+(st.dev||0)/85)*(st.route?1.35:1))));
+    st.stock=Math.min(999,(st.stock||0)+Math.max(1,Math.round((st.give||1)*(1+(st.dev||0)/85)*(st.route?1.35:1)*(market.stockMul||1)*(anom.stockMul||1))));
     if(st.route){
       st.embargo=0;
-      st.caravanClock+=(st.contract?1.45:1)+(st.rep||0)*0.04+(st.dev||0)/180;
+      st.caravanClock+=((st.contract?1.45:1)+(st.rep||0)*0.04+(st.dev||0)/180)*(market.caravanMul||1);
       while(st.caravanClock>=3){
         st.caravanClock-=3;
         st.caravan=Math.min(60,(st.caravan||0)+1+(st.contract?1:0));
@@ -634,14 +705,15 @@ function scenarioTick(){
     } else if(st.embargo>0)st.embargo--;
     if(!st.route&&!st.contract&&(rv.progress||0)>45&&(st.dev||0)>30&&sc.turn%8===i%8){
       const roll=seedHashText(`${sc.seed}:${st.id}:${sc.turn}`)%100;
-      if(roll<24){
+      const risk=24+(market.embargoRisk||0)*6+(doc.embargoRisk||0)*6+(anom.embargoRisk||0)*6;
+      if(roll<Math.max(4,Math.min(58,risk))){
         st.embargo=4+Math.floor(roll/8);
         say(`🚧 ${st.nm}: конкурент давит на рынок. Без маршрута действует эмбарго на ${st.embargo} мин.`);
       }
     }
   });
   rv.traceQueue.forEach(t=>t.age=(t.age||0)+1);
-  rv.progress=(rv.progress||0)+1.6+(sc.turn%4===0?2:0)+(S.launches||0)*.15+(rv.planets||0)*.08;
+  rv.progress=(rv.progress||0)+(1.6+(sc.turn%4===0?2:0)+(S.launches||0)*(.15+(doc.launchPressure||0))+(rv.planets||0)*.08+(doc.rivalAdd||0)+(scenarioRules(sc).protocol?.rivalAdd||0))*(doc.rivalMul||1);
   if(rv.progress>=35&&rv.lastMark<35){rv.lastMark=35;say(`${rv.ic} ${rv.nm}: конкурент открыл устойчивую промышленную цепочку.`)}
   if(rv.progress>=60&&rv.lastMark<60){rv.lastMark=60;say(`${rv.ic} ${rv.nm}: конкурент готовит собственную экспедицию. Шпионский радар сможет поймать след.`)}
   if(rv.progress>=85&&rv.lastMark<85){rv.lastMark=85;say(`${rv.ic} ${rv.nm}: конкурент близко к стратегическому прорыву.`)}
@@ -702,8 +774,9 @@ function simulateBotRegion(rg,i,rival){
   const g=rg.gov=ensureGov(rg.gov,i);
   if(g.bot<=0)return g;
   const base=regionBotBase(rg,i);
+  const botMul=scenarioRules(S.scenario).doctrine?.botMul||1;
   const captured=g.captured||g.bot>=51;
-  const drive=(captured?1.35:.42)*base+(rival.progress||0)/95+(rival.planets||0)*.08;
+  const drive=((captured?1.35:.42)*base+(rival.progress||0)/95+(rival.planets||0)*.08)*botMul;
   g.industry=Math.min(999,+(g.industry+drive).toFixed(1));
   if(captured){
     const pulse=Math.max(1,Math.round(base*(1+g.bot/90)));
@@ -712,7 +785,7 @@ function simulateBotRegion(rg,i,rival){
     if(g.industry>=35)addBotStock(g,"circuit",Math.max(1,Math.floor(pulse/3)));
     if(g.industry>=65)addBotStock(g,"science",Math.max(1,Math.floor(pulse/4)));
     if((rg.worldInfo?.index||0)>=2)addBotStock(g,"crystal",Math.max(1,Math.floor(pulse/5)));
-    g.robotClock+=drive+g.bot/38;
+    g.robotClock+=drive+g.bot/38*botMul;
     const need=Math.max(8,24-base-Math.floor(g.bot/12));
     let made=0;
     while(g.robotClock>=need&&made<4){g.robotClock-=need;g.robots++;made++;}
@@ -733,7 +806,8 @@ function updateAuthority(){
     if(!rg)return;
     rg.gov=ensureGov(rg.gov,i);
     if(i===(S.curRegion||0))return;
-    const growth=2+(rival.progress||0)/55+(rg.gov.captured?1.4:0)+(S.launches||0)*.12;
+    const botMul=scenarioRules(S.scenario).doctrine?.botMul||1;
+    const growth=(2+(rival.progress||0)/55+(rg.gov.captured?1.4:0)+(S.launches||0)*.12)*botMul;
     rg.gov.bot=Math.min(100,Math.round(rg.gov.bot+growth));
     if(rg.gov.bot>=30&&!rg.gov.alert30){rg.gov.alert30=true;say(`⚠️ ${rg.nm}: администрация бота уже ${rg.gov.bot}%. Вернись или строй 📡 радар.`)}
     if(rg.gov.bot>=45&&!rg.gov.alert45){rg.gov.alert45=true;toast(`⚠️ ${rg.nm}: переворот близко`);say(`⚠️ ${rg.nm}: бот почти контролирует планету (${rg.gov.bot}%).`)}
@@ -1021,6 +1095,8 @@ function launchCost(){
   const c={coal:120+n*45,steelPlate:25+n*15,circuit:15+n*8,science:20+n*12};
   if(n>=1)c.goldBar=8+n*4;
   if(n>=2)c.module=4+n*2;
+  const mul=scenarioRules(S.scenario).anomaly?.launchMul||1;
+  Object.keys(c).forEach(k=>c[k]=Math.max(1,Math.ceil(c[k]*mul)));
   return c;
 }
 
@@ -1719,6 +1795,7 @@ function tradeSheet(){
   sheetBody.innerHTML=`<div style="font-size:.84rem;color:var(--dim);line-height:1.45;margin-bottom:10px">
       <b style="color:var(--gold)">🎲 ${sc.title}</b> <span style="color:var(--dim)">· ${sc.tag}</span><br>
       ${sc.mandate}<br>
+      <span style="color:var(--ink)">Правила партии:</span> ${rulesLine(sc)}<br>
       <span style="color:var(--ink)">Дефицит:</span> ${ITEM[sc.scarce]?.split(" ")[0]||sc.scarce} ·
       <span style="color:var(--ink)">бонус:</span> ${ITEM[sc.bonus]?.split(" ")[0]||sc.bonus} ·
       seed ${sc.seed}
@@ -1730,6 +1807,7 @@ function tradeSheet(){
     <div style="font-size:.78rem;color:var(--dim);line-height:1.35;margin-bottom:10px">
       ${rv.nm}: ${rv.focus}. Поселения пополняют запас и развиваются каждую игровую минуту.
       Маршруты работают как порты: улучшают курс, копят караваны и защищают от эмбарго конкурента.
+      Наведи стратегию под правила этой партии: протокол меняет старт, рынок — цены, доктрина — конкурента, аномалия — планеты.
     </div>
     ${rows}
     <button class="techBtn" id="devCardsBtn">🎴 Карты развития<small>монополия, изобилие, две дороги, шпионаж и освобождение</small></button>
@@ -2590,6 +2668,8 @@ function showBook(){
         <div style="font-size:.82rem">ферма растит 🍞 сама (нужна энергия); хижина охотника добывает еду, когда зверь забредает в её круг (~6 клеток). Звери бродят по земле и боятся людей</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🤝 Поселения · обмен</div>
         <div style="font-size:.82rem">каждая партия получает уникальный сценарий, соседние поселения и конкурента. В ⋯ → 🤝 можно менять свои ресурсы на дефицитные: уголь, медь, золото, кристаллы, линзы, модули. Маршруты работают как порты Катана: улучшают курс, копят бесплатные караваны и защищают от эмбарго. После репутации 2 и развития 35% можно подписать технологический контракт</div></div>
+      <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🎛 Директор партии</div>
+        <div style="font-size:.82rem">каждый новый запуск получает четыре процедурных правила: стартовый протокол, закон рынка, доктрину конкурента и планетарную аномалию. Они меняют стартовый склад, руду, цены, караваны, эмбарго, запуски и скорость бота, поэтому развитие начинается по-разному даже на одной карте</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🎴 Карты развития</div>
         <div style="font-size:.82rem">тактические карты из ⋯ → 🎴 покупаются за науку и платы. Они дают Catan-подобные ходы: «Год изобилия», «Монополия», «Две дороги», шпионский отчёт, инженерный прорыв и отряд освобождения против ботов</div></div>
       <div style="margin-bottom:10px"><div style="color:var(--gold);font-weight:600;margin-bottom:4px">🛡 Власть · 📡 радар</div>
@@ -3077,6 +3157,7 @@ function startGame(opts){
   say("Fable Factory: тап по клетке — меню постройки. Все панели — в ⋯ справа снизу.");
   const sc=ensureScenario();
   say(`🎲 Сценарий: ${sc.title} — ${sc.mandate}`);
+  say(`🎛 Правила партии: ${rulesLine(sc)}.`);
   toast(opts.session?"Партия продолжена 💾":`🎲 ${sc.title}: ${sc.tag}`);
 }
 setInterval(()=>{if(!S.win&&!S.over)saveGame()},5000);
