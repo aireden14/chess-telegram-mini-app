@@ -15,6 +15,7 @@ interface BunkerPlayer {
   userId: number;
   name: string;
   sid: string | null; // текущий socket.id
+  bot?: boolean;
   alive: boolean;
   cards: Record<CardCat, string>;
   revealed: Set<CardCat>;
@@ -37,6 +38,18 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 const ROOM_TTL = 1000 * 60 * 60 * 6;
+let nextBotId = -1000;
+
+const BOT_NAMES = [
+  "Макс-бот",
+  "Алиса-бот",
+  "Саша-бот",
+  "Мира-бот",
+  "Роман-бот",
+  "Лина-бот",
+  "Виктор-бот",
+  "Ника-бот",
+];
 
 function cleanup() {
   const now = Date.now();
@@ -49,6 +62,28 @@ setInterval(cleanup, 1000 * 60 * 10);
 const roomCh = (code: string) => `bunker:${code}`;
 const normCode = (raw: unknown) =>
   String(raw ?? "").trim().toUpperCase().replace(/[^A-ZА-ЯЁ0-9]/gi, "").slice(0, 12);
+
+function makePlayer(userId: number, name: string, sid: string | null, bot = false): BunkerPlayer {
+  return {
+    userId,
+    name: String(name || (bot ? "Бот" : "Игрок")).slice(0, 24),
+    sid,
+    bot,
+    alive: true,
+    cards: {} as Record<CardCat, string>,
+    revealed: new Set(),
+    vote: null,
+  };
+}
+
+function makeUniqueTestCode() {
+  for (let i = 0; i < 20; i += 1) {
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const code = `TEST${suffix}`;
+    if (!rooms.has(code)) return code;
+  }
+  return `TEST${Date.now().toString(36).slice(-4).toUpperCase()}`;
+}
 
 function publicState(r: Room) {
   return {
@@ -65,6 +100,7 @@ function publicState(r: Room) {
       name: p.name,
       alive: p.alive,
       online: p.sid != null,
+      bot: p.bot === true,
       voted: p.vote != null,
       revealed: Object.fromEntries([...p.revealed].map((c) => [c, p.cards[c]])),
       revealedCount: p.revealed.size,
@@ -102,6 +138,40 @@ function dealCards(r: Room) {
       fact: pick(FACTS, used.fact),
       action: pick(ACTIONS, used.action),
     };
+  });
+}
+
+function revealBotCards(io: IOServer, r: Room, perBot: number) {
+  let revealed = 0;
+  r.players.filter((p) => p.bot && p.alive).forEach((p) => {
+    for (let i = 0; i < perBot; i += 1) {
+      const hidden = CARD_CATS.filter((c) => !p.revealed.has(c));
+      if (hidden.length === 0) break;
+      const cat = hidden[Math.floor(Math.random() * hidden.length)];
+      p.revealed.add(cat);
+      revealed += 1;
+      io.to(roomCh(r.code)).emit("BUNKER_EVENT", { text: `🤖 ${p.name} раскрывает: ${p.cards[cat]}` });
+    }
+  });
+  return revealed;
+}
+
+function assignBotVotes(r: Room) {
+  const alive = r.players.filter((p) => p.alive);
+  const bots = alive.filter((p) => p.bot);
+  if (bots.length === 0) return;
+  // Боты договариваются об одном «козле отпущения» и валят голоса на него,
+  // иначе случайный разброс почти всегда даёт ничью и тестовая партия стопорится.
+  // Человека щадим: козлом выбираем бота, пока в живых есть хотя бы двое ботов.
+  const scapegoat = bots.length > 1 ? bots[Math.floor(Math.random() * bots.length)] : null;
+  bots.forEach((bot) => {
+    if (scapegoat && bot.userId !== scapegoat.userId) {
+      bot.vote = scapegoat.userId;
+      return;
+    }
+    // сам «козёл» (или последний бот в эндшпиле) голосует за случайного живого
+    const pool = alive.filter((p) => p.userId !== bot.userId);
+    bot.vote = pool.length ? pool[Math.floor(Math.random() * pool.length)].userId : null;
   });
 }
 
@@ -156,11 +226,32 @@ export function registerBunkerSocket(io: IOServer) {
         createdAt: Date.now(), updatedAt: Date.now(),
       };
       r.players.push({
-        userId, name: String(name || "Игрок").slice(0, 24), sid: socket.id,
-        alive: true, cards: {} as Record<CardCat, string>, revealed: new Set(), vote: null,
+        ...makePlayer(userId, String(name || "Игрок"), socket.id),
       });
       rooms.set(c, r);
       attach(r);
+    });
+
+    socket.on("BUNKER_CREATE_TEST", ({ name, botCount }) => {
+      if (myRoom) socket.leave(roomCh(myRoom));
+      const c = makeUniqueTestCode();
+      const count = Math.max(2, Math.min(7, Number(botCount) || 5));
+      const r: Room = {
+        code: c, hostId: userId, phase: "lobby", round: 0,
+        scenario: null, bunker: null, players: [], timerEnd: null, voteResult: null,
+        createdAt: Date.now(), updatedAt: Date.now(),
+      };
+      r.players.push(makePlayer(userId, String(name || "Игрок"), socket.id));
+      for (let i = 0; i < count; i += 1) {
+        r.players.push(makePlayer(nextBotId, BOT_NAMES[i % BOT_NAMES.length], null, true));
+        nextBotId -= 1;
+      }
+      dealCards(r);
+      r.phase = "discuss";
+      r.round = 1;
+      rooms.set(c, r);
+      attach(r);
+      io.to(roomCh(r.code)).emit("BUNKER_EVENT", { text: `🤖 Тестовая партия создана: ты и ${count} ботов.` });
     });
 
     socket.on("BUNKER_JOIN", ({ code, name }) => {
@@ -175,10 +266,7 @@ export function registerBunkerSocket(io: IOServer) {
       }
       if (r.phase !== "lobby") return err("Игра уже началась — попроси создать новую комнату");
       if (r.players.length >= 12) return err("Комната переполнена (12 максимум)");
-      r.players.push({
-        userId, name: String(name || "Игрок").slice(0, 24), sid: socket.id,
-        alive: true, cards: {} as Record<CardCat, string>, revealed: new Set(), vote: null,
-      });
+      r.players.push(makePlayer(userId, String(name || "Игрок"), socket.id));
       attach(r);
     });
 
@@ -188,7 +276,7 @@ export function registerBunkerSocket(io: IOServer) {
       socket.leave(roomCh(r.code));
       if (r.phase === "lobby") {
         r.players = r.players.filter((p) => p.userId !== userId);
-        if (r.players.length === 0) rooms.delete(r.code);
+        if (r.players.length === 0 || r.players.every((p) => !p.sid)) rooms.delete(r.code);
         else {
           if (r.hostId === userId) r.hostId = r.players[0].userId;
           emitState(io, r);
@@ -233,6 +321,15 @@ export function registerBunkerSocket(io: IOServer) {
       emitState(io, r);
     });
 
+    socket.on("BUNKER_BOTS_REVEAL", ({ cards }) => {
+      const r = getRoom();
+      if (!r || r.hostId !== userId || r.phase !== "discuss") return;
+      const perBot = Math.max(1, Math.min(3, Number(cards) || 1));
+      const revealed = revealBotCards(io, r, perBot);
+      if (revealed === 0) io.to(roomCh(r.code)).emit("BUNKER_EVENT", { text: "🤖 У ботов уже раскрыты все карты." });
+      emitState(io, r);
+    });
+
     socket.on("BUNKER_VOTE_START", () => {
       const r = getRoom();
       if (!r || r.hostId !== userId || r.phase !== "discuss") return;
@@ -240,7 +337,11 @@ export function registerBunkerSocket(io: IOServer) {
       r.voteResult = null;
       r.timerEnd = null;
       r.players.forEach((p) => { p.vote = null; });
+      const botReveals = revealBotCards(io, r, 1);
+      assignBotVotes(r);
       io.to(roomCh(r.code)).emit("BUNKER_EVENT", { text: "🗳 Голосование: кого изгоняем из бункера?" });
+      if (botReveals > 0) io.to(roomCh(r.code)).emit("BUNKER_EVENT", { text: "🤖 Боты перед голосованием раскрыли по карте." });
+      if (r.players.some((p) => p.bot && p.alive)) io.to(roomCh(r.code)).emit("BUNKER_EVENT", { text: "🤖 Боты уже сделали свой выбор." });
       emitState(io, r);
     });
 

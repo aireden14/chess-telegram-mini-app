@@ -19,6 +19,7 @@ const CAT_META: { id: CardCat; name: string; emoji: string }[] = [
 interface BPlayer {
   userId: number;
   name: string;
+  bot?: boolean;
   alive: boolean;
   online: boolean;
   voted: boolean;
@@ -126,6 +127,9 @@ export function BunkerScreen() {
           <button className="bk-btn" onClick={() => emit("BUNKER_JOIN", { code, name: myName })}>
             🚪 Войти по коду
           </button>
+          <button className="bk-btn test" onClick={() => emit("BUNKER_CREATE_TEST", { name: myName, botCount: 5 })}>
+            🤖 Тестовая партия с ботами
+          </button>
         </div>
       </div>
     );
@@ -147,8 +151,9 @@ export function BunkerScreen() {
                 <span>
                   {p.userId === state.hostId ? "👑 " : ""}
                   {p.name} {p.userId === myId ? "(ты)" : ""}
+                  {p.bot ? " · бот" : ""}
                 </span>
-                <span className={p.online ? "bk-on" : "bk-off"}>{p.online ? "онлайн" : "офлайн"}</span>
+                <span className={p.bot ? "bk-bot" : p.online ? "bk-on" : "bk-off"}>{p.bot ? "бот" : p.online ? "онлайн" : "офлайн"}</span>
               </div>
             ))}
           </div>
@@ -193,6 +198,7 @@ export function BunkerScreen() {
               <div className="bk-pname">
                 {p.userId === state.hostId ? "👑 " : ""}
                 {p.name}
+                {p.bot && <span className="bk-bot-chip">бот</span>}
                 {!p.alive && " ⛔"}
                 {state.phase === "vote" && p.alive && p.voted && " 🗳"}
               </div>
@@ -268,6 +274,9 @@ export function BunkerScreen() {
                   <button className="bk-btn small" onClick={() => emit("BUNKER_TIMER", { seconds: 60 })}>⏱ 1 мин</button>
                   <button className="bk-btn small" onClick={() => emit("BUNKER_TIMER", { seconds: 120 })}>⏱ 2 мин</button>
                   <button className="bk-btn small" onClick={() => emit("BUNKER_TIMER", { seconds: 180 })}>⏱ 3 мин</button>
+                  {state.players.some((p) => p.bot && p.alive) && (
+                    <button className="bk-btn small" onClick={() => emit("BUNKER_BOTS_REVEAL", { cards: 1 })}>🤖 Карты ботов</button>
+                  )}
                   <button className="bk-btn small danger" onClick={() => emit("BUNKER_VOTE_START")}>🗳 Голосование</button>
                 </>
               )}
