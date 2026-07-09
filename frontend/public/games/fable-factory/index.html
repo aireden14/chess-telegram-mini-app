@@ -42,11 +42,25 @@
   /* умная кнопка (dynamic-island) */
   #smart{position:fixed;right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:40}
   #smartBtn{width:54px;height:54px;border-radius:50%;font-size:1.35rem;padding:0;display:grid;place-items:center}
-  #smartMenu{display:none;flex-direction:column;gap:7px;max-height:min(78vh,640px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px;scrollbar-width:none}
+  #smartMenu{display:none;flex-direction:column;gap:7px;width:232px;max-height:min(80vh,660px);padding:4px;box-sizing:border-box}
   #smartMenu::-webkit-scrollbar{display:none}
   #smart.open #smartMenu{display:flex;animation:pop .22s cubic-bezier(.2,1.2,.3,1)}
-  #smartMenu button{width:172px;text-align:left;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;
+  #smartSearch{width:100%;box-sizing:border-box;border-radius:12px;padding:9px 12px;font-size:.9rem;color:var(--ink);
+    background:rgba(16,22,31,.97);border:.5px solid rgba(255,255,255,.22);box-shadow:0 6px 18px rgba(0,0,0,.55);outline:none}
+  #smartSearch::placeholder{color:var(--dim)}
+  #smartTabs{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+  #smartTabs::-webkit-scrollbar{display:none}
+  .smartChip{flex:0 0 auto;height:38px;min-width:38px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:1.05rem;padding:0;cursor:pointer;white-space:nowrap;color:var(--ink);
+    background:rgba(16,22,31,.97);border:.5px solid rgba(255,255,255,.14);transition:border-color .12s,box-shadow .12s}
+  .smartChip.on{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent);padding:0 12px}
+  .smartChip span{font-size:.82rem}
+  #smartList{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #smartList::-webkit-scrollbar{display:none}
+  #smartList button{width:100%;box-sizing:border-box;text-align:left;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;
     background:rgba(16,22,31,.97);border:.5px solid rgba(255,255,255,.22);box-shadow:0 6px 18px rgba(0,0,0,.55)}
+  .smartHead{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:7px 6px 1px;display:flex;align-items:center;gap:7px}
+  .smartHead .k{font-size:.95rem;width:auto}
+  .smartEmpty{color:var(--dim);font-size:.85rem;text-align:center;padding:16px 8px}
   /* тень-затемнение позади открытого меню — читается на любом фоне; закрывается только тапом по ней или ✕ */
   #smartShade{position:fixed;inset:0;z-index:38;display:none;background:radial-gradient(ellipse at 85% 78%, rgba(0,0,0,.62), rgba(0,0,0,.34));backdrop-filter:blur(2.5px);-webkit-backdrop-filter:blur(2.5px)}
   #smartShade.on{display:block}
@@ -2468,39 +2482,91 @@ function progressionSheet(){
 /* ---------- умная кнопка (всё меню в одной) ---------- */
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
 function smartItems(){return [
-  {k:"🏭",l:"Развитие x20",f:()=>openSheet("x20")},
-  {k:"🧬",l:"Планетарные исследования",f:()=>openSheet("cosmic")},
-  {k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
-  {k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
-  {k:"📊",l:"Экономика",f:()=>openSheet("eco")},
-  {k:"🤝",l:"Поселения / обмен",f:()=>openSheet("trade")},
-  {k:"🎴",l:"Карты развития",f:()=>openSheet("dev")},
-  {k:"🛡",l:"Власть / радар",f:()=>openSheet("authority")},
-  {k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
+  {c:"base",  k:"📦",l:"Склад",f:()=>openSheet("inv")},
+  {c:"base",  k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
+  {c:"base",  k:"📖",l:"Рецепты",f:()=>showBook()},
+  {c:"base",  k:"⚙️",l:"Автоматизация",f:()=>openSheet("auto")},
+  {c:"base",  k:"📊",l:"Экономика",f:()=>openSheet("eco")},
+  {c:"base",  stay:true,k:S.autoAll!==false?"📥":"⛔️",l:S.autoAll!==false?"Авто-склад: ВКЛ":"Авто-склад: ВЫКЛ",f:()=>{
     S.autoAll=S.autoAll===false;
     toast(S.autoAll!==false?"📥 Все здания снова сами берут со склада":"⛔️ Авто-пополнение выключено ВЕЗДЕ — загружай вручную (📥/⛽️), склад не тратится");
   }},
-  {k:zen?"👁":"🙈",l:zen?"Показать панели":"Скрыть панели",f:()=>toggleZen()},
-  {k:"📦",l:"Склад",f:()=>openSheet("inv")},
-  {k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
-  {k:"🔬",l:"Наука",f:()=>openSheet("tech")},
-  {k:"📜",l:"Задания",f:()=>openSheet("quest")},
-  {k:"📖",l:"Рецепты",f:()=>showBook()},
-  {k:"🗺",l:"Карта / рост мира",f:()=>openSheet("map")},
-  {k:"↩️",l:"Отменить",f:()=>doUndo()},
-  {k:"💡",l:"Подсказка",f:()=>doHint()},
-  {k:muted?"🔇":"🔊",l:"Звук",f:()=>toggleMute()},
-  {k:"🏠",l:"Главное меню",f:()=>showMenu()},
-  {k:"🎮",l:"К играм",f:()=>exitGame()},
+  {c:"growth",k:"🏭",l:"Развитие x20",f:()=>openSheet("x20")},
+  {c:"growth",k:"🔬",l:"Наука",f:()=>openSheet("tech")},
+  {c:"growth",k:"📜",l:"Задания",f:()=>openSheet("quest")},
+  {c:"growth",k:"🎴",l:"Карты развития",f:()=>openSheet("dev")},
+  {c:"world", k:"🗺",l:"Карта / рост мира",f:()=>openSheet("map")},
+  {c:"world", k:"🧬",l:"Планетарные исследования",f:()=>openSheet("cosmic")},
+  {c:"social",k:"🧍",l:"Жители ("+workers.length+")",f:()=>openSheet("crew")},
+  {c:"social",k:"🤝",l:"Поселения / обмен",f:()=>openSheet("trade")},
+  {c:"social",k:"🛡",l:"Власть / радар",f:()=>openSheet("authority")},
+  {c:"sys",   k:"↩️",l:"Отменить",f:()=>doUndo()},
+  {c:"sys",   k:"💡",l:"Подсказка",f:()=>doHint()},
+  {c:"sys",   k:zen?"👁":"🙈",l:zen?"Показать панели":"Скрыть панели",f:()=>toggleZen()},
+  {c:"sys",   stay:true,k:muted?"🔇":"🔊",l:"Звук",f:()=>toggleMute()},
+  {c:"sys",   k:"🏠",l:"Главное меню",f:()=>showMenu()},
+  {c:"sys",   k:"🎮",l:"К играм",f:()=>exitGame()},
 ];}
-function buildSmart(){smartMenuEl.innerHTML="";
-  smartItems().forEach(it=>{const b=document.createElement("button");
+const SMART_CATS=[
+  {id:"base",  k:"🏗",nm:"База"},
+  {id:"growth",k:"🚀",nm:"Развитие"},
+  {id:"world", k:"🌍",nm:"Мир"},
+  {id:"social",k:"👥",nm:"Общество"},
+  {id:"sys",   k:"⚙️",nm:"Ещё"},
+];
+let smartTab="all",smartQuery="";
+function buildSmart(){
+  smartMenuEl.innerHTML="";
+  const items=smartItems();
+  // 🔎 поиск — фильтрует по всем пунктам, игнорируя вкладку
+  const search=document.createElement("input");
+  search.id="smartSearch";search.type="text";search.placeholder="🔎 Поиск…";search.value=smartQuery;
+  search.setAttribute("autocomplete","off");search.setAttribute("autocorrect","off");
+  search.oninput=()=>{smartQuery=search.value;renderList();};
+  smartMenuEl.appendChild(search);
+  // вкладки-категории: активная раскрывается с подписью
+  const tabs=document.createElement("div");tabs.id="smartTabs";
+  [{id:"all",k:"🗂",nm:"Все"},...SMART_CATS].forEach(cd=>{
+    const ch=document.createElement("button");
+    ch.className="smartChip"+(smartTab===cd.id?" on":"");
+    ch.innerHTML=smartTab===cd.id?`${cd.k}<span>${cd.nm}</span>`:cd.k;
+    ch.title=cd.nm;
+    ch.onclick=()=>{smartTab=cd.id;smartQuery="";buildSmart();};
+    tabs.appendChild(ch);
+  });
+  smartMenuEl.appendChild(tabs);
+  // список
+  const list=document.createElement("div");list.id="smartList";
+  smartMenuEl.appendChild(list);
+  const mkBtn=it=>{
+    const b=document.createElement("button");
     b.innerHTML=`<span class="k">${it.k}</span><span>${it.l}</span>`;
-    b.onclick=()=>{closeSmart();it.f()};smartMenuEl.appendChild(b);});}
+    b.onclick=()=>{if(it.stay){it.f();buildSmart();}else{closeSmart();it.f();}};
+    return b;
+  };
+  function renderList(){
+    list.innerHTML="";
+    const q=smartQuery.trim().toLowerCase();
+    if(q){
+      const hits=items.filter(it=>it.l.toLowerCase().includes(q));
+      if(!hits.length){const e=document.createElement("div");e.className="smartEmpty";e.textContent="Ничего не найдено";list.appendChild(e);}
+      else hits.forEach(it=>list.appendChild(mkBtn(it)));
+      return;
+    }
+    const cats=smartTab==="all"?SMART_CATS:SMART_CATS.filter(c=>c.id===smartTab);
+    cats.forEach(cat=>{
+      const ci=items.filter(it=>it.c===cat.id);
+      if(!ci.length)return;
+      if(smartTab==="all"){const h=document.createElement("div");h.className="smartHead";h.innerHTML=`<span class="k">${cat.k}</span>${cat.nm}`;list.appendChild(h);}
+      ci.forEach(it=>list.appendChild(mkBtn(it)));
+    });
+  }
+  renderList();
+}
 function closeSmart(){smartEl.classList.remove("open");smartBtn.textContent="⋯";document.getElementById("smartShade").classList.remove("on")}
 smartBtn.onclick=()=>{
   if(smartEl.classList.contains("open"))return closeSmart();
-  closeCtx();buildSmart();smartEl.classList.add("open");smartBtn.textContent="✕";
+  smartQuery="";closeCtx();buildSmart();smartEl.classList.add("open");smartBtn.textContent="✕";
   document.getElementById("smartShade").classList.add("on"); // тень: меню не закроется случайным тапом по карте
 };
 document.getElementById("smartShade").onclick=closeSmart;
