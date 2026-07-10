@@ -112,22 +112,19 @@
     transition: all 0.2s; text-shadow: 0 0 10px #00e5ff;
   }
   #start-btn:hover { background: #00e5ff22; box-shadow: 0 0 30px #00e5ff44; }
-  #mobile-controls {
-    --mobile-control-y: 66%;
+  /* Управление на телефоне: тяни пальцем в ЛЮБОМ месте экрана — без видимого
+     джойстика и без кнопок. Двойное касание = рывок, удержание = импульс. */
+  #move-layer {
     position: fixed;
     inset: 0;
-    z-index: 20;
+    z-index: 15;
     display: none;
     pointer-events: none;
-    padding:
-      max(14px, env(safe-area-inset-top))
-      max(14px, env(safe-area-inset-right))
-      max(14px, env(safe-area-inset-bottom))
-      max(14px, env(safe-area-inset-left));
+    touch-action: none;
   }
-  #exit-btn {
+  body.playing #move-layer { display: block; pointer-events: all; }
+  #exit-btn, #mute-btn {
     position: fixed;
-    left: max(14px, env(safe-area-inset-left));
     top: calc(var(--safe-top) + 10px);
     z-index: 30;
     pointer-events: all;
@@ -135,85 +132,36 @@
     border: 1px solid rgba(0,229,255,0.4);
     color: #aaddff;
     font-family: 'Courier New', monospace;
+    box-shadow: 0 0 20px rgba(0,229,255,0.15);
+  }
+  #exit-btn {
+    left: max(14px, env(safe-area-inset-left));
     font-size: 11px;
     letter-spacing: 1px;
     padding: 8px 14px;
     border-radius: 20px;
-    box-shadow: 0 0 20px rgba(0,229,255,0.15);
   }
-  #exit-btn:active { background: rgba(0,229,255,0.24); }
-  #joy-zone {
-    position: absolute;
-    left: max(18px, env(safe-area-inset-left));
-    top: var(--mobile-control-y);
-    width: 152px;
-    height: 152px;
-    transform: translateY(-50%);
+  #mute-btn {
+    right: max(14px, env(safe-area-inset-right));
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    pointer-events: all;
-    background: radial-gradient(circle, rgba(0,229,255,0.16), rgba(0,25,50,0.34));
-    border: 1px solid rgba(0,229,255,0.35);
-    box-shadow: 0 0 30px rgba(0,229,255,0.16), inset 0 0 24px rgba(0,0,0,0.45);
-    touch-action: none;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
   }
-  #joy-knob {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, #ffffff, #00e5ff);
-    box-shadow: 0 0 24px rgba(0,229,255,0.5);
-  }
-  #mobile-actions {
-    position: absolute;
-    right: max(16px, env(safe-area-inset-right));
-    top: var(--mobile-control-y);
-    transform: translateY(-50%);
-    display: grid;
-    gap: 10px;
-    pointer-events: all;
-  }
-  .mobile-action {
-    width: 82px;
-    min-height: 52px;
-    border: 1px solid rgba(0,229,255,0.38);
-    border-radius: 18px;
-    background: rgba(0, 10, 30, 0.72);
-    color: #dffaff;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    box-shadow: 0 0 26px rgba(0,229,255,0.14);
-    touch-action: none;
-    -webkit-touch-callout: none;
-  }
-  .mobile-action:active {
-    transform: scale(0.95);
-    background: rgba(0,229,255,0.24);
-  }
-  /* мобильные контролы видны ТОЛЬКО в бою — не поверх меню/итогов */
-  @media (pointer: coarse), (max-width: 820px) {
-    body.playing #mobile-controls { display: block; }
-    #startscreen-panel .controls { font-size: 12.5px; line-height: 2; }
-    #startscreen-panel { padding: 22px 18px; }
-    #start-btn { width: 100%; padding: 17px 10px; font-size: 16px; }
-    #restart-btn { width: 100%; }
-  }
+  #exit-btn:active, #mute-btn:active { background: rgba(0,229,255,0.24); }
   /* инструкция: на таче — своя, клавиатурная скрыта */
   .controls-touch { display: none; }
   @media (pointer: coarse) {
     .controls-desk { display: none; }
     .controls-touch { display: block; }
   }
-  @media (orientation: portrait) and (pointer: coarse) {
-    #mobile-controls { --mobile-control-y: 68%; }
-    #joy-zone { width: 136px; height: 136px; }
-    #mobile-actions { grid-template-columns: repeat(3, 1fr); left: max(168px, calc(env(safe-area-inset-left) + 168px)); right: max(12px, env(safe-area-inset-right)); }
-    .mobile-action { width: auto; min-height: 48px; }
+  @media (pointer: coarse), (max-width: 820px) {
+    #startscreen-panel .controls { font-size: 12.5px; line-height: 2; }
+    #startscreen-panel { padding: 22px 18px; }
+    #start-btn { width: 100%; padding: 17px 10px; font-size: 16px; }
+    #restart-btn { width: 100%; }
   }
 </style>
 </head>
@@ -233,11 +181,11 @@
       <span>M</span> — вкл/выкл звуки
     </div>
     <div class="controls controls-touch">
-      <span>🕹 Джойстик</span> слева — движение<br>
+      <span>👆 Тяни</span> в любом месте экрана — движение<br>
       <span>⚔️ Клинок</span> — сам отражает болты и режет дронов рядом<br>
-      <span>РЫВОК</span> — уклонение с неуязвимостью<br>
-      <span>ИМПУЛЬС</span> — ударная волна (откроется с улучшением)<br>
-      <span>ЗВУК</span> — вкл/выкл
+      <span>👆👆 Двойное касание</span> — рывок с неуязвимостью<br>
+      <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
+      <span>🔊</span> сверху экрана — звук вкл/выкл
     </div>
     <button id="start-btn">ЗАЖЕЧЬ КЛИНОК</button>
   </div>
@@ -252,14 +200,8 @@
     <button id="restart-btn">ЕЩЁ РАЗ</button>
   </div>
 </div>
-<div id="mobile-controls" aria-hidden="true">
-  <div id="joy-zone"><div id="joy-knob"></div></div>
-  <div id="mobile-actions">
-    <button class="mobile-action" id="mobile-dodge" type="button">РЫВОК</button>
-    <button class="mobile-action" id="mobile-force" type="button">ИМПУЛЬС</button>
-    <button class="mobile-action" id="mobile-music" type="button">ЗВУК</button>
-  </div>
-</div>
+<button id="mute-btn" type="button">🔊</button>
+<div id="move-layer" aria-hidden="true"></div>
 
 <script>
 'use strict';
@@ -298,7 +240,10 @@ function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(vw * dpr);
   canvas.height = Math.round(vh * dpr);
-  const unit = Math.min(1.5, Math.max(0.75, vh / 720)); // размер объектов относительно высоты экрана
+  // размер объектов относительно высоты экрана; на тач-устройствах отдаляем камеру
+  // (было слишком приближено — арену едва видно) сильнее уменьшая масштаб мира
+  const baseUnit = Math.min(1.5, Math.max(0.75, vh / 720));
+  const unit = IS_TOUCH ? Math.max(0.55, baseUnit * 0.75) : baseUnit;
   currentUnit = unit;
   W = vw / unit;
   H = vh / unit;
@@ -1619,51 +1564,86 @@ function getInput() {
 }
 
 function setupMobileControls() {
-  const joy = document.getElementById('joy-zone');
-  const knob = document.getElementById('joy-knob');
+  const layer = document.getElementById('move-layer');
+  const maxR = 60; // радиус зоны наклона стика вокруг точки касания (px)
+  const MOVE_DEADZONE = 10;   // px — после этого сдвига жест точно "движение", не тап/удержание
+  const LONG_PRESS_MS = 420;  // удержание без сдвига -> импульс
+  const DOUBLE_TAP_MS = 320;  // окно для второго тапа -> рывок
+  const DOUBLE_TAP_DIST = 40; // px
+
+  const touch = {
+    pointerId: null, anchorX: 0, anchorY: 0, downX: 0, downY: 0,
+    downTime: 0, moved: false, longPressTimer: null,
+    lastTapTime: 0, lastTapX: 0, lastTapY: 0,
+  };
+
   const setStick = (clientX, clientY) => {
-    const rect = joy.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const max = rect.width * 0.34;
-    let dx = clientX - cx;
-    let dy = clientY - cy;
+    let dx = clientX - touch.anchorX;
+    let dy = clientY - touch.anchorY;
     const len = Math.sqrt(dx*dx + dy*dy);
-    if (len > max) { dx = dx / len * max; dy = dy / len * max; }
-    virtualInput.mx = dx / max;
-    virtualInput.my = dy / max;
-    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    if (len > maxR) { dx = dx / len * maxR; dy = dy / len * maxR; }
+    virtualInput.mx = dx / maxR;
+    virtualInput.my = dy / maxR;
   };
   const resetStick = () => {
     virtualInput.mx = 0;
     virtualInput.my = 0;
     virtualInput.pointerId = null;
-    knob.style.transform = 'translate(-50%, -50%)';
   };
 
-  joy.addEventListener('pointerdown', e => {
+  layer.addEventListener('pointerdown', e => {
+    if (touch.pointerId !== null) return; // одно касание — управление движением
+    touch.pointerId = e.pointerId;
+    touch.anchorX = e.clientX; touch.anchorY = e.clientY;
+    touch.downX = e.clientX; touch.downY = e.clientY;
+    touch.downTime = performance.now();
+    touch.moved = false;
     virtualInput.pointerId = e.pointerId;
-    joy.setPointerCapture(e.pointerId);
+    layer.setPointerCapture(e.pointerId);
+    touch.longPressTimer = setTimeout(() => {
+      if (!touch.moved && game.state === 'playing') doForcePush();
+    }, LONG_PRESS_MS);
+  });
+
+  layer.addEventListener('pointermove', e => {
+    if (touch.pointerId !== e.pointerId) return;
+    if (!touch.moved) {
+      const dx = e.clientX - touch.downX, dy = e.clientY - touch.downY;
+      if (Math.sqrt(dx*dx + dy*dy) > MOVE_DEADZONE) {
+        touch.moved = true;
+        if (touch.longPressTimer) { clearTimeout(touch.longPressTimer); touch.longPressTimer = null; }
+      }
+    }
     setStick(e.clientX, e.clientY);
   });
-  joy.addEventListener('pointermove', e => {
-    if (virtualInput.pointerId === e.pointerId) setStick(e.clientX, e.clientY);
-  });
-  joy.addEventListener('pointerup', resetStick);
-  joy.addEventListener('pointercancel', resetStick);
 
-  document.getElementById('mobile-dodge').addEventListener('pointerdown', e => {
-    e.preventDefault();
-    if (game.state === 'playing') doDodge();
-  });
-  document.getElementById('mobile-force').addEventListener('pointerdown', e => {
-    e.preventDefault();
-    if (game.state === 'playing') doForcePush();
-  });
-  document.getElementById('mobile-music').addEventListener('pointerdown', e => {
+  const endTouch = e => {
+    if (touch.pointerId !== e.pointerId) return;
+    if (touch.longPressTimer) { clearTimeout(touch.longPressTimer); touch.longPressTimer = null; }
+    const elapsed = performance.now() - touch.downTime;
+    if (!touch.moved && elapsed < LONG_PRESS_MS) {
+      const now = performance.now();
+      const ddx = touch.downX - touch.lastTapX, ddy = touch.downY - touch.lastTapY;
+      if (now - touch.lastTapTime < DOUBLE_TAP_MS && Math.sqrt(ddx*ddx + ddy*ddy) < DOUBLE_TAP_DIST) {
+        if (game.state === 'playing') doDodge();
+        touch.lastTapTime = 0;
+      } else {
+        touch.lastTapTime = now;
+        touch.lastTapX = touch.downX;
+        touch.lastTapY = touch.downY;
+      }
+    }
+    touch.pointerId = null;
+    resetStick();
+  };
+  layer.addEventListener('pointerup', endTouch);
+  layer.addEventListener('pointercancel', endTouch);
+
+  document.getElementById('mute-btn').addEventListener('pointerdown', e => {
     e.preventDefault();
     if (!audioCtx) initAudio();
     else toggleMusic();
+    document.getElementById('mute-btn').textContent = musicMuted ? '🔇' : '🔊';
   });
 }
 setupMobileControls();
