@@ -53,6 +53,7 @@ const SECTIONS: Section[] = [
       { key: "sudoku", icon: "/game-icons/256/sudoku.png", title: "Судоку", to: "/sudoku", grad: ["#35e8b3", "#236bff"] },
       { key: "card", icon: "🌀", title: "Overquest", to: "/overquest", grad: ["#805dff", "#43dfe8"], badge: "NEW" },
       { key: "card", icon: "🕵️", title: "Гарридоку", to: "/garridoku", grad: ["#c9a24b", "#3a2c5e"], badge: "NEW" },
+      { key: "card", icon: "🚪", title: "Мачкин", to: "/machkin", grad: ["#d4a13c", "#c8503f"], badge: "NEW" },
       { key: "force", icon: "/game-icons/256/force-deflector.png", title: "Отражатель", to: "/force-deflector", grad: ["#7b61ff", "#2ea8ff"] },
       { key: "force", icon: "/game-icons/256/neurogrid.png", title: "Neurogrid", to: "/neurogrid", grad: ["#00e5ff", "#ff39d6"], badge: "NEW" },
       { key: "force", icon: "/game-icons/256/webgrid.png", title: "WebGrid", to: "/webgrid", grad: ["#22ff88", "#efff4a"], badge: "NEW" },
