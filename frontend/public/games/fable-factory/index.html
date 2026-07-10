@@ -111,6 +111,19 @@
   #ovl .pickMark{display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);align-items:center;justify-content:center;border-radius:999px;background:var(--gold);color:#241a08;font-size:.66rem;font-weight:800;padding:3px 7px;box-shadow:0 4px 14px rgba(232,176,75,.24)}
   #ovl .modeBtn .pickMark{width:22px;height:22px;padding:0;font-size:.78rem}
   #ovl .choiceBtn.armed .pickMark{display:inline-flex}
+  #ovl>div{max-height:calc(100dvh - 20px);overflow-y:auto;overscroll-behavior:contain}
+  .contractDraft{display:flex;gap:7px;overflow-x:auto;padding:1px 1px 6px;scrollbar-width:none;scroll-snap-type:x proximity}
+  .contractDraft::-webkit-scrollbar{display:none}
+  .contractBtn{flex:0 0 158px;min-height:76px;text-align:left;padding:9px 10px;border-radius:12px;scroll-snap-align:start;display:flex;flex-direction:column;gap:2px}
+  .contractBtn .contractName{font-weight:750;font-size:.79rem;line-height:1.15}
+  .contractBtn small{font-size:.65rem;line-height:1.25}
+  .contractBtn.armed{background:linear-gradient(180deg,rgba(232,176,75,.28),rgba(122,162,255,.16));border-color:rgba(232,176,75,.78);box-shadow:0 0 0 1px rgba(232,176,75,.24)}
+  .contractHint{font-size:.7rem;line-height:1.35;color:var(--dim);margin:1px 1px 10px;min-height:29px}
+  .directorActs{display:flex;flex-direction:column;gap:7px;margin:12px 0}
+  .directorAct{display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border:.5px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.055);font-size:.8rem;line-height:1.3}
+  .directorAct.done{border-color:rgba(77,187,114,.42);opacity:.7}
+  .directorAct.on{border-color:rgba(232,176,75,.65);background:rgba(232,176,75,.1)}
+  .directorAct .actNo{width:23px;height:23px;flex:0 0 23px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.09);font-weight:800;font-size:.7rem}
   /* Phone-first: keep the map tappable while the tutorial is open. */
   @media (max-width:480px){
     #hud{top:calc(env(safe-area-inset-top) + 6px);left:6px;gap:4px;max-width:55vw}
@@ -585,6 +598,59 @@ const GOALS=[
   {txt:"Высокие технологии: 5 🧩 модулей и 8 🔮 синт-науки",chk:s=>s.made.module>=5&&s.made.science2>=8},
   {txt:"Космос и Fable-ядро: ЦУП, ракета, планеты, 140 🧪 + 60 🔮 + 25 🧩",chk:s=>tech("t_win")},
 ];
+/* Scenario Director v2: новая партия получает самостоятельную победную историю.
+   classic скрыт из драфта и сохраняет прежнюю цепочку целей для старых сейвов. */
+const CONTRACTS=[
+  {id:"classic",hidden:true,ic:"🏭",title:"Классическая фабрика",tag:"старый маршрут",pitch:"Последовательная цепочка из двенадцати прежних целей.",acts:[]},
+  {id:"core",modes:["peace","survival"],ic:"💠",title:"Путь ядра",tag:"бесконечная индустрия",pitch:"Построй промышленную цивилизацию и запусти Fable-ядро.",choices:["industry","research"],acts:[
+    {title:"Промышленный фундамент",txt:"25 жел.листов, 2 бура и плавильня",chk:s=>s.made.ironPlate>=25&&countBuildings("miner")>=2&&countBuildings("furnace")>=1,reward:{gear:4,coal:12}},
+    {title:"Совет инженеров",txt:"Лаборатория, 4 жителя и 25 науки",chk:s=>tech("t_lab")&&countBuildings("lab")>=1&&workers.length>=4&&s.made.science>=25,reward:{steelPlate:8,circuit:4}},
+    {title:"Пробуждение ядра",txt:"Исследовать и запустить Fable-ядро",chk:()=>tech("t_win")||S.coreBuilt},
+  ]},
+  {id:"evac",modes:["peace","survival"],ic:"🚀",title:"Последний рейс",tag:"эвакуация колонии",pitch:"Подготовь людей и промышленный груз, затем покинь нестабильный мир.",choices:["people","industry"],acts:[
+    {title:"Собрать колонию",txt:"3 жителя, 25 еды и 10 стали",chk:s=>workers.length>=3&&s.made.food>=25&&s.made.steelPlate>=10,reward:{food:15,wood:16}},
+    {title:"Построить ковчег",txt:"Космопрограмма, ЦУП, ракета и 25 плат",chk:s=>spaceProgramReady()&&s.made.circuit>=25,reward:{steelPlate:12,gear:8}},
+    {title:"Окно запуска",txt:"1 запуск, 80 еды, 60 стали и 50 плат произведено",chk:s=>(S.launches||0)>=1&&s.made.food>=80&&s.made.steelPlate>=60&&s.made.circuit>=50},
+  ]},
+  {id:"trade",modes:["peace"],ic:"🤝",title:"Торговая федерация",tag:"победа без мегазавода",pitch:"Свяжи поселения маршрутами и стань центром всей экономики.",choices:["trade","people"],acts:[
+    {title:"Первый караван",txt:"4 сделки и 1 постоянный маршрут",chk:()=>directorTradeCount()>=4&&directorRouteCount()>=1,reward:{wood:18,stone:12}},
+    {title:"Совет поселений",txt:"2 контракта и суммарная репутация 8",chk:()=>directorContractCount()>=2&&directorReputation()>=8,reward:{circuit:6,science:4}},
+    {title:"Федерация рынков",txt:"15 сделок, 4 контракта и 3 маршрута",chk:()=>directorTradeCount()>=15&&directorContractCount()>=4&&directorRouteCount()>=3},
+  ]},
+  {id:"fortress",modes:["survival"],ic:"🛡",title:"Крепость Фейблдона",tag:"оборона ядра",pitch:"Промышленность существует только ради крепости, которая должна пережить осаду.",choices:["defense","industry"],acts:[
+    {title:"Оборонительный пояс",txt:"Оборона, 2 турели и 8 стен",chk:()=>tech("t_def")&&countBuildings("turret")>=2&&countBuildings("wall")>=8,reward:{ironPlate:14,gear:8}},
+    {title:"Долгая ночь",txt:"Пережить 5 волн и сохранить ядро",chk:()=>S.wave>=5&&countBuildings("core")>=1,reward:{steelPlate:12,food:18}},
+    {title:"Несокрушимая крепость",txt:"Пережить 12 волн и построить 25 зданий",chk:()=>S.wave>=12&&countBuildings("core")>=1&&totalBuildings()>=25},
+  ]},
+  {id:"colonies",modes:["peace"],ic:"📶",title:"Созвездие колоний",tag:"сеть живых планет",pitch:"Не строй одну мегабазу: создай сеть автономных миров с маяками.",choices:["research","people"],acts:[
+    {title:"Первый форпост",txt:"Запуск и первый колониальный маяк",chk:()=>(S.launches||0)>=1&&countBuildingsAll("beacon")>=1,reward:{science:6,steelPlate:10}},
+    {title:"Треугольник миров",txt:"Открыть 3 земли и основать 2 колонии",chk:()=>directorRegionCount()>=3&&directorColonyCount()>=2,reward:{circuit:8,food:20}},
+    {title:"Созвездие Фейбла",txt:"4 запуска и 3 мирные колонии",chk:()=>(S.launches||0)>=4&&directorColonyCount()>=3&&directorCapturedCount()===0},
+  ]},
+  {id:"rival",modes:["peace","survival"],ic:"📡",title:"Охота за конкурентом",tag:"индустриальная погоня",pitch:"Поймай следы соперника, освободи его миры и сорви экспансию.",choices:["research","defense"],acts:[
+    {title:"Поймать сигнал",txt:"Рабочий радар и первая экспедиция конкурента",chk:()=>radarOnline()&&(ensureScenario().rival.planets||0)>=1,reward:{science:8,circuit:6}},
+    {title:"Контрэкспедиция",txt:"1 погоня по следу и 2 собственных запуска",chk:()=>directorChaseCount()>=1&&(S.launches||0)>=2,reward:{steelPlate:14,module:2}},
+    {title:"Сломать экспансию",txt:"3 погони и ни одной захваченной планеты",chk:()=>directorChaseCount()>=3&&directorCapturedCount()===0},
+  ]},
+  {id:"guild",modes:["peace","survival"],ic:"🧍",title:"Гильдия мастеров",tag:"люди важнее масштаба",pitch:"Создай поселение специалистов, где опыт рабочих важнее числа машин.",choices:["people","trade"],acts:[
+    {title:"Новый посёлок",txt:"4 жителя и 30 еды произведено",chk:s=>workers.length>=4&&s.made.food>=30,reward:{food:20,wood:20}},
+    {title:"Разделение труда",txt:"4 специалиста и 2 жителя уровня 3",chk:()=>workers.filter(w=>w.spec&&w.spec!=="any").length>=4&&workers.filter(w=>(w.lvl||1)>=3).length>=2,reward:{gear:10,science:5}},
+    {title:"Гильдия мастеров",txt:"5 жителей уровня 5 и 120 еды",chk:s=>workers.filter(w=>(w.lvl||1)>=5).length>=5&&s.made.food>=120},
+  ]},
+];
+const DIRECTOR_CHOICES={
+  industry:{ic:"🏭",title:"Ускорить индустрию",desc:"+20 листов и +6 шестерён, но конкурент получает 10% прогресса",reward:{ironPlate:20,gear:6},rival:10},
+  research:{ic:"🔬",title:"Сделать научный рывок",desc:"+8 науки и +5 плат, конкурент получает 6% прогресса",reward:{science:8,circuit:5},rival:6},
+  people:{ic:"🍞",title:"Спасти жителей",desc:"+24 еды и +20 древесины; все жители получают опыт",reward:{food:24,wood:20},xp:8},
+  trade:{ic:"🤝",title:"Открыть рынки",desc:"Репутация поселений +2 и два бесплатных каравана",rep:2,caravan:2},
+  defense:{ic:"🛡",title:"Военное положение",desc:"+18 камня, +10 стали и ремонт всех зданий",reward:{stone:18,steelPlate:10},repair:true},
+};
+const LEGACY_KEY="ff.legacy.v1";
+const LEGACIES=[
+  {id:"builder",ic:"🏗",title:"Чертёж строителя",desc:"Следующая партия: +10 листов и +4 шестерни",reward:{ironPlate:10,gear:4}},
+  {id:"scout",ic:"🧭",title:"Архив разведчика",desc:"Следующая партия: +3 науки и +3 платы",reward:{science:3,circuit:3}},
+  {id:"quartermaster",ic:"📦",title:"Запас квартирмейстера",desc:"Следующая партия: +16 угля и +12 еды",reward:{coal:16,food:12}},
+];
 const EPOCHS=[
   {nm:"Ручной цех",need:"старт",chk:()=>true,perk:"+ базовый завод"},
   {nm:"Добыча",need:"25 ▪️ листов + бур + плавильня",chk:s=>s.made.ironPlate>=25&&countBuildings("miner")>=1&&countBuildings("furnace")>=1,perk:"+5% к темпу"},
@@ -727,8 +793,57 @@ function makeSettlement(r,i,scenario){
     offer,want,give:n.give,take:n.take,stock:Math.max(n.give*2,Math.round(n.give*(3+r()*4))),rep:0,dev:Math.round(r()*12),growth:1+r()*1.8,trades:0,
     route:false,caravan:0,caravanClock:0,embargo:0,contract:false,portRatio:itemTier(offer)>=4?2:3};
 }
-function makeScenario(map,mode,seed){
-  const r=seeded(seedHashText((seed||makeGalaxySeed())+":scenario:"+map+":"+mode));
+function contractById(id){return CONTRACTS.find(c=>c.id===id)||CONTRACTS[0]}
+function contractPool(mode){return CONTRACTS.filter(c=>!c.hidden&&(!c.modes||c.modes.includes(mode)))}
+function makeContractDraft(map,mode,nonce){
+  const pool=contractPool(mode).slice(),r=seeded(seedHashText(`${nonce||Date.now()}:${map}:${mode}:contracts`));
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+  if(mode==="survival"){
+    const fortress=pool.find(c=>c.id==="fortress");
+    return [fortress,...pool.filter(c=>c!==fortress)].filter(Boolean).slice(0,3);
+  }
+  return pool.slice(0,3);
+}
+function ensureDirector(sc){
+  if(!sc.contractId)sc.contractId="classic"; // партии до Director v2 продолжают прежний маршрут
+  if(!CONTRACTS.some(c=>c.id===sc.contractId))sc.contractId="classic";
+  const d=sc.director&&typeof sc.director==="object"?sc.director:{};
+  sc.director={act:Math.max(0,Math.round(d.act||0)),crisisChoice:d.crisisChoice||null,completed:!!d.completed,legacyPicked:!!d.legacyPicked};
+  return sc.director;
+}
+function activeContract(){const sc=ensureScenario();ensureDirector(sc);return contractById(sc.contractId)}
+function directorTradeCount(){const sc=ensureScenario();return Math.max(sc.trades||0,sc.settlements.reduce((n,s)=>n+(s.trades||0),0))}
+function directorRouteCount(){return ensureScenario().settlements.filter(s=>s.route).length}
+function directorContractCount(){return ensureScenario().settlements.filter(s=>s.contract).length}
+function directorReputation(){return ensureScenario().settlements.reduce((n,s)=>n+(s.rep||0),0)}
+function directorChaseCount(){return ensureRivalShape(ensureScenario().rival).chases||0}
+function directorRegionCount(){return Math.max(1,(S.regions||[]).length)}
+function directorColonyCount(){
+  const regs=S.regions||[];let n=0;
+  for(let i=0;i<regs.length;i++){
+    if(i===(S.curRegion||0)){if(countBuildings("beacon")>0&&!currentGov().captured)n++;continue}
+    const rg=regs[i];if(rg&&countBuildingsInRegion(rg,"beacon")>0&&!ensureGov(rg.gov,i).captured)n++;
+  }
+  if(!regs.length&&countBuildings("beacon")>0&&!currentGov().captured)n=1;
+  return n;
+}
+function directorCapturedCount(){
+  const regs=S.regions||[];let n=0;
+  for(let i=0;i<regs.length;i++){
+    const g=i===(S.curRegion||0)?currentGov():ensureGov(regs[i]?.gov,i);
+    if(g.captured)n++;
+  }
+  if(!regs.length&&currentGov().captured)n=1;
+  return n;
+}
+function readLegacy(){try{return localStorage.getItem(LEGACY_KEY)||""}catch(e){return ""}}
+function legacyById(id){return LEGACIES.find(x=>x.id===id)||null}
+function applyLegacyStart(){
+  const l=legacyById(readLegacy());if(!l)return;
+  Object.entries(l.reward).forEach(([k,n])=>inv[k]=(inv[k]||0)+n);
+}
+function makeScenario(map,mode,seed,contractId){
+  const r=seeded(seedHashText((seed||makeGalaxySeed())+":scenario:"+map+":"+mode+":"+(contractId||"core")));
   const sc={...pick(r,SCENARIOS)};
   const [ic,nm,focus]=pick(r,RIVAL_NAMES);
   const settlementCount=3+Math.floor(r()*3);
@@ -738,6 +853,8 @@ function makeScenario(map,mode,seed){
   sc.settlements=Array.from({length:settlementCount},(_,i)=>makeSettlement(r,i,sc));
   sc.rules=makeScenarioRules(r);
   sc.contracts=0;sc.devHand=[];sc.devDeck=makeDevDeck(sc);sc.devBought=0;sc.devPlayed=0;
+  sc.contractId=contractById(contractId||"core").id;
+  sc.director={act:0,crisisChoice:null,completed:false,legacyPicked:false};
   return sc;
 }
 function ensureScenario(){
@@ -753,6 +870,7 @@ function ensureScenario(){
   if(S.scenario.devDeck.length<4)S.scenario.devDeck=S.scenario.devDeck.concat(makeDevDeck(S.scenario));
   S.scenario.settlements.forEach((st,i)=>ensureSettlementShape(st,i));
   ensureRivalShape(S.scenario.rival);
+  ensureDirector(S.scenario);
   return S.scenario;
 }
 function cardById(id){return DEV_CARDS.find(c=>c.id===id)||DEV_CARDS[0]}
@@ -1500,12 +1618,81 @@ function buildables(){return BUILD_ORDER.filter(t=>{
 });}
 function drawInv(){if(S.sheet==="inv")renderSheet()}
 function drawTech(){if(S.sheet==="tech")renderSheet()}
+function directorGoalState(){
+  const sc=ensureScenario(),c=activeContract(),d=sc.director;
+  if(c.id==="classic")return {contract:c,goal:GOALS[S.goal]||null,index:S.goal,total:GOALS.length,completed:S.goal>=GOALS.length};
+  return {contract:c,goal:c.acts[d.act]||null,index:d.act,total:c.acts.length,completed:d.completed||d.act>=c.acts.length};
+}
 function drawGoal(){
-  const g=GOALS[S.goal];
-  // тап по плашке сворачивает её до «Цель N/M ▸» и разворачивает обратно
-  document.getElementById("goal").innerHTML=g
-    ?`<b>Цель ${S.goal+1}/${GOALS.length}<span class="gmin"> ▸</span>:</b><span class="gtxt"><br>${g.txt}</span>`
+  const d=directorGoalState(),g=d.goal;
+  document.getElementById("goal").innerHTML=d.completed
+    ?`<b>${d.contract.ic} Контракт выполнен</b>`
+    :g?`<b>${d.contract.ic} Акт ${d.index+1}/${d.total}<span class="gmin"> ▸</span>:</b><span class="gtxt"><br>${g.title?g.title+": ":""}${g.txt}</span>`
     :"<b>Все цели выполнены!</b>";
+}
+function grantDirectorItems(reward){
+  Object.entries(reward||{}).forEach(([k,n])=>{if(ITEM[k])inv[k]=(inv[k]||0)+n});
+  drawInv();drawHud();
+}
+function showDirectorCrisis(){
+  const sc=ensureScenario(),c=activeContract(),d=sc.director;
+  if(c.id==="classic"||d.completed)return;
+  d.crisisChoice="pending";saveGame();
+  const choices=(c.choices||["industry","people"]).map(id=>DIRECTOR_CHOICES[id]?{...DIRECTOR_CHOICES[id],id}:null).filter(Boolean);
+  const o=overlay(`<h2 style="margin-bottom:6px">⚠️ Перелом сценария</h2>
+    <p style="color:var(--dim);font-size:.82rem;line-height:1.4">Первый акт «${c.title}» завершён. Выбери необратимое решение для этой партии.</p>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-top:12px">${choices.map(ch=>`<button class="directorChoice" data-choice="${ch.id}" style="text-align:left">${ch.ic} <b>${ch.title}</b><small>${ch.desc}</small></button>`).join("")}</div>`);
+  o.querySelectorAll(".directorChoice").forEach(b=>b.onclick=()=>applyDirectorChoice(b.dataset.choice));
+}
+function applyDirectorChoice(id){
+  const sc=ensureScenario(),d=sc.director,ch=DIRECTOR_CHOICES[id];if(!ch)return;
+  d.crisisChoice=id;
+  grantDirectorItems(ch.reward);
+  if(ch.rival)sc.rival.progress=(sc.rival.progress||0)+ch.rival;
+  if(ch.xp)workers.forEach(w=>w.xp=(w.xp||0)+ch.xp);
+  if(ch.rep)sc.settlements.forEach(st=>{st.rep=(st.rep||0)+ch.rep;st.caravan=(st.caravan||0)+(ch.caravan||0)});
+  if(ch.repair)for(let y=0;y<H;y++)for(let x=0;x<W;x++){const b=grid[y][x];if(b)b.hp=DEFS[b.t].hp}
+  hideOverlay();saveGame();drawGoal();snd("research");toast(`${ch.ic} Решение принято: ${ch.title}`);
+}
+function chooseDirectorLegacy(id){
+  const l=legacyById(id),sc=ensureScenario();if(!l)return;
+  localStorage.setItem(LEGACY_KEY,l.id);sc.director.legacyPicked=true;
+  saveGame();hideOverlay();toast(`${l.ic} Наследие сохранено для следующей партии`);
+}
+function finishDirectorContract(){
+  const sc=ensureScenario(),c=activeContract(),d=sc.director;if(d.completed)return;
+  d.completed=true;const score=recordRating("won"),rt=runTimeText(S.tick);saveGame();snd("win");
+  const o=overlay(`<h2 style="margin-bottom:6px">${c.ic} ${c.title} выполнен</h2>
+    <p style="color:var(--dim);font-size:.83rem;line-height:1.42">Твоя история завершена за <b>${rt}</b>. Рейтинг: <b>${score}</b>. Фабрику можно продолжить или сохранить одно наследие для следующего мира.</p>
+    <div style="font-size:.7rem;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;margin:13px 0 7px">Выбери наследие</div>
+    <div style="display:flex;flex-direction:column;gap:7px">${LEGACIES.map(l=>`<button class="legacyChoice" data-legacy="${l.id}" style="text-align:left">${l.ic} <b>${l.title}</b><small>${l.desc}</small></button>`).join("")}</div>
+    <button id="directorContinue" style="width:100%;margin-top:9px;text-align:center">Продолжить без выбора</button>`);
+  o.querySelectorAll(".legacyChoice").forEach(b=>b.onclick=()=>chooseDirectorLegacy(b.dataset.legacy));
+  o.querySelector("#directorContinue").onclick=()=>hideOverlay();
+  drawGoal();drawHud();
+}
+function checkDirectorGoal(){
+  const sc=ensureScenario(),c=activeContract(),d=sc.director;
+  if(c.id==="classic"){
+    const g=GOALS[S.goal];if(g&&g.chk(S)){say("✅ Цель выполнена: "+g.txt);toast("✅ "+g.txt);snd("research");S.goal++;drawGoal()}
+    return;
+  }
+  if(d.completed||d.crisisChoice==="pending")return;
+  const act=c.acts[d.act];
+  if(!act||!act.chk(S))return;
+  say(`✅ ${c.title}: акт ${d.act+1} выполнен — ${act.title}`);toast(`✅ ${act.title}`);snd("research");grantDirectorItems(act.reward);d.act++;
+  if(d.act>=c.acts.length)finishDirectorContract();
+  else if(d.act===1&&!d.crisisChoice)showDirectorCrisis();
+  drawGoal();saveGame();
+}
+function showContractBrief(){
+  const sc=ensureScenario(),c=activeContract(),d=sc.director;
+  const acts=c.id==="classic"?GOALS.map((g,i)=>({title:`Цель ${i+1}`,txt:g.txt,done:i<S.goal,on:i===S.goal})):c.acts.map((a,i)=>({...a,done:i<d.act,on:i===d.act&&!d.completed}));
+  const choice=d.crisisChoice&&d.crisisChoice!=="pending"?DIRECTOR_CHOICES[d.crisisChoice]:null;
+  overlay(`<h2 style="margin-bottom:5px">${c.ic} ${c.title}</h2><p style="color:var(--dim);font-size:.82rem;line-height:1.4">${c.pitch}</p>
+    <div class="directorActs">${acts.map((a,i)=>`<div class="directorAct ${a.done?"done":a.on?"on":""}"><span class="actNo">${a.done?"✓":i+1}</span><div><b>${a.title}</b><br><span style="color:var(--dim)">${a.txt}</span></div></div>`).join("")}</div>
+    ${choice?`<div style="font-size:.76rem;color:var(--gold);margin-bottom:10px">Решение партии: ${choice.ic} ${choice.title}</div>`:""}
+    <button style="width:100%;text-align:center" onclick="hideOverlay()">Вернуться к фабрике</button>`);
 }
 function drawHud(){
   recomputePower();
@@ -2520,18 +2707,18 @@ function doPrestige(){
   if(!prestigeReady())return toast("Нужно дойти до эпохи 20 и собрать Fable-ядро");
   const cost=prestigeCost();
   if(!canPay(cost))return toast("Для перезапуска нужно: "+costStr(cost));
-  const mode=S.mode,map=S.map,sessionId=S.sessionId,sessionName=S.sessionName;
+  const mode=S.mode,map=S.map,sessionId=S.sessionId,sessionName=S.sessionName,contractId=ensureScenario().contractId||"core";
   pay(cost);
   const p=(S.prestige||0)+1;
   const shards=(S.coreShards||0)+1;
   W=W0;H=H0;grid=mk();drops={};enemies=[];parts=[];animals=[];workers=[];
   S.prestige=p;S.coreShards=shards;S.epoch=1;S.epochReady=1;S.epochSeen=1;S.bestEpoch=Math.max(S.bestEpoch||1,EPOCHS.length);S.launches=0;S.galaxySeed=makeGalaxySeed();
-  S.scenario=makeScenario(map,mode,S.galaxySeed);
+  S.scenario=makeScenario(map,mode,S.galaxySeed,contractId);
   S.coreBuilt=false;S.win=false;S.over=false;S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.tut=-1;
   S.mode=mode;S.map=map;S.sessionId=sessionId;S.sessionName=sessionName||`Prestige ${p}`;
   S.curRegion=0;S.regions=[];S.regionName=`${MAPS[map].nm} · престиж ${p}`;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;S.regionGov=defaultGov(0);
   S.autoAll=true;S.builtCount=0;S.hint=null;
-  resetMade();resetInventoryForPrestige(p);applyScenarioStart(S.scenario);
+  resetMade();resetInventoryForPrestige(p);applyScenarioStart(S.scenario);applyLegacyStart();
   TECHS.forEach(t=>t.done=false);
   genMap(map);
   if(mode==="survival"){
@@ -2592,7 +2779,7 @@ function progressionSheet(){
 
 /* ---------- умная кнопка (всё меню в одной) ---------- */
 const smartEl=document.getElementById("smart"),smartBtn=document.getElementById("smartBtn"),smartMenuEl=document.getElementById("smartMenu");
-function smartItems(){return [
+function smartItems(){const dc=activeContract();return [
   {c:"base",  k:"📦",l:"Склад",f:()=>openSheet("inv")},
   {c:"base",  k:"✋",l:"Ручной крафт",f:()=>openSheet("hand")},
   {c:"base",  k:"📖",l:"Рецепты",f:()=>showBook()},
@@ -2603,6 +2790,7 @@ function smartItems(){return [
     toast(S.autoAll!==false?"📥 Все здания снова сами берут со склада":"⛔️ Авто-пополнение выключено ВЕЗДЕ — загружай вручную (📥/⛽️), склад не тратится");
   }},
   {c:"growth",k:"🏭",l:"Развитие x20",f:()=>openSheet("x20")},
+  {c:"growth",k:dc.ic,l:"Контракт: "+dc.title,f:()=>showContractBrief()},
   {c:"growth",k:"🔬",l:"Наука",f:()=>openSheet("tech")},
   {c:"growth",k:"📜",l:"Задания",f:()=>openSheet("quest")},
   {c:"growth",k:"🎴",l:"Карты развития",f:()=>openSheet("dev")},
@@ -2946,8 +3134,7 @@ function step(){
   }
   /* цели и обучение */
   if(S.tick%60===0)updateProgression(true);
-  const g=GOALS[S.goal];
-  if(g&&g.chk(S)){say("✅ Цель выполнена: "+g.txt);toast("✅ "+g.txt);snd("research");S.goal++;drawGoal()}
+  checkDirectorGoal();
   tutCheck();
   if(S.tick%30===7)questCheck();
   if(S.tick%30===0){drawInv();drawTech();drawQuest();drawHud()}
@@ -3457,10 +3644,13 @@ function gameOver(){
 }
 const RATE_KEY="ff.rating.v1";
 function ratingList(){try{return JSON.parse(localStorage.getItem(RATE_KEY))||[]}catch(e){return[]}}
+function ratingScore(result){
+  const prod=Object.values(S.made).reduce((a,b)=>a+b,0);
+  return Math.max(0,Math.round(S.made.science*20+prod+S.wave*100+(result==="won"?500:0)));
+}
 function recordRating(result){
   const mins=Math.round(S.tick/3600);
-  const prod=Object.values(S.made).reduce((a,b)=>a+b,0);
-  const score=Math.max(0,Math.round(S.made.science*20+prod+S.wave*100+(result==="won"?500:0)));
+  const score=ratingScore(result);
   const list=ratingList();
   list.push({name:S.sessionName||"Партия",score,waves:S.wave,science:S.made.science,mins,result,date:new Date().toISOString().slice(0,10)});
   list.sort((a,b)=>b.score-a.score);
@@ -3476,7 +3666,9 @@ function runTimeText(ticks){
 }
 function winGame(){
   if(S.coreBuilt)return;
-  S.coreBuilt=true;snd("win");updateProgression(true);saveGame();const sc=recordRating("won");
+  S.coreBuilt=true;snd("win");updateProgression(true);saveGame();
+  const contractWin=["classic","core"].includes(activeContract().id);
+  const sc=contractWin?recordRating("won"):ratingScore("milestone");
   const rt=runTimeText(S.tick);
   say("💠 Fable-ядро собрано за "+rt+". Теперь открыт бесконечный цикл.");
   overlay(`<h2 style="margin-bottom:8px">💠 Fable-ядро запущено</h2>
@@ -3582,7 +3774,7 @@ function saveGame(){
     inv,made:S.made,goal:S.goal,quest:S.quest,tick:S.tick,
     prestige:S.prestige||0,coreShards:S.coreShards||0,epoch:S.epoch||1,epochReady:S.epochReady||1,bestEpoch:S.bestEpoch||1,coreBuilt:!!S.coreBuilt,launches:S.launches||0,
     mode:S.mode,map:S.map,wave:S.wave,nextWave:S.nextWave,tut:S.tut,techs:TECHS.map(t=>t.done),
-    status:S.coreBuilt?"💠":S.win?"🏆":S.over?"💀":"▶"};
+    status:ensureScenario().director?.completed?"🏆":S.coreBuilt?"💠":S.win?"🏆":S.over?"💀":"▶"};
   const list=sessionsList();
   const rec={id:S.sessionId,name:S.sessionName,updated:Date.now(),data};
   const i=list.findIndex(s=>s.id===S.sessionId);
@@ -3640,10 +3832,11 @@ function startGame(opts){
     resetMade();resetInventoryForPrestige(0);TECHS.forEach(t=>t.done=false);
     S.goal=0;S.quest=0;S.tick=0;S.wave=0;S.nextWave=5400;S.win=false;S.over=false;
     S.prestige=0;S.coreShards=0;S.epoch=1;S.epochReady=1;S.bestEpoch=1;S.epochSeen=1;S.coreBuilt=false;S.launches=0;S.galaxySeed=makeGalaxySeed();S.cosmic=defaultCosmic();S.fuelPolicy="coal";S.recipePref={};
-    S.scenario=makeScenario(opts.map,opts.mode,S.galaxySeed);
+    S.scenario=makeScenario(opts.map,opts.mode,S.galaxySeed,opts.contractId||"core");
     S.sessionId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-    S.sessionName=`${MAPS[opts.map].nm} ${opts.mode==="survival"?"⚔️":"🌿"} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
-    applyScenarioStart(S.scenario);
+    const chosenContract=activeContract();
+    S.sessionName=`${chosenContract.ic} ${chosenContract.title} · ${MAPS[opts.map].nm} ${new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}`;
+    applyScenarioStart(S.scenario);applyLegacyStart();
     S.map=opts.map;S.worldSkin=null;S.oreSkins=null;S.worldInfo=null;S.regionGov=defaultGov(0);genMap(opts.map);
     S.curRegion=0;S.regions=[];S.regionName=`${MAPS[opts.map].nm} · земля 1`;S.autoAll=true;S.builtCount=0;
     S.tut=opts.tutorial?0:-1;
@@ -3668,7 +3861,10 @@ function startGame(opts){
   const sc=ensureScenario();
   say(`🎲 Сценарий: ${sc.title} — ${sc.mandate}`);
   say(`🎛 Правила партии: ${rulesLine(sc)}.`);
-  toast(opts.session?"Партия продолжена 💾":`🎲 ${sc.title}: ${sc.tag}`);
+  const dc=activeContract();
+  say(`${dc.ic} Контракт: ${dc.title}. ${dc.pitch}`);
+  toast(opts.session?"Партия продолжена 💾":`${dc.ic} ${dc.title}`);
+  if(sc.director?.crisisChoice==="pending")setTimeout(showDirectorCrisis,80);
 }
 setInterval(()=>{if(!S.win&&!S.over)saveGame()},5000);
 
@@ -3689,11 +3885,15 @@ function doUndo(){
 function showMenu(){
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const firstTime=!localStorage.getItem("ff.played");
+  const legacyNow=legacyById(readLegacy());
   const sess=sessionsList();
   const sessRows=sess.map(s=>{
     const d=new Date(s.updated).toLocaleDateString("ru-RU",{day:"numeric",month:"short"});
+    const dc=contractById(s.data.scenario?.contractId||"classic"),act=s.data.scenario?.director?.act??s.data.goal??0;
+    const total=dc.id==="classic"?GOALS.length:dc.acts.length;
+    const stage=s.data.scenario?.director?.completed?"завершён":`этап ${Math.min(total,act+1)}/${total}`;
     return `<div style="display:flex;gap:6px;margin-bottom:6px">
-      <button class="sRow" data-id="${esc(s.id)}" style="flex:1">${s.data.status||"▶"} ${esc(s.name)}<small>${d} · цель ${(s.data.goal||0)+1} · задание ${(s.data.quest||0)+1}</small></button>
+      <button class="sRow" data-id="${esc(s.id)}" style="flex:1">${s.data.status||"▶"} ${esc(s.name)}<small>${d} · ${dc.ic} ${dc.title} · ${stage}</small></button>
       <button class="sDel" data-id="${esc(s.id)}" style="width:44px;text-align:center">🗑</button></div>`;
   }).join("");
   const mapBtns=Object.entries(MAPS).map(([id,m])=>
@@ -3706,6 +3906,10 @@ function showMenu(){
       <button id="sPeace" style="flex:1" class="modeBtn choiceBtn armed" aria-pressed="true">🌿 Мирный<span class="pickMark">✓</span></button>
       <button id="sSurv" style="flex:1" class="modeBtn choiceBtn" aria-pressed="false">⚔️ Выживание<span class="pickMark">✓</span></button>
     </div>
+    <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Контракт партии · выбери историю</div>
+    <div id="contractRow" class="contractDraft"></div>
+    <div id="contractHint" class="contractHint"></div>
+    ${legacyNow?`<div style="font-size:.72rem;color:var(--gold);margin:-2px 1px 10px">${legacyNow.ic} Наследие: ${legacyNow.title}</div>`:""}
     <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;margin-bottom:12px;cursor:pointer">
       <input type="checkbox" id="sTut" ${firstTime?"checked":""}> Пошаговое обучение
     </label>
@@ -3713,15 +3917,26 @@ function showMenu(){
       <button id="sGo" style="flex:2;background:linear-gradient(180deg,#f0bc5e,#d08a2c);color:#241a08;font-weight:700;border:none;text-align:center">Играть</button>
       <button id="sRate" style="flex:1;text-align:center">🏅 Рейтинг</button>
     </div>`);
-  let map="valley",mode="peace";
+  let map="valley",mode="peace",contractId="";const draftNonce=Date.now().toString(36);
   const mb=[...o.querySelectorAll(".mapBtn")];
-  const setMap=id=>{map=id;mb.forEach(b=>{const on=b.dataset.m===id;b.classList.toggle("armed",on);b.setAttribute("aria-pressed",on?"true":"false")})};
+  const pe=o.querySelector("#sPeace"),su=o.querySelector("#sSurv"),contractRow=o.querySelector("#contractRow"),contractHint=o.querySelector("#contractHint");
+  const selectContract=id=>{
+    contractId=id;
+    [...contractRow.querySelectorAll(".contractBtn")].forEach(b=>{const on=b.dataset.contract===id;b.classList.toggle("armed",on);b.setAttribute("aria-pressed",on?"true":"false")});
+    const c=contractById(id);contractHint.textContent=c.pitch;
+  };
+  const renderContracts=()=>{
+    const draft=makeContractDraft(map,mode,draftNonce);
+    contractRow.innerHTML=draft.map(c=>`<button class="contractBtn" data-contract="${c.id}" aria-pressed="false"><span class="contractName">${c.ic} ${c.title}</span><small>${c.tag}</small></button>`).join("");
+    contractRow.querySelectorAll(".contractBtn").forEach(b=>b.onclick=()=>selectContract(b.dataset.contract));
+    selectContract(draft.some(c=>c.id===contractId)?contractId:draft[0].id);
+  };
+  const setMap=id=>{map=id;mb.forEach(b=>{const on=b.dataset.m===id;b.classList.toggle("armed",on);b.setAttribute("aria-pressed",on?"true":"false")});renderContracts()};
   mb.forEach(b=>b.onclick=()=>setMap(b.dataset.m));
-  setMap("valley");
-  const pe=o.querySelector("#sPeace"),su=o.querySelector("#sSurv");
-  const setMode=id=>{mode=id;const peace=id==="peace";pe.classList.toggle("armed",peace);su.classList.toggle("armed",!peace);pe.setAttribute("aria-pressed",peace?"true":"false");su.setAttribute("aria-pressed",peace?"false":"true")};
+  const setMode=id=>{mode=id;const peace=id==="peace";pe.classList.toggle("armed",peace);su.classList.toggle("armed",!peace);pe.setAttribute("aria-pressed",peace?"true":"false");su.setAttribute("aria-pressed",peace?"false":"true");renderContracts()};
   pe.onclick=()=>setMode("peace");
   su.onclick=()=>setMode("survival");
+  setMap("valley");setMode("peace");
   o.querySelectorAll(".sRow").forEach(b=>b.onclick=()=>{
     const s=sessionsList().find(x=>x.id===b.dataset.id);
     if(s){localStorage.setItem("ff.played","1");startGame({mode:s.data.mode,session:s})}
@@ -3742,7 +3957,7 @@ function showMenu(){
   };
   o.querySelector("#sGo").onclick=()=>{
     localStorage.setItem("ff.played","1");
-    startGame({mode,map,tutorial:o.querySelector("#sTut").checked});
+    startGame({mode,map,contractId,tutorial:o.querySelector("#sTut").checked});
   };
 }
 showMenu();
