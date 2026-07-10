@@ -1,5 +1,6 @@
-import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { beat, endSession, markResumed, setActiveAccount } from "./data/playStats";
 import { LoadingScreen } from "./pages/LoadingScreen";
 import { GamePickerScreen } from "./pages/GamePickerScreen";
 import { ChessHubScreen } from "./pages/ChessHubScreen";
@@ -44,6 +45,41 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Учёт времени в играх для статистики хаба (см. data/playStats). Живёт в корне роутера,
+// чтобы тикать и во время игры (экраны/iframe остаются детьми App). Возврат на «/» и
+// сворачивание/закрытие приложения закрывают сессию.
+function PlaytimeTracker() {
+  const location = useLocation();
+  const userId = useAuthStore((s) => s.user?.id);
+
+  useEffect(() => {
+    setActiveAccount(userId ?? null);
+  }, [userId]);
+
+  useEffect(() => {
+    if (location.pathname === "/") endSession();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      if (document.visibilityState === "visible") beat();
+    }, 10_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") markResumed();
+      else beat(); // зачесть время до момента сворачивания вкладки
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", endSession);
+    return () => {
+      window.clearInterval(tick);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", endSession);
+    };
+  }, []);
+
+  return null;
+}
+
 export function App() {
   useThemeStore(); // trigger hydration/initialization
   useVisualModeStore(); // trigger hydration/initialization
@@ -52,6 +88,7 @@ export function App() {
     <BrowserRouter>
       <div className="background-blobs" />
       <AppleDefinitions />
+      <PlaytimeTracker />
       <Routes>
         <Route path="/loading" element={<LoadingScreen />} />
         <Route path="/" element={<Protected><GamePickerScreen /></Protected>} />
