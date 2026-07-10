@@ -175,14 +175,14 @@
     <div class="controls controls-desk">
       <span>WASD</span> / Стрелки — Движение<br>
       <span>Shift</span> / Рывок — уклонение<br>
-      <span>Клинок</span> — сам наводится на ближайший болт<br>
+      <span>Клинок</span> — крутится сам, без остановки<br>
       <span>Ближний бой</span> — режь дронов клинком вплотную<br>
       <span>ПРОБЕЛ</span> / Импульс — волна после улучшения<br>
       <span>M</span> — вкл/выкл звуки
     </div>
     <div class="controls controls-touch">
       <span>👆 Тяни</span> в любом месте экрана — движение<br>
-      <span>⚔️ Клинок</span> — сам отражает болты и режет дронов рядом<br>
+      <span>⚔️ Клинок</span> — крутится сам, отражает болты и режет дронов рядом<br>
       <span>👆👆 Двойное касание</span> — рывок с неуязвимостью<br>
       <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
       <span>🔊</span> сверху экрана — звук вкл/выкл
@@ -241,9 +241,9 @@ function resize() {
   canvas.width = Math.round(vw * dpr);
   canvas.height = Math.round(vh * dpr);
   // размер объектов относительно высоты экрана; на тач-устройствах отдаляем камеру
-  // (было слишком приближено — арену едва видно) сильнее уменьшая масштаб мира
+  // (было слишком приближено) — персонаж, враги и арена мельче, вид сильнее сверху
   const baseUnit = Math.min(1.5, Math.max(0.75, vh / 720));
-  const unit = IS_TOUCH ? Math.max(0.55, baseUnit * 0.75) : baseUnit;
+  const unit = IS_TOUCH ? Math.max(0.4, baseUnit * 0.38) : baseUnit;
   currentUnit = unit;
   W = vw / unit;
   H = vh / unit;
@@ -1262,19 +1262,18 @@ function addXP(val) {
 // ─── UPGRADES ─────────────────────────────────────────────────────────────────
 const upgradeState = {
   longerSaber:0, quickReflex:0, shield:false, piercingDeflect:false,
-  forceSpinDeflect:false, forceRegen:false, dangerSense:0, speed:0,
+  forceSpinDeflect:false, forceRegen:false, speed:0,
   forcePush:false, forceMastery:false,
   redSaber:false, dualSabers:false,
 };
 
 const UPGRADES = [
   { id:'longerSaber',      name:'⚔  Длинный клинок',      desc:'Длина клинка +25%. Больше зона отражения.',       maxStack:3 },
-  { id:'quickReflex',      name:'⚡ Быстрый рефлекс',       desc:'Клинок наводится в 2 раза быстрее.',              maxStack:2 },
+  { id:'quickReflex',      name:'⚡ Быстрый рефлекс',       desc:'Клинок крутится в 2 раза быстрее.',               maxStack:2 },
   { id:'shield',           name:'🔵 Энергощит',             desc:'Поглощает 1 болт каждые 8 сек.',                  maxStack:1 },
   { id:'piercingDeflect',  name:'💫 Пробивающий выстрел',   desc:'Отражённые болты пробивают всех врагов.',         maxStack:1 },
   { id:'forceSpinDeflect', name:'🌀 Квантовый вихрь',        desc:'После отражения — короткий вихрь клинка 360°.',   maxStack:1 },
   { id:'forceRegen',       name:'❤  Наноремонт',            desc:'+1 ЗД в секунду (до максимума).',                 maxStack:1 },
-  { id:'dangerSense',      name:'👁  Чувство опасности',    desc:'Радиус автоприцела +50%.',                        maxStack:2 },
   { id:'speed',            name:'💨 Ускорение',              desc:'Скорость движения +20%.',                         maxStack:3 },
   { id:'forcePush',        name:'💥 Импульс',                desc:'[ПРОБЕЛ] раскидывает все ближайшие болты.',       maxStack:1 },
   { id:'forceMastery',     name:'⭐ Синхронизация',          desc:'+50% опыта со всех убийств.',                     maxStack:1 },
@@ -1504,38 +1503,16 @@ function checkComboMilestone() {
 
 // ─── SABER AUTO-AIM ───────────────────────────────────────────────────────────
 function updateSaberAim(dt) {
+  // Клинок крутится равномерно и предсказуемо — без "прицеливания" по врагам/болтам,
+  // которое давало рваное, непредсказуемое вращение. Отражение — от геометрии взмаха.
   const prevAngle=player.saberAngle;
   if (player.spinTimer>0) {
     player.spinTimer -= dt;
     player.saberAngle += TAU*3.5*dt;
-    player.saberAngleDelta = (player.saberAngle-prevAngle)/(dt||0.016);
-    return;
+  } else {
+    player.saberAngle += player.saberTrackSpeed*dt;
   }
-  let targetAngle=null, minScore=Infinity;
-  const sense=1+0.5*(upgradeState.dangerSense||0);
-  for (const b of bullets) {
-    if (b.deflected||b.dead) continue;
-    const dx=player.x-b.x, dy=player.y-b.y;
-    const d=Math.sqrt(dx*dx+dy*dy);
-    if (d>500*sense) continue;
-    const spd=Math.sqrt(b.vx*b.vx+b.vy*b.vy);
-    const dot=(b.vx*dx/spd+b.vy*dy/spd)/d;
-    const score=d-dot*200;
-    if (score<minScore) { minScore=score; targetAngle=Math.atan2(b.y-player.y,b.x-player.x); }
-  }
-  if (targetAngle===null) {
-    let minD=Infinity;
-    for (const e of enemies) {
-      if (e.dying) continue;
-      const d=dist(player.x,player.y,e.x,e.y);
-      if (d<minD) { minD=d; targetAngle=angleTo(player.x,player.y,e.x,e.y); }
-    }
-  }
-  if (targetAngle!==null) {
-    const diff=angDiff(player.saberAngle,targetAngle);
-    const maxTurn=player.saberTrackSpeed*dt;
-    player.saberAngle += clamp(diff,-maxTurn,maxTurn);
-  }
+  player.saberAngle %= TAU;
   player.saberAngleDelta = angDiff(prevAngle,player.saberAngle)/(dt||0.016);
 }
 
@@ -1842,7 +1819,7 @@ function resetGame() {
   });
   Object.assign(upgradeState, {
     longerSaber:0, quickReflex:0, shield:false, piercingDeflect:false,
-    forceSpinDeflect:false, forceRegen:false, dangerSense:0, speed:0,
+    forceSpinDeflect:false, forceRegen:false, speed:0,
     forcePush:false, forceMastery:false, redSaber:false, dualSabers:false,
   });
   // Reset melee damage in case it was boosted
