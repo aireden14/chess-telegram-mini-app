@@ -175,14 +175,14 @@
     <div class="controls controls-desk">
       <span>WASD</span> / Стрелки — Движение<br>
       <span>Shift</span> / Рывок — уклонение<br>
-      <span>Клинок</span> — крутится сам, без остановки<br>
+      <span>Клинок</span> — направлен туда, куда ты движешься<br>
       <span>Ближний бой</span> — режь дронов клинком вплотную<br>
       <span>ПРОБЕЛ</span> / Импульс — волна после улучшения<br>
       <span>M</span> — вкл/выкл звуки
     </div>
     <div class="controls controls-touch">
       <span>👆 Тяни</span> в любом месте экрана — движение<br>
-      <span>⚔️ Клинок</span> — крутится сам, отражает болты и режет дронов рядом<br>
+      <span>⚔️ Клинок</span> — направлен туда, куда ты движешься; отражает болты и режет дронов рядом<br>
       <span>👆👆 Двойное касание</span> — рывок с неуязвимостью<br>
       <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
       <span>🔊</span> сверху экрана — звук вкл/выкл
@@ -1269,7 +1269,7 @@ const upgradeState = {
 
 const UPGRADES = [
   { id:'longerSaber',      name:'⚔  Длинный клинок',      desc:'Длина клинка +25%. Больше зона отражения.',       maxStack:3 },
-  { id:'quickReflex',      name:'⚡ Быстрый рефлекс',       desc:'Клинок крутится в 2 раза быстрее.',               maxStack:2 },
+  { id:'quickReflex',      name:'⚡ Быстрый рефлекс',       desc:'Клинок разворачивается в 2 раза быстрее.',        maxStack:2 },
   { id:'shield',           name:'🔵 Энергощит',             desc:'Поглощает 1 болт каждые 8 сек.',                  maxStack:1 },
   { id:'piercingDeflect',  name:'💫 Пробивающий выстрел',   desc:'Отражённые болты пробивают всех врагов.',         maxStack:1 },
   { id:'forceSpinDeflect', name:'🌀 Квантовый вихрь',        desc:'После отражения — короткий вихрь клинка 360°.',   maxStack:1 },
@@ -1503,14 +1503,21 @@ function checkComboMilestone() {
 
 // ─── SABER AUTO-AIM ───────────────────────────────────────────────────────────
 function updateSaberAim(dt) {
-  // Клинок крутится равномерно и предсказуемо — без "прицеливания" по врагам/болтам,
-  // которое давало рваное, непредсказуемое вращение. Отражение — от геометрии взмаха.
+  // Клинок направлен туда, куда ты сейчас ведёшь движение (джойстик/WASD), а если
+  // стоишь на месте — держит последнее направление. Это даёт прямое управление
+  // клинком вместо случайного вращения или "охоты" за целями по своей логике.
   const prevAngle=player.saberAngle;
   if (player.spinTimer>0) {
     player.spinTimer -= dt;
     player.saberAngle += TAU*3.5*dt;
   } else {
-    player.saberAngle += player.saberTrackSpeed*dt;
+    const inp=getInput();
+    const dirX = (inp.mx!==0||inp.my!==0) ? inp.mx : player.lastMoveX;
+    const dirY = (inp.mx!==0||inp.my!==0) ? inp.my : player.lastMoveY;
+    const targetAngle = Math.atan2(dirY,dirX);
+    const diff=angDiff(player.saberAngle,targetAngle);
+    const maxTurn=player.saberTrackSpeed*dt;
+    player.saberAngle += clamp(diff,-maxTurn,maxTurn);
   }
   player.saberAngle %= TAU;
   player.saberAngleDelta = angDiff(prevAngle,player.saberAngle)/(dt||0.016);
