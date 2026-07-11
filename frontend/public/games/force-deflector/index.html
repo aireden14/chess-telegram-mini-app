@@ -175,14 +175,14 @@
     <div class="controls controls-desk">
       <span>WASD</span> / Стрелки — Движение<br>
       <span>Shift</span> / Рывок — уклонение<br>
-      <span>Клинок</span> — направлен туда, куда ты движешься<br>
+      <span>Клинок</span> — тянется к центру арены и отражает болты<br>
       <span>Ближний бой</span> — режь дронов клинком вплотную<br>
       <span>ПРОБЕЛ</span> / Импульс — волна после улучшения<br>
       <span>M</span> — вкл/выкл звуки
     </div>
     <div class="controls controls-touch">
       <span>👆 Тяни</span> в любом месте экрана — движение<br>
-      <span>⚔️ Клинок</span> — направлен туда, куда ты движешься; отражает болты и режет дронов рядом<br>
+      <span>⚔️ Клинок</span> — тянется к центру арены; отражает болты и режет дронов рядом<br>
       <span>👆👆 Двойное касание</span> — рывок с неуязвимостью<br>
       <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
       <span>🔊</span> сверху экрана — звук вкл/выкл
@@ -327,6 +327,24 @@ function segIntersect(p1x,p1y, p2x,p2y, p3x,p3y, p4x,p4y) {
   return t>=0&&t<=1&&u>=0&&u<=1;
 }
 
+function pointSegmentDistSq(px,py, ax,ay, bx,by) {
+  const dx=bx-ax, dy=by-ay;
+  const lenSq=dx*dx+dy*dy;
+  if (lenSq===0) { const ox=px-ax, oy=py-ay; return ox*ox+oy*oy; }
+  const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/lenSq));
+  const ox=px-(ax+dx*t), oy=py-(ay+dy*t);
+  return ox*ox+oy*oy;
+}
+
+function segmentsTouch(p1x,p1y, p2x,p2y, p3x,p3y, p4x,p4y, radius) {
+  if (segIntersect(p1x,p1y,p2x,p2y,p3x,p3y,p4x,p4y)) return true;
+  const rSq=radius*radius;
+  return pointSegmentDistSq(p1x,p1y,p3x,p3y,p4x,p4y)<=rSq ||
+    pointSegmentDistSq(p2x,p2y,p3x,p3y,p4x,p4y)<=rSq ||
+    pointSegmentDistSq(p3x,p3y,p1x,p1y,p2x,p2y)<=rSq ||
+    pointSegmentDistSq(p4x,p4y,p1x,p1y,p2x,p2y)<=rSq;
+}
+
 function reflect(vx, vy, nx, ny) {
   const dot = vx*nx + vy*ny;
   return { x: vx-2*dot*nx, y: vy-2*dot*ny };
@@ -417,6 +435,7 @@ const CFG = {
   playerHP: 100,
   saberLength: 90,
   saberTrackSpeed: 6,
+  saberDeflectRadius: 8,
   playerRadius: 14,
   bulletSpeed: 240,
   bulletDamage: 12,
@@ -724,7 +743,7 @@ const bullets = [];
 
 function spawnBullet(x, y, vx, vy, deflected=false, ownerId=null) {
   bullets.push({ x, y, vx, vy, deflected, ownerId,
-    trail:[], trailMax:6, pierceCount:0, dead:false });
+    prevX:x, prevY:y, trail:[], trailMax:6, pierceCount:0, dead:false });
 }
 
 function updateBullets(dt) {
@@ -737,6 +756,7 @@ function updateBullets(dt) {
       const tClose=bSpd2>0 ? -(b.vx*dxp+b.vy*dyp)/bSpd2 : Infinity;
       b.timeToImpact = tClose >= 0 ? tClose : Infinity;
     }
+    b.prevX=b.x; b.prevY=b.y;
     b.trail.push({x:b.x, y:b.y});
     if (b.trail.length > b.trailMax) b.trail.shift();
     b.x += b.vx*dt; b.y += b.vy*dt;
@@ -1332,9 +1352,11 @@ function spawnWave(wave) {
 function checkDeflections() {
   // Build list of saber segments to check
   const segs = [];
-  const ep1 = getSaberEndpoints(player.saberAngle);
-  segs.push(ep1);
-  if (player.dualSabers) segs.push(getSecondSaberEndpoints());
+  const angles = player.spinTimer>0
+    ? Array.from({length:8}, (_,i) => player.saberAngle+i*TAU/8)
+    : [player.saberAngle];
+  for (const angle of angles) segs.push(getSaberEndpoints(angle));
+  if (player.dualSabers && player.spinTimer<=0) segs.push(getSecondSaberEndpoints());
 
   for (const seg of segs) {
     const { bx, by, tx, ty } = seg;
@@ -1344,9 +1366,7 @@ function checkDeflections() {
     for (let i=bullets.length-1; i>=0; i--) {
       const b=bullets[i];
       if (b.deflected||b.dead) continue;
-      const prevX=b.trail.length>0?b.trail[b.trail.length-1].x:b.x-b.vx/60;
-      const prevY=b.trail.length>0?b.trail[b.trail.length-1].y:b.y-b.vy/60;
-      if (segIntersect(prevX,prevY,b.x,b.y,bx,by,tx,ty)) {
+      if (segmentsTouch(b.prevX,b.prevY,b.x,b.y,bx,by,tx,ty,CFG.saberDeflectRadius)) {
         const ref=reflect(b.vx,b.vy,nx,ny);
         const spd=CFG.deflectedSpeed, len=Math.sqrt(ref.x*ref.x+ref.y*ref.y);
         b.vx=(ref.x/len)*spd; b.vy=(ref.y/len)*spd;
@@ -1503,21 +1523,22 @@ function checkComboMilestone() {
 
 // ─── SABER AUTO-AIM ───────────────────────────────────────────────────────────
 function updateSaberAim(dt) {
-  // Клинок направлен туда, куда ты сейчас ведёшь движение (джойстик/WASD), а если
-  // стоишь на месте — держит последнее направление. Это даёт прямое управление
-  // клинком вместо случайного вращения или "охоты" за целями по своей логике.
+  // Клинок тянется к центру арены: цель неизменна и не зависит ни от движения,
+  // ни от врагов, поэтому направление остаётся предсказуемым.
   const prevAngle=player.saberAngle;
   if (player.spinTimer>0) {
     player.spinTimer -= dt;
     player.saberAngle += TAU*3.5*dt;
   } else {
-    const inp=getInput();
-    const dirX = (inp.mx!==0||inp.my!==0) ? inp.mx : player.lastMoveX;
-    const dirY = (inp.mx!==0||inp.my!==0) ? inp.my : player.lastMoveY;
-    const targetAngle = Math.atan2(dirY,dirX);
-    const diff=angDiff(player.saberAngle,targetAngle);
-    const maxTurn=player.saberTrackSpeed*dt;
-    player.saberAngle += clamp(diff,-maxTurn,maxTurn);
+    const centerDx=W/2-player.x, centerDy=H/2-player.y;
+    // В самой точке центра направление не определено — оставляем клинок там,
+    // где он уже находится, вместо случайного скачка.
+    if (centerDx*centerDx+centerDy*centerDy > 1) {
+      const targetAngle = Math.atan2(centerDy,centerDx);
+      const diff=angDiff(player.saberAngle,targetAngle);
+      const maxTurn=player.saberTrackSpeed*dt;
+      player.saberAngle += clamp(diff,-maxTurn,maxTurn);
+    }
   }
   player.saberAngle %= TAU;
   player.saberAngleDelta = angDiff(prevAngle,player.saberAngle)/(dt||0.016);
