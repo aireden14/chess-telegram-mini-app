@@ -175,14 +175,14 @@
     <div class="controls controls-desk">
       <span>WASD</span> / Стрелки — Движение<br>
       <span>Shift</span> / Рывок — уклонение<br>
-      <span>Клинок</span> — тянется к центру арены и отражает болты<br>
+      <span>Клинок</span> — кругом отражает болты со всех сторон<br>
       <span>Ближний бой</span> — режь дронов клинком вплотную<br>
       <span>ПРОБЕЛ</span> / Импульс — волна после улучшения<br>
       <span>M</span> — вкл/выкл звуки
     </div>
     <div class="controls controls-touch">
       <span>👆 Тяни</span> в любом месте экрана — движение<br>
-      <span>⚔️ Клинок</span> — тянется к центру арены; отражает болты и режет дронов рядом<br>
+      <span>⚔️ Клинок</span> — создаёт круг отражения: болты ловятся со всех сторон<br>
       <span>👆👆 Двойное касание</span> — рывок с неуязвимостью<br>
       <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
       <span>🔊</span> сверху экрана — звук вкл/выкл
@@ -318,31 +318,16 @@ function glowText(text, x, y, color, size, alpha=1) {
   ctx.restore();
 }
 
-function segIntersect(p1x,p1y, p2x,p2y, p3x,p3y, p4x,p4y) {
-  const d1x=p2x-p1x, d1y=p2y-p1y, d2x=p4x-p3x, d2y=p4y-p3y;
-  const denom = d1x*d2y - d1y*d2x;
-  if (Math.abs(denom) < 1e-9) return false;
-  const ox=p3x-p1x, oy=p3y-p1y;
-  const t=(ox*d2y-oy*d2x)/denom, u=(ox*d1y-oy*d1x)/denom;
-  return t>=0&&t<=1&&u>=0&&u<=1;
-}
-
-function pointSegmentDistSq(px,py, ax,ay, bx,by) {
-  const dx=bx-ax, dy=by-ay;
-  const lenSq=dx*dx+dy*dy;
-  if (lenSq===0) { const ox=px-ax, oy=py-ay; return ox*ox+oy*oy; }
-  const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/lenSq));
-  const ox=px-(ax+dx*t), oy=py-(ay+dy*t);
-  return ox*ox+oy*oy;
-}
-
-function segmentsTouch(p1x,p1y, p2x,p2y, p3x,p3y, p4x,p4y, radius) {
-  if (segIntersect(p1x,p1y,p2x,p2y,p3x,p3y,p4x,p4y)) return true;
-  const rSq=radius*radius;
-  return pointSegmentDistSq(p1x,p1y,p3x,p3y,p4x,p4y)<=rSq ||
-    pointSegmentDistSq(p2x,p2y,p3x,p3y,p4x,p4y)<=rSq ||
-    pointSegmentDistSq(p3x,p3y,p1x,p1y,p2x,p2y)<=rSq ||
-    pointSegmentDistSq(p4x,p4y,p1x,p1y,p2x,p2y)<=rSq;
+function segmentCircleEntry(x0,y0, x1,y1, cx,cy, radius) {
+  const dx=x1-x0, dy=y1-y0, ox=x0-cx, oy=y0-cy;
+  const a=dx*dx+dy*dy;
+  const c=ox*ox+oy*oy-radius*radius;
+  if (c<=0) return { x:x0, y:y0 };
+  if (a===0) return null;
+  const b=2*(ox*dx+oy*dy), disc=b*b-4*a*c;
+  if (disc<0) return null;
+  const t=(-b-Math.sqrt(disc))/(2*a);
+  return t>=0&&t<=1 ? { x:x0+dx*t, y:y0+dy*t } : null;
 }
 
 function reflect(vx, vy, nx, ny) {
@@ -435,7 +420,7 @@ const CFG = {
   playerHP: 100,
   saberLength: 90,
   saberTrackSpeed: 6,
-  saberDeflectRadius: 8,
+  deflectRingRadius: 82,
   playerRadius: 14,
   bulletSpeed: 240,
   bulletDamage: 12,
@@ -573,6 +558,7 @@ const player = {
   x:W/2, y:H/2, vx:0, vy:0,
   hp:CFG.playerHP, maxHp:CFG.playerHP,
   saberAngle:0, saberLength:CFG.saberLength, saberTrackSpeed:CFG.saberTrackSpeed,
+  deflectRingRadius:CFG.deflectRingRadius,
   saberColor:'#00aaff', dualSabers:false,
   bodyAngle:0, walkPhase:0, bob:0, gripDist:12,
   shieldCooldown:0, shieldMax:8, shieldActive:false,
@@ -727,6 +713,20 @@ function drawPlayer() {
     const c2 = saberColor === '#ff2200' ? '#cc0066' : '#aa44ff';
     glowLine(ep2.bx,ep2.by,ep2.tx,ep2.ty, c2, 2*pulse, 18*pulse, 0.85);
   }
+
+  // Видимая круговая траектория клинка — именно по этой окружности болты
+  // отражаются с любой стороны, а не только по тонкой линии клинка.
+  const ringPulse=0.7+Math.sin(game.time*8)*0.18;
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  ctx.strokeStyle=saberColor;
+  ctx.shadowColor=saberColor; ctx.shadowBlur=18;
+  ctx.globalAlpha=0.16*ringPulse; ctx.lineWidth=12;
+  ctx.beginPath(); ctx.arc(x,y,player.deflectRingRadius,0,TAU); ctx.stroke();
+  ctx.globalAlpha=0.7*ringPulse; ctx.lineWidth=1.8;
+  ctx.setLineDash([10,7]); ctx.lineDashOffset=-game.time*38;
+  ctx.beginPath(); ctx.arc(x,y,player.deflectRingRadius,0,TAU); ctx.stroke();
+  ctx.restore();
 
   // Shield
   if (player.hasShield && player.shieldActive) {
@@ -1320,7 +1320,11 @@ function applyUpgrade(id) {
   if (typeof cur==='boolean') upgradeState[id]=true;
   else if (typeof cur==='number') upgradeState[id]++;
 
-  if (id==='longerSaber')     player.saberLength = CFG.saberLength*(1+0.25*upgradeState.longerSaber);
+  if (id==='longerSaber') {
+    const scale=1+0.25*upgradeState.longerSaber;
+    player.saberLength = CFG.saberLength*scale;
+    player.deflectRingRadius = CFG.deflectRingRadius*scale;
+  }
   if (id==='quickReflex')     player.saberTrackSpeed = CFG.saberTrackSpeed*(1+upgradeState.quickReflex);
   if (id==='shield')          { player.hasShield=true; player.shieldActive=true; }
   if (id==='piercingDeflect') player.piercingDeflect=true;
@@ -1350,26 +1354,22 @@ function spawnWave(wave) {
 
 // ─── COLLISION & DEFLECT ──────────────────────────────────────────────────────
 function checkDeflections() {
-  // Build list of saber segments to check
-  const segs = [];
-  const angles = player.spinTimer>0
-    ? Array.from({length:8}, (_,i) => player.saberAngle+i*TAU/8)
-    : [player.saberAngle];
-  for (const angle of angles) segs.push(getSaberEndpoints(angle));
-  if (player.dualSabers && player.spinTimer<=0) segs.push(getSecondSaberEndpoints());
-
-  for (const seg of segs) {
-    const { bx, by, tx, ty } = seg;
-    const sabDx=tx-bx, sabDy=ty-by, sabLen=Math.sqrt(sabDx*sabDx+sabDy*sabDy);
-    const nx=-sabDy/sabLen, ny=sabDx/sabLen;
-
-    for (let i=bullets.length-1; i>=0; i--) {
-      const b=bullets[i];
-      if (b.deflected||b.dead) continue;
-      if (segmentsTouch(b.prevX,b.prevY,b.x,b.y,bx,by,tx,ty,CFG.saberDeflectRadius)) {
-        const ref=reflect(b.vx,b.vy,nx,ny);
-        const spd=CFG.deflectedSpeed, len=Math.sqrt(ref.x*ref.x+ref.y*ref.y);
-        b.vx=(ref.x/len)*spd; b.vy=(ref.y/len)*spd;
+  for (let i=bullets.length-1; i>=0; i--) {
+    const b=bullets[i];
+    if (b.deflected||b.dead) continue;
+    const hit=segmentCircleEntry(
+      b.prevX,b.prevY,b.x,b.y, player.x,player.y,player.deflectRingRadius
+    );
+    if (hit) {
+      b.x=hit.x; b.y=hit.y;
+      const dx=b.x-player.x, dy=b.y-player.y;
+      const len=Math.hypot(dx,dy)||1;
+      const nx=dx/len, ny=dy/len;
+      let ref=reflect(b.vx,b.vy,nx,ny);
+      // Кольцо всегда выбрасывает болт наружу, даже при касательном попадании.
+      if (ref.x*nx+ref.y*ny<=0) ref={x:nx,y:ny};
+      const spd=CFG.deflectedSpeed, refLen=Math.hypot(ref.x,ref.y)||1;
+      b.vx=(ref.x/refLen)*spd; b.vy=(ref.y/refLen)*spd;
         const perfect = b.timeToImpact !== undefined && b.timeToImpact < CFG.perfectWindow;
         b.deflected=true; b.perfectDeflect=perfect; b.pierceCount=0; b.trailMax=10;
         if (perfect) {
@@ -1395,7 +1395,6 @@ function checkDeflections() {
         game.combo++; game.comboTimer=3;
         if (player.spinOnDeflect) player.spinTimer=0.45;
         checkComboMilestone();
-      }
     }
   }
 }
@@ -1837,6 +1836,7 @@ function resetGame() {
     x:W/2, y:H/2, vx:0, vy:0,
     hp:CFG.playerHP, maxHp:CFG.playerHP,
     saberAngle:0, saberLength:CFG.saberLength, saberTrackSpeed:CFG.saberTrackSpeed,
+    deflectRingRadius:CFG.deflectRingRadius,
     saberColor:'#00aaff', dualSabers:false,
     bodyAngle:0, walkPhase:0, bob:0, gripDist:12,
     shieldCooldown:0, shieldActive:false,
