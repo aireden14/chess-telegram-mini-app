@@ -1290,10 +1290,11 @@ function drawXPOrbs() {
 // за кораблём), survivors-прокачка (оружие копится и растёт в уровнях), планеты
 // и астероиды — препятствия и ориентиры, до 20 типов вражеских кораблей.
 const SHIPS = {
-  WORLD: 5200,
+  WORLD: 52000,
   cam: { x:0, y:0 },
-  planets: [], asteroids: [], farStars: [],
-  shots: [], eShots: [], mines: [], enemies: [], drones: [],
+  planets: [], asteroids: [],
+  chunks: new Set(),
+  shots: [], eShots: [], mines: [], enemies: [], drones: [], orbitals: [],
   enemyIdCounter: 0,
   sprites: {}, astSprites: [],
 };
@@ -1568,58 +1569,96 @@ const PLANET_PALS = [
   ['#8fff8a','#2a9a4a'], ['#ffe14a','#b8860b'], ['#ff5a8a','#a8225a'],
 ];
 
-function shipsBuildWorld() {
-  SHIPS.planets.length = 0; SHIPS.asteroids.length = 0; SHIPS.astSprites.length = 0;
-  const worldR = SHIPS.WORLD;
-  const nPlanets = 6;
-  for (let i=0; i<nPlanets; i++) {
-    const pal = PLANET_PALS[i % PLANET_PALS.length];
-    SHIPS.planets.push({
-      x: rnd(worldR*0.12, worldR*0.88), y: rnd(worldR*0.12, worldR*0.88),
-      r: rnd(90, 190), pal, ring: Math.random()<0.4,
-      phase: rnd(0,TAU),
-    });
-  }
-  // Раздвигаем планеты, чтобы не накладывались друг на друга
-  for (let iter=0; iter<40; iter++) {
-    for (let i=0; i<SHIPS.planets.length; i++) {
-      for (let j=i+1; j<SHIPS.planets.length; j++) {
-        const a=SHIPS.planets[i], b=SHIPS.planets[j];
-        const d=dist(a.x,a.y,b.x,b.y), minD=a.r+b.r+140;
-        if (d<minD && d>0.01) {
-          const push=(minD-d)/2, nx=(a.x-b.x)/d, ny=(a.y-b.y)/d;
-          a.x+=nx*push; a.y+=ny*push; b.x-=nx*push; b.y-=ny*push;
-        }
-      }
-    }
-  }
-  const astShapeSeeds = [];
+// Мир в 10 раз больше исходного (5200→52000) и генерируется процедурно по чанкам
+// вокруг корабля — детерминированным сидом на координаты чанка (как в Minecraft):
+// один и тот же чанк всегда даёт одну и ту же планету/пояс астероидов, а далёкие
+// чанки выгружаются из памяти, что держит производительность независимой от
+// размера мира.
+const SHIP_CHUNK = 1800, SHIP_GEN_RADIUS = 3, SHIP_EVICT_RADIUS = 4;
+const ASTEROID_SHAPES = (function(){
+  const shapes = [];
   for (let s=0; s<6; s++) {
-    const pts=[]; const n=rndInt(7,10);
-    for (let i=0;i<n;i++) { const a=i/n*TAU; pts.push(0.7+Math.random()*0.5); }
-    astShapeSeeds.push(pts);
+    const n=rndInt(7,10), pts=[];
+    for (let i=0;i<n;i++) pts.push(0.7+Math.random()*0.5);
+    shapes.push(pts);
   }
-  const nAsteroids = 46;
-  for (let i=0; i<nAsteroids; i++) {
-    let x,y,ok=false, tries=0;
-    while(!ok && tries<20) {
-      x=rnd(0,worldR); y=rnd(0,worldR); ok=true; tries++;
-      for (const p of SHIPS.planets) if (dist(x,y,p.x,p.y) < p.r+160) { ok=false; break; }
+  return shapes;
+})();
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shipsHash01(ix, iy) {
+  let h = (ix*374761393 + iy*668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = h ^ (h >>> 16);
+  return (h >>> 0) / 4294967296;
+}
+// Числовой битовый ключ чанка для Set вместо конкатенации строк (cx,cy в пределах ±32767)
+function shipsChunkKey(cx, cy) { return (cx & 0xFFFF) + (cy & 0xFFFF) * 65536; }
+
+function shipsGenChunk(cx, cy) {
+  const key = shipsChunkKey(cx, cy);
+  if (SHIPS.chunks.has(key)) return;
+  SHIPS.chunks.add(key);
+  const originX = cx*SHIP_CHUNK, originY = cy*SHIP_CHUNK;
+  if (originX < 0 || originY < 0 || originX > SHIPS.WORLD || originY > SHIPS.WORLD) return;
+  const rng = mulberry32((cx*374761393 + cy*668265263) | 0);
+  if (rng() < 0.12) {
+    const r = 90 + rng()*130;
+    const px = clamp(originX + rng()*SHIP_CHUNK, r, SHIPS.WORLD-r);
+    const py = clamp(originY + rng()*SHIP_CHUNK, r, SHIPS.WORLD-r);
+    let overlap = false;
+    for (const p of SHIPS.planets) if (dist(px,py,p.x,p.y) < p.r+r+120) { overlap = true; break; }
+    if (!overlap) {
+      const pal = PLANET_PALS[Math.floor(rng()*PLANET_PALS.length)];
+      SHIPS.planets.push({ x:px, y:py, r, pal, ring: rng()<0.4, phase: rng()*TAU, cx, cy });
     }
-    const r = rnd(16,42);
+  }
+  const nA = 2 + Math.floor(rng()*5);
+  for (let i=0; i<nA; i++) {
+    const r = 16 + rng()*26;
+    const x = clamp(originX + rng()*SHIP_CHUNK, r, SHIPS.WORLD-r);
+    const y = clamp(originY + rng()*SHIP_CHUNK, r, SHIPS.WORLD-r);
+    let blocked = false;
+    for (const p of SHIPS.planets) if (dist(x,y,p.x,p.y) < p.r+150) { blocked = true; break; }
+    if (blocked) continue;
     SHIPS.asteroids.push({
       x, y, r, hp:Math.round(r*2.2), maxHp:Math.round(r*2.2),
-      seed: astShapeSeeds[i % astShapeSeeds.length],
-      angle: rnd(0,TAU), spin: rnd(-0.4,0.4),
-      vx: rnd(-8,8), vy: rnd(-8,8),
+      seed: ASTEROID_SHAPES[Math.floor(rng()*ASTEROID_SHAPES.length)],
+      angle: rng()*TAU, spin:(rng()-0.5)*0.8,
+      vx:(rng()-0.5)*16, vy:(rng()-0.5)*16, cx, cy,
     });
   }
-  SHIPS.farStars.length = 0;
-  for (let i=0; i<420; i++) SHIPS.farStars.push({
-    x: rnd(0,worldR), y: rnd(0,worldR), r: rnd(0.5,2.4),
-    alpha: rnd(0.15,0.85), twinkle: rnd(0,TAU), twinkleSpeed: rnd(0.3,1.6),
-    hue: rndInt(0,5),
-  });
+}
+
+function shipsEnsureChunks() {
+  const pcx = Math.floor(player.x/SHIP_CHUNK), pcy = Math.floor(player.y/SHIP_CHUNK);
+  for (let dx=-SHIP_GEN_RADIUS; dx<=SHIP_GEN_RADIUS; dx++)
+    for (let dy=-SHIP_GEN_RADIUS; dy<=SHIP_GEN_RADIUS; dy++)
+      shipsGenChunk(pcx+dx, pcy+dy);
+  for (let i=SHIPS.asteroids.length-1; i>=0; i--) {
+    const a = SHIPS.asteroids[i];
+    if (Math.abs(a.cx-pcx)>SHIP_EVICT_RADIUS || Math.abs(a.cy-pcy)>SHIP_EVICT_RADIUS) {
+      SHIPS.chunks.delete(shipsChunkKey(a.cx,a.cy)); SHIPS.asteroids.splice(i,1);
+    }
+  }
+  for (let i=SHIPS.planets.length-1; i>=0; i--) {
+    const p = SHIPS.planets[i];
+    if (Math.abs(p.cx-pcx)>SHIP_EVICT_RADIUS || Math.abs(p.cy-pcy)>SHIP_EVICT_RADIUS) {
+      SHIPS.chunks.delete(shipsChunkKey(p.cx,p.cy)); SHIPS.planets.splice(i,1);
+    }
+  }
+}
+
+function shipsBuildWorld() {
+  SHIPS.planets.length = 0; SHIPS.asteroids.length = 0; SHIPS.astSprites.length = 0;
+  SHIPS.chunks.clear();
+  shipsEnsureChunks(); // player.x/y уже должны быть выставлены к этому моменту
 }
 
 function shipsSprite(id) {
@@ -1653,6 +1692,24 @@ const SHIP_WEAPONS = {
   drone:    { name:'🛰 Боевой дрон',         desc:'Дрон летает рядом и стреляет сам.', max:3,
               base:{ cd:1.1, dmg:8, spd:420 },
               perLvl:{ cd:-0.15, dmg:3 } },
+  flak:     { name:'🌟 Веерная батарея',    desc:'Веер снарядов конусом вперёд.', max:5,
+              base:{ cd:1.7, dmg:9, spd:380, n:3, fan:0.6 },
+              perLvl:{ cd:-0.08, dmg:3 } },
+  ion:      { name:'💥 Ионный разряд',      desc:'Взрыв снарядов во все стороны.', max:5,
+              base:{ cd:2.6, dmg:10, spd:260, n:10 },
+              perLvl:{ cd:-0.12, dmg:3 } },
+  chain:    { name:'⚡ Цепная молния',      desc:'Бьёт по врагу и перескакивает на соседних.', max:5,
+              base:{ cd:1.3, dmg:12, jumps:2, range:260 },
+              perLvl:{ cd:-0.07, dmg:4 } },
+  boomerang:{ name:'🪃 Торпеда-бумеранг',   desc:'Летит вперёд и возвращается, пробивая насквозь.', max:5,
+              base:{ cd:2.1, dmg:14, spd:340, range:420 },
+              perLvl:{ cd:-0.1, dmg:5 } },
+  aura:     { name:'🌀 Защитная аура',      desc:'Постоянный урон всем врагам рядом с кораблём.', max:5,
+              base:{ tick:0.5, dmg:6, radius:90 },
+              perLvl:{ dmg:2.5, radius:10 } },
+  orbitals: { name:'🛡 Орбитальные щиты',   desc:'Спутники вращаются рядом и бьют контактным уроном.', max:5,
+              base:{ dmg:14, radius:60 },
+              perLvl:{ dmg:5 } },
 };
 const SHIP_PASSIVES = {
   engine: { name:'🔥 Форсаж',        desc:'Скорость корабля +14%.', max:4, apply:()=>{ SHIP.stats.speed*=1.14; } },
@@ -1662,6 +1719,8 @@ const SHIP_PASSIVES = {
   regen:  { name:'❤ Нанополимер',   desc:'+1.2 ЗД в секунду.', max:3, apply:()=>{ SHIP.stats.regen+=1.2; } },
   overclock: { name:'⭐ Оверклок',  desc:'Скорострельность всего оружия +15%.', max:3, apply:()=>{ SHIP.stats.cdMul*=0.85; } },
   focus:  { name:'🎯 Фокус огня',   desc:'Урон всего оружия +18%.', max:3, apply:()=>{ SHIP.stats.dmgMul*=1.18; } },
+  area:   { name:'🔵 Расширитель поля', desc:'Радиус ауры/орбит/мин/иона +20%.', max:3, apply:()=>{ SHIP.stats.areaMul*=1.2; } },
+  amount: { name:'✳ Дублятор',      desc:'+1 доп. снаряд бластеру и веерной батарее.', max:3, apply:()=>{ SHIP.stats.amount+=1; } },
 };
 
 function shipWeaponStat(id, key) {
@@ -1709,13 +1768,15 @@ function applyShipUpgrade(id) {
 function shipsStart() {
   SHIP.vx=0; SHIP.vy=0; SHIP.angle=-Math.PI/2; SHIP.thrust=0; SHIP.r=15;
   SHIP.weapons={ blaster:1 }; SHIP.wcd={ blaster:0 }; SHIP.passives={};
-  SHIP.stats = { speed:255, dmgMul:1, cdMul:1, magnetR:170, regen:0,
-                 hasShield:false, shieldReady:true, shieldCd:0, beamTimer:0 };
-  shipsBuildWorld();
+  SHIP.stats = { speed:255, dmgMul:1, cdMul:1, magnetR:170, regen:0, areaMul:1, amount:0,
+                 hasShield:false, shieldReady:true, shieldCd:0, beamTimer:0, auraTimer:0 };
   player.x = SHIPS.WORLD/2; player.y = SHIPS.WORLD/2;
   player.hp = 100; player.maxHp = 100;
+  shipsBuildWorld();
   SHIPS.shots.length=0; SHIPS.eShots.length=0; SHIPS.mines.length=0;
-  SHIPS.enemies.length=0; SHIPS.drones.length=0;
+  SHIPS.enemies.length=0; SHIPS.drones.length=0; SHIPS.orbitals.length=0;
+  SHIPS._chainFx = [];
+  SHIPS.orbPhase = 0;
   SHIPS.cam.x = player.x - W/2; SHIPS.cam.y = player.y - H/2;
   for (let i=0;i<3;i++) shipsSpawnEnemy(spawnWaveEnemyId(1));
 }
@@ -1735,7 +1796,7 @@ function shipsSpawnEnemy(id) {
   const y = clamp(player.y + Math.sin(ang)*spawnDist, def.r, SHIPS.WORLD-def.r);
   const hpScale = 1 + (game.wave-1)*0.11;
   SHIPS.enemies.push({
-    id:++SHIPS.enemyIdCounter, defId:id, x, y,
+    id:++SHIPS.enemyIdCounter, defId:id, x, y, r:def.r,
     hp:Math.round(def.hp*hpScale), maxHp:Math.round(def.hp*hpScale),
     angle:ang, vx:0, vy:0, flashTimer:0, dying:false, dyingTimer:0,
     shootCd: def.gun ? rnd(0.4, def.gun.cd) : 0,
@@ -1802,6 +1863,7 @@ function shipsUpdate(dt) {
 
   SHIPS.cam.x = clamp(player.x - W/2, 0, Math.max(0, SHIPS.WORLD-W));
   SHIPS.cam.y = clamp(player.y - H/2, 0, Math.max(0, SHIPS.WORLD-H));
+  shipsEnsureChunks();
 
   shipsUpdateWeapons(dt);
   shipsUpdateProjectiles(dt);
@@ -1843,16 +1905,21 @@ function shipsFindNearestEnemy(x, y, maxR=Infinity) {
 function shipsUpdateWeapons(dt) {
   const nose = { x: player.x+Math.cos(SHIP.angle)*SHIP.r, y: player.y+Math.sin(SHIP.angle)*SHIP.r };
   for (const id in SHIP.weapons) {
-    if (id==='beam') continue; // луч тикает без отдельного кулдауна выстрела
+    if (id==='beam' || id==='aura' || id==='orbitals') continue; // тикают своей логикой ниже
     SHIP.wcd[id] = (SHIP.wcd[id]||0) - dt;
     if (SHIP.wcd[id] > 0) continue;
     const cd = shipWeaponStat(id,'cd') * SHIP.stats.cdMul;
     SHIP.wcd[id] = cd;
     const dmg = shipWeaponStat(id,'dmg') * SHIP.stats.dmgMul;
     if (id==='blaster') {
-      SHIPS.shots.push({ x:nose.x, y:nose.y,
-        vx:Math.cos(SHIP.angle)*shipWeaponStat(id,'spd'), vy:Math.sin(SHIP.angle)*shipWeaponStat(id,'spd'),
-        dmg, pierce:Math.floor(shipWeaponStat(id,'pierce')), hitIds:new Set(), color:'#00e5ff', r:4 });
+      const shots = 1 + SHIP.stats.amount, fanSpread = 0.12;
+      for (let i=0;i<shots;i++) {
+        const off = shots>1 ? (i/(shots-1)-0.5)*fanSpread : 0;
+        const a = SHIP.angle+off;
+        SHIPS.shots.push({ x:nose.x, y:nose.y,
+          vx:Math.cos(a)*shipWeaponStat(id,'spd'), vy:Math.sin(a)*shipWeaponStat(id,'spd'),
+          dmg, pierce:Math.floor(shipWeaponStat(id,'pierce')), hitIds:new Set(), color:'#00e5ff', r:4 });
+      }
     } else if (id==='twin') {
       for (const side of [1,-1]) {
         const a = SHIP.angle + side*Math.PI/2;
@@ -1867,9 +1934,52 @@ function shipsUpdateWeapons(dt) {
         targetId: target?target.id:null, spd:shipWeaponStat(id,'spd') });
     } else if (id==='mine') {
       const bx = player.x-Math.cos(SHIP.angle)*24, by = player.y-Math.sin(SHIP.angle)*24;
-      SHIPS.mines.push({ x:bx, y:by, dmg, radius:shipWeaponStat(id,'radius'), life:14, armed:0.4 });
+      SHIPS.mines.push({ x:bx, y:by, dmg, radius:shipWeaponStat(id,'radius')*SHIP.stats.areaMul, life:14, armed:0.4 });
     } else if (id==='drone' && SHIPS.drones.length===0) {
       SHIPS.drones.push({ angle:0, cd:0.4 });
+    } else if (id==='flak') {
+      const n = Math.round(SHIP_WEAPONS.flak.base.n) + SHIP.stats.amount;
+      const fan = SHIP_WEAPONS.flak.base.fan;
+      for (let i=0;i<n;i++) {
+        const off = n>1 ? (i/(n-1)-0.5)*fan : 0;
+        const a = SHIP.angle+off;
+        SHIPS.shots.push({ x:nose.x, y:nose.y,
+          vx:Math.cos(a)*shipWeaponStat(id,'spd'), vy:Math.sin(a)*shipWeaponStat(id,'spd'),
+          dmg, pierce:0, hitIds:new Set(), color:'#ffcc44', r:3.5 });
+      }
+    } else if (id==='ion') {
+      const n = Math.round(shipWeaponStat(id,'n'));
+      for (let i=0;i<n;i++) {
+        const a = i/n*TAU;
+        SHIPS.shots.push({ x:player.x, y:player.y,
+          vx:Math.cos(a)*shipWeaponStat(id,'spd'), vy:Math.sin(a)*shipWeaponStat(id,'spd'),
+          dmg, pierce:0, hitIds:new Set(), color:'#aa66ff', r:4 });
+      }
+      spawnRing(player.x,player.y,'#aa66ff',40*SHIP.stats.areaMul);
+    } else if (id==='chain') {
+      let target = shipsFindNearestEnemy(player.x, player.y, 500);
+      const hit = new Set();
+      let px=player.x, py=player.y;
+      const range = SHIP_WEAPONS.chain.base.range, jumps = SHIP_WEAPONS.chain.base.jumps;
+      for (let k=0; k<=jumps && target; k++) {
+        target.hp -= dmg; target.flashTimer=0.12; hit.add(target.id);
+        spawnSparks(target.x,target.y,5,'#66ddff',0.6);
+        SHIPS._chainFx.push({ x1:px, y1:py, x2:target.x, y2:target.y, life:0.15, maxLife:0.15 });
+        if (target.hp<=0) shipsKillEnemy(target);
+        px=target.x; py=target.y;
+        let next=null, bestD=range;
+        for (const e2 of SHIPS.enemies) {
+          if (e2.dying || hit.has(e2.id)) continue;
+          const dd = dist(px,py,e2.x,e2.y);
+          if (dd<bestD) { bestD=dd; next=e2; }
+        }
+        target = next;
+      }
+    } else if (id==='boomerang') {
+      SHIPS.shots.push({ x:nose.x, y:nose.y,
+        vx:Math.cos(SHIP.angle)*shipWeaponStat(id,'spd'), vy:Math.sin(SHIP.angle)*shipWeaponStat(id,'spd'),
+        dmg, pierce:99, hitIds:new Set(), color:'#ffdd66', r:4.5,
+        boomerang:true, stage:'out', range:shipWeaponStat(id,'range'), traveled:0 });
     }
   }
   // Дрон: орбитирует и стреляет по ближайшему врагу сам
@@ -1902,6 +2012,44 @@ function shipsUpdateWeapons(dt) {
       if (target.hp<=0) shipsKillEnemy(target);
     }
   } else SHIPS._beamTarget = null;
+  // Аура: тик-урон всем врагам в радиусе вокруг корабля (садовый чеснок)
+  if (SHIP.weapons.aura) {
+    SHIP.stats.auraTimer -= dt;
+    if (SHIP.stats.auraTimer<=0) {
+      SHIP.stats.auraTimer = shipWeaponStat('aura','tick');
+      const radius = shipWeaponStat('aura','radius') * SHIP.stats.areaMul;
+      const auraDmg = shipWeaponStat('aura','dmg') * SHIP.stats.dmgMul;
+      for (const e of SHIPS.enemies) {
+        if (e.dying) continue;
+        if (dist(player.x,player.y,e.x,e.y) < radius+e.r) {
+          e.hp -= auraDmg; e.flashTimer=0.1;
+          if (e.hp<=0) shipsKillEnemy(e);
+        }
+      }
+      spawnRing(player.x,player.y,'#66ffaa', radius*0.9);
+    }
+  }
+  // Орбитальные щиты: спутники вращаются вокруг корабля, контактный урон
+  if (SHIP.weapons.orbitals) {
+    const lvl = SHIP.weapons.orbitals;
+    const count = lvl>=5?3:lvl>=3?2:1;
+    const orbRadius = shipWeaponStat('orbitals','radius') * SHIP.stats.areaMul;
+    const orbDmg = shipWeaponStat('orbitals','dmg') * SHIP.stats.dmgMul * dt;
+    SHIPS.orbPhase += dt*2.4;
+    SHIPS.orbitals.length = count;
+    for (let i=0;i<count;i++) {
+      const a = SHIPS.orbPhase + i/count*TAU;
+      const ox = player.x+Math.cos(a)*orbRadius, oy = player.y+Math.sin(a)*orbRadius;
+      SHIPS.orbitals[i] = { x:ox, y:oy };
+      for (const e of SHIPS.enemies) {
+        if (e.dying) continue;
+        if (dist(ox,oy,e.x,e.y) < e.r+10) {
+          e.hp -= orbDmg; e.flashTimer=0.05;
+          if (e.hp<=0) shipsKillEnemy(e);
+        }
+      }
+    }
+  } else if (SHIPS.orbitals.length) SHIPS.orbitals.length = 0;
 }
 
 function shipsKillEnemy(e) {
@@ -1930,9 +2078,19 @@ function shipsUpdateProjectiles(dt) {
         s.vy = lerp(s.vy, Math.sin(a)*s.spd, Math.min(1,3*dt));
       }
     }
+    if (s.boomerang) {
+      s.traveled += Math.hypot(s.vx,s.vy)*dt;
+      if (s.stage==='out' && s.traveled >= s.range) s.stage='back';
+      if (s.stage==='back') {
+        const spd = Math.hypot(s.vx,s.vy);
+        const a = angleTo(s.x,s.y,player.x,player.y);
+        s.vx = Math.cos(a)*spd; s.vy = Math.sin(a)*spd;
+        if (dist(s.x,s.y,player.x,player.y) < 22) { SHIPS.shots.splice(i,1); continue; }
+      }
+    }
     s.x += s.vx*dt; s.y += s.vy*dt;
-    if (s.x<SHIPS.cam.x-worldMargin||s.x>SHIPS.cam.x+W+worldMargin||
-        s.y<SHIPS.cam.y-worldMargin||s.y>SHIPS.cam.y+H+worldMargin) { SHIPS.shots.splice(i,1); continue; }
+    if (!s.boomerang && (s.x<SHIPS.cam.x-worldMargin||s.x>SHIPS.cam.x+W+worldMargin||
+        s.y<SHIPS.cam.y-worldMargin||s.y>SHIPS.cam.y+H+worldMargin)) { SHIPS.shots.splice(i,1); continue; }
     let dead=false;
     for (const e of SHIPS.enemies) {
       if (e.dying || s.hitIds.has(e.id)) continue;
@@ -1994,6 +2152,11 @@ function shipsUpdateProjectiles(dt) {
       }
       SHIPS.eShots.splice(i,1);
     }
+  }
+  // Затухание визуальных разрядов цепной молнии
+  for (let i=SHIPS._chainFx.length-1; i>=0; i--) {
+    SHIPS._chainFx[i].life -= dt;
+    if (SHIPS._chainFx[i].life<=0) SHIPS._chainFx.splice(i,1);
   }
 }
 
@@ -2107,7 +2270,7 @@ function shipsUpdateEnemies(dt) {
         const spawnAng = rnd(0,TAU);
         SHIPS.enemyIdCounter++;
         SHIPS.enemies.push({ id:SHIPS.enemyIdCounter, defId:'scout',
-          x:e.x+Math.cos(spawnAng)*40, y:e.y+Math.sin(spawnAng)*40,
+          x:e.x+Math.cos(spawnAng)*40, y:e.y+Math.sin(spawnAng)*40, r:ESHIP_BY_ID.scout.r,
           hp:14, maxHp:14, angle:spawnAng, flashTimer:0, dying:false, dyingTimer:0,
           shootCd:1, orbitDir:1, orbitAngle:0, chargeCd:2, chargeState:'idle', chargeTimer:0,
           cloakTimer:2, cloakAlpha:1, spawnCd:4 });
@@ -2135,7 +2298,7 @@ function shipsUpdateEnemies(dt) {
         if (beh==='boss2' && Math.random()<0.4 && SHIPS.enemies.length<16) {
           SHIPS.enemyIdCounter++;
           SHIPS.enemies.push({ id:SHIPS.enemyIdCounter, defId:'scout',
-            x:e.x+rnd(-60,60), y:e.y+rnd(-60,60), hp:18, maxHp:18, angle:0,
+            x:e.x+rnd(-60,60), y:e.y+rnd(-60,60), r:ESHIP_BY_ID.scout.r, hp:18, maxHp:18, angle:0,
             flashTimer:0, dying:false, dyingTimer:0, shootCd:1, orbitDir:1, orbitAngle:0,
             chargeCd:2, chargeState:'idle', chargeTimer:0, cloakTimer:2, cloakAlpha:1, spawnCd:4 });
         }
@@ -2150,26 +2313,48 @@ function shipsUpdateEnemies(dt) {
 
 // ── Рендер режима «Война кораблей» ────────────────────────────────────────────
 const NEBULA_HUES = ['#1a0a2e','#0a1a2e','#2a0a1e','#0a2a1a','#241a0a','#1a0a1a'];
+const NEBULA_CELL = 2600, STAR_CELL = 170;
+// Туманности и дальние звёзды рисуются напрямую по хэш-сетке ячеек (без
+// хранения массивов на весь мир) — работает одинаково быстро при любом
+// размере SHIPS.WORLD, т.к. перебираются только ячейки в видимой области.
 function shipsDrawBackground() {
   const cx = SHIPS.cam.x, cy = SHIPS.cam.y;
   ctx.fillStyle = '#050310'; ctx.fillRect(cx-10,cy-10,W+20,H+20);
-  for (let i=0;i<14;i++) {
-    const nx = (i*1747+500)%SHIPS.WORLD, ny=(i*2683+300)%SHIPS.WORLD;
-    if (nx < cx-700 || nx > cx+W+700 || ny < cy-700 || ny > cy+H+700) continue;
-    const r = 520+(i%5)*80;
-    const gr = ctx.createRadialGradient(nx,ny,0,nx,ny,r);
-    gr.addColorStop(0, NEBULA_HUES[i%NEBULA_HUES.length]+'cc');
-    gr.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gr; ctx.fillRect(nx-r,ny-r,r*2,r*2);
+
+  const nx0=Math.floor((cx-700)/NEBULA_CELL), nx1=Math.floor((cx+W+700)/NEBULA_CELL);
+  const ny0=Math.floor((cy-700)/NEBULA_CELL), ny1=Math.floor((cy+H+700)/NEBULA_CELL);
+  for (let ix=nx0; ix<=nx1; ix++) {
+    for (let iy=ny0; iy<=ny1; iy++) {
+      const h = shipsHash01(ix,iy);
+      if (h > 0.5) continue;
+      const nx = ix*NEBULA_CELL + shipsHash01(ix*7+1,iy*13+2)*NEBULA_CELL;
+      const ny = iy*NEBULA_CELL + shipsHash01(ix*13+3,iy*7+5)*NEBULA_CELL;
+      const r = 420 + shipsHash01(ix*3+9,iy*5+9)*260;
+      const hue = NEBULA_HUES[Math.floor(h*971)%NEBULA_HUES.length];
+      const gr = ctx.createRadialGradient(nx,ny,0,nx,ny,r);
+      gr.addColorStop(0, hue+'cc'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gr; ctx.fillRect(nx-r,ny-r,r*2,r*2);
+    }
   }
-  for (const s of SHIPS.farStars) {
-    if (s.x<cx-20||s.x>cx+W+20||s.y<cy-20||s.y>cy+H+20) continue;
-    s.twinkle += s.twinkleSpeed*(1/60);
-    const a = s.alpha*(0.6+0.4*Math.sin(s.twinkle));
-    const hues=['#aaccff','#ffd9aa','#ffaacc','#aaffcc','#ddaaff','#ffffff'];
-    ctx.save(); ctx.globalAlpha=a; ctx.fillStyle=hues[s.hue];
-    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,TAU); ctx.fill(); ctx.restore();
+
+  const hues=['#aaccff','#ffd9aa','#ffaacc','#aaffcc','#ddaaff','#ffffff'];
+  const sx0=Math.floor((cx-20)/STAR_CELL), sx1=Math.floor((cx+W+20)/STAR_CELL);
+  const sy0=Math.floor((cy-20)/STAR_CELL), sy1=Math.floor((cy+H+20)/STAR_CELL);
+  ctx.save();
+  for (let ix=sx0; ix<=sx1; ix++) {
+    for (let iy=sy0; iy<=sy1; iy++) {
+      const density = shipsHash01(ix*2+1,iy*2+1);
+      const n = density<0.5?1:(density<0.85?2:3);
+      for (let k=0;k<n;k++) {
+        const h1=shipsHash01(ix*97+k*13,iy*89+k*31), h2=shipsHash01(ix*61+k*17,iy*131+k*7);
+        const sxp = ix*STAR_CELL + h1*STAR_CELL, syp = iy*STAR_CELL + h2*STAR_CELL;
+        const a = (0.15+h2*0.7) * (0.6+0.4*Math.sin(game.time*(0.3+h1*1.3) + h1*TAU));
+        ctx.globalAlpha=a; ctx.fillStyle=hues[Math.floor(h2*6)%6];
+        ctx.beginPath(); ctx.arc(sxp,syp,0.5+h1*2,0,TAU); ctx.fill();
+      }
+    }
   }
+  ctx.restore();
 }
 
 function shipsDrawPlanets() {
@@ -2269,6 +2454,16 @@ function shipsDrawPlayer() {
   if (SHIPS._beamTarget) {
     glowLine(player.x,player.y,SHIPS._beamTarget.x,SHIPS._beamTarget.y,'#ff66aa',1.5,10,0.8);
   }
+  if (SHIP.weapons.aura) {
+    const radius = shipWeaponStat('aura','radius') * SHIP.stats.areaMul;
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.strokeStyle='#66ffaa';
+    ctx.globalAlpha = 0.22 + 0.1*Math.sin(game.time*3); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(player.x,player.y,radius,0,TAU); ctx.stroke(); ctx.restore();
+  }
+  for (const o of SHIPS.orbitals) {
+    glowCircle(o.x,o.y,14,'#66ffcc',0.5);
+    ctx.fillStyle='#bfffe8'; ctx.beginPath(); ctx.arc(o.x,o.y,5,0,TAU); ctx.fill();
+  }
 }
 
 function shipsDrawProjectiles() {
@@ -2286,6 +2481,10 @@ function shipsDrawProjectiles() {
     glowCircle(m.x,m.y,14,m.armed>0?'#ffaa33':'#ff5533',0.3*pulse);
     ctx.fillStyle = m.armed>0?'#ffaa33':'#ff5533';
     ctx.beginPath(); ctx.arc(m.x,m.y,4,0,TAU); ctx.fill();
+  }
+  for (const c of SHIPS._chainFx) {
+    const t = Math.max(0, c.life/c.maxLife);
+    glowLine(c.x1,c.y1,c.x2,c.y2,'#66ddff',1.4,12,0.8*t);
   }
 }
 
