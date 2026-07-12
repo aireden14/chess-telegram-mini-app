@@ -112,6 +112,18 @@
     transition: all 0.2s; text-shadow: 0 0 10px #00e5ff;
   }
   #start-btn:hover { background: #00e5ff22; box-shadow: 0 0 30px #00e5ff44; }
+  #start-ship-btn {
+    display: block; margin: 14px auto 0;
+    padding: 16px 40px; background: transparent; border: 1px solid #ff8833;
+    color: #ff8833; font-family: 'Courier New', monospace; font-size: 15px;
+    letter-spacing: 4px; cursor: pointer; border-radius: 4px;
+    transition: all 0.2s; text-shadow: 0 0 10px #ff8833;
+  }
+  #start-ship-btn:hover { background: #ff883322; box-shadow: 0 0 30px #ff883344; }
+  .mode-note {
+    color: #7a5533; font-family: 'Courier New', monospace; font-size: 11px;
+    letter-spacing: 1px; margin-top: 10px; line-height: 1.7;
+  }
   /* Управление на телефоне: тяни пальцем в ЛЮБОМ месте экрана — без видимого
      джойстика и без кнопок. Двойное касание = рывок, удержание = импульс. */
   #move-layer {
@@ -161,6 +173,7 @@
     #startscreen-panel .controls { font-size: 12.5px; line-height: 2; }
     #startscreen-panel { padding: 22px 18px; }
     #start-btn { width: 100%; padding: 17px 10px; font-size: 16px; }
+    #start-ship-btn { width: 100%; padding: 17px 10px; font-size: 16px; }
     #restart-btn { width: 100%; }
   }
 </style>
@@ -187,7 +200,9 @@
       <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
       <span>🔊</span> сверху экрана — звук вкл/выкл
     </div>
-    <button id="start-btn">ЗАЖЕЧЬ КЛИНОК</button>
+    <button id="start-btn">⚔️ ЗАЖЕЧЬ КЛИНОК</button>
+    <button id="start-ship-btn">🚀 ВОЙНА КОРАБЛЕЙ</button>
+    <div class="mode-note">Новый режим: большая карта, планеты и астероиды,<br>корабль стреляет сам — собирай арсенал и выживай</div>
   </div>
   <div id="levelup-panel">
     <h2>НОВЫЙ УРОВЕНЬ</h2>
@@ -250,7 +265,9 @@ function resize() {
   scaleX = canvas.width / W;   // = dpr*unit — одинаковый по обеим осям, без искажений
   scaleY = canvas.height / H;
   try { // первый resize() случается ДО объявления player/stars (TDZ) — тогда просто пропускаем
-    player.x = clamp(player.x, 0, W); player.y = clamp(player.y, 0, H);
+    if (game.mode !== 'ships') { // в космосе координаты мировые, к экрану не привязаны
+      player.x = clamp(player.x, 0, W); player.y = clamp(player.y, 0, H);
+    }
     for (const s of stars) { s.x = rnd(0, W); s.y = rnd(0, H); }
   } catch (e) { /* мир ещё не создан */ }
   canvas.style.position = 'fixed';
@@ -1228,12 +1245,20 @@ function updateXPOrbs(dt) {
     if (o.life<=0) { xpOrbs.splice(i,1); continue; }
     const dx=player.x-o.x, dy=player.y-o.y;
     const d=Math.sqrt(dx*dx+dy*dy);
-    if (d < CFG.xpOrbPickupR) {
-      addXP(o.val);
-      spawnSparks(o.x,o.y,5,'#00ff44',0.5);
+    let pickR = CFG.xpOrbPickupR, pullR = 180;
+    if (game.mode==='ships') { pickR = 50; pullR = SHIP.stats.magnetR; }
+    if (d < pickR) {
+      if (o.heal) {
+        player.hp = Math.min(player.maxHp, player.hp + o.val);
+        showFloatingText(o.x, o.y-16, '+'+o.val+' ЗД', '#ff5577');
+        spawnSparks(o.x,o.y,6,'#ff5577',0.6);
+      } else {
+        addXP(o.val);
+        spawnSparks(o.x,o.y,5,'#00ff44',0.5);
+      }
       xpOrbs.splice(i,1); continue;
     }
-    if (d < 180) {
+    if (d < pullR) {
       const pull = CFG.xpOrbSpeed/d;
       o.vx = lerp(o.vx, dx*pull, 6*dt);
       o.vy = lerp(o.vy, dy*pull, 6*dt);
@@ -1246,16 +1271,1146 @@ function drawXPOrbs() {
   ctx.save(); ctx.globalCompositeOperation='lighter';
   for (const o of xpOrbs) {
     const pulse=0.8+0.2*Math.sin(Date.now()*0.005+o.x);
-    glowCircle(o.x,o.y,o.r*3,'#00ff44',0.25*pulse);
-    ctx.fillStyle='#00ff44'; ctx.globalAlpha=0.9;
-    ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,TAU); ctx.fill();
+    const col = o.heal ? '#ff5577' : '#00ff44';
+    glowCircle(o.x,o.y,o.r*3,col,0.25*pulse);
+    ctx.fillStyle=col; ctx.globalAlpha=0.9;
+    if (o.heal) { // крестик-аптечка
+      ctx.fillRect(o.x-o.r,o.y-o.r*0.4,o.r*2,o.r*0.8);
+      ctx.fillRect(o.x-o.r*0.4,o.y-o.r,o.r*0.8,o.r*2);
+    } else {
+      ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,TAU); ctx.fill();
+    }
   }
   ctx.restore();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ─── SHIPS MODE — «ВОЙНА КОРАБЛЕЙ» ────────────────────────────────────────────
+// Отдельный режим: открытый космос, карта сильно больше экрана (камера следует
+// за кораблём), survivors-прокачка (оружие копится и растёт в уровнях), планеты
+// и астероиды — препятствия и ориентиры, до 20 типов вражеских кораблей.
+const SHIPS = {
+  WORLD: 5200,
+  cam: { x:0, y:0 },
+  planets: [], asteroids: [], farStars: [],
+  shots: [], eShots: [], mines: [], enemies: [], drones: [],
+  enemyIdCounter: 0,
+  sprites: {}, astSprites: [],
+};
+
+const SHIP = {
+  vx:0, vy:0, angle:-Math.PI/2, thrust:0, r:15,
+  weapons:{}, wcd:{}, passives:{},
+  stats:{ speed:255, dmgMul:1, cdMul:1, magnetR:170, regen:0,
+          hasShield:false, shieldReady:false, shieldCd:0 },
+};
+// ── 20 типов вражеских кораблей (часть 1/2) ──────────────────────────────────
+const ESHIPS_A = [
+  { id:'scout',       name:'Разведчик',       tier:1,  shape:'dart',    r:13, hp:18,  speed:95,  xp:7,  score:10, beh:'chase',
+    pal:['#7a4326','#4a2814','#ffb066','#ff8c40'] },
+  { id:'wasp',        name:'Оса',             tier:2,  shape:'wing',    r:12, hp:14,  speed:150, xp:9,  score:15, beh:'chase',
+    pal:['#8a7a1a','#3a3208','#ffe14a','#ffd400'] },
+  { id:'kamikaze',    name:'Дрон-камикадзе',  tier:2,  shape:'orb',     r:11, hp:10,  speed:135, xp:10, score:15, beh:'kamikaze',
+    pal:['#7a1a1a','#3a0808','#ff5540','#ff2200'] },
+  { id:'fighter',     name:'Истребитель',     tier:3,  shape:'dart',    r:15, hp:30,  speed:85,  xp:12, score:20, beh:'shooter',
+    gun:{ cd:2.2, spd:260, dmg:10, stop:300 }, pal:['#8a2a3a','#48101c','#ff6680','#ff3355'] },
+  { id:'interceptor', name:'Перехватчик',     tier:4,  shape:'wing',    r:13, hp:24,  speed:140, xp:14, score:25, beh:'shooter',
+    gun:{ cd:1.6, spd:330, dmg:8,  stop:260, burst:2 }, pal:['#1a6a7a','#0a3340','#4ae1ff','#00d5ff'] },
+  { id:'storm',       name:'Штурмовик',       tier:5,  shape:'beetle',  r:18, hp:70,  speed:62,  xp:18, score:30, beh:'shooter',
+    gun:{ cd:2.4, spd:240, dmg:12, stop:240 }, pal:['#3a6a2a','#1c3a12','#88ff5a','#55ff22'] },
+  { id:'sniper',      name:'Снайпер',         tier:6,  shape:'ray',     r:14, hp:26,  speed:75,  xp:20, score:35, beh:'sniper',
+    gun:{ cd:2.8, spd:520, dmg:16, stop:520 }, pal:['#5a2a8a','#2a1044','#bb77ff','#9944ff'] },
+  { id:'bomber',      name:'Бомбер',          tier:7,  shape:'block',   r:19, hp:85,  speed:48,  xp:22, score:35, beh:'shooter',
+    gun:{ cd:3.0, spd:170, dmg:12, stop:340, spreadN:3, fan:0.5 }, pal:['#6a4a1a','#38260a','#ffaa33','#ff9900'] },
+  { id:'saucer',      name:'Тарелка',         tier:8,  shape:'saucer',  r:15, hp:45,  speed:95,  xp:22, score:40, beh:'orbit',
+    gun:{ cd:1.9, spd:280, dmg:9,  stop:230 }, pal:['#5a6a72','#2c3438','#aef5e2','#66ffcc'] },
+  { id:'miner',       name:'Минёр',           tier:9,  shape:'beetle',  r:16, hp:55,  speed:70,  xp:24, score:40, beh:'miner',
+    pal:['#7a6a2a','#3c3410','#ffe680','#ffcc33'] },
+];
+
+// ── 20 типов вражеских кораблей (часть 2/2) ──────────────────────────────────
+const ESHIPS_B = [
+  { id:'corvette',    name:'Корвет',          tier:10, shape:'cruiser', r:20, hp:110, speed:55,  xp:28, score:50, beh:'shooter',
+    gun:{ cd:2.2, spd:280, dmg:10, stop:300, burst:3 }, pal:['#2a4a7a','#101f3a','#66aaff','#3388ff'] },
+  { id:'plasmabug',   name:'Плазменный жук',  tier:11, shape:'beetle',  r:14, hp:40,  speed:115, xp:26, score:45, beh:'shooter',
+    gun:{ cd:1.4, spd:300, dmg:8,  stop:200, burst:3 }, pal:['#7a1a6a','#3a0830','#ff55dd','#ff22cc'] },
+  { id:'ghost',       name:'Призрак',         tier:12, shape:'ray',     r:14, hp:38,  speed:120, xp:30, score:55, beh:'stealth',
+    pal:['#3a4a5a','#1a2430','#aaddff','#88ccff'] },
+  { id:'carrier',     name:'Носитель',        tier:13, shape:'block',   r:24, hp:160, speed:40,  xp:40, score:70, beh:'carrier',
+    pal:['#4a5a3a','#242e1a','#bbdd77','#99cc44'] },
+  { id:'torpedo',     name:'Торпедоносец',    tier:14, shape:'cruiser', r:18, hp:90,  speed:58,  xp:34, score:60, beh:'shooter',
+    gun:{ cd:3.2, spd:200, dmg:14, stop:420, homing:true }, pal:['#1a3a6a','#0a1a34','#ff8866','#ff5533'] },
+  { id:'lancer',      name:'Копейщик',        tier:15, shape:'dart',    r:16, hp:60,  speed:90,  xp:34, score:60, beh:'charger',
+    pal:['#8a8a92','#3f3f46','#ffd9a0','#ffcc88'] },
+  { id:'disruptor',   name:'Глушитель',       tier:16, shape:'orb',     r:17, hp:75,  speed:65,  xp:38, score:65, beh:'radial',
+    gun:{ cd:3.4, spd:230, dmg:10, n:8 }, pal:['#4a1a8a','#220a40','#cc66ff','#aa33ff'] },
+  { id:'heavy',       name:'Тяжёлый крейсер', tier:17, shape:'cruiser', r:24, hp:220, speed:42,  xp:50, score:90, beh:'shooter',
+    gun:{ cd:2.6, spd:260, dmg:12, stop:360, spreadN:5, fan:0.7 }, pal:['#6a1a1a','#320808','#ff7744','#ff4422'] },
+  { id:'claw',        name:'Коготь',          tier:18, shape:'claw',    r:17, hp:95,  speed:125, xp:44, score:75, beh:'chase',
+    pal:['#5a3a1a','#2c1c0a','#ffcc66','#ffaa22'] },
+  { id:'dread',       name:'Дредноут',        tier:19, shape:'boss',    r:34, hp:600, speed:34,  xp:120, score:200, beh:'boss1', boss:true,
+    pal:['#5a1a2a','#2a0812','#ff5577','#ff2255'] },
+  { id:'flagship',    name:'Флагман',         tier:21, shape:'boss',    r:42, hp:1100, speed:28, xp:250, score:400, beh:'boss2', boss:true,
+    pal:['#1a2a5a','#0a1230','#77aaff','#66ddff'] },
+];
+const ESHIPS = ESHIPS_A.concat(ESHIPS_B);
+const ESHIP_BY_ID = {};
+for (const d of ESHIPS) ESHIP_BY_ID[d.id] = d;
+
+// ── Процедурные спрайты кораблей («текстуры») ────────────────────────────────
+// Каждый корпус рисуется один раз в offscreen-канвас с 3× суперсемплом и потом
+// выводится drawImage — быстро и без мыла. Нос корабля смотрит в +X.
+function makeShipSprite(shape, r, pal) {
+  const ss = 3;
+  const S = Math.ceil(r * 2.7 * ss);
+  const cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const g = cv.getContext('2d');
+  g.translate(S/2, S/2); g.scale(ss, ss);
+  paintHull(g, shape, r, pal);
+  cv._worldSize = S / ss;
+  return cv;
+}
+
+function shipEngineFx(g, x, y, w, glow) {
+  const gr = g.createRadialGradient(x-w*0.5, y, 0, x-w*0.5, y, w*1.6);
+  gr.addColorStop(0, glow); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.globalAlpha = 0.9;
+  g.beginPath(); g.arc(x-w*0.5, y, w*1.6, 0, TAU); g.fill();
+  g.globalAlpha = 1;
+}
+
+function shipCockpitFx(g, x, w, glow, dark) {
+  const gr = g.createRadialGradient(x, -w*0.2, 0, x, 0, w*1.4);
+  gr.addColorStop(0, '#eaffff'); gr.addColorStop(0.5, glow); gr.addColorStop(1, dark);
+  g.fillStyle = gr;
+  g.beginPath(); g.ellipse(x, 0, w*1.2, w*0.8, 0, 0, TAU); g.fill();
+}
+
+function paintHullDart(g, r, hull, dark, accent, glow) {
+  g.fillStyle = hull;
+  g.beginPath(); g.moveTo(r*1.25,0); g.lineTo(-r*0.7,-r*0.75); g.lineTo(-r*0.45,0); g.lineTo(-r*0.7,r*0.75); g.closePath(); g.fill();
+  g.fillStyle = dark;
+  g.beginPath(); g.moveTo(-r*0.3,-r*0.75); g.lineTo(-r*1.05,-r*1.0); g.lineTo(-r*0.65,-r*0.3); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-r*0.3,r*0.75);  g.lineTo(-r*1.05,r*1.0);  g.lineTo(-r*0.65,r*0.3);  g.closePath(); g.fill();
+  g.strokeStyle = accent; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(r*1.1,0); g.lineTo(-r*0.4,0); g.stroke();
+  shipCockpitFx(g, r*0.35, r*0.28, glow, dark);
+  shipEngineFx(g, -r*0.75, 0, r*0.4, glow);
+}
+
+function paintHullWing(g, r, hull, dark, accent, glow) {
+  g.fillStyle = dark;
+  g.beginPath(); g.moveTo(r*0.2,-r*1.15); g.lineTo(-r*0.9,-r*1.0); g.lineTo(-r*0.35,-r*0.2); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(r*0.2,r*1.15);  g.lineTo(-r*0.9,r*1.0);  g.lineTo(-r*0.35,r*0.2);  g.closePath(); g.fill();
+  g.fillStyle = accent; g.globalAlpha=0.85;
+  g.fillRect(-r*0.7,-r*1.05,r*0.55,r*0.18); g.fillRect(-r*0.7,r*0.87,r*0.55,r*0.18);
+  g.globalAlpha=1;
+  g.fillStyle = hull;
+  g.beginPath(); g.moveTo(r*1.15,0); g.quadraticCurveTo(r*0.2,-r*0.55,-r*0.75,-r*0.3);
+  g.lineTo(-r*0.75,r*0.3); g.quadraticCurveTo(r*0.2,r*0.55,r*1.15,0); g.closePath(); g.fill();
+  shipCockpitFx(g, r*0.3, r*0.26, glow, dark);
+  shipEngineFx(g, -r*0.8,-r*0.15,r*0.3, glow); shipEngineFx(g, -r*0.8,r*0.15,r*0.3, glow);
+}
+
+function paintHullOrb(g, r, hull, dark, accent, glow) {
+  const gr = g.createRadialGradient(-r*0.25,-r*0.25,r*0.1, 0,0,r);
+  gr.addColorStop(0, accent); gr.addColorStop(0.55, hull); gr.addColorStop(1, dark);
+  g.fillStyle = gr;
+  g.beginPath(); g.arc(0,0,r*0.95,0,TAU); g.fill();
+  g.strokeStyle = dark; g.lineWidth=1.4;
+  for (let i=0;i<8;i++) {
+    const a=i/8*TAU + Math.PI/8;
+    g.beginPath(); g.moveTo(Math.cos(a)*r*0.9, Math.sin(a)*r*0.9);
+    g.lineTo(Math.cos(a)*r*1.28, Math.sin(a)*r*1.28); g.stroke();
+  }
+  g.fillStyle = glow;
+  g.beginPath(); g.arc(r*0.4,0,r*0.24,0,TAU); g.fill();
+  g.fillStyle = '#ffffff';
+  g.beginPath(); g.arc(r*0.44,0,r*0.1,0,TAU); g.fill();
+}
+
+function paintHullBeetle(g, r, hull, dark, accent, glow) {
+  g.fillStyle = dark;
+  g.beginPath(); g.ellipse(-r*0.15,-r*0.85,r*0.65,r*0.35,0,0,TAU); g.fill();
+  g.beginPath(); g.ellipse(-r*0.15,r*0.85,r*0.65,r*0.35,0,0,TAU); g.fill();
+  g.fillStyle = hull;
+  g.beginPath(); g.ellipse(0,0,r*1.05,r*0.78,0,0,TAU); g.fill();
+  g.fillStyle = dark; g.globalAlpha=0.55;
+  g.beginPath(); g.ellipse(-r*0.35,0,r*0.55,r*0.6,0,0,TAU); g.fill(); g.globalAlpha=1;
+  g.strokeStyle = accent; g.lineWidth=1.3;
+  g.beginPath(); g.moveTo(r*0.9,-r*0.2); g.lineTo(-r*0.6,-r*0.45); g.stroke();
+  g.beginPath(); g.moveTo(r*0.9,r*0.2);  g.lineTo(-r*0.6,r*0.45);  g.stroke();
+  shipCockpitFx(g, r*0.45, r*0.24, glow, dark);
+  shipEngineFx(g, -r*0.85,-r*0.85,r*0.28, glow); shipEngineFx(g, -r*0.85,r*0.85,r*0.28, glow);
+}
+
+function paintHullSaucer(g, r, hull, dark, accent, glow) {
+  g.fillStyle = dark;
+  g.beginPath(); g.ellipse(0,0,r*1.2,r*0.85,0,0,TAU); g.fill();
+  g.fillStyle = hull;
+  g.beginPath(); g.ellipse(-r*0.08,-r*0.08,r*1.05,r*0.7,0,0,TAU); g.fill();
+  g.strokeStyle = accent; g.lineWidth=1; g.globalAlpha=0.8;
+  g.beginPath(); g.ellipse(0,0,r*0.75,r*0.5,0,0,TAU); g.stroke(); g.globalAlpha=1;
+  for (let i=0;i<6;i++) {
+    const a=i/6*TAU;
+    g.fillStyle = glow;
+    g.beginPath(); g.arc(Math.cos(a)*r*0.95, Math.sin(a)*r*0.62, r*0.09, 0, TAU); g.fill();
+  }
+  shipCockpitFx(g, 0, r*0.34, glow, dark);
+}
+
+function paintHullBlock(g, r, hull, dark, accent, glow) {
+  g.fillStyle = hull;
+  g.fillRect(-r*1.05,-r*0.75,r*2.0,r*1.5);
+  g.fillStyle = dark;
+  g.fillRect(-r*1.05,-r*0.75,r*0.5,r*1.5);
+  g.fillRect(r*0.35,-r*0.95,r*0.6,r*0.35); g.fillRect(r*0.35,r*0.6,r*0.6,r*0.35);
+  g.fillStyle = accent; g.globalAlpha=0.9;
+  g.fillRect(-r*0.3,-r*0.75,r*0.16,r*1.5); g.fillRect(r*0.2,-r*0.75,r*0.16,r*1.5);
+  g.globalAlpha=1;
+  g.strokeStyle = dark; g.lineWidth = 0.8; g.globalAlpha = 0.7;
+  for (let i=1; i<=3; i++) {
+    const x = -r*0.7 + (r*1.4)*i/4;
+    g.beginPath(); g.moveTo(x, -r*0.35); g.lineTo(x, r*0.35); g.stroke();
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = hull;
+  g.beginPath(); g.moveTo(r*0.95,-r*0.75); g.lineTo(r*1.35,0); g.lineTo(r*0.95,r*0.75); g.closePath(); g.fill();
+  shipCockpitFx(g, r*1.0, r*0.2, glow, dark);
+  shipEngineFx(g, -r*1.1,-r*0.4,r*0.34, glow); shipEngineFx(g, -r*1.1,r*0.4,r*0.34, glow);
+}
+
+function paintHullCruiser(g, r, hull, dark, accent, glow) {
+  g.fillStyle = dark;
+  g.fillRect(-r*1.15,-r*0.95,r*1.0,r*0.35); g.fillRect(-r*1.15,r*0.6,r*1.0,r*0.35);
+  g.fillStyle = hull;
+  g.beginPath(); g.moveTo(r*1.35,0); g.lineTo(r*0.5,-r*0.45); g.lineTo(-r*1.0,-r*0.5);
+  g.lineTo(-r*1.0,r*0.5); g.lineTo(r*0.5,r*0.45); g.closePath(); g.fill();
+  g.fillStyle = dark; g.globalAlpha=0.5;
+  g.beginPath(); g.moveTo(r*1.35,0); g.lineTo(r*0.5,r*0.45); g.lineTo(-r*1.0,r*0.5); g.lineTo(-r*1.0,r*0.15); g.lineTo(r*1.0,r*0.1); g.closePath(); g.fill();
+  g.globalAlpha=1;
+  g.strokeStyle = accent; g.lineWidth=1.2;
+  g.beginPath(); g.moveTo(r*1.15,0); g.lineTo(-r*0.9,0); g.stroke();
+  g.fillStyle = accent;
+  g.fillRect(-r*0.2,-r*0.16,r*0.5,r*0.32);
+  shipCockpitFx(g, r*0.7, r*0.22, glow, dark);
+  shipEngineFx(g, -r*1.2,-r*0.78,r*0.3, glow); shipEngineFx(g, -r*1.2,r*0.78,r*0.3, glow);
+}
+
+function paintHullRay(g, r, hull, dark, accent, glow) {
+  g.fillStyle = hull;
+  g.beginPath(); g.moveTo(r*1.1,0);
+  g.quadraticCurveTo(r*0.1,-r*0.35,-r*0.2,-r*1.1);
+  g.quadraticCurveTo(-r*0.55,-r*0.45,-r*0.85,-r*0.15);
+  g.lineTo(-r*0.85,r*0.15);
+  g.quadraticCurveTo(-r*0.55,r*0.45,-r*0.2,r*1.1);
+  g.quadraticCurveTo(r*0.1,r*0.35,r*1.1,0); g.closePath(); g.fill();
+  g.fillStyle = dark; g.globalAlpha=0.55;
+  g.beginPath(); g.moveTo(r*0.9,0); g.quadraticCurveTo(r*0.05,r*0.28,-r*0.15,r*0.9);
+  g.quadraticCurveTo(-r*0.4,r*0.35,-r*0.75,r*0.12); g.lineTo(r*0.9,0); g.closePath(); g.fill();
+  g.globalAlpha=1;
+  g.strokeStyle = accent; g.lineWidth=1;
+  g.beginPath(); g.moveTo(r*0.9,0); g.lineTo(-r*0.15,-r*0.9); g.stroke();
+  g.beginPath(); g.moveTo(r*0.9,0); g.lineTo(-r*0.15,r*0.9); g.stroke();
+  shipCockpitFx(g, r*0.4, r*0.22, glow, dark);
+  shipEngineFx(g, -r*0.8, 0, r*0.3, glow);
+}
+
+function paintHullClaw(g, r, hull, dark, accent, glow) {
+  g.fillStyle = hull;
+  g.beginPath(); g.arc(0,0,r*1.05,Math.PI*0.55,TAU-Math.PI*0.55,false);
+  g.quadraticCurveTo(r*0.1,0,-Math.cos(Math.PI*0.55)*r*1.05,Math.sin(Math.PI*0.55)*r*1.05);
+  g.closePath(); g.fill();
+  g.fillStyle = dark;
+  g.beginPath(); g.moveTo(r*0.5,-r*0.85); g.lineTo(r*1.35,-r*0.55); g.lineTo(r*0.6,-r*0.35); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(r*0.5,r*0.85);  g.lineTo(r*1.35,r*0.55);  g.lineTo(r*0.6,r*0.35);  g.closePath(); g.fill();
+  g.strokeStyle = accent; g.lineWidth=1.2; g.globalAlpha=0.9;
+  g.beginPath(); g.arc(0,0,r*0.65,Math.PI*0.6,TAU-Math.PI*0.6,false); g.stroke(); g.globalAlpha=1;
+  shipCockpitFx(g, -r*0.1, r*0.26, glow, dark);
+  shipEngineFx(g, -r*0.95, 0, r*0.34, glow);
+}
+
+function paintHullBoss(g, r, hull, dark, accent, glow) {
+  g.fillStyle = dark;
+  g.beginPath(); g.moveTo(r*0.3,-r*0.5); g.lineTo(-r*0.4,-r*1.25); g.lineTo(-r*1.05,-r*1.1); g.lineTo(-r*0.75,-r*0.35); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(r*0.3,r*0.5);  g.lineTo(-r*0.4,r*1.25);  g.lineTo(-r*1.05,r*1.1);  g.lineTo(-r*0.75,r*0.35);  g.closePath(); g.fill();
+  g.fillStyle = hull;
+  g.beginPath(); g.moveTo(r*1.3,0); g.lineTo(r*0.55,-r*0.5); g.lineTo(-r*1.0,-r*0.42);
+  g.lineTo(-r*1.0,r*0.42); g.lineTo(r*0.55,r*0.5); g.closePath(); g.fill();
+  g.fillStyle = accent; g.globalAlpha=0.85;
+  g.fillRect(-r*0.85,-r*0.1,r*1.5,r*0.2); g.globalAlpha=1;
+  for (const sy of [-r*0.78,r*0.78]) {
+    g.fillStyle = dark; g.beginPath(); g.arc(-r*0.35,sy,r*0.2,0,TAU); g.fill();
+    g.fillStyle = glow; g.beginPath(); g.arc(-r*0.35,sy,r*0.09,0,TAU); g.fill();
+  }
+  g.fillStyle = glow;
+  for (let i=0;i<4;i++) { g.beginPath(); g.arc(-r*0.9+i*r*0.42,-r*0.28,r*0.05,0,TAU); g.fill(); }
+  shipCockpitFx(g, r*0.75, r*0.24, glow, dark);
+  shipEngineFx(g, -r*1.05,-r*0.2,r*0.3, glow); shipEngineFx(g, -r*1.05,r*0.2,r*0.3, glow);
+}
+
+const HULL_PAINTERS = {
+  dart: paintHullDart, wing: paintHullWing, orb: paintHullOrb,
+  beetle: paintHullBeetle, saucer: paintHullSaucer, block: paintHullBlock,
+  cruiser: paintHullCruiser, ray: paintHullRay, claw: paintHullClaw, boss: paintHullBoss,
+};
+function paintHull(g, shape, r, pal) {
+  g.lineJoin = 'round';
+  const [hull, dark, accent, glow] = pal;
+  const fn = HULL_PAINTERS[shape] || paintHullDart;
+  fn(g, r, hull, dark, accent, glow);
+}
+
+// ── Мир: планеты и астероиды (препятствия и ориентиры) ───────────────────────
+const PLANET_PALS = [
+  ['#ff8a4a','#c94a1a'], ['#4ad0ff','#1a6fa8'], ['#c9a4ff','#7a3fd6'],
+  ['#8fff8a','#2a9a4a'], ['#ffe14a','#b8860b'], ['#ff5a8a','#a8225a'],
+];
+
+function shipsBuildWorld() {
+  SHIPS.planets.length = 0; SHIPS.asteroids.length = 0; SHIPS.astSprites.length = 0;
+  const worldR = SHIPS.WORLD;
+  const nPlanets = 6;
+  for (let i=0; i<nPlanets; i++) {
+    const pal = PLANET_PALS[i % PLANET_PALS.length];
+    SHIPS.planets.push({
+      x: rnd(worldR*0.12, worldR*0.88), y: rnd(worldR*0.12, worldR*0.88),
+      r: rnd(90, 190), pal, ring: Math.random()<0.4,
+      phase: rnd(0,TAU),
+    });
+  }
+  // Раздвигаем планеты, чтобы не накладывались друг на друга
+  for (let iter=0; iter<40; iter++) {
+    for (let i=0; i<SHIPS.planets.length; i++) {
+      for (let j=i+1; j<SHIPS.planets.length; j++) {
+        const a=SHIPS.planets[i], b=SHIPS.planets[j];
+        const d=dist(a.x,a.y,b.x,b.y), minD=a.r+b.r+140;
+        if (d<minD && d>0.01) {
+          const push=(minD-d)/2, nx=(a.x-b.x)/d, ny=(a.y-b.y)/d;
+          a.x+=nx*push; a.y+=ny*push; b.x-=nx*push; b.y-=ny*push;
+        }
+      }
+    }
+  }
+  const astShapeSeeds = [];
+  for (let s=0; s<6; s++) {
+    const pts=[]; const n=rndInt(7,10);
+    for (let i=0;i<n;i++) { const a=i/n*TAU; pts.push(0.7+Math.random()*0.5); }
+    astShapeSeeds.push(pts);
+  }
+  const nAsteroids = 46;
+  for (let i=0; i<nAsteroids; i++) {
+    let x,y,ok=false, tries=0;
+    while(!ok && tries<20) {
+      x=rnd(0,worldR); y=rnd(0,worldR); ok=true; tries++;
+      for (const p of SHIPS.planets) if (dist(x,y,p.x,p.y) < p.r+160) { ok=false; break; }
+    }
+    const r = rnd(16,42);
+    SHIPS.asteroids.push({
+      x, y, r, hp:Math.round(r*2.2), maxHp:Math.round(r*2.2),
+      seed: astShapeSeeds[i % astShapeSeeds.length],
+      angle: rnd(0,TAU), spin: rnd(-0.4,0.4),
+      vx: rnd(-8,8), vy: rnd(-8,8),
+    });
+  }
+  SHIPS.farStars.length = 0;
+  for (let i=0; i<420; i++) SHIPS.farStars.push({
+    x: rnd(0,worldR), y: rnd(0,worldR), r: rnd(0.5,2.4),
+    alpha: rnd(0.15,0.85), twinkle: rnd(0,TAU), twinkleSpeed: rnd(0.3,1.6),
+    hue: rndInt(0,5),
+  });
+}
+
+function shipsSprite(id) {
+  if (SHIPS.sprites[id]) return SHIPS.sprites[id];
+  const def = ESHIP_BY_ID[id];
+  const cv = makeShipSprite(def.shape, def.r, def.pal);
+  SHIPS.sprites[id] = cv;
+  return cv;
+}
+
+// ── Арсенал корабля: survivors-прокачка ───────────────────────────────────────
+// Каждое оружие имеет уровни 1..5: с уровнем растёт урон/скорострельность/эффект.
+// Пассивки прокачивают сам корабль. На level-up — 3 случайных доступных варианта
+// (как в «Войне магов»): новое оружие ИЛИ апгрейд уже взятого.
+const SHIP_WEAPONS = {
+  blaster:  { name:'💠 Импульсный бластер', desc:'Автоматический выстрел вперёд.', max:5,
+              base:{ cd:0.42, dmg:9, spd:520, pierce:0 },
+              perLvl:{ cd:-0.035, dmg:3, pierce:0.34 } },
+  twin:     { name:'⚡ Бортовые турели',    desc:'Две турели бьют вбок от корабля.', max:5,
+              base:{ cd:0.85, dmg:7, spd:460 },
+              perLvl:{ cd:-0.06, dmg:2 } },
+  missile:  { name:'🚀 Самонаводящиеся ракеты', desc:'Ракета ищет ближайшего врага.', max:5,
+              base:{ cd:1.9, dmg:26, spd:300 },
+              perLvl:{ cd:-0.15, dmg:9 } },
+  mine:     { name:'💣 Мины заграждения',   desc:'Ставит мину позади корабля.', max:5,
+              base:{ cd:2.4, dmg:38, radius:70 },
+              perLvl:{ cd:-0.18, dmg:12, radius:8 } },
+  beam:     { name:'🔺 Лучевая батарея',    desc:'Непрерывный луч по ближайшей цели.', max:5,
+              base:{ cd:0, dmg:16, tick:0.12 },
+              perLvl:{ dmg:6 } },
+  drone:    { name:'🛰 Боевой дрон',         desc:'Дрон летает рядом и стреляет сам.', max:3,
+              base:{ cd:1.1, dmg:8, spd:420 },
+              perLvl:{ cd:-0.15, dmg:3 } },
+};
+const SHIP_PASSIVES = {
+  engine: { name:'🔥 Форсаж',        desc:'Скорость корабля +14%.', max:4, apply:()=>{ SHIP.stats.speed*=1.14; } },
+  armor:  { name:'🛡 Броневой пояс', desc:'Макс. ЗД +25.', max:5, apply:()=>{ player.maxHp+=25; player.hp+=25; } },
+  shield: { name:'🔵 Дефлекторный щит', desc:'Гасит 1 попадание раз в 9с.', max:1, apply:()=>{ SHIP.stats.hasShield=true; } },
+  magnet: { name:'🧲 Магнит трюма',  desc:'Радиус сбора опыта сильно больше.', max:3, apply:()=>{ SHIP.stats.magnetR*=1.45; } },
+  regen:  { name:'❤ Нанополимер',   desc:'+1.2 ЗД в секунду.', max:3, apply:()=>{ SHIP.stats.regen+=1.2; } },
+  overclock: { name:'⭐ Оверклок',  desc:'Скорострельность всего оружия +15%.', max:3, apply:()=>{ SHIP.stats.cdMul*=0.85; } },
+  focus:  { name:'🎯 Фокус огня',   desc:'Урон всего оружия +18%.', max:3, apply:()=>{ SHIP.stats.dmgMul*=1.18; } },
+};
+
+function shipWeaponStat(id, key) {
+  const def = SHIP_WEAPONS[id], lvl = SHIP.weapons[id] || 0;
+  return def.base[key] + (def.perLvl[key]||0) * Math.max(0, lvl-1);
+}
+
+function getShipUpgradeChoices() {
+  const pool = [];
+  for (const id in SHIP_WEAPONS) {
+    const lvl = SHIP.weapons[id] || 0;
+    if (lvl < SHIP_WEAPONS[id].max) pool.push({ kind:'weapon', id, lvl });
+  }
+  for (const id in SHIP_PASSIVES) {
+    const lvl = SHIP.passives[id] || 0;
+    if (lvl < SHIP_PASSIVES[id].max) pool.push({ kind:'passive', id, lvl });
+  }
+  for (let i=pool.length-1; i>0; i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+  }
+  return pool.slice(0, Math.min(3, pool.length)).map(p => {
+    const def = p.kind==='weapon' ? SHIP_WEAPONS[p.id] : SHIP_PASSIVES[p.id];
+    const isNew = p.lvl===0;
+    return { id:p.id, kind:p.kind,
+      name: def.name + (isNew ? '' : `  Ур.${p.lvl+1}`),
+      desc: def.desc + (isNew ? '  [НОВОЕ]' : ''),
+    };
+  });
+}
+
+function applyShipUpgrade(id) {
+  if (SHIP_WEAPONS[id]) {
+    SHIP.weapons[id] = (SHIP.weapons[id]||0) + 1;
+    if (SHIP.wcd[id]===undefined) SHIP.wcd[id] = 0;
+    showFloatingText(player.x, player.y-30, SHIP_WEAPONS[id].name, '#00e5ff');
+  } else if (SHIP_PASSIVES[id]) {
+    SHIP.passives[id] = (SHIP.passives[id]||0) + 1;
+    SHIP_PASSIVES[id].apply();
+    showFloatingText(player.x, player.y-30, SHIP_PASSIVES[id].name, '#ffaa33');
+  }
+}
+
+// ── Старт режима / вражеские корабли ──────────────────────────────────────────
+function shipsStart() {
+  SHIP.vx=0; SHIP.vy=0; SHIP.angle=-Math.PI/2; SHIP.thrust=0; SHIP.r=15;
+  SHIP.weapons={ blaster:1 }; SHIP.wcd={ blaster:0 }; SHIP.passives={};
+  SHIP.stats = { speed:255, dmgMul:1, cdMul:1, magnetR:170, regen:0,
+                 hasShield:false, shieldReady:true, shieldCd:0, beamTimer:0 };
+  shipsBuildWorld();
+  player.x = SHIPS.WORLD/2; player.y = SHIPS.WORLD/2;
+  player.hp = 100; player.maxHp = 100;
+  SHIPS.shots.length=0; SHIPS.eShots.length=0; SHIPS.mines.length=0;
+  SHIPS.enemies.length=0; SHIPS.drones.length=0;
+  SHIPS.cam.x = player.x - W/2; SHIPS.cam.y = player.y - H/2;
+  for (let i=0;i<3;i++) shipsSpawnEnemy(spawnWaveEnemyId(1));
+}
+
+function spawnWaveEnemyId(wave) {
+  const pool = ESHIPS.filter(d => d.tier<=wave && !d.boss);
+  const bossPool = ESHIPS.filter(d => d.boss && wave >= d.tier && wave % 8 === d.tier % 8);
+  if (bossPool.length && Math.random()<0.5) return bossPool[rndInt(0,bossPool.length-1)].id;
+  const src = pool.length ? pool : [ESHIPS[0]];
+  return src[rndInt(0,src.length-1)].id;
+}
+
+function shipsSpawnEnemy(id) {
+  const def = ESHIP_BY_ID[id];
+  const ang = rnd(0,TAU), spawnDist = Math.max(W,H)*0.75;
+  const x = clamp(player.x + Math.cos(ang)*spawnDist, def.r, SHIPS.WORLD-def.r);
+  const y = clamp(player.y + Math.sin(ang)*spawnDist, def.r, SHIPS.WORLD-def.r);
+  const hpScale = 1 + (game.wave-1)*0.11;
+  SHIPS.enemies.push({
+    id:++SHIPS.enemyIdCounter, defId:id, x, y,
+    hp:Math.round(def.hp*hpScale), maxHp:Math.round(def.hp*hpScale),
+    angle:ang, vx:0, vy:0, flashTimer:0, dying:false, dyingTimer:0,
+    shootCd: def.gun ? rnd(0.4, def.gun.cd) : 0,
+    orbitDir: Math.random()<0.5?1:-1, orbitAngle: rnd(0,TAU),
+    chargeCd: rnd(1.5,3.5), chargeState:'idle', chargeTimer:0,
+    cloakTimer: rnd(1,3), cloakAlpha:1,
+    spawnCd: rnd(3,5),
+  });
+}
+
+// ── Обновление режима «Война кораблей» ────────────────────────────────────────
+function shipsUpdate(dt) {
+  game.time += dt;
+  if (game.screenFlash>0) game.screenFlash -= dt;
+  if (game.screenShake>0) {
+    game.screenShake -= dt;
+    game.shakeX=rnd(-CFG.screenShakeMag,CFG.screenShakeMag)*(game.screenShake/CFG.screenShakeDuration);
+    game.shakeY=rnd(-CFG.screenShakeMag,CFG.screenShakeMag)*(game.screenShake/CFG.screenShakeDuration);
+  } else { game.shakeX=0; game.shakeY=0; }
+  if (game.waveClearBanner>0) game.waveClearBanner -= dt;
+  if (player.iFrames>0) player.iFrames -= dt;
+  if (SHIP.stats.regen>0 && player.hp<player.maxHp) player.hp=Math.min(player.maxHp, player.hp+SHIP.stats.regen*dt);
+  if (SHIP.stats.hasShield && !SHIP.stats.shieldReady) {
+    SHIP.stats.shieldCd -= dt;
+    if (SHIP.stats.shieldCd<=0) SHIP.stats.shieldReady=true;
+  }
+
+  // Движение: та же схема ввода, что и в режиме джедая (тяни/WASD), но здесь
+  // это открытый космос — координаты мировые, камера следует за кораблём.
+  const inp = getInput();
+  const mvLen = Math.hypot(inp.mx, inp.my);
+  const spd = SHIP.stats.speed;
+  const targetVx = inp.mx*spd, targetVy = inp.my*spd;
+  player.vx = lerp(player.vx, targetVx, Math.min(1, 9*dt));
+  player.vy = lerp(player.vy, targetVy, Math.min(1, 9*dt));
+  if (mvLen > 0.12) SHIP.angle = Math.atan2(inp.my, inp.mx);
+  player.x += player.vx*dt; player.y += player.vy*dt;
+  player.x = clamp(player.x, SHIP.r, SHIPS.WORLD-SHIP.r);
+  player.y = clamp(player.y, SHIP.r, SHIPS.WORLD-SHIP.r);
+
+  // Планеты — твёрдые препятствия: выталкиваем корабль наружу.
+  for (const p of SHIPS.planets) {
+    const d = dist(player.x,player.y,p.x,p.y), minD = p.r+SHIP.r;
+    if (d < minD && d>0.01) {
+      const nx=(player.x-p.x)/d, ny=(player.y-p.y)/d;
+      player.x = p.x+nx*minD; player.y = p.y+ny*minD;
+      player.vx *= 0.4; player.vy *= 0.4;
+    }
+  }
+  // Астероиды — препятствия помягче: толчок + небольшой урон при сильном ударе.
+  for (const a of SHIPS.asteroids) {
+    const d = dist(player.x,player.y,a.x,a.y), minD = a.r+SHIP.r;
+    if (d < minD && d>0.01) {
+      const nx=(player.x-a.x)/d, ny=(player.y-a.y)/d;
+      player.x = a.x+nx*minD; player.y = a.y+ny*minD;
+      if (mvLen>0.3 && player.iFrames<=0) {
+        player.hp -= 6; player.iFrames=0.5; game.screenShake=CFG.screenShakeDuration;
+        spawnSparks(player.x,player.y,8,'#aaaaaa',0.7);
+        sndPlayerHit();
+        if (player.hp<=0) { player.hp=0; triggerGameOver(); return; }
+      }
+    }
+  }
+
+  SHIPS.cam.x = clamp(player.x - W/2, 0, Math.max(0, SHIPS.WORLD-W));
+  SHIPS.cam.y = clamp(player.y - H/2, 0, Math.max(0, SHIPS.WORLD-H));
+
+  shipsUpdateWeapons(dt);
+  shipsUpdateProjectiles(dt);
+  shipsUpdateEnemies(dt);
+  shipsUpdateAsteroids(dt);
+  updateXPOrbs(dt);
+  updateLoot(dt);
+  updateParticles(dt);
+  updateFloatingTexts(dt);
+
+  // Волны: реже, но каждая ощутимо усиливает натиск; между ними — плавный
+  // «трикл»-спавн одиночных врагов, чтобы не было пустоты.
+  game.waveTimer += dt;
+  SHIPS.spawnTimer = (SHIPS.spawnTimer||0) - dt;
+  if (SHIPS.spawnTimer<=0 && SHIPS.enemies.length < 6+game.wave) {
+    SHIPS.spawnTimer = Math.max(0.9, 2.6 - game.wave*0.06);
+    shipsSpawnEnemy(spawnWaveEnemyId(game.wave));
+  }
+  if (game.waveTimer >= game.waveDuration) {
+    game.wave++; game.waveTimer=0;
+    game.waveDuration = Math.max(16, game.waveDuration-0.4);
+    game.waveClearBanner=2.5; game.waveClearText=`⚡ СЕКТОР ${game.wave}`;
+    const extra = Math.min(3, 1+Math.floor(game.wave/4));
+    for (let i=0;i<extra;i++) shipsSpawnEnemy(spawnWaveEnemyId(game.wave));
+    sndWaveClear();
+  }
+}
+
+function shipsFindNearestEnemy(x, y, maxR=Infinity) {
+  let best=null, bestD=maxR;
+  for (const e of SHIPS.enemies) {
+    if (e.dying) continue;
+    const d = dist(x,y,e.x,e.y);
+    if (d < bestD) { bestD=d; best=e; }
+  }
+  return best;
+}
+
+function shipsUpdateWeapons(dt) {
+  const nose = { x: player.x+Math.cos(SHIP.angle)*SHIP.r, y: player.y+Math.sin(SHIP.angle)*SHIP.r };
+  for (const id in SHIP.weapons) {
+    if (id==='beam') continue; // луч тикает без отдельного кулдауна выстрела
+    SHIP.wcd[id] = (SHIP.wcd[id]||0) - dt;
+    if (SHIP.wcd[id] > 0) continue;
+    const cd = shipWeaponStat(id,'cd') * SHIP.stats.cdMul;
+    SHIP.wcd[id] = cd;
+    const dmg = shipWeaponStat(id,'dmg') * SHIP.stats.dmgMul;
+    if (id==='blaster') {
+      SHIPS.shots.push({ x:nose.x, y:nose.y,
+        vx:Math.cos(SHIP.angle)*shipWeaponStat(id,'spd'), vy:Math.sin(SHIP.angle)*shipWeaponStat(id,'spd'),
+        dmg, pierce:Math.floor(shipWeaponStat(id,'pierce')), hitIds:new Set(), color:'#00e5ff', r:4 });
+    } else if (id==='twin') {
+      for (const side of [1,-1]) {
+        const a = SHIP.angle + side*Math.PI/2;
+        SHIPS.shots.push({ x:player.x+Math.cos(a)*SHIP.r*0.8, y:player.y+Math.sin(a)*SHIP.r*0.8,
+          vx:Math.cos(a)*shipWeaponStat(id,'spd'), vy:Math.sin(a)*shipWeaponStat(id,'spd'),
+          dmg, pierce:0, hitIds:new Set(), color:'#ffaa33', r:3.5 });
+      }
+    } else if (id==='missile') {
+      const target = shipsFindNearestEnemy(player.x, player.y, 900);
+      SHIPS.shots.push({ x:nose.x, y:nose.y, vx:Math.cos(SHIP.angle)*140, vy:Math.sin(SHIP.angle)*140,
+        dmg, pierce:0, hitIds:new Set(), color:'#ff5577', r:5, homing:true,
+        targetId: target?target.id:null, spd:shipWeaponStat(id,'spd') });
+    } else if (id==='mine') {
+      const bx = player.x-Math.cos(SHIP.angle)*24, by = player.y-Math.sin(SHIP.angle)*24;
+      SHIPS.mines.push({ x:bx, y:by, dmg, radius:shipWeaponStat(id,'radius'), life:14, armed:0.4 });
+    } else if (id==='drone' && SHIPS.drones.length===0) {
+      SHIPS.drones.push({ angle:0, cd:0.4 });
+    }
+  }
+  // Дрон: орбитирует и стреляет по ближайшему врагу сам
+  if (SHIP.weapons.drone) {
+    for (const d of SHIPS.drones) {
+      d.angle += dt*2.2;
+      d.x = player.x + Math.cos(d.angle)*54; d.y = player.y + Math.sin(d.angle)*54;
+      d.cd -= dt;
+      if (d.cd<=0) {
+        d.cd = shipWeaponStat('drone','cd') * SHIP.stats.cdMul;
+        const target = shipsFindNearestEnemy(d.x, d.y, 340);
+        if (target) {
+          const a = angleTo(d.x,d.y,target.x,target.y);
+          SHIPS.shots.push({ x:d.x, y:d.y, vx:Math.cos(a)*shipWeaponStat('drone','spd'), vy:Math.sin(a)*shipWeaponStat('drone','spd'),
+            dmg:shipWeaponStat('drone','dmg')*SHIP.stats.dmgMul, pierce:0, hitIds:new Set(), color:'#88ffcc', r:3 });
+        }
+      }
+    }
+  }
+  // Луч: непрерывный тик-урон по ближайшей цели в радиусе
+  if (SHIP.weapons.beam) {
+    SHIP.stats.beamTimer -= dt;
+    const target = shipsFindNearestEnemy(player.x, player.y, 260);
+    SHIPS._beamTarget = target;
+    if (target && SHIP.stats.beamTimer<=0) {
+      SHIP.stats.beamTimer = shipWeaponStat('beam','tick');
+      const dmg = shipWeaponStat('beam','dmg') * SHIP.stats.dmgMul;
+      target.hp -= dmg; target.flashTimer=0.1;
+      spawnSparks(target.x,target.y,3,'#ff66aa',0.5);
+      if (target.hp<=0) shipsKillEnemy(target);
+    }
+  } else SHIPS._beamTarget = null;
+}
+
+function shipsKillEnemy(e) {
+  e.dying=true; e.dyingTimer=0.4;
+  const def = ESHIP_BY_ID[e.defId];
+  game.score += def.score; game.kills++;
+  spawnXPOrb(e.x, e.y, def.xp);
+  spawnSparks(e.x,e.y,20,def.pal[3],1.1);
+  spawnRing(e.x,e.y,def.pal[3],e.r*1.6);
+  spawnDebris(e.x,e.y,def.pal[0],5);
+  game.screenShake=CFG.screenShakeDuration*0.6;
+  sndEnemyDie();
+  if (Math.random()<0.06) spawnLoot(e.x,e.y,'medpac');
+}
+
+function shipsUpdateProjectiles(dt) {
+  const worldMargin = 80;
+  // Выстрелы игрока
+  for (let i=SHIPS.shots.length-1; i>=0; i--) {
+    const s = SHIPS.shots[i];
+    if (s.homing) {
+      const target = s.targetId!=null ? SHIPS.enemies.find(e=>e.id===s.targetId && !e.dying) : null;
+      if (target) {
+        const a = angleTo(s.x,s.y,target.x,target.y);
+        s.vx = lerp(s.vx, Math.cos(a)*s.spd, Math.min(1,3*dt));
+        s.vy = lerp(s.vy, Math.sin(a)*s.spd, Math.min(1,3*dt));
+      }
+    }
+    s.x += s.vx*dt; s.y += s.vy*dt;
+    if (s.x<SHIPS.cam.x-worldMargin||s.x>SHIPS.cam.x+W+worldMargin||
+        s.y<SHIPS.cam.y-worldMargin||s.y>SHIPS.cam.y+H+worldMargin) { SHIPS.shots.splice(i,1); continue; }
+    let dead=false;
+    for (const e of SHIPS.enemies) {
+      if (e.dying || s.hitIds.has(e.id)) continue;
+      if (dist(s.x,s.y,e.x,e.y) < e.r*0.9+s.r) {
+        e.hp -= s.dmg; e.flashTimer=0.1;
+        spawnSparks(s.x,s.y,6,s.color,0.7);
+        s.hitIds.add(e.id);
+        if (e.hp<=0) shipsKillEnemy(e);
+        if (s.pierce<=0) { dead=true; break; } else s.pierce--;
+      }
+    }
+    if (!dead) for (const a of SHIPS.asteroids) {
+      if (dist(s.x,s.y,a.x,a.y) < a.r+s.r) {
+        a.hp -= s.dmg*0.6;
+        spawnSparks(s.x,s.y,4,'#aaaaaa',0.6);
+        if (a.hp<=0) shipsBreakAsteroid(a);
+        dead=true; break;
+      }
+    }
+    if (dead) SHIPS.shots.splice(i,1);
+  }
+  // Мины игрока
+  for (let i=SHIPS.mines.length-1; i>=0; i--) {
+    const m = SHIPS.mines[i];
+    m.life -= dt; if (m.armed>0) m.armed -= dt;
+    let boom=false;
+    if (m.armed<=0) for (const e of SHIPS.enemies) {
+      if (!e.dying && dist(m.x,m.y,e.x,e.y) < e.r+16) { boom=true; break; }
+    }
+    if (boom || m.life<=0) {
+      if (boom) {
+        spawnRing(m.x,m.y,'#ffaa33',m.radius);
+        spawnSparks(m.x,m.y,16,'#ffaa33',1.1);
+        game.screenShake = Math.max(game.screenShake, 0.15);
+        for (const e of SHIPS.enemies) {
+          if (!e.dying && dist(m.x,m.y,e.x,e.y) < m.radius) {
+            e.hp -= m.dmg; e.flashTimer=0.1;
+            if (e.hp<=0) shipsKillEnemy(e);
+          }
+        }
+      }
+      SHIPS.mines.splice(i,1);
+    }
+  }
+  // Выстрелы врагов
+  for (let i=SHIPS.eShots.length-1; i>=0; i--) {
+    const b = SHIPS.eShots[i];
+    b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
+    if (b.life<=0 || b.x<SHIPS.cam.x-worldMargin||b.x>SHIPS.cam.x+W+worldMargin||
+        b.y<SHIPS.cam.y-worldMargin||b.y>SHIPS.cam.y+H+worldMargin) { SHIPS.eShots.splice(i,1); continue; }
+    if (player.iFrames<=0 && dist(b.x,b.y,player.x,player.y) < SHIP.r+4) {
+      if (SHIP.stats.hasShield && SHIP.stats.shieldReady) {
+        SHIP.stats.shieldReady=false; SHIP.stats.shieldCd=9;
+        spawnRing(player.x,player.y,'#00aaff',30); spawnSparks(player.x,player.y,8,'#00aaff',0.8);
+      } else {
+        player.hp -= b.dmg; player.iFrames=0.4; game.screenShake=CFG.screenShakeDuration;
+        spawnSparks(player.x,player.y,8,'#ff4400',0.8); sndPlayerHit();
+        if (player.hp<=0) { player.hp=0; triggerGameOver(); return; }
+      }
+      SHIPS.eShots.splice(i,1);
+    }
+  }
+}
+
+function shipsBreakAsteroid(a) {
+  spawnSparks(a.x,a.y,14,'#999999',0.9);
+  spawnRing(a.x,a.y,'#cccccc',a.r);
+  spawnDebris(a.x,a.y,'#888888',6);
+  if (Math.random()<0.35) spawnXPOrb(a.x,a.y,4);
+  const idx = SHIPS.asteroids.indexOf(a);
+  if (idx>=0) SHIPS.asteroids.splice(idx,1);
+}
+
+function shipsUpdateAsteroids(dt) {
+  for (const a of SHIPS.asteroids) {
+    a.angle += a.spin*dt;
+    a.x += a.vx*dt; a.y += a.vy*dt;
+    if (a.x<a.r||a.x>SHIPS.WORLD-a.r) a.vx*=-1;
+    if (a.y<a.r||a.y>SHIPS.WORLD-a.r) a.vy*=-1;
+    a.x = clamp(a.x, a.r, SHIPS.WORLD-a.r); a.y = clamp(a.y, a.r, SHIPS.WORLD-a.r);
+  }
+}
+
+function shipsFireGun(e, def, angOverride) {
+  const g = def.gun, ang = angOverride!=null ? angOverride : e.angle;
+  const n = g.spreadN || 1, fan = g.fan || 0;
+  for (let i=0;i<n;i++) {
+    const off = n>1 ? (i/(n-1)-0.5)*fan : 0;
+    const a = ang+off;
+    SHIPS.eShots.push({ x:e.x+Math.cos(a)*e.r, y:e.y+Math.sin(a)*e.r,
+      vx:Math.cos(a)*g.spd, vy:Math.sin(a)*g.spd, dmg:g.dmg, life:5 });
+  }
+  spawnSparks(e.x+Math.cos(ang)*e.r, e.y+Math.sin(ang)*e.r, 3, ESHIP_BY_ID[e.defId].pal[3], 0.5);
+}
+
+function shipsContactDamage(e, dmg, killSelf) {
+  if (player.iFrames>0) return;
+  if (SHIP.stats.hasShield && SHIP.stats.shieldReady) {
+    SHIP.stats.shieldReady=false; SHIP.stats.shieldCd=9;
+    spawnRing(player.x,player.y,'#00aaff',30);
+  } else {
+    player.hp -= dmg; player.iFrames=0.5; game.screenShake=CFG.screenShakeDuration;
+    spawnSparks(player.x,player.y,10,'#ff4400',0.9); sndPlayerHit();
+    if (player.hp<=0) { player.hp=0; triggerGameOver(); }
+  }
+  if (killSelf) shipsKillEnemy(e);
+}
+
+function shipsUpdateEnemies(dt) {
+  for (let i=SHIPS.enemies.length-1; i>=0; i--) {
+    const e = SHIPS.enemies[i];
+    if (e.flashTimer>0) e.flashTimer -= dt;
+    if (e.dying) {
+      e.dyingTimer -= dt;
+      if (e.dyingTimer<=0) SHIPS.enemies.splice(i,1);
+      continue;
+    }
+    const def = ESHIP_BY_ID[e.defId];
+    const d = dist(player.x,player.y,e.x,e.y);
+    e.angle = angleTo(e.x,e.y,player.x,player.y);
+    const beh = def.beh;
+
+    if (beh==='chase' || beh==='kamikaze') {
+      const spd = beh==='kamikaze' && d<260 ? def.speed*1.9 : def.speed;
+      if (d > e.r+SHIP.r-2) { e.x += Math.cos(e.angle)*spd*dt; e.y += Math.sin(e.angle)*spd*dt; }
+      if (d < e.r+SHIP.r+2) shipsContactDamage(e, beh==='kamikaze'?26:10, beh==='kamikaze');
+    } else if (beh==='shooter' || beh==='sniper' || beh==='radial') {
+      const stop = def.gun ? (def.gun.stop||280) : 300;
+      if (d > stop+20) { e.x += Math.cos(e.angle)*def.speed*dt; e.y += Math.sin(e.angle)*def.speed*dt; }
+      else if (beh==='sniper' && d < stop-60) { e.x -= Math.cos(e.angle)*def.speed*dt; e.y -= Math.sin(e.angle)*def.speed*dt; }
+      e.shootCd -= dt;
+      if (e.shootCd<=0 && def.gun) {
+        e.shootCd = def.gun.cd * rnd(0.9,1.15);
+        if (beh==='radial') {
+          const n = def.gun.n||8;
+          for (let k=0;k<n;k++) shipsFireGun(e, def, k/n*TAU);
+        } else if (def.gun.burst) {
+          for (let k=0;k<def.gun.burst;k++) setTimeout(()=>{ if(!e.dying && SHIPS.enemies.includes(e)) shipsFireGun(e,def); }, k*110);
+        } else shipsFireGun(e, def);
+      }
+      if (d < e.r+SHIP.r+2) shipsContactDamage(e, 8, false);
+    } else if (beh==='orbit') {
+      e.orbitAngle += e.orbitDir*0.6*dt;
+      const orbR = 260;
+      const tx = player.x+Math.cos(e.orbitAngle)*orbR, ty = player.y+Math.sin(e.orbitAngle)*orbR;
+      e.x = lerp(e.x, tx, Math.min(1,2.2*dt)); e.y = lerp(e.y, ty, Math.min(1,2.2*dt));
+      e.angle = angleTo(e.x,e.y,player.x,player.y);
+      e.shootCd -= dt;
+      if (e.shootCd<=0 && def.gun) { e.shootCd=def.gun.cd*rnd(0.9,1.1); shipsFireGun(e,def); }
+    } else if (beh==='miner') {
+      if (d>320) { e.x += Math.cos(e.angle)*def.speed*dt; e.y += Math.sin(e.angle)*def.speed*dt; }
+      else { e.x += Math.cos(e.angle+Math.PI/2)*def.speed*0.5*dt; e.y += Math.sin(e.angle+Math.PI/2)*def.speed*0.5*dt; }
+      e.spawnCd -= dt;
+      if (e.spawnCd<=0) {
+        e.spawnCd = rnd(3,4.5);
+        SHIPS.eShots.push({ x:e.x, y:e.y, vx:0, vy:0, dmg:18, life:9, mine:true });
+      }
+      if (d < e.r+SHIP.r+2) shipsContactDamage(e, 8, false);
+    } else if (beh==='stealth') {
+      e.cloakTimer -= dt;
+      if (e.cloakTimer<=0) { e.cloakTimer=rnd(2,3.5); e.cloaked=!e.cloaked; }
+      e.cloakAlpha = lerp(e.cloakAlpha, e.cloaked?0.25:1, Math.min(1,3*dt));
+      const spd = e.cloaked ? def.speed*1.8 : def.speed;
+      if (d > e.r+SHIP.r-2) { e.x += Math.cos(e.angle)*spd*dt; e.y += Math.sin(e.angle)*spd*dt; }
+      if (d < e.r+SHIP.r+2) shipsContactDamage(e, 10, false);
+    } else if (beh==='carrier') {
+      if (d > 420) { e.x += Math.cos(e.angle)*def.speed*dt; e.y += Math.sin(e.angle)*def.speed*dt; }
+      else if (d < 340) { e.x -= Math.cos(e.angle)*def.speed*dt; e.y -= Math.sin(e.angle)*def.speed*dt; }
+      e.spawnCd -= dt;
+      if (e.spawnCd<=0 && SHIPS.enemies.length < 14) {
+        e.spawnCd = rnd(4,6);
+        const spawnAng = rnd(0,TAU);
+        SHIPS.enemyIdCounter++;
+        SHIPS.enemies.push({ id:SHIPS.enemyIdCounter, defId:'scout',
+          x:e.x+Math.cos(spawnAng)*40, y:e.y+Math.sin(spawnAng)*40,
+          hp:14, maxHp:14, angle:spawnAng, flashTimer:0, dying:false, dyingTimer:0,
+          shootCd:1, orbitDir:1, orbitAngle:0, chargeCd:2, chargeState:'idle', chargeTimer:0,
+          cloakTimer:2, cloakAlpha:1, spawnCd:4 });
+      }
+    } else if (beh==='charger') {
+      if (e.chargeState==='idle') {
+        e.chargeCd -= dt;
+        if (d>e.r+SHIP.r+2) { e.x += Math.cos(e.angle)*def.speed*0.6*dt; e.y += Math.sin(e.angle)*def.speed*0.6*dt; }
+        if (e.chargeCd<=0 && d<520) { e.chargeState='wind'; e.chargeTimer=0.5; e.dashAngle=e.angle; }
+      } else if (e.chargeState==='wind') {
+        e.chargeTimer -= dt;
+        if (e.chargeTimer<=0) { e.chargeState='dash'; e.chargeTimer=0.4; }
+      } else if (e.chargeState==='dash') {
+        e.x += Math.cos(e.dashAngle)*def.speed*4*dt; e.y += Math.sin(e.dashAngle)*def.speed*4*dt;
+        e.chargeTimer -= dt;
+        if (d < e.r+SHIP.r+2) shipsContactDamage(e, 22, false);
+        if (e.chargeTimer<=0) { e.chargeState='idle'; e.chargeCd=rnd(2,3.2); }
+      }
+    } else if (beh==='boss1' || beh==='boss2') {
+      if (d>380) { e.x += Math.cos(e.angle)*def.speed*dt; e.y += Math.sin(e.angle)*def.speed*dt; }
+      e.shootCd -= dt;
+      if (e.shootCd<=0) {
+        e.shootCd = 1.6;
+        const n=6; for (let k=0;k<n;k++) shipsFireGun(e,def,k/n*TAU+game.time);
+        if (beh==='boss2' && Math.random()<0.4 && SHIPS.enemies.length<16) {
+          SHIPS.enemyIdCounter++;
+          SHIPS.enemies.push({ id:SHIPS.enemyIdCounter, defId:'scout',
+            x:e.x+rnd(-60,60), y:e.y+rnd(-60,60), hp:18, maxHp:18, angle:0,
+            flashTimer:0, dying:false, dyingTimer:0, shootCd:1, orbitDir:1, orbitAngle:0,
+            chargeCd:2, chargeState:'idle', chargeTimer:0, cloakTimer:2, cloakAlpha:1, spawnCd:4 });
+        }
+      }
+      if (d < e.r+SHIP.r+4) shipsContactDamage(e, 16, false);
+    }
+
+    e.x = clamp(e.x, def.r, SHIPS.WORLD-def.r);
+    e.y = clamp(e.y, def.r, SHIPS.WORLD-def.r);
+  }
+}
+
+// ── Рендер режима «Война кораблей» ────────────────────────────────────────────
+const NEBULA_HUES = ['#1a0a2e','#0a1a2e','#2a0a1e','#0a2a1a','#241a0a','#1a0a1a'];
+function shipsDrawBackground() {
+  const cx = SHIPS.cam.x, cy = SHIPS.cam.y;
+  ctx.fillStyle = '#050310'; ctx.fillRect(cx-10,cy-10,W+20,H+20);
+  for (let i=0;i<14;i++) {
+    const nx = (i*1747+500)%SHIPS.WORLD, ny=(i*2683+300)%SHIPS.WORLD;
+    if (nx < cx-700 || nx > cx+W+700 || ny < cy-700 || ny > cy+H+700) continue;
+    const r = 520+(i%5)*80;
+    const gr = ctx.createRadialGradient(nx,ny,0,nx,ny,r);
+    gr.addColorStop(0, NEBULA_HUES[i%NEBULA_HUES.length]+'cc');
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr; ctx.fillRect(nx-r,ny-r,r*2,r*2);
+  }
+  for (const s of SHIPS.farStars) {
+    if (s.x<cx-20||s.x>cx+W+20||s.y<cy-20||s.y>cy+H+20) continue;
+    s.twinkle += s.twinkleSpeed*(1/60);
+    const a = s.alpha*(0.6+0.4*Math.sin(s.twinkle));
+    const hues=['#aaccff','#ffd9aa','#ffaacc','#aaffcc','#ddaaff','#ffffff'];
+    ctx.save(); ctx.globalAlpha=a; ctx.fillStyle=hues[s.hue];
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,TAU); ctx.fill(); ctx.restore();
+  }
+}
+
+function shipsDrawPlanets() {
+  const cx=SHIPS.cam.x, cy=SHIPS.cam.y;
+  for (const p of SHIPS.planets) {
+    if (p.x+p.r<cx||p.x-p.r>cx+W||p.y+p.r<cy||p.y-p.r>cy+H) continue;
+    p.phase += 1/240;
+    glowCircle(p.x,p.y,p.r*1.4,p.pal[0],0.18);
+    const gr = ctx.createRadialGradient(p.x-p.r*0.35,p.y-p.r*0.35,p.r*0.1, p.x,p.y,p.r);
+    gr.addColorStop(0,p.pal[0]); gr.addColorStop(1,p.pal[1]);
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill();
+    ctx.save(); ctx.globalAlpha=0.25; ctx.fillStyle=p.pal[1];
+    ctx.beginPath(); ctx.ellipse(p.x+p.r*0.3,p.y+p.r*0.2,p.r*0.7,p.r*0.5,p.phase,0,TAU); ctx.fill(); ctx.restore();
+    if (p.ring) {
+      ctx.save(); ctx.strokeStyle=p.pal[0]; ctx.globalAlpha=0.6; ctx.lineWidth=p.r*0.1;
+      ctx.beginPath(); ctx.ellipse(p.x,p.y,p.r*1.5,p.r*0.4,0.4,0,TAU); ctx.stroke(); ctx.restore();
+    }
+  }
+}
+
+function shipsDrawAsteroids() {
+  const cx=SHIPS.cam.x, cy=SHIPS.cam.y;
+  for (const a of SHIPS.asteroids) {
+    if (a.x+a.r<cx||a.x-a.r>cx+W||a.y+a.r<cy||a.y-a.r>cy+H) continue;
+    ctx.save(); ctx.translate(a.x,a.y); ctx.rotate(a.angle);
+    ctx.fillStyle='#5a5450';
+    ctx.beginPath();
+    const n=a.seed.length;
+    for (let i=0;i<n;i++) {
+      const ang=i/n*TAU, rr=a.r*a.seed[i];
+      const px=Math.cos(ang)*rr, py=Math.sin(ang)*rr;
+      if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#33302c'; ctx.globalAlpha=0.5;
+    ctx.beginPath(); ctx.arc(-a.r*0.2,-a.r*0.15,a.r*0.5,0,TAU); ctx.fill();
+    ctx.restore();
+    if (a.hp<a.maxHp) {
+      ctx.save(); ctx.fillStyle='#220000'; ctx.fillRect(a.x-a.r,a.y-a.r-8,a.r*2,3);
+      ctx.fillStyle='#ff3322'; ctx.fillRect(a.x-a.r,a.y-a.r-8,a.r*2*(a.hp/a.maxHp),3);
+      ctx.restore();
+    }
+  }
+}
+
+function shipsDrawEnemies() {
+  for (const e of SHIPS.enemies) {
+    const def = ESHIP_BY_ID[e.defId];
+    ctx.save();
+    ctx.globalAlpha = e.cloakAlpha!==undefined ? e.cloakAlpha : 1;
+    if (e.dying) ctx.globalAlpha *= Math.max(0, e.dyingTimer/0.4);
+    glowCircle(e.x,e.y,def.r*2.1,def.pal[3],0.16*ctx.globalAlpha);
+    const sprite = shipsSprite(e.defId);
+    ctx.translate(e.x,e.y); ctx.rotate(e.angle);
+    ctx.drawImage(sprite, -sprite._worldSize/2, -sprite._worldSize/2, sprite._worldSize, sprite._worldSize);
+    if (e.flashTimer>0) {
+      ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=Math.min(1,e.flashTimer/0.1)*0.7;
+      ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(0,0,def.r+2,0,TAU); ctx.fill();
+    }
+    ctx.restore();
+    if (!e.dying && e.hp<e.maxHp) {
+      const bw=def.r*2, bh=3, bx=e.x-bw/2, by=e.y-def.r-9;
+      ctx.save(); ctx.fillStyle='#220000'; ctx.fillRect(bx,by,bw,bh);
+      ctx.fillStyle='#ff3322'; ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),bh);
+      ctx.restore();
+    }
+  }
+}
+
+function shipsDrawPlayer() {
+  glowCircle(player.x, player.y+8, 34, '#00e5ff', 0.3);
+  if (!SHIPS.sprites.hero) SHIPS.sprites.hero = makeShipSprite('hero', 16, ['#cfe8f4','#16324a','#00e5ff','#66ddff']);
+  const sprite = SHIPS.sprites.hero;
+  // Пламя двигателя при движении
+  const spd = Math.hypot(player.vx, player.vy);
+  if (spd > 30) {
+    const fx = player.x - Math.cos(SHIP.angle)*SHIP.r*1.1;
+    const fy = player.y - Math.sin(SHIP.angle)*SHIP.r*1.1;
+    const flick = 0.7+0.3*Math.sin(game.time*40);
+    glowCircle(fx, fy, 10+spd*0.03, '#ffaa33', 0.5*flick);
+    glowCircle(fx, fy, 5, '#ffffff', 0.6*flick);
+  }
+  ctx.save();
+  ctx.translate(player.x, player.y); ctx.rotate(SHIP.angle);
+  if (player.iFrames>0 && Math.floor(game.time*20)%2===0) ctx.globalAlpha=0.4;
+  ctx.drawImage(sprite, -sprite._worldSize/2, -sprite._worldSize/2, sprite._worldSize, sprite._worldSize);
+  ctx.restore();
+  if (SHIP.stats.hasShield && SHIP.stats.shieldReady) {
+    ctx.save(); ctx.strokeStyle='#00ccff'; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
+    ctx.globalCompositeOperation='lighter'; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.arc(player.x,player.y,26,0,TAU); ctx.stroke(); ctx.restore();
+  }
+  for (const d of SHIPS.drones) {
+    glowCircle(d.x,d.y,14,'#88ffcc',0.4);
+    ctx.fillStyle='#88ffcc'; ctx.beginPath(); ctx.arc(d.x,d.y,5,0,TAU); ctx.fill();
+  }
+  if (SHIPS._beamTarget) {
+    glowLine(player.x,player.y,SHIPS._beamTarget.x,SHIPS._beamTarget.y,'#ff66aa',1.5,10,0.8);
+  }
+}
+
+function shipsDrawProjectiles() {
+  for (const s of SHIPS.shots) {
+    glowLine(s.x-s.vx*0.02,s.y-s.vy*0.02,s.x,s.y,s.color,1.6,10,0.9);
+    glowCircle(s.x,s.y,s.r*1.6,s.color,0.6);
+  }
+  for (const b of SHIPS.eShots) {
+    const col = b.mine ? '#ffaa33' : '#ff4400';
+    if (b.mine) { glowCircle(b.x,b.y,10,col,0.5+0.3*Math.sin(game.time*8)); }
+    else { glowLine(b.x-b.vx*0.02,b.y-b.vy*0.02,b.x,b.y,col,1.4,9,0.85); }
+  }
+  for (const m of SHIPS.mines) {
+    const pulse = 0.6+0.4*Math.sin(game.time*(m.armed>0?3:8));
+    glowCircle(m.x,m.y,14,m.armed>0?'#ffaa33':'#ff5533',0.3*pulse);
+    ctx.fillStyle = m.armed>0?'#ffaa33':'#ff5533';
+    ctx.beginPath(); ctx.arc(m.x,m.y,4,0,TAU); ctx.fill();
+  }
+}
+
+function shipsRender(dt) {
+  // Мировой слой: всё в координатах мира, камера — сдвиг на -cam.
+  ctx.save();
+  ctx.scale(scaleX, scaleY);
+  ctx.translate(game.shakeX - SHIPS.cam.x, game.shakeY - SHIPS.cam.y);
+  shipsDrawBackground();
+  shipsDrawPlanets();
+  shipsDrawAsteroids();
+  drawParticles();
+  drawXPOrbs();
+  drawLoot();
+  shipsDrawEnemies();
+  shipsDrawProjectiles();
+  shipsDrawPlayer();
+  drawFloatingTexts();
+  ctx.restore();
+
+  // Экранный слой: вспышки, виньетки, HUD.
+  ctx.save();
+  ctx.scale(scaleX, scaleY);
+  if (game.screenFlash>0) {
+    ctx.save(); ctx.fillStyle='#ffffff';
+    ctx.globalAlpha=(game.screenFlash/CFG.flashDuration)*0.18;
+    ctx.fillRect(0,0,W,H); ctx.restore();
+  }
+  if (player.hp < player.maxHp*0.3) {
+    ctx.save();
+    const vr = ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.7);
+    vr.addColorStop(0,'rgba(0,0,0,0)');
+    vr.addColorStop(1,`rgba(150,0,0,${0.25*(1-player.hp/player.maxHp*3.33)})`);
+    ctx.fillStyle=vr; ctx.fillRect(0,0,W,H); ctx.restore();
+  }
+  ctx.save();
+  const vig=ctx.createRadialGradient(W/2,H/2,H*0.35,W/2,H/2,H*0.85);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,8,0.55)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H); ctx.restore();
+
+  if (game.state==='playing'||game.state==='levelup') {
+    shipsDrawHUD();
+    shipsDrawBossBar();
+    shipsDrawOffscreenIndicators();
+  }
+  if (game.waveTimer<2.5&&game.state==='playing') {
+    const a=Math.min(1,game.waveTimer<0.3?game.waveTimer/0.3:Math.max(0,(2.5-game.waveTimer)/0.8));
+    glowText(`СЕКТОР  ${game.wave}`,W/2,H/2,'#00e5ff',36,a);
+  }
+  if (game.waveClearBanner>0) {
+    const a=Math.min(1,game.waveClearBanner/0.5);
+    glowText(game.waveClearText,W/2,H/2+60,'#ffff00',18,a);
+  }
+  ctx.restore();
+}
+
+function shipsDrawBossBar() {
+  const boss = SHIPS.enemies.find(e => ESHIP_BY_ID[e.defId].boss && !e.dying);
+  if (!boss) return;
+  const def = ESHIP_BY_ID[boss.defId];
+  const bw = Math.min(W*0.6, 380), bx = (W-bw)/2, by = H-46, bh = 10;
+  ctx.save();
+  ctx.fillStyle='#1a0008'; ctx.fillRect(bx,by,bw,bh);
+  ctx.fillStyle=def.pal[3]; ctx.fillRect(bx,by,bw*(boss.hp/boss.maxHp),bh);
+  ctx.strokeStyle='#440011'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
+  ctx.restore();
+  glowText(def.name.toUpperCase(), W/2, by-16, def.pal[3], 13);
+}
+
+function shipsDrawOffscreenIndicators() {
+  const margin=18, cx=SHIPS.cam.x, cy=SHIPS.cam.y;
+  for (const e of SHIPS.enemies) {
+    if (e.dying) continue;
+    const sx=e.x-cx, sy=e.y-cy;
+    if (sx>=0&&sx<=W&&sy>=0&&sy<=H) continue;
+    const def = ESHIP_BY_ID[e.defId];
+    if (!def.boss && dist(e.x,e.y,player.x,player.y) > 900) continue;
+    const ix=clamp(sx,margin,W-margin), iy=clamp(sy,margin,H-margin);
+    ctx.save();
+    ctx.translate(ix,iy); ctx.rotate(Math.atan2(sy-H/2, sx-W/2));
+    ctx.globalAlpha = def.boss?0.95:0.55;
+    ctx.fillStyle = def.pal[3];
+    ctx.beginPath();
+    const s = def.boss?9:6;
+    ctx.moveTo(s,0); ctx.lineTo(-s*0.6,-s*0.6); ctx.lineTo(-s*0.6,s*0.6);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function shipsDrawHUD() {
+  const topOff = (safeTopCss + 44) / currentUnit;
+  const hbx=24, hby=24+topOff, hbw=Math.min(220, W*0.42), hbh=14;
+  ctx.save();
+  ctx.fillStyle='#110000'; ctx.fillRect(hbx,hby,hbw,hbh);
+  const hpFrac=player.hp/player.maxHp;
+  const hpColor=hpFrac>0.5?'#00ff44':hpFrac>0.25?'#ffaa00':'#ff2200';
+  ctx.fillStyle=hpColor; ctx.fillRect(hbx,hby,hbw*hpFrac,hbh);
+  ctx.strokeStyle='#003322'; ctx.lineWidth=1; ctx.strokeRect(hbx,hby,hbw,hbh);
+  ctx.restore();
+  glowText(`ПРОЧНОСТЬ  ${Math.round(player.hp)}`,hbx+hbw/2,hby+hbh-1,hpColor,11);
+
+  const xbx=24, xby=hby+22, xbw=hbw, xbh=8;
+  ctx.save();
+  ctx.fillStyle='#000a11'; ctx.fillRect(xbx,xby,xbw,xbh);
+  ctx.fillStyle='#00e5ff'; ctx.fillRect(xbx,xby,xbw*(game.xp/game.xpToNext),xbh);
+  ctx.strokeStyle='#003344'; ctx.lineWidth=1; ctx.strokeRect(xbx,xby,xbw,xbh);
+  ctx.restore();
+  glowText(`УР ${game.level}`,hbx+hbw/2,xby+xbh+12,'#00e5ff',11);
+
+  const rx = W - Math.min(90, W*0.17);
+  glowText(`СЕКТОР  ${game.wave}`, rx, 12+topOff, '#00e5ff', 14);
+  glowText(`СЧЁТ  ${game.score}`,  rx, 32+topOff, '#aaddff', 11);
+  glowText(`☠ ${game.kills}`, W/2, topOff, '#ff8866', 13);
+
+  if (SHIP.stats.hasShield && !SHIP.stats.shieldReady) {
+    glowText(`ЩИТ  ${Math.max(0,SHIP.stats.shieldCd).toFixed(1)}с`, hbx+hbw/2, hby+56, '#0088bb', 10);
+  }
+  if (musicMuted) glowText('♪ ВЫКЛ', 30, H-24, '#334455', 10, 0.6);
 }
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
 const game = {
   state:'start',
+  mode:'jedi', // 'jedi' | 'ships'
   xp:0, xpToNext:40, level:1,
   score:0, wave:1, waveTimer:0, waveDuration:22,
   deflections:0, perfectDeflects:0, kills:0,
@@ -1811,14 +2966,15 @@ function triggerLevelUp() {
   const panel=document.getElementById('levelup-panel');
   const choicesEl=document.getElementById('upgrade-choices');
   choicesEl.innerHTML='';
-  const choices=getAvailableUpgrades();
+  const choices = game.mode==='ships' ? getShipUpgradeChoices() : getAvailableUpgrades();
   if (choices.length===0) { game.state='playing'; return; }
   for (const upg of choices) {
     const btn=document.createElement('button');
     btn.className='upgrade-btn';
     btn.innerHTML=`<div class="upg-name">${upg.name}</div><div class="upg-desc">${upg.desc}</div>`;
     btn.addEventListener('click', () => {
-      applyUpgrade(upg.id);
+      if (game.mode==='ships') applyShipUpgrade(upg.id);
+      else applyUpgrade(upg.id);
       panel.style.display='none';
       game.state='playing';
       document.body.classList.add('playing'); // вернуть джойстик/кнопки после выбора улучшения
@@ -1832,14 +2988,17 @@ function triggerLevelUp() {
 // ─── GAME OVER ────────────────────────────────────────────────────────────────
 function triggerGameOver() {
   game.state='gameover'; player.dead=true;
-  document.getElementById('go-stats').innerHTML =
-    `ВОЛНА  ${game.wave}<br>СЧЁТ  ${game.score}<br>УБИТО  ${game.kills}<br>ОТРАЖЕНО  ${game.deflections}<br>ИДЕАЛЬНЫХ  ${game.perfectDeflects||0}<br>КОМБО МАКС  ${game.combo}<br>ВРЕМЯ  ${game.time.toFixed(0)}с`;
+  document.querySelector('#gameover-panel h2').textContent =
+    game.mode==='ships' ? 'КОРАБЛЬ УНИЧТОЖЕН' : 'ТЫ ПАЛ';
+  document.getElementById('go-stats').innerHTML = game.mode==='ships'
+    ? `ВОЛНА  ${game.wave}<br>СЧЁТ  ${game.score}<br>УБИТО  ${game.kills}<br>УРОВЕНЬ  ${game.level}<br>АРСЕНАЛ  ${Object.keys(SHIP.weapons).length} оруж.<br>ВРЕМЯ  ${game.time.toFixed(0)}с`
+    : `ВОЛНА  ${game.wave}<br>СЧЁТ  ${game.score}<br>УБИТО  ${game.kills}<br>ОТРАЖЕНО  ${game.deflections}<br>ИДЕАЛЬНЫХ  ${game.perfectDeflects||0}<br>КОМБО МАКС  ${game.combo}<br>ВРЕМЯ  ${game.time.toFixed(0)}с`;
   document.getElementById('gameover-panel').style.display='block';
   document.body.classList.remove('playing'); // убрать джойстик/кнопки с экрана итогов
   stopSaberHum();
 }
 
-function resetGame() {
+function resetGame(mode='jedi') {
   bullets.length=0; enemies.length=0; xpOrbs.length=0;
   particles.length=0; oilSplats.length=0; lootItems.length=0; floatingTexts.length=0;
 
@@ -1864,7 +3023,7 @@ function resetGame() {
   CFG.meleeTickDamage = 14;
 
   Object.assign(game, {
-    state:'playing', xp:0, xpToNext:40, level:1,
+    state:'playing', mode, xp:0, xpToNext:40, level:1,
     score:0, wave:1, waveTimer:0, waveDuration:22,
     deflections:0, perfectDeflects:0, kills:0,
     screenFlash:0, screenShake:0, shakeX:0, shakeY:0,
@@ -1873,29 +3032,29 @@ function resetGame() {
     waveClearBanner:0, waveClearText:'',
     slowMoTimer:0, hitStop:0,
   });
-  spawnWave(1);
+  if (mode==='ships') shipsStart();
+  else spawnWave(1);
 }
 
 // ─── BUTTON LISTENERS ─────────────────────────────────────────────────────────
-document.getElementById('start-btn').addEventListener('click', () => {
+function startRun(mode) {
   initAudio();
   document.getElementById('startscreen-panel').style.display='none';
-  document.body.classList.add('playing'); // мобильные контролы появляются только в бою
-  resetGame();
-  startSaberHum();
-});
-document.getElementById('restart-btn').addEventListener('click', () => {
   document.getElementById('gameover-panel').style.display='none';
-  document.body.classList.add('playing');
-  resetGame();
-  startSaberHum();
-});
+  document.body.classList.add('playing'); // мобильные контролы появляются только в бою
+  resetGame(mode);
+  if (mode==='jedi') startSaberHum();
+}
+document.getElementById('start-btn').addEventListener('click', () => startRun('jedi'));
+document.getElementById('start-ship-btn').addEventListener('click', () => startRun('ships'));
+document.getElementById('restart-btn').addEventListener('click', () => startRun(game.mode || 'jedi'));
 
 // ─── MAIN GAME LOOP ───────────────────────────────────────────────────────────
 let lastTime = 0;
 
 function update(dt) {
   if (game.state!=='playing') return;
+  if (game.mode==='ships') { shipsUpdate(dt); return; }
   game.time += dt;
 
   if (game.screenFlash>0) game.screenFlash -= dt;
@@ -1979,6 +3138,7 @@ function update(dt) {
 }
 
 function render(dt) {
+  if (game.mode==='ships') { shipsRender(dt); return; }
   ctx.save();
   ctx.scale(scaleX, scaleY);
   ctx.translate(game.shakeX, game.shakeY);
