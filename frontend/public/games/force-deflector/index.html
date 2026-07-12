@@ -175,14 +175,14 @@
     <div class="controls controls-desk">
       <span>WASD</span> / Стрелки — Движение<br>
       <span>Shift</span> / Рывок — уклонение<br>
-      <span>Клинок</span> — кругом отражает болты со всех сторон<br>
+      <span>Клинок</span> — отражает болты самим лезвием<br>
       <span>Ближний бой</span> — режь дронов клинком вплотную<br>
       <span>ПРОБЕЛ</span> / Импульс — волна после улучшения<br>
       <span>M</span> — вкл/выкл звуки
     </div>
     <div class="controls controls-touch">
       <span>👆 Тяни</span> в любом месте экрана — движение<br>
-      <span>⚔️ Клинок</span> — создаёт круг отражения: болты ловятся со всех сторон<br>
+      <span>⚔️ Клинок</span> — отражает болты лезвием: подставляй его под выстрел<br>
       <span>👆👆 Двойное касание</span> — рывок с неуязвимостью<br>
       <span>✋ Удержание</span> — импульс (откроется с улучшением)<br>
       <span>🔊</span> сверху экрана — звук вкл/выкл
@@ -335,6 +335,20 @@ function reflect(vx, vy, nx, ny) {
   return { x: vx-2*dot*nx, y: vy-2*dot*ny };
 }
 
+function segSegHit(p0x,p0y,p1x,p1y, q0x,q0y,q1x,q1y, radius) {
+  // Ближайшая пара точек двух отрезков (путь болта за кадр × лезвие);
+  // попадание — если они сближаются меньше, чем на radius.
+  const ux=p1x-p0x, uy=p1y-p0y, vx=q1x-q0x, vy=q1y-q0y, wx=p0x-q0x, wy=p0y-q0y;
+  const a=ux*ux+uy*uy, b=ux*vx+uy*vy, c=vx*vx+vy*vy, d=ux*wx+uy*wy, e=vx*wx+vy*wy;
+  const D=a*c-b*b;
+  let s = D>1e-8 ? clamp((b*e-c*d)/D,0,1) : 0;
+  let t = c>1e-8 ? clamp((b*s+e)/c,0,1) : 0;
+  if (a>1e-8) s = clamp((b*t-d)/a,0,1);
+  const cx1=p0x+ux*s, cy1=p0y+uy*s, dx=cx1-(q0x+vx*t), dy=cy1-(q0y+vy*t);
+  if (dx*dx+dy*dy > radius*radius) return null;
+  return { x:cx1, y:cy1 };
+}
+
 function roundRect(x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x+r, y);
@@ -420,7 +434,7 @@ const CFG = {
   playerHP: 100,
   saberLength: 90,
   saberTrackSpeed: 6,
-  deflectRingRadius: 82,
+  saberDeflectWidth: 16,
   playerRadius: 14,
   bulletSpeed: 240,
   bulletDamage: 12,
@@ -558,7 +572,6 @@ const player = {
   x:W/2, y:H/2, vx:0, vy:0,
   hp:CFG.playerHP, maxHp:CFG.playerHP,
   saberAngle:0, saberLength:CFG.saberLength, saberTrackSpeed:CFG.saberTrackSpeed,
-  deflectRingRadius:CFG.deflectRingRadius,
   saberColor:'#00aaff', dualSabers:false,
   bodyAngle:0, walkPhase:0, bob:0, gripDist:12,
   shieldCooldown:0, shieldMax:8, shieldActive:false,
@@ -713,20 +726,6 @@ function drawPlayer() {
     const c2 = saberColor === '#ff2200' ? '#cc0066' : '#aa44ff';
     glowLine(ep2.bx,ep2.by,ep2.tx,ep2.ty, c2, 2*pulse, 18*pulse, 0.85);
   }
-
-  // Видимая круговая траектория клинка — именно по этой окружности болты
-  // отражаются с любой стороны, а не только по тонкой линии клинка.
-  const ringPulse=0.7+Math.sin(game.time*8)*0.18;
-  ctx.save();
-  ctx.globalCompositeOperation='lighter';
-  ctx.strokeStyle=saberColor;
-  ctx.shadowColor=saberColor; ctx.shadowBlur=18;
-  ctx.globalAlpha=0.16*ringPulse; ctx.lineWidth=12;
-  ctx.beginPath(); ctx.arc(x,y,player.deflectRingRadius,0,TAU); ctx.stroke();
-  ctx.globalAlpha=0.7*ringPulse; ctx.lineWidth=1.8;
-  ctx.setLineDash([10,7]); ctx.lineDashOffset=-game.time*38;
-  ctx.beginPath(); ctx.arc(x,y,player.deflectRingRadius,0,TAU); ctx.stroke();
-  ctx.restore();
 
   // Shield
   if (player.hasShield && player.shieldActive) {
@@ -1323,7 +1322,6 @@ function applyUpgrade(id) {
   if (id==='longerSaber') {
     const scale=1+0.25*upgradeState.longerSaber;
     player.saberLength = CFG.saberLength*scale;
-    player.deflectRingRadius = CFG.deflectRingRadius*scale;
   }
   if (id==='quickReflex')     player.saberTrackSpeed = CFG.saberTrackSpeed*(1+upgradeState.quickReflex);
   if (id==='shield')          { player.hasShield=true; player.shieldActive=true; }
@@ -1353,21 +1351,34 @@ function spawnWave(wave) {
 }
 
 // ─── COLLISION & DEFLECT ──────────────────────────────────────────────────────
+function getBladeSegments() {
+  const segs=[getSaberEndpoints(player.saberAngle)];
+  if (player.dualSabers) segs.push(getSecondSaberEndpoints());
+  return segs;
+}
+
 function checkDeflections() {
+  const blades=getBladeSegments();
   for (let i=bullets.length-1; i>=0; i--) {
     const b=bullets[i];
     if (b.deflected||b.dead) continue;
-    const hit=segmentCircleEntry(
-      b.prevX,b.prevY,b.x,b.y, player.x,player.y,player.deflectRingRadius
-    );
+    let hit=null, blade=null;
+    for (const s of blades) {
+      hit=segSegHit(b.prevX,b.prevY,b.x,b.y, s.bx,s.by,s.tx,s.ty, CFG.saberDeflectWidth);
+      if (hit) { blade=s; break; }
+    }
     if (hit) {
       b.x=hit.x; b.y=hit.y;
-      const dx=b.x-player.x, dy=b.y-player.y;
-      const len=Math.hypot(dx,dy)||1;
-      const nx=dx/len, ny=dy/len;
+      // Зеркальное отражение от линии лезвия.
+      const bdx=blade.tx-blade.bx, bdy=blade.ty-blade.by;
+      const bLen=Math.hypot(bdx,bdy)||1;
+      const nx=-bdy/bLen, ny=bdx/bLen;
       let ref=reflect(b.vx,b.vy,nx,ny);
-      // Кольцо всегда выбрасывает болт наружу, даже при касательном попадании.
-      if (ref.x*nx+ref.y*ny<=0) ref={x:nx,y:ny};
+      // Скользящее попадание вдоль лезвия — отбрасываем болт от игрока,
+      // чтобы он не продолжил лететь внутрь.
+      const outX=hit.x-player.x, outY=hit.y-player.y;
+      const outLen=Math.hypot(outX,outY)||1;
+      if (ref.x*outX+ref.y*outY<=0) ref={x:outX/outLen,y:outY/outLen};
       const spd=CFG.deflectedSpeed, refLen=Math.hypot(ref.x,ref.y)||1;
       b.vx=(ref.x/refLen)*spd; b.vy=(ref.y/refLen)*spd;
         const perfect = b.timeToImpact !== undefined && b.timeToImpact < CFG.perfectWindow;
@@ -1836,7 +1847,6 @@ function resetGame() {
     x:W/2, y:H/2, vx:0, vy:0,
     hp:CFG.playerHP, maxHp:CFG.playerHP,
     saberAngle:0, saberLength:CFG.saberLength, saberTrackSpeed:CFG.saberTrackSpeed,
-    deflectRingRadius:CFG.deflectRingRadius,
     saberColor:'#00aaff', dualSabers:false,
     bodyAngle:0, walkPhase:0, bob:0, gripDist:12,
     shieldCooldown:0, shieldActive:false,
