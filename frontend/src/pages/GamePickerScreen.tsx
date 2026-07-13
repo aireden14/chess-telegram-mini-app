@@ -1,4 +1,4 @@
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "../store/auth";
@@ -7,7 +7,7 @@ import { useVisualModeStore } from "../store/visualMode";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
 import { type GameIconKind } from "../components/GameHubLogo";
-import { subscribe, getView, startSession, formatDuration, toggleFavorite } from "../data/playStats";
+import { subscribe, getView, startSession } from "../data/playStats";
 
 type AppEntry = {
   key: GameIconKind | "card" | "catan_beta" | "icebreakers";
@@ -18,91 +18,35 @@ type AppEntry = {
   badge?: "NEW" | "BETA";        // угловой бейдж
 };
 
-type Section = { title: string; apps: AppEntry[] };
-
-// Сколько игр показываем в подборках «Рекомендуем» / «Недавно заходили» / «Больше всего играли».
-const TOP_N = 3;
-
-// iOS-style: игры сгруппированы по секциям, каждая — иконка-плитка с подписью.
-const SECTIONS: Section[] = [
-  {
-    title: "Настолки",
-    apps: [
-      { key: "catan", icon: "/game-icons/256/catan.png", title: "Катан", to: "/catan", grad: ["#00b8a9", "#ffb23f"] },
-      { key: "card", icon: "/game-icons/256/catan-fable.png", title: "Катан Fable", to: "/catan-fable", grad: ["#7d4cff", "#c35cff"] },
-      { key: "card", icon: "/game-icons/256/fable-factory.png", title: "Fable Factory", to: "/fable-factory", grad: ["#ffb000", "#00d6ff"] },
-      { key: "card", icon: "/game-icons/256/ticket-to-sonnet.png", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#e21b4d", "#3debff"] },
-      { key: "card", icon: "/game-icons/256/carcassonne.png", title: "Каркассон", to: "/carcassonne", grad: ["#00a86b", "#ffd15c"] },
-      { key: "card", icon: "/game-icons/256/monopoly-hp.png", title: "Монополия", to: "/monopoly-hp", grad: ["#6a35ff", "#41ffc5"] },
-      { key: "card", icon: "/game-icons/256/bunker.png", title: "Бункер", to: "/bunker", grad: ["#ff7a1a", "#b7ff2a"] },
-    ],
-  },
-  {
-    title: "Классика",
-    apps: [
-      { key: "chess", icon: "/game-icons/256/chess.png", title: "Шахматы", to: "/chess", grad: ["#315cff", "#52e8ff"] },
-      { key: "checkers", icon: "/game-icons/256/checkers.png", title: "Шашки", to: "/checkers", grad: ["#ff3b5c", "#ffc24a"] },
-    ],
-  },
-  {
-    title: "Для пары",
-    apps: [
-      { key: "icebreakers", icon: "/game-icons/256/icebreakers.png", title: "Знакомства", to: "/icebreakers", grad: ["#ff4fb8", "#7ff2ff"] },
-      { key: "card", icon: "/game-icons/256/card-of-day.png", title: "Карта дня", to: "/card-of-day", grad: ["#9a4dff", "#6ef8ff"] },
-    ],
-  },
-  {
-    title: "Соло",
-    apps: [
-      { key: "sudoku", icon: "/game-icons/256/sudoku.png", title: "Судоку", to: "/sudoku", grad: ["#35e8b3", "#236bff"] },
-      { key: "card", icon: "🌀", title: "Overquest", to: "/overquest", grad: ["#805dff", "#43dfe8"] },
-      { key: "card", icon: "🚪", title: "Мачкин", to: "/machkin", grad: ["#d4a13c", "#c8503f"] },
-      { key: "card", icon: "🕵️", title: "Гарридоку", to: "/garridoku", grad: ["#c9a24b", "#3a2c5e"] },
-      { key: "force", icon: "/game-icons/256/force-deflector.png", title: "Отражатель", to: "/force-deflector", grad: ["#7b61ff", "#2ea8ff"] },
-      { key: "force", icon: "/game-icons/256/neurogrid.png", title: "Neurogrid", to: "/neurogrid", grad: ["#00e5ff", "#ff39d6"] },
-      { key: "force", icon: "/game-icons/256/webgrid.png", title: "WebGrid", to: "/webgrid", grad: ["#22ff88", "#efff4a"] },
-      { key: "catan_beta", icon: "/game-icons/256/reader.png", title: "Читалка", to: "/reader", grad: ["#1c7cff", "#ff6a7a"] },
-    ],
-  },
-  {
-    title: "Инструменты",
-    apps: [
-      { key: "catan_beta", icon: "/game-icons/256/pdf-studio.png", title: "PDF Studio", to: "/pdf-studio", grad: ["#f43a3a", "#2ea8ff"] },
-    ],
-  },
+// Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
+// реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
+const ALL_APPS: AppEntry[] = [
+  { key: "catan", icon: "/game-icons/256/catan.png", title: "Катан", to: "/catan", grad: ["#00b8a9", "#ffb23f"] },
+  { key: "card", icon: "/game-icons/256/catan-fable.png", title: "Катан Fable", to: "/catan-fable", grad: ["#7d4cff", "#c35cff"] },
+  { key: "card", icon: "/game-icons/256/fable-factory.png", title: "Fable Factory", to: "/fable-factory", grad: ["#ffb000", "#00d6ff"] },
+  { key: "card", icon: "/game-icons/256/ticket-to-sonnet.png", title: "Ticket to Sonnet", to: "/ticket-to-sonnet", grad: ["#e21b4d", "#3debff"] },
+  { key: "card", icon: "/game-icons/256/carcassonne.png", title: "Каркассон", to: "/carcassonne", grad: ["#00a86b", "#ffd15c"] },
+  { key: "card", icon: "/game-icons/256/monopoly-hp.png", title: "Монополия", to: "/monopoly-hp", grad: ["#6a35ff", "#41ffc5"] },
+  { key: "card", icon: "/game-icons/256/bunker.png", title: "Бункер", to: "/bunker", grad: ["#ff7a1a", "#b7ff2a"] },
+  { key: "chess", icon: "/game-icons/256/chess.png", title: "Шахматы", to: "/chess", grad: ["#315cff", "#52e8ff"] },
+  { key: "checkers", icon: "/game-icons/256/checkers.png", title: "Шашки", to: "/checkers", grad: ["#ff3b5c", "#ffc24a"] },
+  { key: "icebreakers", icon: "/game-icons/256/icebreakers.png", title: "Знакомства", to: "/icebreakers", grad: ["#ff4fb8", "#7ff2ff"] },
+  { key: "card", icon: "/game-icons/256/card-of-day.png", title: "Карта дня", to: "/card-of-day", grad: ["#9a4dff", "#6ef8ff"] },
+  { key: "sudoku", icon: "/game-icons/256/sudoku.png", title: "Судоку", to: "/sudoku", grad: ["#35e8b3", "#236bff"] },
+  { key: "card", icon: "🌀", title: "Overquest", to: "/overquest", grad: ["#805dff", "#43dfe8"] },
+  { key: "card", icon: "🚪", title: "Мачкин", to: "/machkin", grad: ["#d4a13c", "#c8503f"] },
+  { key: "card", icon: "🕵️", title: "Гарридоку", to: "/garridoku", grad: ["#c9a24b", "#3a2c5e"] },
+  { key: "force", icon: "/game-icons/256/force-deflector.png", title: "Отражатель", to: "/force-deflector", grad: ["#7b61ff", "#2ea8ff"] },
+  { key: "force", icon: "/game-icons/256/neurogrid.png", title: "Neurogrid", to: "/neurogrid", grad: ["#00e5ff", "#ff39d6"] },
+  { key: "force", icon: "/game-icons/256/webgrid.png", title: "WebGrid", to: "/webgrid", grad: ["#22ff88", "#efff4a"] },
+  { key: "catan_beta", icon: "/game-icons/256/reader.png", title: "Читалка", to: "/reader", grad: ["#1c7cff", "#ff6a7a"] },
+  { key: "catan_beta", icon: "/game-icons/256/pdf-studio.png", title: "PDF Studio", to: "/pdf-studio", grad: ["#f43a3a", "#2ea8ff"] },
 ];
 
-const ALL_APPS = SECTIONS.flatMap((section) => section.apps);
 const APP_BY_ROUTE = new Map(ALL_APPS.map((app) => [app.to, app]));
 
-// Маршруты, для которых у нас есть плитка — только их берём из статистики (чужие/удалённые пропускаем).
 function appFor(to: string): AppEntry | undefined {
   return APP_BY_ROUTE.get(to);
-}
-
-// Свёрнутость секций каталога: общая на устройство (не на аккаунт) — это про экран, не про данные.
-const COLLAPSED_KEY = "gamepass-hub-collapsed-v1";
-
-function loadCollapsed(defaultCollapsed: boolean): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(COLLAPSED_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") return parsed;
-    }
-  } catch {
-    // повреждённое значение — начнём с дефолта
-  }
-  // Первый раз: если сверху уже есть «личные» подборки, каталог прячем, чтобы не давил на глаза.
-  return Object.fromEntries(SECTIONS.map((s) => [s.title, defaultCollapsed]));
-}
-
-function saveCollapsed(state: Record<string, boolean>): void {
-  try {
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(state));
-  } catch {
-    // приватный webview — просто не сохраняем
-  }
 }
 
 export function GamePickerScreen() {
@@ -113,64 +57,40 @@ export function GamePickerScreen() {
   const reduce = useReducedMotion();
   const beta = visualMode === "beta";
 
-  // Статистика хаба (на текущий аккаунт) — реактивно из data/playStats.
+  const [query, setQuery] = useState("");
+
+  // Статистика хаба (на текущий аккаунт): сколько раз запускали каждую игру.
   const stats = useSyncExternalStore(subscribe, getView, getView);
 
-  const favoriteSet = new Set(stats.favorites);
-  const favoriteApps = stats.favorites
-    .map((to) => appFor(to))
-    .filter((app): app is AppEntry => Boolean(app));
+  // Один плоский список: чаще всего запускаемые — сверху, при равном счёте — недавно запущенные
+  // выше, никогда не запускавшиеся остаются в конце в порядке каталога.
+  const sortedApps = useMemo(() => {
+    return [...ALL_APPS].sort((a, b) => {
+      const countDiff = (stats.launchCount[b.to] ?? 0) - (stats.launchCount[a.to] ?? 0);
+      if (countDiff !== 0) return countDiff;
+      return (stats.lastPlayedAt[b.to] ?? 0) - (stats.lastPlayedAt[a.to] ?? 0);
+    });
+  }, [stats]);
 
-  const recommendedApps = stats.recommended
-    .map((r) => appFor(r.to))
-    .filter((app): app is AppEntry => Boolean(app))
-    .slice(0, TOP_N);
-
-  const recentApps = stats.recent
-    .map((r) => appFor(r.to))
-    .filter((app): app is AppEntry => Boolean(app))
-    .slice(0, TOP_N);
-
-  const timeApps = stats.topByTime
-    .map((t) => {
-      const app = appFor(t.to);
-      return app ? { app, ms: t.ms } : null;
-    })
-    .filter((x): x is { app: AppEntry; ms: number } => Boolean(x))
-    .slice(0, TOP_N);
+  const visibleApps = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sortedApps;
+    return sortedApps.filter((a) => a.title.toLowerCase().includes(q));
+  }, [sortedApps, query]);
 
   const open = (to: string) => {
-    if (APP_BY_ROUTE.has(to)) startSession(to); // засечь заход + начать замер времени игры
+    if (appFor(to)) startSession(to); // засечь заход — используется для сортировки по частоте
     triggerHaptic("light");
     nav(to);
   };
 
-  // Есть личные подборки сверху → каталог по умолчанию свёрнут.
-  const hasPersonal = favoriteApps.length > 0 || recommendedApps.length > 0 || recentApps.length > 0;
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => loadCollapsed(hasPersonal));
-
-  const toggleSection = (title: string) => {
-    triggerHaptic("light");
-    setCollapsed((prev) => {
-      const next = { ...prev, [title]: !prev[title] };
-      saveCollapsed(next);
-      return next;
-    });
-  };
-
-  const onToggleFavorite = (e: React.MouseEvent, to: string) => {
-    e.stopPropagation(); // не открывать игру при тапе по звёздочке
-    triggerHaptic("light");
-    toggleFavorite(to);
-  };
-
-  const renderAppButton = (a: AppEntry, i: number, scope: string, metaLabel?: string) => {
+  const renderAppButton = (a: AppEntry, i: number) => {
     const isImg = a.icon.includes(".png") || a.icon.includes(".jpg");
     const iconSrc = a.icon.startsWith("/") ? a.icon : `/images/${a.icon}`;
 
     return (
       <motion.button
-        key={`${scope}-${a.to}`}
+        key={a.to}
         className="home-app"
         onClick={() => open(a.to)}
         style={{ animationDelay: `${0.03 + i * 0.04}s` }}
@@ -186,21 +106,8 @@ export function GamePickerScreen() {
             <span className="home-app-emoji" aria-hidden>{a.icon}</span>
           )}
           {a.badge && <span className={`home-app-badge home-app-badge--${a.badge.toLowerCase()}`}>{a.badge}</span>}
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={favoriteSet.has(a.to) ? "Убрать из избранного" : "В избранное"}
-            className={`home-app-fav${favoriteSet.has(a.to) ? " active" : ""}`}
-            onClick={(e) => onToggleFavorite(e, a.to)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") onToggleFavorite(e as unknown as React.MouseEvent, a.to);
-            }}
-          >
-            {favoriteSet.has(a.to) ? "★" : "☆"}
-          </span>
         </span>
         <span className="home-app-label">{a.title}</span>
-        {metaLabel && <span className="home-app-meta">{metaLabel}</span>}
       </motion.button>
     );
   };
@@ -212,67 +119,27 @@ export function GamePickerScreen() {
         <h1 className="home-title">Игры</h1>
       </header>
 
+      <div className="home-search">
+        <span className="home-search-icon" aria-hidden>⌕</span>
+        <input
+          type="search"
+          inputMode="search"
+          placeholder="Поиск игр"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="home-search-input"
+          aria-label="Поиск игр"
+        />
+      </div>
+
       <div className="home-sections">
-        {favoriteApps.length > 0 && (
-          <section className="home-section home-section--fav" aria-label="Избранное">
-            <h2 className="home-section-title">⭐ Избранное</h2>
-            <div className="home-grid home-grid--recent">
-              {favoriteApps.map((app, i) => renderAppButton(app, i, "fav"))}
-            </div>
-          </section>
+        {visibleApps.length > 0 ? (
+          <div className="home-grid">
+            {visibleApps.map((app, i) => renderAppButton(app, i))}
+          </div>
+        ) : (
+          <p className="home-search-empty">Ничего не нашлось</p>
         )}
-
-        {recommendedApps.length > 0 && (
-          <section className="home-section home-section--reco" aria-label="Рекомендуем">
-            <h2 className="home-section-title">✨ Рекомендуем</h2>
-            <div className="home-grid home-grid--recent">
-              {recommendedApps.map((app, i) => renderAppButton(app, i, "reco"))}
-            </div>
-          </section>
-        )}
-
-        {recentApps.length > 0 && (
-          <section className="home-section home-section--recent" aria-label="Недавно заходили">
-            <h2 className="home-section-title">🕘 Недавно заходили</h2>
-            <div className="home-grid home-grid--recent">
-              {recentApps.map((app, i) => renderAppButton(app, i, "recent"))}
-            </div>
-          </section>
-        )}
-
-        {timeApps.length > 0 && (
-          <section className="home-section home-section--playtime" aria-label="Больше всего играли">
-            <h2 className="home-section-title">⏱ Больше всего играли</h2>
-            <div className="home-grid home-grid--recent">
-              {timeApps.map(({ app, ms }, i) => renderAppButton(app, i, "time", formatDuration(ms)))}
-            </div>
-          </section>
-        )}
-
-        {SECTIONS.map((section) => {
-          const isCollapsed = Boolean(collapsed[section.title]);
-          return (
-            <section className="home-section" key={section.title}>
-              <button
-                type="button"
-                className="home-section-head"
-                onClick={() => toggleSection(section.title)}
-                aria-expanded={!isCollapsed}
-              >
-                <span className="home-section-title">{section.title}</span>
-                <span className="home-section-count">{section.apps.length}</span>
-                <span className={`home-section-chevron${isCollapsed ? "" : " open"}`} aria-hidden>
-                  ▸
-                </span>
-              </button>
-              {!isCollapsed && (
-                <div className="home-grid">
-                  {section.apps.map((app, i) => renderAppButton(app, i, section.title))}
-                </div>
-              )}
-            </section>
-          );
-        })}
       </div>
 
       {/* Док снизу: профиль («домой» / аккаунт) слева, переключатели справа. Как dock на iPhone. */}

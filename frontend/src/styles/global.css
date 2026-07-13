@@ -2215,59 +2215,11 @@ body {
   color: var(--apple-text);
 }
 
-/* ── Секции хаба (категории игр) ── */
+/* ── Один плоский список игр хаба ── */
 .home-sections {
   display: grid;
   gap: 22px;
   margin-top: 4px;
-}
-
-.home-section-title {
-  margin: 0 2px 12px;
-  font-size: 15px;
-  font-weight: 850;
-  letter-spacing: -0.015em;
-  color: var(--apple-text-faint);
-}
-
-.home-section--recent .home-section-title {
-  color: var(--apple-text);
-}
-
-.home-grid--recent {
-  margin-top: 0;
-}
-
-.home-section--recent .home-app-icon,
-.home-section--reco .home-app-icon,
-.home-section--playtime .home-app-icon {
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.32),
-    0 0 0 1px rgba(255, 255, 255, 0.13),
-    inset 0 1px 1px rgba(255, 255, 255, 0.24);
-}
-
-/* «Рекомендуем» — заметный заголовок и тёплое кольцо вокруг иконок. */
-.home-section--reco .home-section-title,
-.home-section--playtime .home-section-title {
-  color: var(--apple-text);
-}
-
-.home-section--reco .home-app-icon {
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.34),
-    0 0 0 2px rgba(255, 193, 94, 0.55),
-    inset 0 1px 1px rgba(255, 255, 255, 0.24);
-}
-
-/* Подпись под плиткой: длительность в «Больше всего играли». */
-.home-app-meta {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--apple-text-faint);
-  margin-top: -3px;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Бейджи NEW / BETA на иконке */
@@ -2289,81 +2241,50 @@ body {
 .home-app-badge--new { background: linear-gradient(135deg, #ff6ea6, #ff8f4d); }
 .home-app-badge--beta { background: linear-gradient(135deg, #8a94a6, #5b6474); }
 
-/* Звёздочка «в избранное» в углу иконки. Пустая — полупрозрачная, чтобы не пестрить. */
-.home-app-fav {
+/* Поиск игр — под заголовком, над сеткой. */
+.home-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.home-search-icon {
   position: absolute;
-  top: -8px;
-  left: -8px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  line-height: 1;
-  color: #fff;
-  background: rgba(20, 22, 30, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
-  opacity: 0.55;
-  cursor: pointer;
-}
-.home-app-fav.active {
-  opacity: 1;
-  color: #ffd15c;
-  border-color: rgba(255, 209, 92, 0.6);
-  background: rgba(40, 32, 8, 0.6);
+  left: 14px;
+  font-size: 15px;
+  color: var(--apple-text-faint);
+  pointer-events: none;
 }
 
-/* «Избранное» — золотое кольцо вокруг иконок. */
-.home-section--fav .home-section-title {
-  color: var(--apple-text);
-}
-.home-section--fav .home-app-icon {
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.34),
-    0 0 0 2px rgba(255, 209, 92, 0.6),
-    inset 0 1px 1px rgba(255, 255, 255, 0.24);
-}
-
-/* Сворачиваемые секции каталога: заголовок — кнопка со счётчиком и стрелкой. */
-.home-section-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.home-search-input {
   width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
-}
-.home-section-head .home-section-title {
-  margin-bottom: 0;
-}
-.home-section-head + .home-grid {
-  margin-top: 12px;
-}
-.home-section-count {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--apple-text-faint);
-  background: var(--glass-bg);
+  padding: 11px 14px 11px 36px;
+  border-radius: 14px;
   border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  padding: 1px 8px;
-  line-height: 1.5;
+  background: var(--glass-bg);
+  color: var(--apple-text);
+  font-size: 15px;
+  font-weight: 600;
+  -webkit-appearance: none;
 }
-.home-section-chevron {
-  margin-left: auto;
-  font-size: 13px;
+
+.home-search-input::placeholder {
   color: var(--apple-text-faint);
-  transition: transform 0.18s ease;
+  font-weight: 600;
 }
-.home-section-chevron.open {
-  transform: rotate(90deg);
+
+.home-search-input:focus {
+  outline: none;
+  border-color: var(--primary-btn-bg);
+}
+
+.home-search-empty {
+  margin: 8px 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--apple-text-faint);
+  text-align: center;
 }
 
 /* Док снизу — садится на низ экрана (flex margin-top:auto), как dock iPhone. */
