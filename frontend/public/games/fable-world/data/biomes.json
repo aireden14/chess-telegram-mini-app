@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "biomes": [
+    {"id":"heartgrove","name":"Сердечная роща","icon":"🌳","levelRange":[1,7],"xRange":[0,800],"colors":{"ground":"#315b43","accent":"#82d173","water":"#3d93a2"},"nodes":["tree","rock","grass","bush","aether_node"],"resourceGate":1,"hazard":null,"landmark":"Камень первой сказки"},
+    {"id":"mistfen","name":"Шепчущая топь","icon":"🌫️","levelRange":[5,14],"xRange":[800,1600],"colors":{"ground":"#415747","accent":"#9bbf73","water":"#4d7c79"},"nodes":["tree","rock","grass","bush","aether_node","ore_node"],"resourceGate":1,"hazard":"вязкая вода замедляет движение","landmark":"Колокол утонувшей деревни"},
+    {"id":"sundust","name":"Медные барханы","icon":"🏜️","levelRange":[11,21],"xRange":[1600,2400],"colors":{"ground":"#9a7045","accent":"#d5b36a","water":"#4f8d96"},"nodes":["rock","aether_node","ore_node","coal_node"],"resourceGate":2,"hazard":"дневной жар без защиты","landmark":"Обсерватория семи ветров"},
+    {"id":"emberpeak","name":"Пепельный хребет","icon":"🌋","levelRange":[18,29],"xRange":[2400,3200],"colors":{"ground":"#553b3a","accent":"#d56b43","water":"#7d3028"},"nodes":["rock","ore_node","coal_node","ember_node"],"resourceGate":2,"hazard":"жар и лавовые трещины","landmark":"Кузница без кузнеца"},
+    {"id":"starfrost","name":"Звёздный иней","icon":"❄️","levelRange":[25,36],"xRange":[3200,4000],"colors":{"ground":"#47647a","accent":"#b9efff","water":"#6e9bb7"},"nodes":["rock","aether_node","quartz_node","star_node"],"resourceGate":3,"hazard":"сильный холод без защиты","landmark":"Врата упавшей звезды"}
+  ]
+}

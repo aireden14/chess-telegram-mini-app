@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "rules": {
+    "pointsPerLevel": 6,
+    "pointsPerLandmark": 1,
+    "pointsPerFirstSpecies": 1,
+    "pointsPerAlpha": 2,
+    "pointsPerWarden": 5,
+    "note": "Уровень открывает ступень, очки знания покупают чертежи. Это позволяет выбирать ветку без линейного гринда."
+  },
+  "technologies": [
+    {"id":"fieldcraft","name":"Полевое ремесло","icon":"🪓","level":1,"cost":0,"branch":"survival","requires":[],"description":"Ручная добыча дерева, камня и волокна.","unlocks":["stone_axe","stone_pick"]},
+    {"id":"hearthcore","name":"Сердце стоянки","icon":"💠","level":2,"cost":1,"branch":"base","requires":["fieldcraft"],"description":"Основание базы, склад и место для первого рабочего.","unlocks":["hearthcore","chest"]},
+    {"id":"binding_orbs","name":"Сферы связи","icon":"🔮","level":2,"cost":1,"branch":"fables","requires":["fieldcraft"],"description":"Создание простых сфер для поимки ослабленных фейблов.","unlocks":["basic_orb","orb_bench"]},
+    {"id":"hunter_kit","name":"Набор следопыта","icon":"🏹","level":3,"cost":1,"branch":"combat","requires":["fieldcraft"],"description":"Лёгкое оружие, перевязки и безопасная охота.","unlocks":["short_bow","bandage"]},
+    {"id":"fable_labor","name":"Содружество труда","icon":"🐾","level":3,"cost":2,"branch":"fables","requires":["hearthcore","binding_orbs"],"description":"Пойманных фейблов можно назначать на подходящую работу.","unlocks":["worker_slots_2","job_board"]},
+    {"id":"logging","name":"Лесная артель","icon":"🪵","level":4,"cost":2,"branch":"industry","requires":["hearthcore"],"description":"Автоматическая заготовка древесины фейблами с рубкой.","unlocks":["logging_camp"]},
+    {"id":"quarrying","name":"Каменная артель","icon":"⛏️","level":5,"cost":2,"branch":"industry","requires":["hearthcore"],"description":"Автоматическая добыча камня фейблами-рудокопами.","unlocks":["quarry"]},
+    {"id":"berry_culture","name":"Сад росы","icon":"🫐","level":5,"cost":2,"branch":"food","requires":["hearthcore"],"description":"Грядка с ягодами; полностью автоматизируется посадкой, поливом и сбором.","unlocks":["berry_garden"]},
+    {"id":"weaving","name":"Ткачество","icon":"🧵","level":6,"cost":2,"branch":"industry","requires":["logging"],"description":"Волокно превращается в ткань для снаряжения и улучшенных сфер.","unlocks":["loom","cloth"]},
+    {"id":"smelting","name":"Пламенная плавка","icon":"🔥","level":7,"cost":3,"branch":"industry","requires":["quarrying"],"description":"Плавка руды в слитки; требует фейбла с разжиганием.","unlocks":["furnace","ingot"]},
+    {"id":"workshop","name":"Мастерская","icon":"🛠️","level":8,"cost":3,"branch":"industry","requires":["weaving","smelting"],"description":"Сборка инструментов, деталей и оружия фейблами-ремесленниками.","unlocks":["workshop","metal_tools"]},
+    {"id":"woven_orbs","name":"Плетёные сферы","icon":"🟢","level":9,"cost":2,"branch":"fables","requires":["binding_orbs","weaving"],"description":"Сферы второго ранга для фейблов примерно 7–14 уровня.","unlocks":["woven_orb"]},
+    {"id":"base_expansion","name":"Расширение очага","icon":"🏕️","level":10,"cost":3,"branch":"base","requires":["fable_labor","workshop"],"description":"Больше места, четыре рабочих фейбла и второй участник отряда.","unlocks":["worker_slots_4","party_slot_2"]},
+    {"id":"ore_drills","name":"Рудные шурфы","icon":"⚒️","level":11,"cost":3,"branch":"industry","requires":["workshop"],"description":"Фейблы с добычей 2 получают доступ к железной руде и углю.","unlocks":["ore_pit","coal_pit"]},
+    {"id":"irrigation","name":"Ирригация","icon":"💧","level":12,"cost":3,"branch":"food","requires":["berry_culture","workshop"],"description":"Полив ускоряет рост, а урожай поддерживает длинные смены.","unlocks":["irrigation_pump","worker_food_bonus"]},
+    {"id":"warden_hunting","name":"Охота на хранителей","icon":"👑","level":13,"cost":3,"branch":"combat","requires":["hunter_kit","woven_orbs"],"description":"Открывает альфа-логова, редкие чертежи и древние детали.","unlocks":["alpha_encounters"]},
+    {"id":"power","name":"Грозовая энергия","icon":"⚡","level":14,"cost":4,"branch":"industry","requires":["ore_drills"],"description":"Генератор и электрические станки работают от подходящих фейблов.","unlocks":["generator","power_grid"]},
+    {"id":"refined_alloy","name":"Рунный сплав","icon":"🔩","level":15,"cost":3,"branch":"industry","requires":["smelting","ore_drills"],"description":"Уголь и слитки образуют прочный сплав для автоматизации.","unlocks":["refined_alloy","advanced_furnace"]},
+    {"id":"conveyance","name":"Потоки материи","icon":"➡️","level":16,"cost":4,"branch":"automation","requires":["power","refined_alloy"],"description":"Ленты и сортировщики связывают добычу, переработку и склады.","unlocks":["conveyor","splitter"]},
+    {"id":"rune_orbs","name":"Рунные сферы","icon":"🟣","level":17,"cost":3,"branch":"fables","requires":["woven_orbs","refined_alloy"],"description":"Сферы третьего ранга для фейблов примерно 15–24 уровня.","unlocks":["rune_orb"]},
+    {"id":"assembly","name":"Самодействующая сборка","icon":"⚙️","level":18,"cost":4,"branch":"automation","requires":["conveyance","workshop"],"description":"Автосборщик повторяет выбранный рецепт, пока хватает сырья.","unlocks":["assembler"]},
+    {"id":"medicine","name":"Травничья лаборатория","icon":"🌿","level":19,"cost":3,"branch":"food","requires":["irrigation","refined_alloy"],"description":"Лечение, восстановление и поддержка рабочих смен.","unlocks":["medicine_bench","tonic"]},
+    {"id":"base_network","name":"Сеть святилищ","icon":"🗺️","level":20,"cost":4,"branch":"base","requires":["base_expansion","power"],"description":"Шесть рабочих, три фейбла в отряде и второй аванпост.","unlocks":["worker_slots_6","party_slot_3","outpost"]},
+    {"id":"deep_mining","name":"Глубинная добыча","icon":"💎","level":22,"cost":4,"branch":"industry","requires":["refined_alloy"],"description":"Добыча 3 открывает лунный кварц и звёздную руду.","unlocks":["quartz_mine","star_ore"]},
+    {"id":"circuits","name":"Живые контуры","icon":"🧩","level":23,"cost":4,"branch":"automation","requires":["assembly","deep_mining"],"description":"Кварц, провод и сплав превращаются в управляющие контуры.","unlocks":["circuit","precision_bench"]},
+    {"id":"sigil_orbs","name":"Сигильные сферы","icon":"🟡","level":25,"cost":4,"branch":"fables","requires":["rune_orbs","circuits"],"description":"Высокая сила связи против фейблов 23–32 уровня.","unlocks":["sigil_orb"]},
+    {"id":"fable_mastery","name":"Созвучие легенд","icon":"✨","level":27,"cost":5,"branch":"fables","requires":["base_network","sigil_orbs","warden_hunting"],"description":"Повышает рабочий навык любимого фейбла и открывает легендарные следы.","unlocks":["skill_awakening","legendary_tracks"]},
+    {"id":"autonomous_base","name":"Автономное святилище","icon":"🌐","level":30,"cost":5,"branch":"automation","requires":["circuits","fable_mastery"],"description":"Диспетчер автоматически распределяет фейблов и поддерживает производство офлайн.","unlocks":["dispatcher","offline_cap_8h"]}
+  ]
+}

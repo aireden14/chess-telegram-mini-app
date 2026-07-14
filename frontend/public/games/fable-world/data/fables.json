@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "workSkills": ["kindling","watering","planting","electricity","handiwork","gathering","lumbering","mining","medicine","cooling","transporting","ranching"],
+  "elements": {
+    "ember":{"name":"Пламя","strongAgainst":"grove","weakAgainst":"tide","color":"#ff7657"},
+    "tide":{"name":"Поток","strongAgainst":"ember","weakAgainst":"storm","color":"#56c9ff"},
+    "grove":{"name":"Роща","strongAgainst":"stone","weakAgainst":"ember","color":"#72db83"},
+    "storm":{"name":"Гроза","strongAgainst":"tide","weakAgainst":"stone","color":"#ffe15f"},
+    "stone":{"name":"Камень","strongAgainst":"storm","weakAgainst":"grove","color":"#c6a477"},
+    "frost":{"name":"Мороз","strongAgainst":"wyrm","weakAgainst":"ember","color":"#a8edff"},
+    "wyrm":{"name":"Змей","strongAgainst":"shade","weakAgainst":"frost","color":"#bc8cff"},
+    "shade":{"name":"Сумрак","strongAgainst":"spirit","weakAgainst":"wyrm","color":"#9a77c9"},
+    "spirit":{"name":"Дух","strongAgainst":"none","weakAgainst":"shade","color":"#e8e0c9"}
+  },
+  "species": [
+    {"id":"mossprig","name":"Моховичок","icon":"🌱","element":"grove","biome":"heartgrove","levels":[1,4],"temper":"calm","stats":{"hp":66,"attack":58,"defense":62},"work":{"planting":1,"gathering":1},"drop":{"fiber":2,"berry":1},"lore":"Крошечный хранитель молодых побегов; где он спит, утром появляется новая трава."},
+    {"id":"cindertail","name":"Искрохвост","icon":"🦊","element":"ember","biome":"heartgrove","levels":[2,5],"temper":"wary","stats":{"hp":62,"attack":76,"defense":58},"work":{"kindling":1,"transporting":1},"drop":{"aether":1},"lore":"Лисёнок из сказок о первом домашнем огне."},
+    {"id":"pebblemole","name":"Галькокрот","icon":"🐾","element":"stone","biome":"heartgrove","levels":[3,6],"temper":"calm","stats":{"hp":82,"attack":65,"defense":82},"work":{"mining":1,"transporting":1},"drop":{"stone":3},"lore":"Собирает гладкие камни и никогда не забывает место тайника."},
+    {"id":"brooklet","name":"Ручеёк","icon":"💧","element":"tide","biome":"heartgrove","levels":[3,7],"temper":"calm","stats":{"hp":72,"attack":67,"defense":70},"work":{"watering":1,"gathering":1},"drop":{"berry":2},"lore":"Живая капля, которая выводит путников к чистой воде."},
+
+    {"id":"thornhare","name":"Терноскок","icon":"🐇","element":"grove","biome":"mistfen","levels":[5,9],"temper":"wary","stats":{"hp":78,"attack":78,"defense":70},"work":{"lumbering":1,"gathering":2},"drop":{"fiber":3},"lore":"Болотный заяц с терновой короной; не тонет даже в самой вязкой топи."},
+    {"id":"voltkit","name":"Грозолап","icon":"⚡","element":"storm","biome":"mistfen","levels":[7,11],"temper":"wary","stats":{"hp":70,"attack":88,"defense":66},"work":{"electricity":1,"handiwork":1,"transporting":1},"drop":{"aether":2},"lore":"Котёнок из легенды о молнии, застрявшей в камышах."},
+    {"id":"mirecap","name":"Топешляп","icon":"🍄","element":"shade","biome":"mistfen","levels":[8,13],"temper":"aggressive","stats":{"hp":84,"attack":76,"defense":78},"work":{"medicine":2,"planting":1},"drop":{"berry":2,"fiber":2},"lore":"Грибной лекарь: его споры лечат малые раны и вызывают большие сны."},
+    {"id":"reedmaw","name":"Камышезуб","icon":"🐊","element":"tide","biome":"mistfen","levels":[9,14],"temper":"aggressive","stats":{"hp":102,"attack":88,"defense":84},"work":{"watering":2,"lumbering":1},"drop":{"aether":2},"lore":"Старые лодочники клянутся, что он понимает каждое обещание, данное у воды."},
+
+    {"id":"ironhorn","name":"Железорог","icon":"🦬","element":"stone","biome":"sundust","levels":[11,16],"temper":"wary","stats":{"hp":118,"attack":92,"defense":105},"work":{"mining":2,"transporting":2},"drop":{"ore":3,"stone":2},"lore":"Тяжёлый зверь караванных сказаний; его следы звенят на ветру."},
+    {"id":"sunweaver","name":"Солнцепряд","icon":"🕷️","element":"spirit","biome":"sundust","levels":[12,17],"temper":"calm","stats":{"hp":76,"attack":92,"defense":74},"work":{"handiwork":2,"gathering":2},"drop":{"fiber":3,"aether":2},"lore":"Плетёт из света нити, видимые только на закате."},
+    {"id":"dunewing","name":"Барханник","icon":"🦅","element":"storm","biome":"sundust","levels":[14,19],"temper":"aggressive","stats":{"hp":92,"attack":112,"defense":80},"work":{"electricity":2,"transporting":2},"drop":{"aether":3},"lore":"Грозовая птица, несущая песчаные бури между одинокими башнями."},
+    {"id":"glassback","name":"Стеклоспин","icon":"🦂","element":"stone","biome":"sundust","levels":[15,21],"temper":"aggressive","stats":{"hp":108,"attack":105,"defense":112},"work":{"mining":2,"kindling":1},"drop":{"ore":3,"cinder":1},"lore":"Его панцирь хранит отражения всех лун, которые он видел."},
+
+    {"id":"emberwing","name":"Жарокрыл","icon":"🦜","element":"ember","biome":"emberpeak","levels":[18,23],"temper":"aggressive","stats":{"hp":94,"attack":126,"defense":88},"work":{"kindling":3,"transporting":2},"drop":{"cinder":3,"aether":2},"lore":"Птица из предания о кузнице под вулканом."},
+    {"id":"ashram","name":"Пеплобаран","icon":"🐏","element":"ember","biome":"emberpeak","levels":[19,25],"temper":"wary","stats":{"hp":136,"attack":110,"defense":118},"work":{"kindling":2,"mining":2},"drop":{"coal":4,"cinder":2},"lore":"Его шерсть не горит, а копыта разбивают горячий камень."},
+    {"id":"runegolem","name":"Руногром","icon":"🗿","element":"stone","biome":"emberpeak","levels":[21,27],"temper":"aggressive","stats":{"hp":158,"attack":118,"defense":142},"work":{"mining":3,"handiwork":3,"transporting":2},"drop":{"ore":5,"ancientPart":1},"lore":"Ходячий обломок города, имя которого осталось только на его груди."},
+    {"id":"pyrelisk","name":"Костекрыл","icon":"🐉","element":"wyrm","biome":"emberpeak","levels":[23,29],"temper":"aggressive","stats":{"hp":128,"attack":142,"defense":108},"work":{"kindling":3,"electricity":1},"drop":{"cinder":4,"aether":4},"lore":"Молодой змей, охраняющий песни, вырезанные на чёрном базальте."},
+
+    {"id":"glimfox","name":"Инейлис","icon":"🦊","element":"frost","biome":"starfrost","levels":[25,30],"temper":"wary","stats":{"hp":104,"attack":134,"defense":112},"work":{"cooling":3,"gathering":2},"drop":{"quartz":3},"lore":"Северная лисица, оставляющая на снегу светящиеся руны."},
+    {"id":"aurorayak","name":"Сияк","icon":"🐂","element":"spirit","biome":"starfrost","levels":[27,32],"temper":"calm","stats":{"hp":168,"attack":118,"defense":148},"work":{"lumbering":3,"transporting":4,"cooling":2},"drop":{"quartz":4,"fiber":3},"lore":"Носит на рогах полярное сияние и помнит дороги через любую метель."},
+    {"id":"moonowl","name":"Луновед","icon":"🦉","element":"shade","biome":"starfrost","levels":[28,34],"temper":"wary","stats":{"hp":112,"attack":148,"defense":116},"work":{"medicine":3,"handiwork":3,"cooling":2},"drop":{"quartz":3,"aether":4},"lore":"Мудрая птица, которая задаёт путнику один вопрос и никогда не повторяется."},
+    {"id":"starwyrm","name":"Звездозмей","icon":"🐲","element":"wyrm","biome":"starfrost","levels":[32,36],"temper":"legendary","stats":{"hp":192,"attack":168,"defense":152},"work":{"electricity":4,"mining":3},"drop":{"starOre":3,"ancientPart":3},"lore":"Легендарный фейбл, упавший с неба ещё до появления первых сказаний."}
+  ]
+}

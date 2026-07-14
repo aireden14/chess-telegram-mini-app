@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "targetSessionMinutes": 12,
+  "progression": {
+    "xpToNext": "60 + level * 35",
+    "xpKillBase": 14,
+    "xpCaptureBase": 22,
+    "levelCapMvp": 36,
+    "player":{"baseHp":110,"hpPerLevel":12,"baseAttack":12,"attackPerLevel":2.2,"baseDefense":5,"defensePerLevel":1.15},
+    "fableStatFormula":"base + speciesScale * level / 10",
+    "intendedMatchups":{"minusOne":"надёжная победа","plusOne":"сложная, но честная победа","plusFive":"нужен сильный отряд и элемент","plusTen":"почти наверняка поражение","plusEighteen":"урон стремится к минимуму; победа невозможна в обычной экипировке"}
+  },
+  "capture": {
+    "formula":"if targetLevel > capturePower + 3: reject; otherwise clamp((0.18 + missingHpRatio*0.62) * sphereFactor * levelFactor * statusFactor, 0.02, 0.94)",
+    "levelFactor":"pow(0.87, max(0, targetLevel-playerLevel)) * min(1.2, 1 + max(0, playerLevel-targetLevel)*0.025)",
+    "sphereRecommendedLevels":{"basicOrb":[1,8],"wovenOrb":[7,15],"runeOrb":[14,24],"sigilOrb":[23,34]},
+    "designNote":"Игрок может рискнуть слабой сферой, но не обходит всю прогрессию одним удачным броском."
+  },
+  "work": {
+    "speedBySkillLevel":[0,1,1.8,3.1,5],
+    "transportCapacityByLevel":[0,2,5,10,20],
+    "offlineCapMinutesMvp":120,
+    "foodCycleMinutes":18,
+    "baseRatesPerMinute":{"logging_camp":3,"quarry":2.6,"berry_garden":2.2,"loom":1.1,"furnace":0.85,"orb_bench":0.65},
+    "principle":"Узкий специалист быстрее универсала; универсал закрывает простои и удобнее в маленькой базе."
+  },
+  "economy": {
+    "earlyLoopMinutes":8,
+    "firstCaptureTargetMinutes":3,
+    "firstWorkerTargetMinutes":7,
+    "firstAutomationTargetMinutes":15,
+    "firstNewBiomeTargetMinutes":20,
+    "resourceTiers":{"1":"ручная добыча и навык 1","2":"железо/уголь, нужен навык добычи 2","3":"кварц/звёздная руда, нужен навык добычи 3"}
+  }
+}

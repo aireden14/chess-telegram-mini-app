@@ -21,6 +21,7 @@ import { WebgridScreen } from "./features/webgrid/WebgridScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
+import { FableWorldScreen } from "./features/fableWorld/FableWorldScreen";
 import { TicketToSonnetScreen } from "./features/ticketToSonnet/TicketToSonnetScreen";
 import { CarcassonneScreen } from "./features/carcassonne/CarcassonneScreen";
 import { MonopolyHpScreen } from "./features/monopolyHp/MonopolyHpScreen";
@@ -86,6 +87,7 @@ export function App() {
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
+        <Route path="/fable-world" element={<Protected><FableWorldScreen /></Protected>} />
         <Route path="/ticket-to-sonnet" element={<Protected><TicketToSonnetScreen /></Protected>} />
         <Route path="/carcassonne" element={<Protected><CarcassonneScreen /></Protected>} />
         <Route path="/monopoly-hp" element={<Protected><MonopolyHpScreen /></Protected>} />

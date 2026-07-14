@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "resources": [
+    {"id":"wood","name":"Древесина","icon":"🪵","tier":1,"sources":["tree","logging_camp"]},
+    {"id":"stone","name":"Камень","icon":"🪨","tier":1,"sources":["rock","quarry"]},
+    {"id":"fiber","name":"Волокно","icon":"🌿","tier":1,"sources":["grass","gathering"]},
+    {"id":"berry","name":"Лунная ягода","icon":"🫐","tier":1,"sources":["bush","berry_garden"]},
+    {"id":"aether","name":"Осколок эфира","icon":"🔹","tier":1,"sources":["aether_node","wild_fable"]},
+    {"id":"ore","name":"Руна-руда","icon":"⛏️","tier":2,"sources":["ore_node","ore_pit"]},
+    {"id":"coal","name":"Жар-уголь","icon":"⚫","tier":2,"sources":["coal_node","coal_pit"]},
+    {"id":"cinder","name":"Пепельная соль","icon":"🟠","tier":3,"sources":["ember_node","emberpeak"]},
+    {"id":"quartz","name":"Лунный кварц","icon":"💎","tier":4,"sources":["quartz_node","quartz_mine"]},
+    {"id":"starOre","name":"Звёздная руда","icon":"🌠","tier":5,"sources":["star_node","warden"]},
+    {"id":"cloth","name":"Ткань","icon":"🧵","tier":2,"crafted":true},
+    {"id":"ingot","name":"Рунный слиток","icon":"🔶","tier":2,"crafted":true},
+    {"id":"alloy","name":"Закалённый сплав","icon":"🔩","tier":3,"crafted":true},
+    {"id":"circuit","name":"Живой контур","icon":"🧩","tier":4,"crafted":true},
+    {"id":"ancientPart","name":"Древняя деталь","icon":"⚙️","tier":4,"sources":["alpha","warden"]},
+    {"id":"basicOrb","name":"Простая сфера","icon":"🔮","tier":1,"capturePower":8},
+    {"id":"wovenOrb","name":"Плетёная сфера","icon":"🟢","tier":2,"capturePower":15},
+    {"id":"runeOrb","name":"Рунная сфера","icon":"🟣","tier":3,"capturePower":23},
+    {"id":"sigilOrb","name":"Сигильная сфера","icon":"🟡","tier":4,"capturePower":32}
+  ],
+  "buildings": [
+    {"id":"hearthcore","name":"Сердце стоянки","icon":"💠","tech":"hearthcore","cost":{"wood":12,"stone":8}},
+    {"id":"chest","name":"Склад","icon":"📦","tech":"hearthcore","cost":{"wood":10,"stone":4}},
+    {"id":"logging_camp","name":"Лесная артель","icon":"🪵","tech":"logging","cost":{"wood":18,"stone":8}},
+    {"id":"quarry","name":"Каменная артель","icon":"⛏️","tech":"quarrying","cost":{"wood":12,"stone":22}},
+    {"id":"berry_garden","name":"Сад росы","icon":"🫐","tech":"berry_culture","cost":{"wood":10,"fiber":12,"berry":4}},
+    {"id":"loom","name":"Ткацкий стан","icon":"🧵","tech":"weaving","cost":{"wood":18,"stone":6,"fiber":15}},
+    {"id":"furnace","name":"Пламенная печь","icon":"🔥","tech":"smelting","cost":{"stone":28,"wood":10,"aether":6}},
+    {"id":"workshop","name":"Мастерская","icon":"🛠️","tech":"workshop","cost":{"wood":24,"stone":14,"ingot":6}},
+    {"id":"orb_bench","name":"Стол сфер","icon":"🔮","tech":"binding_orbs","cost":{"wood":12,"stone":6,"aether":4}},
+    {"id":"generator","name":"Грозовой генератор","icon":"⚡","tech":"power","cost":{"ingot":15,"alloy":6,"aether":12}},
+    {"id":"assembler","name":"Автосборщик","icon":"⚙️","tech":"assembly","cost":{"alloy":12,"circuit":3,"stone":20}}
+  ],
+  "recipes": [
+    {"id":"cloth","station":"loom","tech":"weaving","seconds":8,"input":{"fiber":3},"output":{"cloth":1}},
+    {"id":"ingot","station":"furnace","tech":"smelting","seconds":10,"input":{"ore":2,"coal":1},"output":{"ingot":1}},
+    {"id":"alloy","station":"furnace","tech":"refined_alloy","seconds":16,"input":{"ingot":2,"coal":2},"output":{"alloy":1}},
+    {"id":"circuit","station":"workshop","tech":"circuits","seconds":22,"input":{"quartz":2,"alloy":1,"aether":2},"output":{"circuit":1}},
+    {"id":"basicOrb","station":"orb_bench","tech":"binding_orbs","seconds":4,"input":{"aether":1,"wood":1,"stone":1},"output":{"basicOrb":1}},
+    {"id":"wovenOrb","station":"orb_bench","tech":"woven_orbs","seconds":7,"input":{"aether":2,"cloth":1,"ingot":1},"output":{"wovenOrb":1}},
+    {"id":"runeOrb","station":"orb_bench","tech":"rune_orbs","seconds":11,"input":{"aether":4,"alloy":1,"cinder":1},"output":{"runeOrb":1}},
+    {"id":"sigilOrb","station":"orb_bench","tech":"sigil_orbs","seconds":18,"input":{"aether":7,"circuit":1,"quartz":2},"output":{"sigilOrb":1}}
+  ]
+}
