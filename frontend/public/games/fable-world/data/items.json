@@ -36,7 +36,8 @@
     {"id":"orb_bench","name":"Стол сфер","icon":"🔮","tech":"binding_orbs","cost":{"wood":12,"stone":6,"aether":4}},
     {"id":"medicine_bench","name":"Травничья скамья","icon":"🌿","tech":"medicine","cost":{"wood":20,"fiber":18,"ingot":4}},
     {"id":"generator","name":"Грозовой генератор","icon":"⚡","tech":"power","cost":{"ingot":15,"alloy":6,"aether":12}},
-    {"id":"assembler","name":"Автосборщик","icon":"⚙️","tech":"assembly","cost":{"alloy":12,"circuit":3,"stone":20}}
+    {"id":"assembler","name":"Автосборщик","icon":"⚙️","tech":"assembly","cost":{"alloy":12,"circuit":3,"stone":20}},
+    {"id":"outpost","name":"Аванпост","icon":"🏕️","tech":"base_network","cost":{"wood":40,"ingot":10,"cloth":6,"aether":10}}
   ],
   "recipes": [
     {"id":"cloth","station":"loom","tech":"weaving","seconds":8,"input":{"fiber":3},"output":{"cloth":1}},
