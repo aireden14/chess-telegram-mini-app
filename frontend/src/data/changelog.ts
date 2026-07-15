@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.17.0",
+    date: "2026-07-15",
+    title: "Fable World: звук и отклик боя",
+    items: [
+      "🔢 Урон теперь виден числами прямо над целью — своим и вражеским ударам",
+      "🔊 Лёгкие синтезированные звуки для удара, поимки, добычи, уровня и построек — без внешних файлов, бережно для мобильного трафика",
+      "🏕️ Рабочие фейблы на базе теперь распределяются между стоянкой и аванпостом, а не толпятся в одном месте",
+    ],
+  },
+  {
     version: "2.16.0",
     date: "2026-07-15",
     title: "Fable World: аванпост — вторая база",
