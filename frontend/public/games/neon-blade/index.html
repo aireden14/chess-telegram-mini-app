@@ -116,6 +116,24 @@
     text-shadow:0 0 12px currentColor; animation:popUp .8s ease-out forwards; }
   @keyframes popUp { 0% { transform:translate(-50%,-50%) scale(.6); opacity:0;} 15% { opacity:1; transform:translate(-50%,-70%) scale(1.15);} 100% { transform:translate(-50%,-160%) scale(1); opacity:0;} }
   #songLabel { position:fixed; bottom:calc(8px + env(safe-area-inset-bottom)); width:100%; text-align:center; font-size:12px; letter-spacing:2px; opacity:.5; pointer-events:none; z-index:15; }
+  #playHelp {
+    position:fixed; z-index:18; left:50%; bottom:38px; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:3px; pointer-events:none;
+    padding:8px 16px; border:1px solid rgba(255,255,255,.22); border-radius:12px;
+    background:rgba(5,1,15,.72); backdrop-filter:blur(8px); text-align:center;
+    opacity:1; transition:opacity .5s;
+  }
+  #playHelp.fade { opacity:0; }
+  #playHelp b { color:#fff; font-size:13px; letter-spacing:2px; text-shadow:0 0 12px #00e5ff; }
+  #playHelp span { font-size:10px; letter-spacing:1.6px; opacity:.78; }
+  #nextCue {
+    position:fixed; z-index:17; left:50%; top:124px; transform:translateX(-50%);
+    min-width:82px; padding:5px 14px 7px; border-radius:14px; text-align:center;
+    background:rgba(5,1,15,.62); border:1px solid rgba(255,255,255,.2);
+    backdrop-filter:blur(7px); pointer-events:none;
+  }
+  #nextCue small { display:block; font-size:8px; letter-spacing:1.8px; opacity:.65; }
+  #nextCueArrow { display:block; font-size:34px; font-weight:950; line-height:1; color:#fff; }
 
   #countdown { z-index:25; pointer-events:none; background:transparent; }
   #countNum { font-size:120px; font-weight:900; text-shadow:0 0 40px rgba(0,229,255,.9); }
@@ -167,6 +185,8 @@
     #menuStats { flex:0 0 auto; padding:5px 4px 1px; font-size:10px; gap:14px; }
     #brand { flex:0 0 auto; padding:4px; font-size:11px; }
     #hudTop { padding-top:68px; padding-inline:20px; }
+    #nextCue { top:122px; }
+    #playHelp { bottom:30px; padding:6px 13px; }
     #score { font-size:26px; }
     #pauseBtn { width:42px; height:42px; }
   }
@@ -180,6 +200,7 @@
     #xpBarWrap { width:96px; }
     .song { min-height:104px; }
     #hudTop { padding-top:58px; }
+    #nextCue { top:106px; }
   }
 </style>
 </head>
@@ -205,6 +226,11 @@
 </div>
 <div id="combo"><span class="lbl">COMBO</span><span id="comboNum">0</span></div>
 <div id="songLabel"></div>
+<div id="playHelp" class="hidden">
+  <b>РЕЖЬ ПО БЕЛОЙ СТРЕЛКЕ</b>
+  <span>проведи пальцем через куб в указанную сторону</span>
+</div>
+<div id="nextCue" class="hidden"><small>СЛЕДУЮЩИЙ РЕЗ</small><span id="nextCueArrow">↑</span></div>
 
 <div id="countdown" class="layer hidden"><div id="countNum">3</div></div>
 
@@ -304,11 +330,11 @@ const SONGS = [
   { id:'singular', name:'Singularity',    bpm:160, seed:84, root:38, bars:60 },
 ];
 const DIFFS = [
-  { name:'Easy',    sub:1, density:.45, doubles:.05, bombs:0,    approach:2.2 },
-  { name:'Normal',  sub:1, density:.66, doubles:.12, bombs:.02,  approach:1.9 },
-  { name:'Hard',    sub:2, density:.38, doubles:.15, bombs:.04,  approach:1.6 },
-  { name:'Expert',  sub:2, density:.50, doubles:.20, bombs:.06,  approach:1.35 },
-  { name:'Expert+', sub:2, density:.62, doubles:.26, bombs:.08,  approach:1.15 },
+  { name:'Easy',    sub:1, density:.45, doubles:.05, bombs:0,    approach:2.8 },
+  { name:'Normal',  sub:1, density:.66, doubles:.12, bombs:.02,  approach:2.45 },
+  { name:'Hard',    sub:2, density:.38, doubles:.15, bombs:.04,  approach:2.05 },
+  { name:'Expert',  sub:2, density:.50, doubles:.20, bombs:.06,  approach:1.7 },
+  { name:'Expert+', sub:2, density:.62, doubles:.26, bombs:.08,  approach:1.45 },
 ];
 const RANKS = [ [.9,'SS'], [.8,'S'], [.65,'A'], [.5,'B'], [.35,'C'], [.2,'D'], [-1,'E'] ];
 const rankOf = acc => RANKS.find(r => acc >= r[0])[1];
@@ -336,8 +362,8 @@ const bestKey = (songId, di) => [songId, di].join('_');
 /* Направления: 0 вверх, 1 вниз, 2 влево, 3 вправо, 4 ↖, 5 ↗, 6 ↙, 7 ↘, 8 — любое */
 const DIR_VEC = [ [0,1],[0,-1],[-1,0],[1,0],[-1,1],[1,1],[-1,-1],[1,-1],[0,0] ];
 const OPP = { 0:1, 1:0, 2:3, 3:2, 4:7, 7:4, 5:6, 6:5 };
-const COLS_X = [-1.05, -0.35, 0.35, 1.05];
-const ROWS_Y = [0.65, 1.25, 1.85];
+const COLS_X = [-1.35, -0.45, 0.45, 1.35];
+const ROWS_Y = [0.5, 1.35, 2.2];
 
 function genMap(song, diffIdx){
   const diff = DIFFS[diffIdx];
@@ -549,8 +575,8 @@ const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias:true, power
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x05010f);
-scene.fog = new THREE.Fog(0x05010f, 18, 80);
-const camera = new THREE.PerspectiveCamera(72, 1, .1, 200);
+scene.fog = new THREE.Fog(0x05010f, 42, 100);
+const camera = new THREE.PerspectiveCamera(64, 1, .1, 200);
 const camBase = new THREE.Vector3(0, 1.9, 4.2);
 camera.position.copy(camBase);
 camera.lookAt(0, 1.3, -20);
@@ -581,51 +607,64 @@ const rings = [];
   const barGeo = new THREE.BoxGeometry(.12, .12, 110);
   for (const [x, col] of [[-4.5, 0xff2d96], [4.5, 0x00e5ff]]){
     for (const y of [.1, 5.2]){
-      const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: col }));
+      const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.24, blending:THREE.AdditiveBlending, depthWrite:false }));
       m.position.set(x, y, -50); scene.add(m);
     }
   }
 }
 
 /* ----- note templates ----- */
-const NOTE_SIZE = .55;
+const NOTE_SIZE = .86;
 function makeArrowTexture(colorCss, dirIdx){
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
   const g = cv.getContext('2d');
-  g.clearRect(0, 0, 128, 128);
-  g.translate(64, 64);
+  g.clearRect(0, 0, 256, 256);
+  g.translate(128, 128);
   if (dirIdx !== 8){
     const [dx, dy] = DIR_VEC[dirIdx];
     g.rotate(Math.atan2(dx, dy));
   }
+  g.fillStyle = 'rgba(0,0,0,.72)';
+  g.beginPath(); g.roundRect(-104, -104, 208, 208, 32); g.fill();
   g.fillStyle = '#ffffff';
-  g.shadowColor = colorCss; g.shadowBlur = 18;
+  g.strokeStyle = '#05010f';
+  g.lineWidth = 15;
+  g.lineJoin = 'round';
+  g.shadowColor = colorCss; g.shadowBlur = 30;
   if (dirIdx === 8){
-    g.beginPath(); g.arc(0, 0, 17, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(0, 0, 38, 0, Math.PI * 2); g.stroke(); g.fill();
   } else {
     g.beginPath();
-    g.moveTo(0, -38); g.lineTo(32, 8); g.lineTo(12, 8); g.lineTo(12, 34);
-    g.lineTo(-12, 34); g.lineTo(-12, 8); g.lineTo(-32, 8); g.closePath(); g.fill();
+    g.moveTo(0, -88); g.lineTo(72, 12); g.lineTo(28, 12); g.lineTo(28, 76);
+    g.lineTo(-28, 76); g.lineTo(-28, 12); g.lineTo(-72, 12); g.closePath();
+    g.stroke(); g.fill();
   }
-  return new THREE.CanvasTexture(cv);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
 }
 const NOTE_COLORS = { magenta: { hex:0xff2d96, css:'#ff2d96' }, cyan: { hex:0x00e5ff, css:'#00e5ff' } };
 const noteTemplates = {};
 {
   const boxGeo = new THREE.BoxGeometry(NOTE_SIZE, NOTE_SIZE, NOTE_SIZE);
   const edgeGeo = new THREE.EdgesGeometry(boxGeo);
-  const planeGeo = new THREE.PlaneGeometry(NOTE_SIZE * .82, NOTE_SIZE * .82);
+  const planeGeo = new THREE.PlaneGeometry(NOTE_SIZE * .9, NOTE_SIZE * .9);
+  const glowGeo = new THREE.BoxGeometry(NOTE_SIZE * 1.1, NOTE_SIZE * 1.1, NOTE_SIZE * 1.1);
   for (const key of ['magenta', 'cyan']){
     const c = NOTE_COLORS[key];
-    const bodyMat = new THREE.MeshStandardMaterial({ color:0x0a0618, emissive:c.hex, emissiveIntensity:.25, roughness:.35, metalness:.6 });
-    const edgeMat = new THREE.LineBasicMaterial({ color:c.hex });
+    const bodyMat = new THREE.MeshStandardMaterial({ color:c.hex, emissive:c.hex, emissiveIntensity:.72, roughness:.22, metalness:.22 });
+    const edgeMat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:.88 });
+    const glowMat = new THREE.MeshBasicMaterial({ color:c.hex, transparent:true, opacity:.13, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false });
     for (let d = 0; d <= 8; d++){
       const gtpl = new THREE.Group();
+      const glow = new THREE.Mesh(glowGeo, glowMat);
       const body = new THREE.Mesh(boxGeo, bodyMat);
       const edges = new THREE.LineSegments(edgeGeo, edgeMat);
-      const face = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: makeArrowTexture(c.css, d), transparent:true }));
+      const face = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map:makeArrowTexture(c.css, d), transparent:true, depthTest:false }));
       face.position.z = NOTE_SIZE / 2 + .01;
-      gtpl.add(body, edges, face);
+      face.renderOrder = 5;
+      gtpl.add(glow, body, edges, face);
       noteTemplates[key + d] = gtpl;
     }
   }
@@ -639,6 +678,20 @@ const noteTemplates = {};
 }
 const halfGeo = new THREE.BoxGeometry(NOTE_SIZE, NOTE_SIZE / 2, NOTE_SIZE);
 
+// Ясная зона удара: ноты нужно резать, когда они входят в одну из 12 рамок.
+const hitCells = [];
+{
+  const cellGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(NOTE_SIZE * 1.08, NOTE_SIZE * 1.08, .025));
+  COLS_X.forEach((x, col) => ROWS_Y.forEach(y => {
+    const color = col < 2 ? 0xff2d96 : 0x00e5ff;
+    const mat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:.28 });
+    const cell = new THREE.LineSegments(cellGeo, mat);
+    cell.position.set(x, y, .08);
+    scene.add(cell);
+    hitCells.push(cell);
+  }));
+}
+
 /* ----- blades (клинки) ----- */
 const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const raycaster = new THREE.Raycaster();
@@ -649,9 +702,9 @@ function makeBlade(id){
   const colKey = bladeCount % 2 === 0 ? 'cyan' : 'magenta';
   bladeCount++;
   const col = NOTE_COLORS[colKey].hex;
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(.09, 12, 12), new THREE.MeshBasicMaterial({ color:0xffffff }));
-  const halo = new THREE.Mesh(new THREE.SphereGeometry(.2, 12, 12),
-    new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.4, blending:THREE.AdditiveBlending, depthWrite:false }));
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(.12, 12, 12), new THREE.MeshBasicMaterial({ color:0xffffff }));
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(.28, 12, 12),
+    new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.5, blending:THREE.AdditiveBlending, depthWrite:false }));
   tip.add(halo);
   scene.add(tip);
   const trailGeo = new THREE.BufferGeometry();
@@ -697,7 +750,7 @@ function updateTrail(b){
     const next = b.points[Math.min(i + 1, n - 1)].p;
     sideV.subVectors(next, pt).cross(zAxis).normalize();
     if (!isFinite(sideV.x) || sideV.lengthSq() < .5) sideV.set(0, 1, 0);
-    const w = .05 * (i / Math.max(n - 1, 1)) + .012;
+    const w = .075 * (i / Math.max(n - 1, 1)) + .018;
     pos.setXYZ(i * 2,     pt.x + sideV.x * w, pt.y + sideV.y * w, pt.z);
     pos.setXYZ(i * 2 + 1, pt.x - sideV.x * w, pt.y - sideV.y * w, pt.z);
   }
@@ -731,6 +784,25 @@ function dropMult(){
 /* ---------------- HUD ---------------- */
 const scoreEl = $('score'), multEl = $('mult'), multRing = $('multRing'),
       energyFill = $('energyFill'), comboEl = $('combo'), comboNum = $('comboNum');
+const DIR_GLYPH = ['↑','↓','←','→','↖','↗','↙','↘','●'];
+let cueKey = '';
+function updateNextCue(){
+  const upcoming = G.active
+    .filter(a => !a.dead && a.data.type !== 'bomb' && a.mesh.position.z < 1.35)
+    .sort((a,b) => Math.abs(a.mesh.position.z) - Math.abs(b.mesh.position.z));
+  if (!upcoming.length){ $('nextCue').classList.add('hidden'); cueKey = ''; return; }
+  const first = upcoming[0];
+  const pair = upcoming.find((a, i) => i > 0 && Math.abs(a.data.time - first.data.time) < .035);
+  const key = first.data.type + first.data.dir + (pair ? pair.data.type + pair.data.dir : '');
+  if (key !== cueKey){
+    cueKey = key;
+    $('nextCueArrow').textContent = DIR_GLYPH[first.data.dir] + (pair ? '  ' + DIR_GLYPH[pair.data.dir] : '');
+    const c = NOTE_COLORS[first.data.type].css;
+    $('nextCueArrow').style.textShadow = '0 0 18px ' + c + ', 0 0 34px ' + c;
+    $('nextCue').style.borderColor = c + '88';
+  }
+  $('nextCue').classList.remove('hidden');
+}
 function updateHUD(){
   scoreEl.textContent = G.score.toLocaleString('ru-RU');
   multEl.textContent = 'x' + G.mult;
@@ -840,6 +912,7 @@ function spawnParticles(pos, colorHex, count){
 
 /* ---------------- level flow ---------------- */
 let countdownIv = null;
+let helpTimer = null;
 function startLevel(song, diffIdx){
   initAudio();
   AC.resume();
@@ -855,6 +928,14 @@ function startLevel(song, diffIdx){
   $('results').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('songLabel').textContent = song.name + ' — ' + DIFFS[diffIdx].name;
+  clearTimeout(helpTimer);
+  $('playHelp').classList.remove('hidden', 'fade');
+  $('nextCue').classList.add('hidden');
+  cueKey = '';
+  helpTimer = setTimeout(() => {
+    $('playHelp').classList.add('fade');
+    setTimeout(() => $('playHelp').classList.add('hidden'), 550);
+  }, 8000);
   updateHUD();
   G.mode = 'countdown';
   $('countdown').classList.remove('hidden');
@@ -885,6 +966,9 @@ function endLevel(){
   G.mode = 'results';
   stopMusic();
   $('hud').classList.add('hidden');
+  clearTimeout(helpTimer);
+  $('playHelp').classList.add('hidden');
+  $('nextCue').classList.add('hidden');
   comboEl.classList.remove('show');
   const acc = G.map.maxScore ? G.score / G.map.maxScore : 0;
   const rank = G.failed ? 'E' : rankOf(acc);
@@ -947,6 +1031,9 @@ function exitToMenu(){
   G.active = [];
   clearFx();
   $('hud').classList.add('hidden');
+  clearTimeout(helpTimer);
+  $('playHelp').classList.add('hidden');
+  $('nextCue').classList.add('hidden');
   comboEl.classList.remove('show');
   buildMenu();
   $('menu').classList.remove('hidden');
@@ -1068,6 +1155,7 @@ function tick(){
   }
   pulseL.intensity = .6 + beatPhase * 1.6;
   gridMat.opacity = .55 + beatPhase * .4;
+  for (const cell of hitCells) cell.material.opacity = G.mode === 'play' ? .13 + beatPhase * .17 : .08;
   for (const r of rings){
     r.position.z += dt * (G.mode === 'play' ? 9 : 3);
     if (r.position.z > 6) r.position.z -= 16 * 7;
@@ -1111,7 +1199,7 @@ function tick(){
         a.mesh.rotation.z = (1 - appear) * .9;
         a.mesh.scale.setScalar(.4 + .6 * appear);
       }
-      if (z > 3) missNote(a);
+      if (z > 1.55) missNote(a);
       if (G.over) break;
     }
     // разрезы
@@ -1123,7 +1211,7 @@ function tick(){
       for (const a of G.active){
         if (a.dead) continue;
         const z = a.mesh.position.z;
-        if (z < -5 || z > 2.6) continue;
+        if (z < -4.2 || z > 1.35) continue;
         // расстояние от центра ноты до отрезка prev→pos (в плоскости XY)
         const ax = a.mesh.position.x, ay = a.mesh.position.y;
         const px = b.prev.x, py = b.prev.y;
@@ -1143,6 +1231,7 @@ function tick(){
       if (G.over) break;
     }
     G.active = G.active.filter(a => !a.dead);
+    updateNextCue();
     if (!G.over && G.nextSpawn >= notes.length && G.active.length === 0 && t > G.map.duration - 1){
       endLevel();
     }
