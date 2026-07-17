@@ -1380,6 +1380,57 @@ body {
   box-shadow: none;
 }
 
+/* NEON BLADE: full-bleed оболочка не зависит от Fullscreen API внутри iframe.
+   В portrait сама игра показывает подсказку о повороте, в landscape canvas
+   сразу занимает весь доступный viewport Telegram Mini App. */
+.app-screen.neon-blade-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  background: #05010f;
+}
+
+.neon-blade-screen .topnav {
+  position: fixed;
+  top: max(var(--safe-top), 6px);
+  left: max(env(safe-area-inset-left), 6px);
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  z-index: 1001;
+  pointer-events: none;
+}
+
+.neon-blade-screen .topnav .title {
+  display: none;
+}
+
+.neon-blade-screen .topnav .back {
+  pointer-events: auto;
+  background: rgba(5, 1, 15, 0.58);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.neon-blade-screen .force-deflector-frame-shell {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* Sudoku */
 .sudoku-screen {
   gap: 16px;

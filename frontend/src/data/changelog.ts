@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.3.0",
+    date: "2026-07-18",
+    title: "NEON BLADE: ритм-слэшер в неоне",
+    items: [
+      "⚔️ Режьте ноты двумя неоновыми клинками свайпами из любой точки экрана — одиночные ноты, двойные удары, направления и бомбы",
+      "🎵 6 процедурных synthwave-треков на WebAudio и 5 сложностей от Easy до Expert+",
+      "🔥 Комбо-множители x1–x8, энергия, точность, ранги E–SS и таблица личных рекордов",
+      "🏆 Прогрессия с опытом, уровнями и последовательной разблокировкой треков и сложностей",
+      "📱 Полноэкранный горизонтальный режим с управлением одним или двумя пальцами",
+    ],
+  },
+  {
     version: "3.2.0",
     date: "2026-07-18",
     title: "Jedi Survivors: выживач в духе Vampire Survivors",
