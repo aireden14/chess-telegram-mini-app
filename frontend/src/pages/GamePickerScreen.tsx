@@ -69,6 +69,9 @@ export function GamePickerScreen() {
   // выше, никогда не запускавшиеся остаются в конце в порядке каталога.
   const sortedApps = useMemo(() => {
     return [...ALL_APPS].sort((a, b) => {
+      // Новая игра должна быть видна на первом экране GamePass сразу после релиза.
+      if (a.to === "/jedi-survivors") return -1;
+      if (b.to === "/jedi-survivors") return 1;
       const countDiff = (stats.launchCount[b.to] ?? 0) - (stats.launchCount[a.to] ?? 0);
       if (countDiff !== 0) return countDiff;
       return (stats.lastPlayedAt[b.to] ?? 0) - (stats.lastPlayedAt[a.to] ?? 0);
