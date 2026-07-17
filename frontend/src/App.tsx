@@ -19,6 +19,7 @@ import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorSc
 import { NeurogridScreen } from "./features/neurogrid/NeurogridScreen";
 import { WebgridScreen } from "./features/webgrid/WebgridScreen";
 import { NebulaDriftScreen } from "./features/nebulaDrift/NebulaDriftScreen";
+import { JediSurvivorsScreen } from "./features/jediSurvivors/JediSurvivorsScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
@@ -86,6 +87,7 @@ export function App() {
         <Route path="/neurogrid" element={<Protected><NeurogridScreen /></Protected>} />
         <Route path="/webgrid" element={<Protected><WebgridScreen /></Protected>} />
         <Route path="/nebula-drift" element={<Protected><NebulaDriftScreen /></Protected>} />
+        <Route path="/jedi-survivors" element={<Protected><JediSurvivorsScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />
