@@ -40,6 +40,7 @@ const ALL_APPS: AppEntry[] = [
   { key: "force", icon: "/game-icons/256/force-deflector.png", title: "Отражатель", to: "/force-deflector", grad: ["#7b61ff", "#2ea8ff"] },
   { key: "force", icon: "/game-icons/256/neurogrid.png", title: "Neurogrid", to: "/neurogrid", grad: ["#00e5ff", "#ff39d6"] },
   { key: "force", icon: "/game-icons/256/webgrid.png", title: "WebGrid", to: "/webgrid", grad: ["#22ff88", "#efff4a"] },
+  { key: "card", icon: "🛸", title: "Nebula Drift", to: "/nebula-drift", grad: ["#00e5ff", "#ff39d6"], badge: "NEW" },
   { key: "catan_beta", icon: "/game-icons/256/reader.png", title: "Читалка", to: "/reader", grad: ["#1c7cff", "#ff6a7a"] },
   { key: "catan_beta", icon: "/game-icons/256/pdf-studio.png", title: "PDF Studio", to: "/pdf-studio", grad: ["#f43a3a", "#2ea8ff"] },
 ];
