@@ -1328,6 +1328,57 @@ body {
   background: #000;
 }
 
+/* Jedi Survivors: игра рассчитана на альбомную ориентацию — при повороте
+   телефона убираем весь хром GamePass (топбар, паддинги, рамку), чтобы
+   canvas реально занимал весь экран, а не полагаться на requestFullscreen
+   изнутри iframe (на мобильных браузерах он часто тихо не срабатывает). */
+@media (orientation: landscape) and (max-height: 600px) {
+  .jedi-survivors-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    gap: 0;
+    background: #000;
+  }
+
+  .jedi-survivors-screen .topnav {
+    position: fixed;
+    top: max(env(safe-area-inset-top), 6px);
+    left: max(env(safe-area-inset-left), 6px);
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    z-index: 1001;
+    pointer-events: none;
+  }
+
+  .jedi-survivors-screen .topnav .title {
+    display: none;
+  }
+
+  .jedi-survivors-screen .topnav .back {
+    pointer-events: auto;
+    background: rgba(10,10,14,0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 999px;
+  }
+
+  .jedi-survivors-screen .force-deflector-frame-shell {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 /* Sudoku */
 .sudoku-screen {
   gap: 16px;
