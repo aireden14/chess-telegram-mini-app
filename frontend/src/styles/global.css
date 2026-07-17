@@ -1332,7 +1332,7 @@ body {
    внутри стандартной карточной рамки GamePass: iframe должен занимать весь
    viewport сразу после открытия маршрута, включая portrait-режим с подсказкой
    о повороте устройства. */
-.jedi-survivors-screen {
+.app-screen.jedi-survivors-screen {
   position: fixed;
   inset: 0;
   z-index: 1000;
