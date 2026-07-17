@@ -56,6 +56,21 @@ backend/src/
 · `/history` · `/replay/:id` · `/leaderboard` · `/paused` · `/loading`.
 
 ## Игры — как устроены
+
+### Обязательный UX для игровых экранов
+
+- Игровые canvas, доски, drag/touch-поверхности и standalone-игры в iframe не
+  должны позволять случайно выделять текст. Используй `user-select: none`,
+  `-webkit-user-select: none` и `-webkit-touch-callout: none`.
+- В standalone iframe защита должна быть добавлена в сам HTML iframe: CSS
+  родительского React-приложения внутрь iframe не действует.
+- Для игрового поля блокируй мешающие управлению события `selectionstart`,
+  `dragstart` и `contextmenu`.
+- Не отключай нативное редактирование у настоящих `input`, `textarea`,
+  `select`, `[contenteditable]`, а также в ридерах и редакторах, где
+  выделение текста является частью функции.
+- Проверяй long-press и drag на телефоне перед публикацией новой игры.
+
 - **Шахматы**: онлайн (socket) + бот + рейтинг Elo. Backend: `routes/games.ts`, `services/gameService.ts`, `services/bot.ts`, `socket/index.ts`. Стиль фигур хранится в аккаунте (`User.pieceStyle`).
 - **Шахматы вдвоём** (`/local`): чисто клиент (chess.js), сохранение в localStorage `chess-local-game-v1`.
 - **Шашки** (`/checkers`): русские правила в `features/checkers/checkersEngine.ts` (обязательный бой, бой во все стороны, цепочки, дамки-летучки) + **бот (minimax, уровни)** в том же файле. Есть **онлайн** через `backend/src/socket/checkers.ts` (закоммичен). Локальная партия сохраняется (`chess-app-checkers-v1`).
