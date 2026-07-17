@@ -11,6 +11,7 @@
     width:100%; height:100%; overflow:hidden; background:#05010f;
     font-family:'Segoe UI', system-ui, -apple-system, sans-serif; color:#e8f4ff;
     touch-action:none; user-select:none; -webkit-user-select:none; position:fixed;
+    overscroll-behavior:none;
   }
   canvas { display:block; }
   #c { position:fixed; inset:0; z-index:0; }
@@ -38,7 +39,13 @@
   #tapStart { margin-top:46px; animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity:.65; transform:scale(1);} 50% { opacity:1; transform:scale(1.06);} }
 
-  #menu { background:linear-gradient(180deg, rgba(8,2,22,.88), rgba(5,1,15,.94)); z-index:30; padding:20px 14px; justify-content:flex-start; }
+  #menu {
+    background:
+      radial-gradient(circle at 18% 20%, rgba(255,45,150,.13), transparent 32%),
+      radial-gradient(circle at 82% 18%, rgba(0,229,255,.12), transparent 34%),
+      linear-gradient(180deg, rgba(8,2,22,.94), rgba(5,1,15,.98));
+    z-index:30; padding:20px 14px; justify-content:flex-start;
+  }
   #menu .top {
     width:min(940px, 96vw); display:flex; align-items:center; justify-content:space-between; gap:14px; padding:6px 4px 12px;
   }
@@ -55,13 +62,17 @@
   #songList {
     width:min(940px, 96vw); flex:1; overflow-y:auto; overflow-x:hidden; padding:4px 2px 12px;
     display:flex; flex-direction:column; gap:12px; -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(0,229,255,.45) transparent;
   }
+  #songList::-webkit-scrollbar { width:5px; }
+  #songList::-webkit-scrollbar-thumb { background:rgba(0,229,255,.45); border-radius:9px; }
   .song {
     border:1px solid rgba(120,140,255,.25); border-radius:16px; padding:14px 16px;
     background:linear-gradient(120deg, rgba(30,10,60,.55), rgba(10,5,30,.55));
-    display:flex; flex-direction:column; gap:10px; position:relative; overflow:hidden;
+    display:flex; flex:0 0 auto; flex-direction:column; gap:10px; position:relative; overflow:hidden;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035), 0 10px 28px rgba(0,0,0,.18);
   }
-  .song.locked { opacity:.45; filter:grayscale(.7); }
+  .song.locked { opacity:.68; filter:saturate(.48); }
   .song .head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .song .name { font-size:20px; font-weight:800; letter-spacing:1px; }
   .song .meta { font-size:12px; opacity:.65; letter-spacing:1px; }
@@ -72,7 +83,7 @@
     display:flex; flex-direction:column; align-items:center; gap:3px; min-width:74px;
   }
   .diff:active { transform:scale(.93); }
-  .diff.locked { opacity:.35; pointer-events:none; }
+  .diff.locked { opacity:.5; pointer-events:none; }
   .diff .best { font-size:10px; font-weight:600; opacity:.8; }
   .diff[data-d="0"] { border-color:#3fd97b; color:#7dffb0; }
   .diff[data-d="1"] { border-color:#4fb6ff; color:#9ed6ff; }
@@ -128,6 +139,48 @@
   #rotate .phone { font-size:64px; animation:rot 1.6s ease-in-out infinite; display:inline-block; }
   @keyframes rot { 0%,20% { transform:rotate(0);} 55%,80% { transform:rotate(90deg);} 100% { transform:rotate(90deg);} }
   #rotate p { font-size:18px; letter-spacing:1px; line-height:1.5; opacity:.9; }
+
+  /* Telegram оставляет поверх Mini App собственные кнопки. В landscape
+     резервируем верхнюю полосу и раскладываем треки в компактную 2×3 сетку. */
+  @media (orientation:landscape) and (max-height:700px) {
+    #menu {
+      padding:68px max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left));
+    }
+    #menu .top, #songList, #menuStats, #brand { width:min(1120px, 96vw); }
+    #menu .top { flex:0 0 auto; padding:0 4px 10px; }
+    #menu .logo { font-size:24px; }
+    #lvlBadge { width:40px; height:40px; font-size:16px; }
+    #songList {
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      align-content:start;
+      gap:10px;
+      padding:2px 4px 10px;
+    }
+    .song { min-height:112px; padding:11px 13px; gap:8px; border-radius:14px; }
+    .song .name { font-size:17px; }
+    .song .meta { font-size:10px; }
+    .diffRow { gap:6px; flex-wrap:nowrap; }
+    .diff { min-width:0; flex:1 1 0; padding:7px 5px; font-size:11px; letter-spacing:.35px; }
+    .diff .best { font-size:9px; }
+    .lockNote { font-size:10px; }
+    #menuStats { flex:0 0 auto; padding:5px 4px 1px; font-size:10px; gap:14px; }
+    #brand { flex:0 0 auto; padding:4px; font-size:11px; }
+    #hudTop { padding-top:68px; padding-inline:20px; }
+    #score { font-size:26px; }
+    #pauseBtn { width:42px; height:42px; }
+  }
+
+  @media (orientation:landscape) and (max-height:430px) {
+    #menu { padding-top:58px; }
+    #menu .top { padding-bottom:7px; }
+    #menu .logo { font-size:21px; }
+    #profileBox { font-size:11px; }
+    #lvlBadge { width:34px; height:34px; }
+    #xpBarWrap { width:96px; }
+    .song { min-height:104px; }
+    #hudTop { padding-top:58px; }
+  }
 </style>
 </head>
 <body>
