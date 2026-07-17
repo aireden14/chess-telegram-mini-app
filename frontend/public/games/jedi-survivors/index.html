@@ -61,17 +61,24 @@
   .shopItem.max .cost { color:#66719b; }
   .shopItem:active { transform:scale(.96); }
 
-  /* ---- HUD DOM (buttons) ---- */
+  /* ---- Pause / settings ---- */
   #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
-  #pauseBtn, #muteBtn { pointer-events:auto; position:fixed; top:calc(44px + env(safe-area-inset-top)); width:42px; height:42px; border-radius:12px;
+  #pauseBtn { pointer-events:auto; position:fixed; top:calc(64px + env(safe-area-inset-top)); right:calc(12px + env(safe-area-inset-right));
+    width:44px; height:44px; border-radius:13px;
     background:rgba(10,16,34,.72); border:1px solid #3a4770; color:#cfe0ff; font-size:18px; cursor:pointer; }
-  #pauseBtn { right:calc(12px + env(safe-area-inset-right)); }
-  #muteBtn  { right:calc(62px + env(safe-area-inset-right)); }
-  @media (pointer:coarse) {
-    #pauseBtn, #muteBtn { top:calc(108px + env(safe-area-inset-top)); }
-  }
-  #paused { background:rgba(3,6,14,.85); z-index:31; }
-  #paused h2 { color:#fff; margin-bottom:18px; font-size:30px; letter-spacing:3px; }
+  #paused, #settings { background:rgba(3,6,14,.9); backdrop-filter:blur(8px); z-index:31; padding:24px 16px; }
+  #paused h2, #settings h2 { color:#fff; margin-bottom:14px; font-size:28px; letter-spacing:3px; }
+  .pause-panel, .settings-panel { width:min(420px,94vw); max-height:82vh; overflow:auto;
+    padding:16px; border-radius:18px; background:rgba(18,27,50,.88); border:1px solid #3a4770;
+    box-shadow:0 18px 60px rgba(0,0,0,.38); }
+  .pause-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:12px; text-align:left; }
+  .pause-stat { padding:10px; border-radius:12px; background:rgba(7,12,27,.72); color:#9fb0d8; font-size:11px; }
+  .pause-stat b { display:block; margin-top:3px; color:#fff; font-size:15px; }
+  .pause-build { margin:10px 0 14px; color:#c8d7f4; font-size:12px; line-height:1.55; text-align:left; }
+  .settings-row { margin:14px 0; padding:13px; border-radius:14px; background:rgba(7,12,27,.72); text-align:left; }
+  .settings-row label { display:flex; justify-content:space-between; gap:12px; margin-bottom:10px; color:#dce8ff; font-size:13px; font-weight:700; }
+  .settings-row input[type=range] { width:100%; accent-color:#5ec8ff; }
+  .settings-actions { display:grid; gap:8px; }
 </style>
 </head>
 <body>
@@ -79,7 +86,6 @@
 
 <div id="hud" class="hidden">
   <button id="pauseBtn">⏸</button>
-  <button id="muteBtn">🔊</button>
 </div>
 
 <div id="menu" class="overlay">
@@ -87,6 +93,7 @@
   <div class="sub">выживи в атаке Империи</div>
   <button class="btn btn-big" id="startBtn">▶ ИГРАТЬ</button>
   <button class="btn btn-sec" id="shopBtn">🛒 Академия джедаев (прокачка)</button>
+  <button class="btn btn-sec" id="settingsMenuBtn">⚙️ Настройки</button>
   <div class="rec" id="recLine"></div>
   <footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
 </div>
@@ -97,9 +104,29 @@
 </div>
 
 <div id="paused" class="overlay hidden">
-  <h2>ПАУЗА</h2>
-  <button class="btn btn-big" id="resumeBtn">Продолжить</button>
-  <button class="btn btn-sec" id="quitBtn">Выйти в меню</button>
+  <div class="pause-panel">
+    <h2>ПАУЗА</h2>
+    <div id="pauseStats" class="pause-stats"></div>
+    <div id="pauseBuild" class="pause-build"></div>
+    <button class="btn btn-big" id="resumeBtn">Продолжить</button>
+    <button class="btn btn-sec" id="settingsPauseBtn">⚙️ Настройки</button>
+    <button class="btn btn-sec" id="quitBtn">Выйти в меню</button>
+  </div>
+</div>
+
+<div id="settings" class="overlay hidden">
+  <div class="settings-panel">
+    <h2>НАСТРОЙКИ</h2>
+    <div class="settings-row">
+      <label for="zoomRange"><span>Масштаб камеры</span><span id="zoomValue">50%</span></label>
+      <input id="zoomRange" type="range" min="0.5" max="1" step="0.05" value="0.5">
+    </div>
+    <div class="settings-actions">
+      <button class="btn btn-sec" id="soundBtn">🔊 Звук: включён</button>
+      <button class="btn btn-sec" id="shakeBtn">📳 Тряска экрана: включена</button>
+      <button class="btn btn-big" id="settingsBackBtn">← Назад</button>
+    </div>
+  </div>
 </div>
 
 <div id="endscr" class="overlay hidden">
@@ -178,9 +205,14 @@ const S={
 
 /* ---------- meta save ---------- */
 const SAVE_KEY='jediSurvSave1';
-let save={gold:0,best:0,bestKills:0,meta:{}};
+let save={gold:0,best:0,bestKills:0,meta:{},settings:{zoom:0.5,muted:false,shake:true}};
 try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s) save=Object.assign(save,s);}catch(e){}
+save.settings=Object.assign({zoom:0.5,muted:false,shake:true},save.settings||{});
+save.settings.zoom=clamp(Number(save.settings.zoom)||0.5,0.5,1);
+muted=!!save.settings.muted;
+music.muted=muted;
 function persist(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){} }
+function cameraZoom(){ return clamp(Number(save.settings.zoom)||0.5,0.5,1); }
 const META=[
   {id:'might', ico:'💎', nm:'Кристалл силы', desc:'+5% урона за ранг', max:5, cost:r=>120*(r+1)},
   {id:'hp',    ico:'❤️', nm:'Стойкость',     desc:'+15 макс. HP за ранг', max:5, cost:r=>100*(r+1)},
@@ -316,7 +348,8 @@ function ptrUp(e){
   const quick = performance.now()-ptr.t<250 && !ptr.moved;
   if(quick&&G&&G.state==='playing'){
     // tap → set move-to point in world coords
-    G.target={x:ptr.x-W/2+G.cam.x, y:ptr.y-H/2+G.cam.y, pulse:0};
+    const zoom=cameraZoom();
+    G.target={x:(ptr.x-W/2)/zoom+G.cam.x, y:(ptr.y-H/2)/zoom+G.cam.y, pulse:0};
   }
   ptr=null; if(G) G.joy=null;
 }
@@ -329,7 +362,7 @@ cv.addEventListener('pointercancel',ptrUp);
 function waveCfg(){ return WAVES[Math.min(WAVES.length-1, Math.floor(G.time/60))]; }
 function hpMul(){ const mn=G.time/60; return 1+mn*0.42+mn*mn*0.035; }
 function spawnPos(){
-  const a=rnd(0,TAU), R=Math.hypot(W,H)/2+60;
+  const a=rnd(0,TAU), R=Math.hypot(W,H)/(2*cameraZoom())+60;
   return {x:G.p.x+Math.cos(a)*R, y:G.p.y+Math.sin(a)*R};
 }
 function spawnEnemy(type,px,py,mul){
@@ -357,7 +390,7 @@ function spawnEnemy(type,px,py,mul){
 }
 function spawnRing(type,count){
   for(let i=0;i<count;i++){
-    const a=i/count*TAU, R=Math.hypot(W,H)/2+40;
+    const a=i/count*TAU, R=Math.hypot(W,H)/(2*cameraZoom())+40;
     spawnEnemy(type, G.p.x+Math.cos(a)*R, G.p.y+Math.sin(a)*R);
   }
 }
@@ -720,7 +753,8 @@ function update(dt){
       if(e.telegraph>0){ e.telegraph-=dt; spd=8; if(e.telegraph<=0){} }
     }
     if(e.shooter){
-      const screenX=e.x-G.cam.x+W/2, screenY=e.y-G.cam.y+H/2;
+      const zoom=cameraZoom();
+      const screenX=(e.x-G.cam.x)*zoom+W/2, screenY=(e.y-G.cam.y)*zoom+H/2;
       const visible=screenX>-24&&screenX<W+24&&screenY>-24&&screenY<H+24;
       if(d<300) spd*=0.4; // keep some distance
       if(e.aimT>0){
@@ -780,10 +814,10 @@ function update(dt){
       e.hitCd=0.85; hurtPlayer(e.dmg);
     }
     // despawn far non-boss
-    if(!e.boss && d>Math.hypot(W,H)*0.9+300){
+    if(!e.boss && d>Math.hypot(W,H)*0.9/cameraZoom()+300){
       // teleport to other side (VS-style)
       const a=Math.atan2(e.y-p.y,e.x-p.x)+Math.PI+rnd(-0.5,0.5);
-      const R=Math.hypot(W,H)/2+80;
+      const R=Math.hypot(W,H)/(2*cameraZoom())+80;
       e.x=p.x+Math.cos(a)*R; e.y=p.y+Math.sin(a)*R;
     }
   }
@@ -936,13 +970,17 @@ function update(dt){
    ============================================================ */
 function draw(){
   const p=G.p;
-  const shx=G.shake?rnd(-G.shake,G.shake):0, shy=G.shake?rnd(-G.shake,G.shake):0;
-  const camX=G.cam.x+shx, camY=G.cam.y+shy;
-  const ox=W/2-camX, oy=H/2-camY;
+  const zoom=cameraZoom();
+  const shake=save.settings.shake?G.shake:0;
+  const shx=shake?rnd(-shake,shake):0, shy=shake?rnd(-shake,shake):0;
+  const camX=G.cam.x+shx/zoom, camY=G.cam.y+shy/zoom;
 
-  drawGround(camX,camY,ox,oy);
-
-  cx.save(); cx.translate(ox,oy);
+  cx.fillStyle='#c9a05e'; cx.fillRect(0,0,W,H);
+  cx.save();
+  cx.translate(W/2,H/2);
+  cx.scale(zoom,zoom);
+  cx.translate(-camX,-camY);
+  drawGround(camX,camY,W/zoom,H/zoom);
 
   // zones
   for(const z of G.zones){
@@ -1111,18 +1149,17 @@ function draw(){
     cx.beginPath(); cx.arc(G.joy.sx+dx/d*cl,G.joy.sy+dy/d*cl,20,0,TAU); cx.fill();
   }
 
-  drawHUD();
+  drawPlayerHealth(camX,camY,zoom);
 }
 
 /* ---------- ground: Tatooine desert with props ---------- */
-function drawGround(camX,camY,ox,oy){
-  cx.fillStyle='#c9a05e'; cx.fillRect(0,0,W,H);
+function drawGround(camX,camY,viewW,viewH){
   const TS=240;
-  const x0=Math.floor((camX-W/2)/TS)-1, x1=Math.floor((camX+W/2)/TS)+1;
-  const y0=Math.floor((camY-H/2)/TS)-1, y1=Math.floor((camY+H/2)/TS)+1;
+  const x0=Math.floor((camX-viewW/2)/TS)-1, x1=Math.floor((camX+viewW/2)/TS)+1;
+  const y0=Math.floor((camY-viewH/2)/TS)-1, y1=Math.floor((camY+viewH/2)/TS)+1;
   for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
     const h=hash2(tx,ty);
-    const px=tx*TS+ox, py=ty*TS+oy;
+    const px=tx*TS, py=ty*TS;
     // subtle tile shading variation
     if(h<0.5){ cx.fillStyle='rgba(0,0,0,'+(0.02+h*0.03)+')'; cx.fillRect(px,py,TS,TS); }
     // props
@@ -1427,77 +1464,32 @@ function drawBullet(b){
   cx.restore();
 }
 
-/* ---------- HUD ---------- */
-function drawHUD(){
+/* ---------- minimal in-game HUD ---------- */
+function drawPlayerHealth(camX,camY,zoom){
   const p=G.p;
-  const touch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
-  const st=touch?64:12;
-  // Compact glass XP HUD, clear of Telegram's native top controls.
-  const pw=Math.min(W-24,420), hudX=(W-pw)/2, hudY=st, ph=32;
-  cx.fillStyle='rgba(5,9,22,.82)';
-  cx.beginPath(); cx.roundRect(hudX,hudY,pw,ph,11); cx.fill();
-  cx.strokeStyle='rgba(142,202,255,.28)'; cx.lineWidth=1;
-  cx.beginPath(); cx.roundRect(hudX+.5,hudY+.5,pw-1,ph-1,10.5); cx.stroke();
-
-  cx.fillStyle='rgba(60,139,231,.22)';
-  cx.beginPath(); cx.roundRect(hudX+6,hudY+6,50,20,7); cx.fill();
-  cx.fillStyle='#dceeff'; cx.font='bold 10px Verdana'; cx.textAlign='center';
-  cx.fillText('УР '+p.lvl,hudX+31,hudY+20);
-
-  const tx=hudX+64, ty=hudY+10, tw=pw-76, th=12;
-  cx.fillStyle='rgba(19,30,54,.95)';
-  cx.beginPath(); cx.roundRect(tx,ty,tw,th,6); cx.fill();
-  const xr=clamp(p.xp/p.xpNext,0,1);
-  const grd=cx.createLinearGradient(tx,0,tx+tw,0);
-  grd.addColorStop(0,'#347fea'); grd.addColorStop(.55,'#54bdff'); grd.addColorStop(1,'#9be7ff');
-  if(xr>0){
-    cx.fillStyle=grd;
-    cx.beginPath(); cx.roundRect(tx,ty,Math.max(th,tw*xr),th,6); cx.fill();
+  const px=W/2+(p.x-camX)*zoom;
+  const py=H/2+(p.y-camY)*zoom-p.r*zoom-24;
+  const bw=74, bh=8, ratio=clamp(p.hp/p.hpMax,0,1);
+  cx.fillStyle='rgba(4,8,18,.82)';
+  cx.beginPath(); cx.roundRect(px-bw/2-2,py-2,bw+4,bh+4,6); cx.fill();
+  cx.fillStyle='rgba(74,22,32,.95)';
+  cx.beginPath(); cx.roundRect(px-bw/2,py,bw,bh,4); cx.fill();
+  if(ratio>0){
+    cx.fillStyle=ratio>0.35?'#63e88e':'#ff5b67';
+    cx.beginPath(); cx.roundRect(px-bw/2,py,Math.max(bh,bw*ratio),bh,4); cx.fill();
   }
-  cx.fillStyle='rgba(255,255,255,.92)'; cx.font='bold 8px Verdana'; cx.textAlign='center';
-  cx.fillText(Math.floor(p.xp)+' / '+p.xpNext,tx+tw/2,ty+9);
-  // timer
-  cx.textAlign='center'; cx.font='bold 22px Verdana';
-  cx.strokeStyle='rgba(0,0,0,.7)'; cx.lineWidth=4;
-  cx.strokeText(fmtTime(G.time), W/2, st+62); cx.fillStyle='#fff'; cx.fillText(fmtTime(G.time), W/2, st+62);
-  // kills / gold
-  cx.font='bold 13px Verdana'; cx.textAlign='right';
-  cx.strokeText('💀 '+G.killCount, W-118, st+54); cx.fillText('💀 '+G.killCount, W-118, st+54);
-  cx.strokeText('🪙 '+G.goldRun, W-118, st+74); cx.fillStyle='#ffd76a'; cx.fillText('🪙 '+G.goldRun, W-118, st+74);
-  // weapons row
-  cx.textAlign='left'; cx.font='16px serif';
-  let wx=8;
-  for(const w of p.weapons){
-    cx.fillStyle='rgba(10,16,34,.7)';
-    cx.beginPath(); cx.roundRect(wx,st+42,26,26,6); cx.fill();
-    cx.fillText(WEAPONS[w.id].ico,wx+4,st+61);
-    cx.fillStyle=w.evolved?'#ff8d6b':'#ffd76a'; cx.font='bold 9px Verdana';
-    cx.fillText(w.evolved?'EVO':w.lvl,wx+15,st+68); cx.font='16px serif';
-    wx+=30;
-  }
-  // hp bar under player (screen center-ish)
-  const px=W/2+(p.x-G.cam.x), py=H/2+(p.y-G.cam.y);
-  cx.fillStyle='rgba(0,0,0,.55)'; cx.fillRect(px-17,py+20,34,5);
-  cx.fillStyle=p.hp/p.hpMax>0.35?'#7dffa0':'#ff5b5b';
-  cx.fillRect(px-17,py+20,34*clamp(p.hp/p.hpMax,0,1),5);
-  // boss hp bar
-  if(G.bossRef&&G.bossRef.hp>0){
-    const e=G.bossRef;
-    const bw=Math.min(W*0.6,520);
-    cx.fillStyle='rgba(5,8,18,.8)'; cx.fillRect(W/2-bw/2-3,H-34,bw+6,20);
-    cx.fillStyle='#411'; cx.fillRect(W/2-bw/2,H-31,bw,14);
-    cx.fillStyle='#ff4b4b'; cx.fillRect(W/2-bw/2,H-31,bw*clamp(e.hp/e.hpMax,0,1),14);
-    cx.fillStyle='#fff'; cx.font='bold 11px Verdana'; cx.textAlign='center';
-    const nm={atst:'AT-ST «ИМПЕРСКИЙ ШАГОХОД»',maul:'ДАРТ МОЛ',vader:'ДАРТ ВЕЙДЕР'}[e.type]||'БОСС';
-    cx.fillText(nm, W/2, H-20);
-  }
+  cx.font='bold 10px Verdana'; cx.textAlign='center';
+  cx.strokeStyle='rgba(0,0,0,.8)'; cx.lineWidth=3;
+  const hpText=Math.ceil(p.hp)+' / '+Math.ceil(p.hpMax);
+  cx.strokeText(hpText,px,py-5); cx.fillStyle='#fff'; cx.fillText(hpText,px,py-5);
 }
 
 /* ============================================================
    FLOW / UI
    ============================================================ */
 const el=id=>document.getElementById(id);
-const menuEl=el('menu'), endEl=el('endscr'), shopEl=el('shop'), pausedEl=el('paused'), hudEl=el('hud');
+const menuEl=el('menu'), endEl=el('endscr'), shopEl=el('shop'), pausedEl=el('paused'),
+      settingsEl=el('settings'), hudEl=el('hud');
 function goFullscreen(){
   const d=document.documentElement;
   try{ if(d.requestFullscreen) d.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
@@ -1506,7 +1498,8 @@ function goFullscreen(){
 function startRun(){
   goFullscreen();
   newGame();
-  menuEl.classList.add('hidden'); endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
+  menuEl.classList.add('hidden'); settingsEl.classList.add('hidden');
+  endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
   music.currentTime=0;
   music.play().catch(()=>{});
 }
@@ -1527,11 +1520,34 @@ function endRun(win){
   endEl.classList.remove('hidden'); hudEl.classList.add('hidden');
   music.pause();
 }
-function pauseGame(){ if(G&&G.state==='playing'){ G.state='paused'; pausedEl.classList.remove('hidden'); music.pause(); } }
+function renderPauseInfo(){
+  if(!G) return;
+  const p=G.p, boss=G.bossRef&&G.bossRef.hp>0?G.bossRef:null;
+  const stats=[
+    ['Время',fmtTime(G.time)],
+    ['Уровень',p.lvl],
+    ['Опыт',Math.floor(p.xp)+' / '+p.xpNext],
+    ['Убийства',G.killCount],
+    ['Золото за забег','🪙 '+G.goldRun],
+    ['HP',Math.ceil(p.hp)+' / '+Math.ceil(p.hpMax)]
+  ];
+  if(boss) stats.push(['Босс',Math.ceil(boss.hp)+' / '+Math.ceil(boss.hpMax)]);
+  el('pauseStats').innerHTML=stats.map(([k,v])=>'<div class="pause-stat">'+k+'<b>'+v+'</b></div>').join('');
+  const weapons=p.weapons.map(w=>WEAPONS[w.id].ico+' '+WEAPONS[w.id].nm+' — '+(w.evolved?'EVO':'ур. '+w.lvl)).join('<br>');
+  const passives=Object.entries(p.passives).map(([id,lvl])=>PASSIVES[id].ico+' '+PASSIVES[id].nm+' — ур. '+lvl).join('<br>');
+  el('pauseBuild').innerHTML='<b>ОРУЖИЕ</b><br>'+weapons+
+    (passives?'<br><br><b>ПАССИВНЫЕ</b><br>'+passives:'');
+}
+function pauseGame(){
+  if(G&&G.state==='playing'){
+    G.state='paused'; renderPauseInfo(); pausedEl.classList.remove('hidden'); music.pause();
+  }
+}
 function resumeGame(){ if(G&&G.state==='paused'){ G.state='playing'; pausedEl.classList.add('hidden'); music.play().catch(()=>{}); } }
 function toMenu(){
   G=null;
-  pausedEl.classList.add('hidden'); endEl.classList.add('hidden'); hudEl.classList.add('hidden');
+  pausedEl.classList.add('hidden'); settingsEl.classList.add('hidden');
+  endEl.classList.add('hidden'); hudEl.classList.add('hidden');
   menuEl.classList.remove('hidden'); music.pause();
   updateRec();
 }
@@ -1546,8 +1562,41 @@ el('menuBtn').onclick=toMenu;
 el('pauseBtn').onclick=()=>{ if(G&&G.state==='playing') pauseGame(); else resumeGame(); };
 el('resumeBtn').onclick=resumeGame;
 el('quitBtn').onclick=toMenu;
-el('muteBtn').onclick=()=>{ muted=!muted; music.muted=muted; el('muteBtn').textContent=muted?'🔇':'🔊'; };
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) pauseGame(); });
+
+/* settings */
+let settingsFrom='menu';
+function renderSettings(){
+  el('zoomRange').value=String(cameraZoom());
+  el('zoomValue').textContent=Math.round(cameraZoom()*100)+'%';
+  el('soundBtn').textContent=muted?'🔇 Звук: выключен':'🔊 Звук: включён';
+  el('shakeBtn').textContent=save.settings.shake?'📳 Тряска экрана: включена':'📴 Тряска экрана: выключена';
+}
+function openSettings(from){
+  settingsFrom=from;
+  if(from==='pause') pausedEl.classList.add('hidden');
+  else menuEl.classList.add('hidden');
+  renderSettings(); settingsEl.classList.remove('hidden');
+}
+function closeSettings(){
+  settingsEl.classList.add('hidden');
+  if(settingsFrom==='pause'){ renderPauseInfo(); pausedEl.classList.remove('hidden'); }
+  else menuEl.classList.remove('hidden');
+}
+el('settingsMenuBtn').onclick=()=>openSettings('menu');
+el('settingsPauseBtn').onclick=()=>openSettings('pause');
+el('settingsBackBtn').onclick=closeSettings;
+el('zoomRange').oninput=e=>{
+  save.settings.zoom=clamp(Number(e.target.value)||0.5,0.5,1);
+  el('zoomValue').textContent=Math.round(save.settings.zoom*100)+'%';
+  persist();
+};
+el('soundBtn').onclick=()=>{
+  muted=!muted; save.settings.muted=muted; music.muted=muted; persist(); renderSettings();
+};
+el('shakeBtn').onclick=()=>{
+  save.settings.shake=!save.settings.shake; persist(); renderSettings();
+};
 
 /* shop */
 function renderShop(){
