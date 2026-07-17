@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Jedi Survivors</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Segoe UI',system-ui,sans-serif; touch-action:none; overscroll-behavior:none; }
   #game { position:fixed; inset:0; width:100%; height:100%; display:block; }
   .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; color:#fff; text-align:center; }
@@ -66,6 +67,9 @@
     background:rgba(10,16,34,.72); border:1px solid #3a4770; color:#cfe0ff; font-size:18px; cursor:pointer; }
   #pauseBtn { right:calc(12px + env(safe-area-inset-right)); }
   #muteBtn  { right:calc(62px + env(safe-area-inset-right)); }
+  @media (pointer:coarse) {
+    #pauseBtn, #muteBtn { top:calc(108px + env(safe-area-inset-top)); }
+  }
   #paused { background:rgba(3,6,14,.85); z-index:31; }
   #paused h2 { color:#fff; margin-bottom:18px; font-size:30px; letter-spacing:3px; }
 </style>
@@ -118,15 +122,22 @@
    JEDI SURVIVORS — Vampire Survivors-like, Star Wars flavored
    ============================================================ */
 const cv = document.getElementById('game');
-const cx = cv.getContext('2d');
+const cx = cv.getContext('2d',{alpha:false,desynchronized:true});
 let W=0,H=0,DPR=1;
 function resize(){
-  DPR = Math.min(window.devicePixelRatio||1, 2);
+  // Telegram WebView sometimes reports DPR=1 and then scales the canvas,
+  // which makes vector graphics and HUD text visibly blurry.
+  DPR = Math.min(Math.max(window.devicePixelRatio||1, 2), 3);
   W = window.innerWidth; H = window.innerHeight;
-  cv.width = W*DPR; cv.height = H*DPR;
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cx.setTransform(DPR,0,0,DPR,0,0);
+  cx.imageSmoothingEnabled=true;
+  cx.imageSmoothingQuality='high';
 }
 window.addEventListener('resize', resize); resize();
+document.addEventListener('selectionstart',e=>e.preventDefault(),{passive:false});
+document.addEventListener('dragstart',e=>e.preventDefault(),{passive:false});
+document.addEventListener('contextmenu',e=>e.preventDefault(),{passive:false});
 
 /* ---------- utils ---------- */
 const rnd=(a,b)=>a+Math.random()*(b-a);
@@ -1337,33 +1348,49 @@ function drawBullet(b){
 /* ---------- HUD ---------- */
 function drawHUD(){
   const p=G.p;
-  const st=(('ontouchstart' in window)?8:8);
-  // XP bar top
-  cx.fillStyle='rgba(5,8,18,.85)'; cx.fillRect(0,0,W,26);
-  cx.fillStyle='#182038'; cx.fillRect(3,5,W-6,16);
+  const touch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
+  const st=touch?64:12;
+  // Compact glass XP HUD, clear of Telegram's native top controls.
+  const pw=Math.min(W-24,420), hudX=(W-pw)/2, hudY=st, ph=32;
+  cx.fillStyle='rgba(5,9,22,.82)';
+  cx.beginPath(); cx.roundRect(hudX,hudY,pw,ph,11); cx.fill();
+  cx.strokeStyle='rgba(142,202,255,.28)'; cx.lineWidth=1;
+  cx.beginPath(); cx.roundRect(hudX+.5,hudY+.5,pw-1,ph-1,10.5); cx.stroke();
+
+  cx.fillStyle='rgba(60,139,231,.22)';
+  cx.beginPath(); cx.roundRect(hudX+6,hudY+6,50,20,7); cx.fill();
+  cx.fillStyle='#dceeff'; cx.font='bold 10px Verdana'; cx.textAlign='center';
+  cx.fillText('УР '+p.lvl,hudX+31,hudY+20);
+
+  const tx=hudX+64, ty=hudY+10, tw=pw-76, th=12;
+  cx.fillStyle='rgba(19,30,54,.95)';
+  cx.beginPath(); cx.roundRect(tx,ty,tw,th,6); cx.fill();
   const xr=clamp(p.xp/p.xpNext,0,1);
-  const grd=cx.createLinearGradient(0,0,W,0);
-  grd.addColorStop(0,'#2f7fd8'); grd.addColorStop(1,'#5ec8ff');
-  cx.fillStyle=grd; cx.fillRect(3,5,(W-6)*xr,16);
-  cx.fillStyle='#fff'; cx.font='bold 11px Verdana'; cx.textAlign='left';
-  cx.fillText('УР '+p.lvl, 8, 17);
+  const grd=cx.createLinearGradient(tx,0,tx+tw,0);
+  grd.addColorStop(0,'#347fea'); grd.addColorStop(.55,'#54bdff'); grd.addColorStop(1,'#9be7ff');
+  if(xr>0){
+    cx.fillStyle=grd;
+    cx.beginPath(); cx.roundRect(tx,ty,Math.max(th,tw*xr),th,6); cx.fill();
+  }
+  cx.fillStyle='rgba(255,255,255,.92)'; cx.font='bold 8px Verdana'; cx.textAlign='center';
+  cx.fillText(Math.floor(p.xp)+' / '+p.xpNext,tx+tw/2,ty+9);
   // timer
   cx.textAlign='center'; cx.font='bold 22px Verdana';
   cx.strokeStyle='rgba(0,0,0,.7)'; cx.lineWidth=4;
-  cx.strokeText(fmtTime(G.time), W/2, 52); cx.fillStyle='#fff'; cx.fillText(fmtTime(G.time), W/2, 52);
+  cx.strokeText(fmtTime(G.time), W/2, st+62); cx.fillStyle='#fff'; cx.fillText(fmtTime(G.time), W/2, st+62);
   // kills / gold
   cx.font='bold 13px Verdana'; cx.textAlign='right';
-  cx.strokeText('💀 '+G.killCount, W-118, 46); cx.fillText('💀 '+G.killCount, W-118, 46);
-  cx.strokeText('🪙 '+G.goldRun, W-118, 66); cx.fillStyle='#ffd76a'; cx.fillText('🪙 '+G.goldRun, W-118, 66);
+  cx.strokeText('💀 '+G.killCount, W-118, st+54); cx.fillText('💀 '+G.killCount, W-118, st+54);
+  cx.strokeText('🪙 '+G.goldRun, W-118, st+74); cx.fillStyle='#ffd76a'; cx.fillText('🪙 '+G.goldRun, W-118, st+74);
   // weapons row
   cx.textAlign='left'; cx.font='16px serif';
   let wx=8;
   for(const w of p.weapons){
     cx.fillStyle='rgba(10,16,34,.7)';
-    cx.beginPath(); cx.roundRect(wx,32,26,26,6); cx.fill();
-    cx.fillText(WEAPONS[w.id].ico,wx+4,51);
+    cx.beginPath(); cx.roundRect(wx,st+42,26,26,6); cx.fill();
+    cx.fillText(WEAPONS[w.id].ico,wx+4,st+61);
     cx.fillStyle=w.evolved?'#ff8d6b':'#ffd76a'; cx.font='bold 9px Verdana';
-    cx.fillText(w.evolved?'EVO':w.lvl,wx+15,58); cx.font='16px serif';
+    cx.fillText(w.evolved?'EVO':w.lvl,wx+15,st+68); cx.font='16px serif';
     wx+=30;
   }
   // hp bar under player (screen center-ish)
