@@ -247,7 +247,7 @@ const PASSIVES={
   might:   {ico:'💎', nm:'Кайбер-кристалл', ds:'+10% урона за уровень', max:5},
   armor:   {ico:'🛡️', nm:'Броня джедая',    ds:'-1 урон от врагов за уровень', max:3},
   speed:   {ico:'👢', nm:'Сапоги разведчика',ds:'+8% скорости за уровень', max:3},
-  recovery:{ico:'🧘', nm:'Медитация',        ds:'+0.4 HP/сек за уровень', max:3},
+  recovery:{ico:'🧘', nm:'Медитация',        ds:'+0.3 HP/сек за уровень', max:3},
   magnet:  {ico:'🧲', nm:'Голокрон',         ds:'+25% радиуса сбора за уровень', max:3},
   area:    {ico:'🥋', nm:'Роба мастера',     ds:'+8% области атак за уровень', max:3},
   cooldown:{ico:'⏱️', nm:'Батарея меча',     ds:'-6% перезарядки за уровень', max:3},
@@ -258,17 +258,17 @@ const PASSIVES={
 
 /* ---------- enemies ---------- */
 const ETYPES={
-  trooper:{hp:8,  sp:52, dmg:8,  r:14, xp:1, gold:.04, draw:'trooper'},
-  scout:  {hp:4,  sp:95, dmg:5,  r:10, xp:1, gold:.02, draw:'scout'},
-  b1:     {hp:12, sp:46, dmg:7,  r:14, xp:2, gold:.06, draw:'b1', shooter:true},
-  heavy:  {hp:42, sp:34, dmg:14, r:18, xp:3, gold:.10, draw:'heavy'},
-  probe:  {hp:16, sp:70, dmg:9,  r:12, xp:2, gold:.06, draw:'probe', fly:true},
-  dark:   {hp:60, sp:55, dmg:16, r:16, xp:4, gold:.12, draw:'dark', charger:true},
-  sith:   {hp:340,sp:72, dmg:20, r:18, xp:20,gold:1,  draw:'sith', elite:true},
-  swarm:  {hp:2,  sp:110,dmg:4,  r:9,  xp:1, gold:0,  draw:'scout'},
-  atst:   {hp:1500,sp:30,dmg:24, r:34, xp:60,gold:1, draw:'atst', boss:true, shooter:true},
-  maul:   {hp:4200,sp:85,dmg:28, r:20, xp:100,gold:1, draw:'maul', boss:true, charger:true},
-  vader:  {hp:11000,sp:44,dmg:34,r:24, xp:0, gold:1, draw:'vader', boss:true, vader:true},
+  trooper:{hp:8,  sp:52, dmg:8,  r:14, xp:1, gold:.04, draw:'trooper', kb:1},
+  scout:  {hp:4,  sp:95, dmg:5,  r:10, xp:1, gold:.02, draw:'scout', kb:1.15},
+  b1:     {hp:12, sp:46, dmg:7,  r:14, xp:2, gold:.06, draw:'b1', shooter:true, kb:.65},
+  heavy:  {hp:42, sp:34, dmg:14, r:18, xp:3, gold:.10, draw:'heavy', kb:.3},
+  probe:  {hp:16, sp:70, dmg:9,  r:12, xp:2, gold:.06, draw:'probe', fly:true, kb:.7},
+  dark:   {hp:60, sp:55, dmg:16, r:16, xp:4, gold:.12, draw:'dark', charger:true, kb:.4},
+  sith:   {hp:340,sp:72, dmg:20, r:18, xp:20,gold:1,  draw:'sith', elite:true, kb:.15},
+  swarm:  {hp:2,  sp:110,dmg:4,  r:9,  xp:1, gold:0,  draw:'scout', kb:1.2},
+  atst:   {hp:1500,sp:30,dmg:24, r:34, xp:60,gold:1, draw:'atst', boss:true, shooter:true, kb:0},
+  maul:   {hp:4200,sp:85,dmg:28, r:20, xp:100,gold:1, draw:'maul', boss:true, charger:true, kb:0},
+  vader:  {hp:11000,sp:44,dmg:34,r:24, xp:0, gold:1, draw:'vader', boss:true, vader:true, kb:0},
 };
 /* per-minute spawn director (VS-style waves) */
 const WAVES=[
@@ -378,7 +378,7 @@ function spawnEnemy(type,px,py,mul){
   const pos=(px!==undefined)?{x:px,y:py}:spawnPos();
   const e={type, x:pos.x, y:pos.y, hp:d.hp*(mul||hpMul())*(d.boss?1:1), hpMax:0,
     sp:d.sp*rnd(0.9,1.1), dmg:d.dmg, r:d.r, xp:d.xp, draw:d.draw,
-    face:1, walkT:rnd(0,10), flash:0, hitCd:0, kx:0, ky:0,
+    face:1, walkT:rnd(0,10), flash:0, kx:0, ky:0, kb:d.kb ?? 1,
     shootT:rnd(3.5,5), aimT:0, aimX:0, aimY:0,
     chargeT:rnd(2,4), charging:0, chargeDx:0, chargeDy:0,
     fly:!!d.fly, shooter:!!d.shooter, charger:!!d.charger, boss:!!d.boss, elite:!!d.elite,
@@ -414,7 +414,7 @@ function updateSpawns(dt){
    WEAPONS — firing
    ============================================================ */
 function weaponCooldown(w){
-  const base={saber:1.15,lightning:1.3,throw:2.3,push:0.45,shards:1.0,grenade:2.6,drones:6.0}[w.id];
+  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0}[w.id];
   let cd=base*G.p.cdr;
   if(w.id==='saber') cd*= (w.evolved?0.75:1) * (1-0.04*(w.lvl-1));
   if(w.id==='lightning') cd*= 1-0.05*(w.lvl-1);
@@ -476,13 +476,13 @@ function fireWeapon(w){
       break;
     }
     case 'push':{
-      const R=(85+lv*12)*area*(ev?1.9:1);
-      const dmg=(4+lv*2)*might*(ev?2:1);
+      const R=(68+lv*8)*area*(ev?1.55:1);
+      const dmg=(4+lv*1.5)*might*(ev?2:1);
       for(const e of G.enemies){
         const d=dist2(e.x,e.y,p.x,p.y);
         if(d<R*R){
           damageEnemy(e,dmg,false);
-          const dd=Math.sqrt(d)||1, kb=ev?260:170;
+          const dd=Math.sqrt(d)||1, kb=(ev?135:58+lv*4)*e.kb;
           e.kx+=(e.x-p.x)/dd*kb; e.ky+=(e.y-p.y)/dd*kb;
         }
       }
@@ -555,7 +555,7 @@ function damageEnemy(e,dmg,knock){
   if(crit) dmg*=2;
   e.hp-=dmg; e.flash=0.1;
   G.dmgTexts.push({x:e.x+rnd(-8,8),y:e.y-e.r-6,v:Math.round(dmg),t:0.6,crit});
-  if(knock&&!e.boss){ const d=Math.hypot(e.x-G.p.x,e.y-G.p.y)||1; e.kx+=(e.x-G.p.x)/d*60; e.ky+=(e.y-G.p.y)/d*60; }
+  if(knock&&e.kb>0){ const d=Math.hypot(e.x-G.p.x,e.y-G.p.y)||1; e.kx+=(e.x-G.p.x)/d*60*e.kb; e.ky+=(e.y-G.p.y)/d*60*e.kb; }
   S.hit();
   if(e.hp<=0) killEnemy(e);
 }
@@ -589,7 +589,7 @@ function hurtPlayer(dmg){
   const p=G.p;
   if(p.inv>0) return false;
   const real=Math.max(1,dmg-p.armor);
-  p.hp-=real; p.inv=0.65; G.shake=Math.min(12,G.shake+5);
+  p.hp-=real; p.inv=0.45; G.shake=Math.min(12,G.shake+5);
   S.hurt();
   if(p.hp<=0){ p.hp=0; endRun(false); }
   return true;
@@ -628,7 +628,7 @@ function applyPassive(id){
     case 'might': p.might+=0.10; break;
     case 'armor': p.armor+=1; break;
     case 'speed': p.speed*=1.08; break;
-    case 'recovery': p.recovery+=0.4; break;
+    case 'recovery': p.recovery+=0.3; break;
     case 'magnet': p.magnet*=1.25; break;
     case 'area': p.area+=0.08; break;
     case 'cooldown': p.cdr*=0.94; break;
@@ -730,6 +730,7 @@ function update(dt){
   updateWeapons(dt);
 
   /* --- enemies --- */
+  let contactCount=0, contactDamage=0;
   for(let i=G.enemies.length-1;i>=0;i--){
     const e=G.enemies[i];
     if(e.hp<=0){ G.enemies[i]=G.enemies[G.enemies.length-1]; G.enemies.pop(); continue; }
@@ -808,10 +809,11 @@ function update(dt){
     }
     if(e.charging<=0){ e.x+=vx*spd*dt; e.y+=vy*spd*dt; }
     // separation (cheap, sample few neighbors)
-    // contact damage
-    e.hitCd-=dt;
-    if(e.hitCd<=0 && d < e.r+p.r){
-      e.hitCd=0.85; hurtPlayer(e.dmg);
+    // Collect the whole crowd as one damage event. Extra bodies add pressure,
+    // instead of becoming harmless behind the first enemy's invulnerability hit.
+    if(d < e.r+p.r){
+      contactCount++;
+      contactDamage=Math.max(contactDamage,e.dmg);
     }
     // despawn far non-boss
     if(!e.boss && d>Math.hypot(W,H)*0.9/cameraZoom()+300){
@@ -820,6 +822,10 @@ function update(dt){
       const R=Math.hypot(W,H)/(2*cameraZoom())+80;
       e.x=p.x+Math.cos(a)*R; e.y=p.y+Math.sin(a)*R;
     }
+  }
+  if(contactCount>0){
+    const crowdPressure=Math.min(12,(contactCount-1)*2);
+    hurtPlayer(contactDamage+crowdPressure);
   }
 
   /* --- slashes --- */
