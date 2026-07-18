@@ -119,11 +119,16 @@
     <h2>НАСТРОЙКИ</h2>
     <div class="settings-row">
       <label for="zoomRange"><span>Масштаб камеры</span><span id="zoomValue">50%</span></label>
-      <input id="zoomRange" type="range" min="0.5" max="1" step="0.05" value="0.5">
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-sec" id="zoomMinus" style="padding:6px 16px;font-size:20px;line-height:1">−</button>
+        <input id="zoomRange" type="range" min="0.5" max="1" step="0.05" value="0.5" style="flex:1">
+        <button class="btn btn-sec" id="zoomPlus" style="padding:6px 16px;font-size:20px;line-height:1">+</button>
+      </div>
     </div>
     <div class="settings-actions">
       <button class="btn btn-sec" id="soundBtn">🔊 Звук: включён</button>
       <button class="btn btn-sec" id="shakeBtn">📳 Тряска экрана: включена</button>
+      <button class="btn btn-sec" id="ecoBtn">🔋 Экономия батареи: выкл</button>
       <button class="btn btn-big" id="settingsBackBtn">← Назад</button>
     </div>
   </div>
@@ -150,11 +155,14 @@
    ============================================================ */
 const cv = document.getElementById('game');
 const cx = cv.getContext('2d',{alpha:false,desynchronized:true});
+function ecoOn(){ try{ return !!save.settings.eco; }catch(e){ return false; } }
 let W=0,H=0,DPR=1;
 function resize(){
   // Telegram WebView sometimes reports DPR=1 and then scales the canvas,
   // which makes vector graphics and HUD text visibly blurry.
-  DPR = Math.min(Math.max(window.devicePixelRatio||1, 2), 3);
+  // Эко-режим: рендерим меньше пикселей — телефон греется заметно меньше.
+  DPR = ecoOn() ? Math.min(window.devicePixelRatio||1, 1.35)
+                : Math.min(Math.max(window.devicePixelRatio||1, 2), 2.5);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cx.setTransform(DPR,0,0,DPR,0,0);
@@ -290,8 +298,8 @@ const ETYPES={
 };
 /* per-minute spawn director (VS-style waves, 30-minute run) */
 const WAVES=[
-  {types:['trooper'],                              int:1.10, batch:1},
-  {types:['trooper','scout'],                      int:0.95, batch:1},
+  {types:['trooper'],                              int:0.55, batch:2},
+  {types:['trooper','scout'],                      int:0.70, batch:2},
   {types:['scout','trooper'],                      int:0.80, batch:2, ring:'scout'},
   {types:['trooper','tusken','scout'],             int:0.75, batch:2},
   {types:['tusken','trooper','jawa'],              int:0.70, batch:2},
@@ -343,11 +351,17 @@ function newGame(){
       inv:0, aimA:0, lastMove:{x:1,y:0}, swingT:0,
     },
     enemies:[], slashes:[], bullets:[], eshots:[], gems:[], pickups:[], parts:[], dmgTexts:[], zones:[], drones:[],
-    spawnT:1, ringDone:-1, bossDone:-1, eliteT:100, crateT:14, pitTick:0,
+    spawnT:0.4, ringDone:-1, bossDone:-1, eliteT:100, crateT:14, pitTick:0,
     joy:null, target:null,
     bossRef:null, vaderKilled:false,
     droneAngle:0, droneTimer:0, dronesActive:false, droneLife:0,
   };
+  // динамичный старт: империя уже окружает — первые враги видны сразу
+  for(let i=0;i<12;i++){
+    const a=i/12*TAU+rnd(-0.2,0.2);
+    const R=Math.min(W,H)*0.42/cameraZoom()+rnd(0,140);
+    spawnEnemy(i%3===0?'scout':'trooper', Math.cos(a)*R, Math.sin(a)*R, 1);
+  }
 }
 
 /* ============================================================
@@ -1293,40 +1307,46 @@ function draw(){
     cx.beginPath(); cx.arc(G.joy.sx+dx/d*cl,G.joy.sy+dy/d*cl,20,0,TAU); cx.fill();
   }
 
-  drawPlayerHealth(camX,camY,zoom);
   drawHUD();
 }
 
 /* ---------- top HUD (screen-space; keeps Telegram top chrome clear) ---------- */
 function drawHUD(){
   const p=G.p;
-  // тонкая XP-полоса на самом верху (декор, не интерактив)
-  cx.fillStyle='rgba(5,8,18,.7)'; cx.fillRect(0,0,W,7);
-  const xr=clamp(p.xp/p.xpNext,0,1);
-  const grd=cx.createLinearGradient(0,0,W,0);
-  grd.addColorStop(0,'#2f7fd8'); grd.addColorStop(1,'#5ec8ff');
-  cx.fillStyle=grd; cx.fillRect(0,0,W*xr,7);
   // таймер по центру (ниже верхней safe-зоны Telegram)
   cx.textAlign='center'; cx.font='bold 22px Verdana';
   cx.strokeStyle='rgba(0,0,0,.75)'; cx.lineWidth=4;
   cx.strokeText(fmtTime(G.time), W/2, 84);
   cx.fillStyle=G.time>=1500?'#ff8d6b':'#fff'; cx.fillText(fmtTime(G.time), W/2, 84);
-  // уровень слева + иконки оружия
-  cx.textAlign='left'; cx.font='bold 12px Verdana';
-  cx.strokeStyle='rgba(0,0,0,.75)'; cx.lineWidth=3;
-  cx.strokeText('УР '+p.lvl, 10, 78); cx.fillStyle='#ffd76a'; cx.fillText('УР '+p.lvl, 10, 78);
+  // иконки оружия слева сверху
   let wx=10;
-  cx.font='15px serif';
+  cx.textAlign='left'; cx.font='15px serif';
   for(const w of p.weapons){
     cx.fillStyle='rgba(10,16,34,.72)';
-    cx.beginPath(); cx.roundRect(wx,86,25,25,6); cx.fill();
-    cx.fillText(WEAPONS[w.id].ico,wx+3,104);
+    cx.beginPath(); cx.roundRect(wx,72,25,25,6); cx.fill();
+    cx.fillText(WEAPONS[w.id].ico,wx+3,90);
     cx.font='bold 9px Verdana';
     cx.fillStyle=w.evolved?'#ff8d6b':'#ffd76a';
-    cx.fillText(w.evolved?'EV':w.lvl,wx+14,112);
+    cx.fillText(w.evolved?'EV':w.lvl,wx+14,98);
     cx.font='15px serif';
     wx+=29;
   }
+  // минимальный блок HP+XP снизу слева
+  const bw2=Math.min(W*0.26,190), bx=12;
+  const byH=H-34, byX=H-20;
+  cx.fillStyle='rgba(4,8,18,.66)';
+  cx.beginPath(); cx.roundRect(bx-6,byH-6,bw2+12,32,10); cx.fill();
+  const hr=clamp(p.hp/p.hpMax,0,1);
+  cx.fillStyle='rgba(74,22,32,.92)'; cx.beginPath(); cx.roundRect(bx,byH,bw2,9,4.5); cx.fill();
+  if(hr>0){ cx.fillStyle=hr>0.35?'#63e88e':'#ff5b67'; cx.beginPath(); cx.roundRect(bx,byH,Math.max(9,bw2*hr),9,4.5); cx.fill(); }
+  const xr=clamp(p.xp/p.xpNext,0,1);
+  cx.fillStyle='#182038'; cx.beginPath(); cx.roundRect(bx,byX,bw2,5,2.5); cx.fill();
+  if(xr>0){ cx.fillStyle='#5ec8ff'; cx.beginPath(); cx.roundRect(bx,byX,Math.max(5,bw2*xr),5,2.5); cx.fill(); }
+  cx.font='bold 10px Verdana';
+  cx.strokeStyle='rgba(0,0,0,.8)'; cx.lineWidth=3;
+  const hpTxt=Math.ceil(p.hp)+'/'+Math.ceil(p.hpMax);
+  cx.strokeText(hpTxt, bx+bw2+10, byH+9); cx.fillStyle='#fff'; cx.fillText(hpTxt, bx+bw2+10, byH+9);
+  cx.strokeText('УР '+p.lvl, bx+bw2+10, byX+6); cx.fillStyle='#ffd76a'; cx.fillText('УР '+p.lvl, bx+bw2+10, byX+6);
   // золото и убийства справа, ниже кнопки паузы
   cx.font='bold 13px Verdana'; cx.textAlign='right';
   cx.strokeStyle='rgba(0,0,0,.75)'; cx.lineWidth=3;
@@ -1334,20 +1354,20 @@ function drawHUD(){
   cx.strokeText('🪙 '+G.goldRun, W-14, 152); cx.fillStyle='#ffd76a'; cx.fillText('🪙 '+G.goldRun, W-14, 152);
   // полоса босса снизу
   if(G.bossRef&&G.bossRef.hp>0&&!G.bossRef.emperor){
-    const e=G.bossRef, bw=Math.min(W*0.6,520);
-    cx.fillStyle='rgba(5,8,18,.8)'; cx.fillRect(W/2-bw/2-3,H-36,bw+6,22);
-    cx.fillStyle='#411'; cx.fillRect(W/2-bw/2,H-33,bw,14);
-    cx.fillStyle='#ff4b4b'; cx.fillRect(W/2-bw/2,H-33,bw*clamp(e.hp/e.hpMax,0,1),14);
+    const e=G.bossRef, bw=Math.min(W*0.5,440);
+    cx.fillStyle='rgba(5,8,18,.8)'; cx.fillRect(W/2-bw/2-3,H-62,bw+6,22);
+    cx.fillStyle='#411'; cx.fillRect(W/2-bw/2,H-59,bw,14);
+    cx.fillStyle='#ff4b4b'; cx.fillRect(W/2-bw/2,H-59,bw*clamp(e.hp/e.hpMax,0,1),14);
     cx.fillStyle='#fff'; cx.font='bold 11px Verdana'; cx.textAlign='center';
     const nm={atst:'AT-ST «ИМПЕРСКИЙ ШАГОХОД»',maul:'ДАРТ МОЛ',boba:'БОБА ФЕТТ',inquis:'ВЕЛИКИЙ ИНКВИЗИТОР',vader:'ДАРТ ВЕЙДЕР'}[e.type]||'БОСС';
     cx.strokeStyle='rgba(0,0,0,.7)'; cx.lineWidth=3;
-    cx.strokeText(nm, W/2, H-21); cx.fillText(nm, W/2, H-21);
+    cx.strokeText(nm, W/2, H-47); cx.fillText(nm, W/2, H-47);
   }
   if(G.bossRef&&G.bossRef.emperor){
     cx.font='bold 14px Verdana'; cx.textAlign='center';
     cx.strokeStyle='rgba(0,0,0,.8)'; cx.lineWidth=4;
     const msg='⚡ ИМПЕРАТОР ПРИШЁЛ — БЕГИ ДО 30:00 ⚡';
-    cx.strokeText(msg, W/2, H-24); cx.fillStyle='#c9a0ff'; cx.fillText(msg, W/2, H-24);
+    cx.strokeText(msg, W/2, H-50); cx.fillStyle='#c9a0ff'; cx.fillText(msg, W/2, H-50);
   }
 }
 
@@ -1397,12 +1417,17 @@ function drawGround(camX,camY,viewW,viewH){
     const o=cellObstacle(i,j); if(!o) continue;
     drawTerrain(o);
   }
-  // vignette (screen-space: reset world transform)
-  cx.save(); cx.setTransform(DPR,0,0,DPR,0,0);
-  const vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.72);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(10,5,25,0.42)');
-  cx.fillStyle=vg; cx.fillRect(0,0,W,H);
-  cx.restore();
+  // vignette (screen-space: reset world transform; gradient cached per size)
+  if(!ecoOn()){
+    cx.save(); cx.setTransform(DPR,0,0,DPR,0,0);
+    if(!drawGround._vg||drawGround._vgW!==W||drawGround._vgH!==H){
+      const vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.72);
+      vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(10,5,25,0.42)');
+      drawGround._vg=vg; drawGround._vgW=W; drawGround._vgH=H;
+    }
+    cx.fillStyle=drawGround._vg; cx.fillRect(0,0,W,H);
+    cx.restore();
+  }
 }
 function drawTerrain(o){
   cx.save(); cx.translate(o.x,o.y);
@@ -1995,25 +2020,6 @@ function drawBullet(b){
   cx.restore();
 }
 
-/* ---------- minimal in-game HUD ---------- */
-function drawPlayerHealth(camX,camY,zoom){
-  const p=G.p;
-  const px=W/2+(p.x-camX)*zoom;
-  const py=H/2+(p.y-camY)*zoom-p.r*zoom-24;
-  const bw=74, bh=8, ratio=clamp(p.hp/p.hpMax,0,1);
-  cx.fillStyle='rgba(4,8,18,.82)';
-  cx.beginPath(); cx.roundRect(px-bw/2-2,py-2,bw+4,bh+4,6); cx.fill();
-  cx.fillStyle='rgba(74,22,32,.95)';
-  cx.beginPath(); cx.roundRect(px-bw/2,py,bw,bh,4); cx.fill();
-  if(ratio>0){
-    cx.fillStyle=ratio>0.35?'#63e88e':'#ff5b67';
-    cx.beginPath(); cx.roundRect(px-bw/2,py,Math.max(bh,bw*ratio),bh,4); cx.fill();
-  }
-  cx.font='bold 10px Verdana'; cx.textAlign='center';
-  cx.strokeStyle='rgba(0,0,0,.8)'; cx.lineWidth=3;
-  const hpText=Math.ceil(p.hp)+' / '+Math.ceil(p.hpMax);
-  cx.strokeText(hpText,px,py-5); cx.fillStyle='#fff'; cx.fillText(hpText,px,py-5);
-}
 
 /* ============================================================
    FLOW / UI
@@ -2121,6 +2127,11 @@ function renderSettings(){
   el('zoomValue').textContent=Math.round(cameraZoom()*100)+'%';
   el('soundBtn').textContent=muted?'🔇 Звук: выключен':'🔊 Звук: включён';
   el('shakeBtn').textContent=save.settings.shake?'📳 Тряска экрана: включена':'📴 Тряска экрана: выключена';
+  el('ecoBtn').textContent=save.settings.eco?'🔋 Экономия батареи: вкл':'🪫 Экономия батареи: выкл';
+}
+function setZoom(v){
+  save.settings.zoom=clamp(Math.round(v*20)/20,0.5,1);
+  persist(); renderSettings();
 }
 function openSettings(from){
   settingsFrom=from;
@@ -2146,6 +2157,11 @@ el('soundBtn').onclick=()=>{
 };
 el('shakeBtn').onclick=()=>{
   save.settings.shake=!save.settings.shake; persist(); renderSettings();
+};
+el('zoomMinus').onclick=()=>setZoom(cameraZoom()-0.05);
+el('zoomPlus').onclick=()=>setZoom(cameraZoom()+0.05);
+el('ecoBtn').onclick=()=>{
+  save.settings.eco=!save.settings.eco; persist(); resize(); renderSettings();
 };
 
 /* shop */
