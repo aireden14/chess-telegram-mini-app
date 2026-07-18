@@ -228,7 +228,7 @@
 <div id="songLabel"></div>
 <div id="playHelp" class="hidden">
   <b>РЕЖЬ ПО БЕЛОЙ СТРЕЛКЕ</b>
-  <span>проведи пальцем через куб в указанную сторону</span>
+  <span>держи палец и размахивай мечом через куб</span>
 </div>
 <div id="nextCue" class="hidden"><small>СЛЕДУЮЩИЙ РЕЗ</small><span id="nextCueArrow">↑</span></div>
 
@@ -696,17 +696,44 @@ const hitCells = [];
 const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const raycaster = new THREE.Raycaster();
 const blades = new Map();
-let bladeCount = 0;
+const pointerSlots = new Map();
+const slotOwners = [null, null];
 const TRAIL_N = 24;
+const SABER_LENGTH = 1.65;
 function makeBlade(id){
-  const colKey = bladeCount % 2 === 0 ? 'cyan' : 'magenta';
-  bladeCount++;
+  const colKey = id === 'touch1' ? 'magenta' : 'cyan';
   const col = NOTE_COLORS[colKey].hex;
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(.12, 12, 12), new THREE.MeshBasicMaterial({ color:0xffffff }));
-  const halo = new THREE.Mesh(new THREE.SphereGeometry(.28, 12, 12),
-    new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.5, blending:THREE.AdditiveBlending, depthWrite:false }));
-  tip.add(halo);
-  scene.add(tip);
+  const saber = new THREE.Group();
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(.095, .12, .42, 14),
+    new THREE.MeshStandardMaterial({ color:0x242535, metalness:.88, roughness:.22 })
+  );
+  handle.position.y = -.12;
+  const grip = new THREE.Mesh(
+    new THREE.TorusGeometry(.12, .025, 8, 18),
+    new THREE.MeshBasicMaterial({ color:0xffffff })
+  );
+  grip.rotation.x = Math.PI / 2;
+  grip.position.y = .11;
+  const bladeCore = new THREE.Mesh(
+    new THREE.CylinderGeometry(.038, .052, SABER_LENGTH, 14),
+    new THREE.MeshBasicMaterial({ color:0xffffff, depthWrite:false })
+  );
+  bladeCore.position.y = SABER_LENGTH / 2 + .14;
+  const bladeGlow = new THREE.Mesh(
+    new THREE.CylinderGeometry(.12, .14, SABER_LENGTH, 14),
+    new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.42, blending:THREE.AdditiveBlending, depthWrite:false })
+  );
+  bladeGlow.position.copy(bladeCore.position);
+  const tipGlow = new THREE.Mesh(
+    new THREE.SphereGeometry(.16, 12, 12),
+    new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.55, blending:THREE.AdditiveBlending, depthWrite:false })
+  );
+  tipGlow.position.y = SABER_LENGTH + .14;
+  saber.add(handle, grip, bladeGlow, bladeCore, tipGlow);
+  saber.position.z = .12;
+  saber.renderOrder = 7;
+  scene.add(saber);
   const trailGeo = new THREE.BufferGeometry();
   trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 2 * 3), 3));
   const idxArr = [];
@@ -720,17 +747,34 @@ function makeBlade(id){
     color:col, transparent:true, opacity:.75, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false }));
   trail.frustumCulled = false;
   scene.add(trail);
-  const b = { id, tip, trail, trailGeo, points:[], pos:new THREE.Vector3(0,1.2,0), prev:new THREE.Vector3(0,1.2,0),
-              target:null, speed:0, fresh:true, color:col };
+  const start = new THREE.Vector3(0, .35, .12);
+  const b = {
+    id, saber, trail, trailGeo, points:[],
+    pos:start.clone(), prev:start.clone(), target:start.clone(), velocity:new THREE.Vector3(),
+    tipWorld:new THREE.Vector3(0, .35 + SABER_LENGTH, .12), prevTip:new THREE.Vector3(0, .35 + SABER_LENGTH, .12),
+    angle:0, targetAngle:0, angularVelocity:0,
+    speed:0, fresh:true, held:false, color:col,
+  };
   blades.set(id, b);
   return b;
 }
 function removeBlade(id){
   const b = blades.get(id);
   if (!b) return;
-  scene.remove(b.tip); scene.remove(b.trail);
+  scene.remove(b.saber); scene.remove(b.trail);
+  b.saber.traverse(obj => {
+    obj.geometry?.dispose();
+    if (Array.isArray(obj.material)) obj.material.forEach(mat => mat.dispose());
+    else obj.material?.dispose();
+  });
   b.trailGeo.dispose();
+  b.trail.material.dispose();
   blades.delete(id);
+}
+function clearBlades(){
+  for (const id of [...blades.keys()]) removeBlade(id);
+  pointerSlots.clear();
+  slotOwners[0] = slotOwners[1] = null;
 }
 function pointerToWorld(x, y, out){
   const nx = (x / innerWidth) * 2 - 1, ny = -(y / innerHeight) * 2 + 1;
@@ -740,7 +784,7 @@ function pointerToWorld(x, y, out){
 const sideV = new THREE.Vector3(), zAxis = new THREE.Vector3(0, 0, 1);
 function updateTrail(b){
   const now = performance.now();
-  b.points.push({ p:b.pos.clone(), t:now });
+  b.points.push({ p:b.tipWorld.clone(), t:now });
   while (b.points.length && now - b.points[0].t > 130) b.points.shift();
   while (b.points.length > TRAIL_N) b.points.shift();
   const pos = b.trailGeo.attributes.position;
@@ -921,6 +965,7 @@ function startLevel(song, diffIdx){
   G.score = 0; G.combo = 0; G.maxCombo = 0; G.mult = 1; G.multProg = 0;
   G.energy = .5; G.cuts = 0; G.misses = 0; G.badCuts = 0;
   G.nextSpawn = 0; G.failed = false; G.over = false; G.shake = 0;
+  clearBlades();
   for (const a of G.active) scene.remove(a.mesh);
   G.active = [];
   clearFx();
@@ -969,6 +1014,7 @@ function endLevel(){
   clearTimeout(helpTimer);
   $('playHelp').classList.add('hidden');
   $('nextCue').classList.add('hidden');
+  clearBlades();
   comboEl.classList.remove('show');
   const acc = G.map.maxScore ? G.score / G.map.maxScore : 0;
   const rank = G.failed ? 'E' : rankOf(acc);
@@ -1034,6 +1080,7 @@ function exitToMenu(){
   clearTimeout(helpTimer);
   $('playHelp').classList.add('hidden');
   $('nextCue').classList.add('hidden');
+  clearBlades();
   comboEl.classList.remove('show');
   buildMenu();
   $('menu').classList.remove('hidden');
@@ -1109,16 +1156,31 @@ checkOrientation();
    Клинок следует за пальцем/мышью из любой точки экрана.
    Тап в точку — клинок плавно летит туда. Мультитач = второй клинок. */
 const tmpV = new THREE.Vector3();
+function bladeIdForPointer(e, isDown){
+  if (e.pointerType === 'mouse') return 'mouse';
+  if (!pointerSlots.has(e.pointerId) && isDown){
+    const slot = slotOwners[0] === null ? 0 : slotOwners[1] === null ? 1 : -1;
+    if (slot < 0) return null;
+    slotOwners[slot] = e.pointerId;
+    pointerSlots.set(e.pointerId, 'touch' + slot);
+  }
+  return pointerSlots.get(e.pointerId) || null;
+}
 function handlePointer(e, isDown){
-  const id = e.pointerType === 'mouse' ? 'mouse' : e.pointerId;
+  const id = bladeIdForPointer(e, isDown);
+  if (!id) return;
   let b = blades.get(id);
   if (!b){
     if (e.pointerType !== 'mouse' && !isDown) return;
     b = makeBlade(id);
   }
   if (pointerToWorld(e.clientX, e.clientY, tmpV)){
-    if (b.fresh || isDown){ b.pos.copy(tmpV); b.prev.copy(tmpV); b.points.length = 0; b.fresh = false; }
+    if (b.fresh){
+      b.pos.copy(tmpV); b.prev.copy(tmpV); b.target.copy(tmpV);
+      b.velocity.set(0,0,0); b.points.length = 0; b.fresh = false;
+    }
     b.target = tmpV.clone();
+    b.held = true;
   }
 }
 addEventListener('pointerdown', e => {
@@ -1130,13 +1192,24 @@ addEventListener('pointermove', e => {
   if (G.mode !== 'play' && G.mode !== 'countdown') return;
   handlePointer(e, false);
 });
-addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') removeBlade(e.pointerId); });
-addEventListener('pointercancel', e => { if (e.pointerType !== 'mouse') removeBlade(e.pointerId); });
+function releasePointer(e){
+  if (e.pointerType === 'mouse') return;
+  const id = pointerSlots.get(e.pointerId);
+  if (!id) return;
+  const b = blades.get(id);
+  if (b) b.held = false;
+  const slot = Number(id.replace('touch',''));
+  slotOwners[slot] = null;
+  pointerSlots.delete(e.pointerId);
+}
+addEventListener('pointerup', releasePointer);
+addEventListener('pointercancel', releasePointer);
 addEventListener('contextmenu', e => e.preventDefault());
 
 /* ---------------- main loop ---------------- */
 let lastT = performance.now();
 const bladeVel = new THREE.Vector3();
+const saberDir = new THREE.Vector3();
 
 function tick(){
   requestAnimationFrame(tick);
@@ -1171,12 +1244,29 @@ function tick(){
       camBase.z);
   } else camera.position.copy(camBase);
 
-  // клинки: плавно тянутся к цели (тап в точку = клинок летит туда)
+  // Мечи: пружинная рукоять + инерция поворота. Палец задаёт цель,
+  // а клинок физически догоняет её и продолжает движение после резкого замаха.
   for (const b of blades.values()){
     b.prev.copy(b.pos);
-    if (b.target) b.pos.lerp(b.target, 1 - Math.pow(.0001, dt));
-    b.speed = b.pos.distanceTo(b.prev) / Math.max(dt, .001);
-    b.tip.position.copy(b.pos);
+    b.prevTip.copy(b.tipWorld);
+    if (b.target){
+      const stiffness = b.held ? 105 : 58;
+      const damping = b.held ? 17 : 12;
+      b.velocity.addScaledVector(tmpV.copy(b.target).sub(b.pos), stiffness * dt);
+      b.velocity.multiplyScalar(Math.exp(-damping * dt));
+      b.pos.addScaledVector(b.velocity, dt);
+    }
+    const moveSpeed = Math.hypot(b.velocity.x, b.velocity.y);
+    if (moveSpeed > .18) b.targetAngle = Math.atan2(b.velocity.y, b.velocity.x) - Math.PI / 2;
+    const angleDelta = Math.atan2(Math.sin(b.targetAngle - b.angle), Math.cos(b.targetAngle - b.angle));
+    b.angularVelocity += angleDelta * 72 * dt;
+    b.angularVelocity *= Math.exp(-11 * dt);
+    b.angle += b.angularVelocity * dt;
+    b.saber.position.copy(b.pos);
+    b.saber.rotation.z = b.angle;
+    saberDir.set(-Math.sin(b.angle), Math.cos(b.angle), 0);
+    b.tipWorld.copy(b.pos).addScaledVector(saberDir, SABER_LENGTH + .14);
+    b.speed = b.tipWorld.distanceTo(b.prevTip) / Math.max(dt, .001);
     updateTrail(b);
   }
 
@@ -1204,26 +1294,26 @@ function tick(){
     }
     // разрезы
     if (!G.over) for (const b of blades.values()){
-      if (b.speed < 3.5) continue;
-      bladeVel.subVectors(b.pos, b.prev);
+      if (b.speed < .55) continue;
+      bladeVel.subVectors(b.tipWorld, b.prevTip);
       const segLen = Math.hypot(bladeVel.x, bladeVel.y);
       if (segLen < .01) continue;
       for (const a of G.active){
         if (a.dead) continue;
         const z = a.mesh.position.z;
-        if (z < -4.2 || z > 1.35) continue;
-        // расстояние от центра ноты до отрезка prev→pos (в плоскости XY)
+        if (z < -6.5 || z > 1.4) continue;
+        // Расстояние до всего светового клинка, а не только до пути пальца.
         const ax = a.mesh.position.x, ay = a.mesh.position.y;
-        const px = b.prev.x, py = b.prev.y;
-        const dx = b.pos.x - px, dy = b.pos.y - py;
+        const px = b.pos.x, py = b.pos.y;
+        const dx = b.tipWorld.x - px, dy = b.tipWorld.y - py;
         const tt = clamp(((ax - px) * dx + (ay - py) * dy) / (dx * dx + dy * dy), 0, 1);
         const dist = Math.hypot(ax - (px + dx * tt), ay - (py + dy * tt));
-        if (dist > NOTE_SIZE * .78) continue;
+        if (dist > NOTE_SIZE * 1.02) continue;
         if (a.data.type !== 'bomb' && a.data.dir !== 8){
           const [ndx, ndy] = DIR_VEC[a.data.dir];
           const nl = Math.hypot(ndx, ndy);
           const dot = (bladeVel.x * ndx + bladeVel.y * ndy) / (segLen * nl);
-          if (dot < 0.26) continue; // рез должен идти по стрелке (±75°)
+          if (dot < -.08) continue; // мягкая помощь направления, ритм важнее идеального угла
         }
         cutNote(a, b, bladeVel, dist);
         if (G.over) break;
