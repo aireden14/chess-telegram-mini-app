@@ -90,47 +90,31 @@ backend/src/
 Главная ближайшая цель пользователя: **из этого репозитория напрямую апгрейдить Telegram-бота** (`Liquid_Chess_bot`) и Mini App, не теряя контекст проекта.
 - Mini App авторизация уже есть: `frontend/index.html` подключает Telegram WebApp SDK, фронт отправляет `initData`, backend проверяет подпись в `routes/auth.ts` через `BOT_TOKEN`. Для локальной разработки вне Telegram используй `DEV_ALLOW_FAKE_AUTH=1`.
 - `BOT_USERNAME` возвращается из `/api/auth/telegram` и используется для deep-link invite (`https://t.me/<bot>/app?...`) в шахматах/шашках.
-- Webhook-заготовка есть, но сейчас это часть **незакоммиченного WIP**: `routes/telegramWebhook.ts`, `scripts/set-telegram-webhook.ts`, импорт/роут в `backend/src/index.ts`, env `TELEGRAM_WEBHOOK_SECRET`/`FRONTEND_URL`/`BACKEND_URL`. Не деплой её вместе с catan WIP случайно.
+- Webhook закоммичен: `routes/telegramWebhook.ts`, `scripts/set-telegram-webhook.ts`, роут `/api/telegram`. Env: `TELEGRAM_WEBHOOK_SECRET`/`FRONTEND_URL`/`BACKEND_URL`.
 - Текущий webhook умеет только отвечать на `/start` кнопкой открытия Mini App. Следующий безопасный апгрейд: вынести webhook в чистый worktree от `origin/main`, добавить команды/меню бота и проверить `npm run build` перед деплоем.
-- Для прод-настройки webhook нужен `BOT_TOKEN`, `BACKEND_URL=https://chess-telegram-mini-app.onrender.com`, `FRONTEND_URL=https://chess-telegram-mini-app.vercel.app`, случайный `TELEGRAM_WEBHOOK_SECRET`, затем `cd backend && npm run telegram:webhook:set`.
+- Для прод-настройки webhook нужен `BOT_TOKEN`, `BACKEND_URL=https://gamepass-backend.fly.dev`, `FRONTEND_URL=https://chess-telegram-mini-app.vercel.app`, случайный `TELEGRAM_WEBHOOK_SECRET`, затем `cd backend && npm run telegram:webhook:set`.
 
 ## Деплой (и ГРАБЛИ — читай обязательно)
 - **Frontend → Vercel**, автодеплой при push в `main`. Есть **3 Vercel-проекта** (главный + `-1nbe` + `-s6br`), все собираются из репо. Сборка ~1–2 мин.
-- **Backend → Render free**, автодеплой при push, но **сборка ~6–7 минут** (роут может быть 404 первые ~5 мин — это норм, поллируй до 401/200). Бесплатный инстанс **засыпает** после 15 мин; будит GitHub Actions `keepalive.yml` (переменная репо `BACKEND_HEALTH_URL`).
+- **Backend → Fly.io**: app `gamepass-backend`, region `fra`, URL `https://gamepass-backend.fly.dev`. Конфиги в `backend/Dockerfile` и `backend/fly.toml`; health `GET /api/health`.
+- **DB → Supabase Postgres**, region West EU. Runtime использует transaction pooler (`DATABASE_URL`, port 6543), а Prisma schema sync — session pooler (`DIRECT_URL`, port 5432). Оба URL хранятся только в Fly secrets.
+- `fly.toml` запускает безопасный `prisma db push` перед каждым релизом; потеря данных не подтверждается автоматически.
 - **`VITE_API_URL` обязателен**: без него `vite build` зашивает `localhost:3001` и прод-мини-апп не видит API. Зафиксировано в `frontend/.env.production` (коммитится; `.gitignore` игнорит только `.env`, не `.env.*`).
 - **gh CLI**: `/Users/windsurf/dev/re/.local/gh_2.91.0_macOS_arm64/bin/gh` (НЕ в PATH). Токен в keyring протухает; переавторизация `gh auth login -h github.com -p https -w` — запускать в терминале пользователя (device-код истекает за время чат-раунда). Логиниться под `aireden14`.
 
-### 🔴 Эфемерная БД = сброс данных при каждом деплое
-`provider = sqlite`, а `backend/prisma/dev.db` **закоммичена в репо** и ЭТО и есть прод-БД.
-Render free = эфемерный диск → при каждом деплое БД **перезаписывается закоммиченным файлом**,
-т.е. **рейтинги/достижения игроков обнуляются**. Старт — `node dist/index.js`, **`prisma migrate deploy` НЕ запускается**.
-- Чтобы добавить колонку/таблицу так, чтобы прод не упал: применить изменение К ЗАКОММИЧЕННОЙ `dev.db`
-  (через `prisma db push` в worktree, см. ниже) и закоммитить файл .db. Иначе прод-Prisma упадёт на отсутствующем поле.
-- **Настоящее решение (открытая задача)**: увести на постоянную внешнюю БД (Neon/Supabase Postgres
-  или платный Render-диск) + `prisma migrate deploy` на деплое. Пользователь это просил («чтобы не сбрасывалось»).
-
-### 🟠 Незакоммиченный catan/webhook backend WIP
-В рабочем дереве `backend/src/index.ts` и `schema.prisma` имеют **незакоммиченные** правки
-(catan-роутер, telegram webhook, `GET /`) + untracked файлы `routes/catan.ts`, `services/catanService.ts`,
-`socket/catan.ts`, `src/catan/`, `prisma/migrations/..._add_catan/`. Это чужой недоделанный нативный Катан.
-**Не тащи его в прод случайно.** Чтобы задеплоить backend-изменение ЧИСТО (без catan):
-```bash
-git worktree add /tmp/deploy origin/main      # чистая ветка без catan WIP
-# внеси ТОЛЬКО нужные правки в /tmp/deploy, для БД: cd backend && npm install && npx prisma db push
-cd /tmp/deploy/backend && npm run build        # проверить сборку
-git -C /tmp/deploy commit -am "..."; git -C /tmp/deploy push <https-url> HEAD:main
-git worktree remove /tmp/deploy --force
-```
+### Постоянные сохранения
+- Online-шахматы пишут FEN, PGN, таймеры, статус и рейтинг в Supabase на каждом ходе. Выход из Mini App не удаляет партию.
+- Локальные шахматы `/local` по-прежнему хранят FEN в `localStorage` под ключом `chess-local-game-v1`.
+- Не возвращать `provider = sqlite` и не класть production-данные в `prisma/dev.db`.
 
 ## Мультиагентная координация
 - `git fetch` ПЕРЕД работой. Локальный `main` может отставать от `origin/main`, потому что часть
   пушей делается из worktree (после этого `git reset --soft origin/main` чтобы выровнять, рабочее дерево не пострадает).
 - Если push отклонён (non-fast-forward) — НЕ ребейзи поверх грязного дерева; используй worktree +
   `git cherry-pick <твой-коммит>` на `origin/main`, потом push.
-- Прод URL: backend `https://chess-telegram-mini-app.onrender.com`, фронт `https://chess-telegram-mini-app.vercel.app`.
+- Прод URL: backend `https://gamepass-backend.fly.dev`, фронт `https://chess-telegram-mini-app.vercel.app`.
 
 ## Открытые задачи (на момент написания)
 - **Апгрейд Telegram-бота**: добавить полноценные команды/меню и задеплоить webhook чисто, без незакоммиченного catan WIP.
-- **Персистентность БД** (главный приоритет пользователя): уйти с эфемерного SQLite на постоянную БД.
 - **Гайд по покупке сервера** — пользователь просил пошаговый гайд (дешёвый always-on VPS с постоянной памятью под бэкенд+БД+будущие идеи).
 - История changelog ведётся в `frontend/src/data/changelog.ts` (+ `CHANGELOG.md`); при заметной фиче добавляй версию сверху.

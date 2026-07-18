@@ -8,7 +8,9 @@
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "catan:selfplay": "tsx scripts/catan-selfplay.ts",
+    "telegram:webhook:set": "tsx scripts/set-telegram-webhook.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

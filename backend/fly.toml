@@ -1,0 +1,24 @@
+# GamePass backend on Fly.io.
+# Deploy: fly launch --no-deploy (first time, to create the app), then fly deploy.
+# Required secrets: DATABASE_URL, DIRECT_URL, TELEGRAM_BOT_TOKEN, JWT_SECRET.
+app = "gamepass-backend"
+primary_region = "fra"
+
+[build]
+
+# Sync the Prisma schema to Supabase before each release goes live.
+[deploy]
+  # Refuse destructive schema changes instead of silently dropping production data.
+  release_command = "/app/node_modules/.bin/prisma db push --schema /app/prisma/schema.prisma --skip-generate"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  # Keep the backend always-on: no sleep, so no cold-start DB timeouts.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

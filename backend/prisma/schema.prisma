@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime uses the Supabase transaction pooler; schema changes use the session pooler.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -27,6 +29,10 @@ model User {
   gamesAsWhite  Game[]   @relation("WhitePlayer")
   gamesAsBlack  Game[]   @relation("BlackPlayer")
 
+  catanPlayers  CatanPlayer[] @relation("CatanPlayers")
+  catanHosted   CatanGame[]   @relation("CatanHost")
+  catanWon      CatanGame[]   @relation("CatanWinner")
+
   sudokuProfile SudokuProfile? @relation("SudokuProfile")
 }
 
@@ -48,6 +54,41 @@ model SudokuProfile {
   achievementsJson String   @default("[]")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model CatanGame {
+  id            String   @id
+  status        String   @default("WAITING") // WAITING | SETUP | ACTIVE | COMPLETED | CANCELLED
+  maxPlayers    Int      @default(4)
+  hostId        Int
+  host          User     @relation("CatanHost", fields: [hostId], references: [id])
+  winnerId      Int?
+  winner        User?    @relation("CatanWinner", fields: [winnerId], references: [id])
+
+  boardJson     String
+  stateJson     String
+  settingsJson  String   @default("{}")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  finishedAt    DateTime?
+
+  players       CatanPlayer[]
+}
+
+model CatanPlayer {
+  id        Int        @id @default(autoincrement())
+  gameId    String
+  game      CatanGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  userId    Int?
+  user      User?      @relation("CatanPlayers", fields: [userId], references: [id])
+  seat      Int
+  color     String
+  isBot     Boolean    @default(false)
+  botLevel  String?
+  hasLeft   Boolean    @default(false)
+
+  @@unique([gameId, seat])
 }
 
 model Game {
