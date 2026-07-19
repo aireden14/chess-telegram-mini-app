@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.7.0",
+    date: "20 июля 2026, 01:55 (Алматы)",
+    title: "Jedi Survivors: церемония сундука",
+    items: [
+      "🎰 Сундуки открываются слот-машиной с фанфарами; тап пропускает анимацию",
+      "✨ Редкие сундуки на 3 и 5 наград (шанс растёт от удачи), эволюции и юнионы — особой церемонией",
+    ],
+  },
+  {
     version: "3.6.0",
     date: "20 июля 2026, 01:30 (Алматы)",
     title: "Jedi Survivors: юнионы и баланс",

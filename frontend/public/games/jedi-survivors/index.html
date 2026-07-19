@@ -67,6 +67,11 @@
   #shop .gold { color:#ffd76a; font-size:16px; margin-bottom:14px; }
   #shopItems { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:92vw; }
   .shopItem { background:#161e36; border:1px solid #3a4770; border-radius:12px; padding:12px; width:150px; cursor:pointer; }
+  .chest-slot { width:76px; height:76px; font-size:44px; display:flex; align-items:center; justify-content:center;
+    background:#161e36; border:2px solid #3a4770; border-radius:14px; transition:transform .15s, border-color .15s, box-shadow .15s; }
+  .chest-slot.lock { border-color:#ffd76a; box-shadow:0 0 20px rgba(255,215,106,.4); transform:scale(1.08); }
+  @keyframes chestShake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-7deg)} 75%{transform:rotate(7deg)} }
+  #chestBox.shake { animation:chestShake .35s infinite; }
   .shopItem .ico { font-size:26px; }
   .shopItem .nm { color:#fff; font-size:13px; font-weight:700; margin:4px 0; }
   .shopItem .rk { color:#7dffa0; font-size:12px; }
@@ -123,6 +128,15 @@
   <h2 id="luTitle">НОВЫЙ УРОВЕНЬ!</h2>
   <div id="cards"></div>
   <div id="luActions" class="hidden" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center"></div>
+</div>
+
+<div id="chestCer" class="overlay hidden" style="background:rgba(4,7,18,.88)">
+  <div id="chestBox" style="font-size:64px;line-height:1">📦</div>
+  <h2 id="chestTitle">ИМПЕРСКИЙ СУНДУК</h2>
+  <div id="chestItems" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"></div>
+  <div id="chestGold" style="min-height:40px;margin-top:10px;text-align:center;color:#ffd76a;font-weight:700"></div>
+  <button class="btn btn-big hidden" id="chestCollect">🪙 ЗАБРАТЬ</button>
+  <div style="color:#66719b;font-size:11px;margin-top:8px">тап — пропустить анимацию</div>
 </div>
 
 <div id="paused" class="overlay hidden">
@@ -1409,30 +1423,67 @@ function openChest(){
   G.chestsRun++; G.zoomPulse=0.05;
   // золотая лихорадка как в VS: из сундука иногда льётся дождь монет
   if(Math.random()<0.3){ G.feverT=5; G.dmgTexts.push({x:G.p.x,y:G.p.y-44,v:'💰 ЗОЛОТАЯ ЛИХОРАДКА!',t:1.6,crit:true,str:true}); }
-  // evolution if eligible (VS rule: weapon max lvl + paired passive)
+  // церемония (как в VS): собираем награды заранее, показываем слот-машиной
+  const items=[];
   const evo=G.p.weapons.find(w=>w.lvl>=maxWLvl()&&!w.evolved&&(G.p.passives[WEAPONS[w.id].pair]||0)>0);
-  // юнион: обе эволюции пары готовы → сундук предлагает слить их в одно оружие
-  const un=UNIONS.find(u=>G.p.weapons.find(w=>w.id===u.a&&w.evolved)&&G.p.weapons.find(w=>w.id===u.b&&w.evolved));
+  const un=!evo&&UNIONS.find(u=>G.p.weapons.find(w=>w.id===u.a&&w.evolved)&&G.p.weapons.find(w=>w.id===u.b&&w.evolved));
   if(evo){
-    G.state='levelup';
-    luTitle.textContent='📦 ИМПЕРСКИЙ СУНДУК';
-    renderCards([{kind:'evo',id:evo.id}]);
+    evo.evolved=true; G.evosRun++;
+    items.push({ico:'🔥', nm:'🔥 '+EVOS[evo.id].nm+' (эволюция)', grand:true});
   } else if(un){
-    G.state='levelup';
-    luTitle.textContent='📦 ИМПЕРСКИЙ СУНДУК';
-    renderCards([{kind:'union',id:un.id}]);
+    const lvl=Math.max(...G.p.weapons.filter(w=>w.id===un.a||w.id===un.b).map(w=>w.lvl));
+    G.p.weapons=G.p.weapons.filter(w=>w.id!==un.a&&w.id!==un.b);
+    G.p.weapons.push({id:un.id,lvl,cd:0.3,evolved:true,union:true});
+    G.evosRun++;
+    items.push({ico:un.ico, nm:un.ico+' '+un.nm+' (юнион, слот свободен)', grand:true});
   } else {
-    // gold + random free upgrade
-    G.goldRun+=rndi(15,40);
-    const ups=upgradeOptions().filter(o=>o.kind!=='gold');
-    if(ups.length){
+    // редкость сундука: 1 / 3 / 5 предметов (удача повышает шанс)
+    const r=Math.random();
+    const count=r<0.05*G.p.luck?5:(r<0.22*G.p.luck?3:1);
+    for(let k=0;k<count;k++){
+      const ups=upgradeOptions().filter(o=>o.kind==='w-up'||o.kind==='w-new'||o.kind==='p'||o.kind==='lb');
+      if(!ups.length){ items.push({ico:'🪙', nm:'🪙 +25 кредитов'}); G.goldRun+=25; continue; }
       const o=ups[0];
-      if(o.kind==='w-up') G.p.weapons.find(w=>w.id===o.id).lvl++;
-      else if(o.kind==='w-new') G.p.weapons.push({id:o.id,lvl:1,cd:0.2,evolved:false});
-      else if(o.kind==='p') applyPassive(o.id);
+      if(o.kind==='w-up'||o.kind==='lb'){ G.p.weapons.find(w=>w.id===o.id).lvl++; items.push({ico:WINFO(o.id).ico, nm:WINFO(o.id).ico+' '+WINFO(o.id).nm+' +1 ур.'}); }
+      else if(o.kind==='w-new'){ G.p.weapons.push({id:o.id,lvl:1,cd:0.2,evolved:false}); items.push({ico:WINFO(o.id).ico, nm:WINFO(o.id).ico+' '+WINFO(o.id).nm+' (новое!)'}); }
+      else { applyPassive(o.id); items.push({ico:PASSIVES[o.id].ico, nm:PASSIVES[o.id].ico+' '+PASSIVES[o.id].nm+' +1'}); }
     }
-    G.dmgTexts.push({x:G.p.x,y:G.p.y-40,v:'📦 +улучшение!',t:1.4,crit:true,str:true});
   }
+  const gold=Math.round(rndi(15,40)*items.length*(G.rewardMul||1));
+  G.goldRun+=gold;
+  showChestCer(items,gold);
+}
+/* --- церемония сундука: слот-машина с фанфарами и пропуском по тапу --- */
+let chestTimer=null;
+function showChestCer(items,gold){
+  G.state='chest';
+  const box=el('chestBox'); box.classList.add('shake');
+  el('chestTitle').textContent=items.length>=5?'⭐ ЛЕГЕНДАРНЫЙ СУНДУК':(items.length>=3?'✨ РЕДКИЙ СУНДУК':(items[0].grand?'🔥 ОСОБЫЙ СУНДУК':'ИМПЕРСКИЙ СУНДУК'));
+  const win=el('chestItems'); win.innerHTML=''; el('chestGold').textContent='';
+  el('chestCollect').classList.add('hidden');
+  const spans=items.map(()=>{ const s=document.createElement('div'); s.className='chest-slot'; s.textContent='❔'; win.appendChild(s); return s; });
+  const POOL=['⚔️','⚡','🌀','🖐️','🛸','✨','💣','🔫','💫','🚀','🔗','🏹','❄️','📡','🔥','🗡','🧨','🗼','🔮','🛩','🍀','🧲','📈','🥋'];
+  let idx=0, tick=0;
+  const finish=()=>{
+    if(chestTimer){ clearInterval(chestTimer); chestTimer=null; }
+    box.classList.remove('shake');
+    items.forEach((it,i)=>{ spans[i].textContent=it.ico; spans[i].classList.add('lock'); });
+    el('chestGold').innerHTML=items.map(it=>it.nm).join('<br>')+'<br><br>🪙 +'+gold;
+    el('chestCollect').classList.remove('hidden');
+    S.chest();
+  };
+  chestTimer=setInterval(()=>{
+    tick++;
+    for(let i=idx;i<spans.length;i++) spans[i].textContent=POOL[rndi(0,POOL.length-1)];
+    if(tick%12===0){ spans[idx].textContent=items[idx].ico; spans[idx].classList.add('lock'); S.pick(); idx++; if(idx>=spans.length) finish(); }
+  },55);
+  el('chestCer').onclick=()=>{ if(chestTimer) finish(); }; // тап — пропуск анимации
+  el('chestCollect').onclick=e=>{
+    e.stopPropagation();
+    el('chestCer').classList.add('hidden');
+    if(G) G.state='playing';
+  };
+  el('chestCer').classList.remove('hidden');
 }
 
 /* --- Торговец (как в VS у босс-этапов): тратим золото текущего забега --- */
@@ -3644,6 +3695,8 @@ function pauseGame(){
 function resumeGame(){ if(G&&G.state==='paused'){ G.state='playing'; pausedEl.classList.add('hidden'); music.play().catch(()=>{}); } }
 function toMenu(){
   G=null;
+  if(chestTimer){ clearInterval(chestTimer); chestTimer=null; }
+  el('chestCer').classList.add('hidden');
   pausedEl.classList.add('hidden'); settingsEl.classList.add('hidden');
   endEl.classList.add('hidden'); hudEl.classList.add('hidden');
   menuEl.classList.remove('hidden'); music.pause();
@@ -3723,6 +3776,11 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'20 июля 2026, ~01:50 (Алматы) — v10 «Церемония сундука»',t:[
+    '🎰 Сундук теперь открывается слот-машиной: барабаны крутятся, награды фиксируются одна за другой под фанфары.',
+    '✨ Редкие сундуки: с шансом (растёт от удачи) выпадает 3 или даже 5 наград сразу — улучшения, новые оружия и золото.',
+    '🔥 Эволюции и ⚜️ юнионы выпадают из сундука особой церемонией.',
+    '⏭ Тап по экрану мгновенно пропускает анимацию.']},
   {d:'20 июля 2026, ~01:30 (Алматы) — v9 «Юнионы и баланс»',t:[
     '⚖️ Баланс поздней игры: HP врагов после 10-й минуты заметно снижено, а каждый уровень героя теперь даёт +0.5% урона — «неубиваемые» крипы на 15+ минуте исправлены.',
     '⚜️ ЮНИОНЫ: две готовые эволюции пары сливаются через сундук в одно оружие, освобождая слот. Пары: 🌟 Меч+Бросок, ☄️ Бластер+Ранец, 🤖 Дроиды+Турель.',
