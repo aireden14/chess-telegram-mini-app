@@ -900,7 +900,7 @@ function hurtPlayer(dmg){
    ============================================================ */
 const luEl=document.getElementById('levelup'), cardsEl=document.getElementById('cards'), luTitle=document.getElementById('luTitle');
 function gainXP(v){
-  const p=G.p; p.xp+=v*p.growth*(G.rewardMul||1);
+  const p=G.p; p.xp+=v*p.growth*(G.rewardMul||1)*(G.stormT>0?2:1);
   while(p.xp>=p.xpNext){
     p.xp-=p.xpNext; p.lvl++;
     // VS-кривая: +10 XP за уровень до 20, +13 до 40, +16 дальше
@@ -1268,6 +1268,22 @@ function update(dt){
     hurtPlayer(contactDamage+crowdPressure);
   }
 
+  /* --- погодная волна: буря 30с — видимость хуже, награды ×2 --- */
+  if(G.stormT>0){
+    G.stormT-=dt;
+    if(G.stormT<=0){
+      G.stormCd=rnd(240,330);
+      G.dmgTexts.push({x:p.x,y:p.y-46,v:G.stage==='hoth'?'❄️ Метель улеглась':'🌪 Буря улеглась',t:1.5,crit:false,str:true});
+    }
+  } else {
+    G.stormCd-=dt;
+    if(G.stormCd<=0){
+      G.stormT=30;
+      G.dmgTexts.push({x:p.x,y:p.y-46,v:(G.stage==='hoth'?'❄️ МЕТЕЛЬ!':'🌪 ПЕСЧАНАЯ БУРЯ!')+' Награды ×2',t:2.2,crit:true,str:true});
+      S.boom();
+    }
+  }
+
   /* --- мираж: временный портал-бонус, исчезает через 20 секунд --- */
   if(!G.mirage){
     G.mirageT-=dt;
@@ -1438,7 +1454,7 @@ function update(dt){
     }
     if(dist2(u.x,u.y,p.x,p.y)<(p.r+16)*(p.r+16)){
       switch(u.kind){
-        case 'gold': G.goldRun+=Math.round(u.v*p.goldMul*(G.rewardMul||1)); S.pick(); break;
+        case 'gold': G.goldRun+=Math.round(u.v*p.goldMul*(G.rewardMul||1)*(G.stormT>0?2:1)); S.pick(); break;
         case 'chicken': p.hp=Math.min(p.hpMax,p.hp+30); S.pick(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'+30 HP',t:0.8,heal:true,str:true}); break;
         case 'vacuum': for(const g of G.gems) g.pull=true; S.pick(); break;
         case 'bomb': { S.boom(); G.shake=14; G.zoomPulse=0.05; for(const e of [...G.enemies]) if(!e.boss) damageEnemy(e,9999,false); break; }
@@ -1722,14 +1738,27 @@ function draw(){
     cx.beginPath(); cx.arc(G.joy.sx+dx/d*cl,G.joy.sy+dy/d*cl,20,0,TAU); cx.fill();
   }
 
-  // метель на Хоте + ледяной оттенок при заморозке (screen-space)
+  // погода (screen-space): лёгкий снег на Хоте всегда, буря — событие на обоих этапах
+  const storm=G.stormT>0, stormIn=clamp(G.stormT>27?(30-G.stormT)/3:(G.stormT<3?G.stormT/3:1),0,1);
   if(G.stage==='hoth'){
-    cx.strokeStyle='rgba(255,255,255,.55)'; cx.lineWidth=1.5;
-    for(let i=0;i<50;i++){
-      const spd=90+hash2(i,2)*140;
+    const n=storm?95:24;
+    cx.strokeStyle='rgba(255,255,255,'+(storm?0.7:0.5)+')'; cx.lineWidth=1.5;
+    for(let i=0;i<n;i++){
+      const spd=(90+hash2(i,2)*140)*(storm?2.2:1);
       const sx=(hash2(i,1)*W+G.time*spd)%W, sy=(hash2(i,3)*H+G.time*spd*1.6)%H;
-      cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(sx-4,sy-7); cx.stroke();
+      const dx2=storm?-11:-4;
+      cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(sx+dx2,sy-7); cx.stroke();
     }
+    if(storm){ cx.fillStyle='rgba(215,232,248,'+(0.20*stormIn)+')'; cx.fillRect(0,0,W,H); }
+  } else if(storm){
+    // песчаная буря: горизонтальные струи песка + пыльная дымка
+    cx.strokeStyle='rgba(225,185,110,.65)'; cx.lineWidth=1.8;
+    for(let i=0;i<75;i++){
+      const spd=380+hash2(i,2)*420;
+      const sx=(hash2(i,1)*W+G.time*spd)%W, sy=(hash2(i,3)*2*H+Math.sin(G.time*2+i)*14)%H;
+      cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(sx-26-hash2(i,4)*18,sy+3); cx.stroke();
+    }
+    cx.fillStyle='rgba(196,150,80,'+(0.22*stormIn)+')'; cx.fillRect(0,0,W,H);
   }
   if(G.freezeT>0){
     cx.fillStyle='rgba(120,190,255,'+Math.min(0.14,G.freezeT*0.1)+')';
