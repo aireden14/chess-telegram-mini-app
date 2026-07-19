@@ -359,6 +359,15 @@ function weaponUnlocked(id){
   if(id==='falcon') return !!save.achs.vader;
   return true; // flame и vibro доступны сразу
 }
+/* --- Юнионы (как в VS): две эволюции сливаются в одно оружие, слот освобождается --- */
+const UNIONS=[
+  {id:'u_juyo',  a:'saber',  b:'throw', ico:'🌟', nm:'Форма VII: Джуйо', ds:'Меч и бросок сливаются в единый вихрь Силы. Оба бьют чаще, слот освобождается.'},
+  {id:'u_hunter',a:'blaster',b:'rocket',ico:'☄️', nm:'Арсенал охотника', ds:'Бластер и ракетный ранец работают как один. Слот освобождается.'},
+  {id:'u_army',  a:'drones', b:'turret',ico:'🤖', nm:'Дроид-армия',      ds:'Дроиды и турели под общим командованием. Слот освобождается.'},
+];
+// инфо об оружии с учётом юнионов (для карточек, HUD и паузы)
+const WINFO=id=>WEAPONS[id]||UNIONS.find(u=>u.id===id);
+
 /* --- Арканы (как в VS): модификаторы забега, открываются после первого босса --- */
 const ARCANAS=[
   {id:'wrath', ico:'🎴', nm:'Гнев',      ds:'+25% урона, но враги бьют на 25% больнее.'},
@@ -721,7 +730,8 @@ function nearObstacles(x,y){
    SPAWNING
    ============================================================ */
 function waveCfg(){ return WAVES[Math.min(WAVES.length-1, Math.floor(G.time/60))]; }
-function hpMul(){ const mn=G.time/60; return (1+mn*0.42+mn*mn*0.027)*(G.curse||1); }
+// кривая HP врагов: смягчена в v9 — поздние крипы были «губками» (15+ мин)
+function hpMul(){ const mn=G.time/60; return (1+mn*0.34+mn*mn*0.012)*(G.curse||1); }
 function spawnPos(){
   const a=rnd(0,TAU), R=Math.hypot(W,H)/(2*cameraZoom())+60;
   return {x:G.p.x+Math.cos(a)*R, y:G.p.y+Math.sin(a)*R};
@@ -810,27 +820,29 @@ function updateSpawns(dt){
    WEAPONS — firing
    ============================================================ */
 function weaponCooldown(w){
+  if(w.union){ const u=UNIONS.find(u=>u.id===w.id);
+    return Math.max(0.15,(weaponCooldown({id:u.a,lvl:w.lvl,evolved:true})+weaponCooldown({id:u.b,lvl:w.lvl,evolved:true}))/2); }
   const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9,flame:1.7,vibro:0.9,mines:2.0,turret:7.5,orb:4.2,falcon:5.0}[w.id];
   let cd=base*G.p.cdr;
-  if(w.id==='flame') cd*= (w.evolved?0.85:1) * (1-0.04*(w.lvl-1));
-  if(w.id==='vibro') cd*= 1-0.04*(w.lvl-1);
-  if(w.id==='mines') cd*= (w.evolved?0.7:1) * (1-0.05*(w.lvl-1));
-  if(w.id==='turret') cd*= 1-0.05*(w.lvl-1);
-  if(w.id==='orb') cd*= (w.evolved?0.85:1) * (1-0.04*(w.lvl-1));
-  if(w.id==='falcon') cd*= (w.evolved?0.8:1) * (1-0.04*(w.lvl-1));
-  if(w.id==='whip') cd*= (w.evolved?0.8:1) * (1-0.04*(w.lvl-1));
-  if(w.id==='bowcaster') cd*= 1-0.05*(w.lvl-1);
-  if(w.id==='freezer') cd*= (w.evolved?0.85:1) * (1-0.05*(w.lvl-1));
-  if(w.id==='beam') cd*= 1-0.05*(w.lvl-1);
-  if(w.id==='blaster') cd*= (w.evolved?0.7:1) * (1-0.04*(w.lvl-1));
-  if(w.id==='staff') cd*= 1-0.05*(w.lvl-1);
-  if(w.id==='rocket') cd*= 1-0.05*(w.lvl-1);
-  if(w.id==='saber') cd*= (w.evolved?0.75:1) * (1-0.04*(w.lvl-1));
-  if(w.id==='lightning') cd*= 1-0.05*(w.lvl-1);
-  if(w.id==='shards') cd*= (w.evolved?0.55:1) * (1-0.05*(w.lvl-1));
+  if(w.id==='flame') cd*= (w.evolved?0.85:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='vibro') cd*= 1-0.04*Math.min(w.lvl-1,11);
+  if(w.id==='mines') cd*= (w.evolved?0.7:1) * (1-0.05*Math.min(w.lvl-1,11));
+  if(w.id==='turret') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='orb') cd*= (w.evolved?0.85:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='falcon') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='whip') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='bowcaster') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='freezer') cd*= (w.evolved?0.85:1) * (1-0.05*Math.min(w.lvl-1,11));
+  if(w.id==='beam') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='blaster') cd*= (w.evolved?0.7:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='staff') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='rocket') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='saber') cd*= (w.evolved?0.75:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='lightning') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='shards') cd*= (w.evolved?0.55:1) * (1-0.05*Math.min(w.lvl-1,11));
   if(w.id==='throw') cd*= w.evolved?0.6:1;
-  if(w.id==='grenade') cd*= 1-0.06*(w.lvl-1);
-  return cd;
+  if(w.id==='grenade') cd*= 1-0.06*Math.min(w.lvl-1,11);
+  return Math.max(0.15,cd);
 }
 function nearestEnemies(n,maxR){
   const arr=[]; const mr2=maxR*maxR;
@@ -839,6 +851,12 @@ function nearestEnemies(n,maxR){
   return arr.slice(0,n).map(a=>a[1]);
 }
 function fireWeapon(w){
+  if(w.union){ // юнион: стреляют обе слитые эволюции (уровень общий, растёт Limit Break'ом)
+    const u=UNIONS.find(u=>u.id===w.id);
+    fireWeapon({id:u.a,lvl:w.lvl,evolved:true});
+    fireWeapon({id:u.b,lvl:w.lvl,evolved:true});
+    return;
+  }
   const p=G.p, lv=w.lvl, ev=w.evolved, might=p.might, area=p.area;
   switch(w.id){
     case 'saber':{
@@ -1126,7 +1144,8 @@ function updateWeapons(dt){
   if(G.dronesActive){
     G.droneLife-=dt;
     if(G.droneLife<=0){ G.dronesActive=false; G.drones=[]; }
-    const wd=G.p.weapons.find(w=>w.id==='drones');
+    let wd=G.p.weapons.find(w=>w.id==='drones');
+    if(!wd){ const un=G.p.weapons.find(w=>w.union&&UNIONS.find(u=>u.id===w.id&&(u.a==='drones'||u.b==='drones'))); if(un) wd={id:'drones',lvl:un.lvl,evolved:true}; }
     if(wd){
       const spd=(wd.evolved?2.6:2.0), R=(92+wd.lvl*6)*G.p.area, dmg=(10+wd.lvl*5)*G.p.might*(wd.evolved?1.8:1);
       G.droneAngle+=spd*dt;
@@ -1264,6 +1283,7 @@ function gainXP(v){
   const p=G.p; p.xp+=v*p.growth*(G.rewardMul||1)*(G.stormT>0?2:1);
   while(p.xp>=p.xpNext){
     p.xp-=p.xpNext; p.lvl++;
+    p.might+=0.005; // боевая закалка: любой билд догоняет рост HP врагов (v9-баланс)
     // VS-кривая: +10 XP за уровень до 20, +13 до 40, +16 дальше
     p.xpNext = p.lvl<20 ? 5+(p.lvl-1)*10
              : p.lvl<40 ? 195+(p.lvl-19)*13
@@ -1328,7 +1348,8 @@ function renderCards(picks,withActions){
     else if(o.kind==='p'){ const cur=G.p.passives[o.id]||0; ico=PASSIVES[o.id].ico; nm=PASSIVES[o.id].nm; lvTxt=cur?('Уровень '+(cur+1)):'НОВЫЙ НАВЫК'; ds=PASSIVES[o.id].ds; }
     else if(o.kind==='evo'){ ico='🔥'; nm=EVOS[o.id].nm; lvTxt='ЭВОЛЮЦИЯ'; ds=EVOS[o.id].ds; }
     else if(o.kind==='arc'){ const a=ARCANAS.find(x=>x.id===o.id); ico=a.ico; nm=a.nm; lvTxt='АРКАНА'; ds=a.ds; c.classList.add('evo'); }
-    else if(o.kind==='lb'){ const w=G.p.weapons.find(w=>w.id===o.id); ico=WEAPONS[o.id].ico; nm=WEAPONS[o.id].nm; lvTxt='⚡ LIMIT BREAK · ур. '+(w.lvl+1); ds='Сверх предела: оружие продолжает набирать мощь. +25🪙'; c.classList.add('evo'); }
+    else if(o.kind==='lb'){ const w=G.p.weapons.find(w=>w.id===o.id); ico=WINFO(o.id).ico; nm=WINFO(o.id).nm; lvTxt='⚡ LIMIT BREAK · ур. '+(w.lvl+1); ds='Сверх предела: оружие продолжает набирать мощь. +25🪙'; c.classList.add('evo'); }
+    else if(o.kind==='union'){ const u=UNIONS.find(u=>u.id===o.id); ico=u.ico; nm=u.nm; lvTxt='⚜️ ЮНИОН'; ds=u.ds; c.classList.add('evo'); }
     else { ico='🪙'; nm='Кредиты'; lvTxt='+25'; ds='Всё прокачано — держи золото.'; }
     c.innerHTML='<div class="ico">'+ico+'</div><div class="nm">'+nm+'</div><div class="lv">'+lvTxt+'</div><div class="ds">'+ds+'</div>';
     c.onclick=()=>{
@@ -1346,6 +1367,14 @@ function renderCards(picks,withActions){
       else if(o.kind==='w-new'){ G.p.weapons.push({id:o.id,lvl:1,cd:0.2,evolved:false}); }
       else if(o.kind==='p'){ applyPassive(o.id); }
       else if(o.kind==='evo'){ const w=G.p.weapons.find(w=>w.id===o.id); w.evolved=true; G.evosRun++; S.chest(); }
+      else if(o.kind==='union'){
+        const u=UNIONS.find(u=>u.id===o.id);
+        const lvl=Math.max(...G.p.weapons.filter(w=>w.id===u.a||w.id===u.b).map(w=>w.lvl));
+        G.p.weapons=G.p.weapons.filter(w=>w.id!==u.a&&w.id!==u.b);
+        G.p.weapons.push({id:u.id,lvl,cd:0.3,evolved:true,union:true});
+        G.evosRun++; S.chest();
+        G.dmgTexts.push({x:G.p.x,y:G.p.y-50,v:u.ico+' '+u.nm.toUpperCase()+' — слот свободен!',t:2.4,crit:true,str:true});
+      }
       else if(o.kind==='arc'){ applyArcana(o.id); }
       else if(o.kind==='lb'){ G.p.weapons.find(w=>w.id===o.id).lvl++; G.goldRun+=25; }
       else { G.goldRun+=25; }
@@ -1382,10 +1411,16 @@ function openChest(){
   if(Math.random()<0.3){ G.feverT=5; G.dmgTexts.push({x:G.p.x,y:G.p.y-44,v:'💰 ЗОЛОТАЯ ЛИХОРАДКА!',t:1.6,crit:true,str:true}); }
   // evolution if eligible (VS rule: weapon max lvl + paired passive)
   const evo=G.p.weapons.find(w=>w.lvl>=maxWLvl()&&!w.evolved&&(G.p.passives[WEAPONS[w.id].pair]||0)>0);
+  // юнион: обе эволюции пары готовы → сундук предлагает слить их в одно оружие
+  const un=UNIONS.find(u=>G.p.weapons.find(w=>w.id===u.a&&w.evolved)&&G.p.weapons.find(w=>w.id===u.b&&w.evolved));
   if(evo){
     G.state='levelup';
     luTitle.textContent='📦 ИМПЕРСКИЙ СУНДУК';
     renderCards([{kind:'evo',id:evo.id}]);
+  } else if(un){
+    G.state='levelup';
+    luTitle.textContent='📦 ИМПЕРСКИЙ СУНДУК';
+    renderCards([{kind:'union',id:un.id}]);
   } else {
     // gold + random free upgrade
     G.goldRun+=rndi(15,40);
@@ -2466,7 +2501,7 @@ function drawHUD(){
   for(const w of p.weapons){
     cx.fillStyle='rgba(10,16,34,.72)';
     cx.beginPath(); cx.roundRect(wx,72,25,25,6); cx.fill();
-    cx.fillText(WEAPONS[w.id].ico,wx+3,90);
+    cx.fillText(WINFO(w.id).ico,wx+3,90);
     cx.font='bold 9px Verdana';
     cx.fillStyle=w.evolved?'#ff8d6b':'#ffd76a';
     cx.fillText(w.evolved?'EV':w.lvl,wx+14,98);
@@ -3553,7 +3588,7 @@ function endRun(win){
   el('contBtn').classList.toggle('hidden', !win);
   el('endTitle').textContent = win? '🏆 ТЫ ПЕРЕЖИЛ ОСАДУ!' : '💀 ТЫ СТАЛ ЕДИНЫМ С СИЛОЙ';
   el('endTitle').style.color = win? '#7dffa0' : '#ff5b5b';
-  const wl=G.p.weapons.map(w=>WEAPONS[w.id].ico+(w.evolved?'🔥':'')).join(' ');
+  const wl=G.p.weapons.map(w=>WINFO(w.id).ico+(w.union?'⚜️':w.evolved?'🔥':'')).join(' ');
   el('endStats').innerHTML =
     'Время: <b>'+fmtTime(G.time)+'</b> &nbsp; Уровень: <b>'+G.p.lvl+'</b><br>'+
     'Убито имперцев: <b>'+G.killCount+'</b>'+(G.vaderKilled?' &nbsp;·&nbsp; <b style="color:#ff8d6b">Вейдер повержен ⚔️</b>':'')+'<br>'+
@@ -3583,6 +3618,8 @@ function renderPauseInfo(){
   };
   // ветка оружия: уровень + условие эволюции
   const weapons=p.weapons.map(w=>{
+    if(w.union){ const u=UNIONS.find(u=>u.id===w.id);
+      return u.ico+' <b>'+u.nm+'</b> <span style="color:#ffd76a">⚜️ ЮНИОН · ур. '+w.lvl+'</span>'; }
     const wd=WEAPONS[w.id], pairId=wd.pair, pairOwn=(p.passives[pairId]||0)>0;
     const mx=maxWLvl();
     let line=wd.ico+' <b>'+(w.evolved?EVOS[w.id].nm:wd.nm)+'</b> '+(w.evolved?'<span style="color:#ff8d6b">🔥 ЭВОЛЮЦИЯ</span>':pips(w.lvl,mx,'#5ec8ff'));
@@ -3596,7 +3633,8 @@ function renderPauseInfo(){
     PASSIVES[id].ico+' '+PASSIVES[id].nm+' '+pips(lvl,PASSIVES[id].max,'#7dffa0')).join('<br>');
   el('pauseBuild').innerHTML='<b>⚔️ ОРУЖИЕ И ВЕТКА ЭВОЛЮЦИЙ</b> ('+p.weapons.length+'/6)<br>'+weapons+
     (passives?'<br><br><b>🧬 ПАССИВНЫЕ НАВЫКИ</b><br>'+passives:'')+
-    '<br><br><span style="color:#66719b;font-size:11px">Эволюция выпадает из сундука элиты, когда оружие 8 ур. и есть парный навык — как в Vampire Survivors.</span>';
+    '<br><br><span style="color:#66719b;font-size:11px">Эволюция выпадает из сундука элиты, когда оружие 8 ур. и есть парный навык — как в Vampire Survivors.<br>'+
+    '⚜️ Юнионы: две готовые эволюции пары сливаются через сундук в одно оружие, слот освобождается. Пары: 🌟 меч+бросок, ☄️ бластер+ранец, 🤖 дроиды+турель.</span>';
 }
 function pauseGame(){
   if(G&&G.state==='playing'){
@@ -3685,6 +3723,10 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'20 июля 2026, ~01:30 (Алматы) — v9 «Юнионы и баланс»',t:[
+    '⚖️ Баланс поздней игры: HP врагов после 10-й минуты заметно снижено, а каждый уровень героя теперь даёт +0.5% урона — «неубиваемые» крипы на 15+ минуте исправлены.',
+    '⚜️ ЮНИОНЫ: две готовые эволюции пары сливаются через сундук в одно оружие, освобождая слот. Пары: 🌟 Меч+Бросок, ☄️ Бластер+Ранец, 🤖 Дроиды+Турель.',
+    '⚡ Limit Break больше не ломает скорострельность на очень высоких уровнях.']},
   {d:'19 июля 2026, ~19:30 (Алматы) — v8 «Живая карта»',t:[
     '🪦 Охраняемая гробница: далёкая загадка на карте — победи стражей и открой. Внутри ждёт новый секретный герой.',
     '🗺 Реликвия «Карта Галактики»: найди её один раз — и миникарта-радар останется с тобой навсегда.',

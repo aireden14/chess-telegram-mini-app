@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.6.0",
+    date: "20 июля 2026, 01:30 (Алматы)",
+    title: "Jedi Survivors: юнионы и баланс",
+    items: [
+      "⚖️ Исправлен баланс поздней игры: враги после 15-й минуты больше не «губки» — HP-кривая смягчена, каждый уровень героя даёт +0.5% урона",
+      "⚜️ Юнионы: две готовые эволюции сливаются через сундук в одно оружие, освобождая слот (Меч+Бросок, Бластер+Ранец, Дроиды+Турель)",
+      "⚡ Limit Break отполирован: скорострельность не ломается на сверхвысоких уровнях",
+    ],
+  },
+  {
     version: "3.5.0",
     date: "19 июля 2026, 19:30 (Алматы)",
     title: "Jedi Survivors: живая карта",
