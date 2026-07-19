@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.3.1",
+    date: "19 июля 2026, 11:13 (Алматы)",
+    title: "GamePass обновлён",
+    items: [
+      "🚀 Последний выпуск уже в игре: backend обновлён, а GamePass доступен в Telegram и браузере",
+      "⚔️ Jedi Survivors стал атмосфернее: динамический свет, погода, следы, руины и редкие находки в мире",
+      "📝 В «Что нового» теперь всегда будет точная дата, время и короткая сводка каждого деплоя",
+    ],
+  },
+  {
     version: "3.3.0",
     date: "2026-07-18",
     title: "NEON BLADE: ритм-слэшер в неоне",

@@ -97,6 +97,7 @@ backend/src/
 ## Деплой (и ГРАБЛИ — читай обязательно)
 - **Frontend → Vercel**, автодеплой при push в `main`. Есть **3 Vercel-проекта** (главный + `-1nbe` + `-s6br`), все собираются из репо. Сборка ~1–2 мин.
 - **Backend → Fly.io**: app `gamepass-backend`, region `fra`, URL `https://gamepass-backend.fly.dev`. Конфиги в `backend/Dockerfile` и `backend/fly.toml`; health `GET /api/health`.
+- **Что нового — обязательно при каждом деплое**: перед публикацией добавляй новую верхнюю запись в `frontend/src/data/changelog.ts` с точными датой и временем по Алматы, коротким заголовком и 1–3 пунктами о том, что вошло в выпуск. Она автоматически видна в разделе «Что нового» внутри GamePass.
 - **DB → Supabase Postgres**, region West EU. Runtime использует transaction pooler (`DATABASE_URL`, port 6543), а Prisma schema sync — session pooler (`DIRECT_URL`, port 5432). Оба URL хранятся только в Fly secrets.
 - `fly.toml` запускает безопасный `prisma db push` перед каждым релизом; потеря данных не подтверждается автоматически.
 - **`VITE_API_URL` обязателен**: без него `vite build` зашивает `localhost:3001` и прод-мини-апп не видит API. Зафиксировано в `frontend/.env.production` (коммитится; `.gitignore` игнорит только `.env`, не `.env.*`).
