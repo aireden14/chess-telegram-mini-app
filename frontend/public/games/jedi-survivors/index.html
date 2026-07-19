@@ -1111,7 +1111,18 @@ function update(dt){
 
   /* --- реликвии-голокроны: лежат далеко, награда за вылазку --- */
   for(let i=G.relics.length-1;i>=0;i--){
-    const rl=G.relics[i]; if(rl.r2) continue;
+    const rl=G.relics[i];
+    if(rl.r2){ // секрет: R2-D2 ждёт в глуши — становится компаньоном на забег
+      if(dist2(rl.x,rl.y,p.x,p.y)<44*44){
+        G.relics.splice(i,1);
+        G.r2=true; G.r2x=rl.x; G.r2y=rl.y; G.r2zap=2; G.r2heal=24;
+        G.goldRun+=500; G.zoomPulse=0.05;
+        save.stats.r2Found=true; persist();
+        G.dmgTexts.push({x:p.x,y:p.y-46,v:'🤖 R2-D2 НАЙДЕН! +500🪙 · теперь он с тобой',t:2.6,crit:true,str:true});
+        S.chest();
+      }
+      continue;
+    }
     if(dist2(rl.x,rl.y,p.x,p.y)<38*38){
       G.relics.splice(i,1);
       G.zoomPulse=0.05;
@@ -1255,6 +1266,26 @@ function update(dt){
   if(contactCount>0){
     const crowdPressure=Math.min(12,(contactCount-1)*2);
     hurtPlayer(contactDamage+crowdPressure);
+  }
+
+  /* --- компаньон R2-D2: семенит за игроком, бьёт током, приносит еду --- */
+  if(G.r2){
+    const tx=p.x-p.face*26, ty=p.y+6;
+    const k=1-Math.pow(0.02,dt);
+    G.r2x=lerp(G.r2x,tx,k); G.r2y=lerp(G.r2y,ty,k);
+    G.r2zap-=dt;
+    if(G.r2zap<=0){
+      G.r2zap=6;
+      let best=null,bd=280*280;
+      for(const e of G.enemies){ if(e.hp<=0||e.crate||e.neutral) continue; const d=dist2(e.x,e.y,G.r2x,G.r2y); if(d<bd){bd=d;best=e;} }
+      if(best){
+        damageEnemy(best,(14+G.time*0.05)*p.might,true);
+        G.parts.push({kind:'zap',x1:G.r2x,y1:G.r2y-14,x2:best.x,y2:best.y,t:0.14});
+        S.zap();
+      }
+    }
+    G.r2heal-=dt;
+    if(G.r2heal<=0){ G.r2heal=30; G.pickups.push({kind:'chicken',x:G.r2x+rnd(-20,20),y:G.r2y+rnd(-20,20),t:0}); }
   }
 
   /* --- slashes --- */
@@ -1488,7 +1519,7 @@ function draw(){
 
   // реликвии-голокроны: столб света + вращающийся куб
   for(const rl of G.relics){
-    if(rl.r2) continue;
+    if(rl.r2){ drawR2(rl.x,rl.y,true); continue; }
     const t=G.time*1.4, bob=Math.sin(t*2)*3;
     const beam=cx.createLinearGradient(rl.x,rl.y-120,rl.x,rl.y);
     beam.addColorStop(0,'rgba(120,220,255,0)'); beam.addColorStop(1,'rgba(120,220,255,0.20)');
@@ -1576,6 +1607,7 @@ function draw(){
     cx.restore();
   }
 
+  if(G.r2) drawR2(G.r2x,G.r2y,false);
   drawPlayer();
 
   // particles
@@ -1961,6 +1993,30 @@ function drawPlayer(){
   cx.restore();
   cx.restore();
   cx.globalAlpha=1;
+}
+
+/* ---------- R2-D2: секрет в глуши и компаньон ---------- */
+function drawR2(x,y,idle){
+  const t=G.time, bob=idle?0:Math.sin(t*10)*1.2;
+  cx.save(); cx.translate(x,y-bob);
+  cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(0,8,10,4,0,0,TAU); cx.fill();
+  // ножки
+  cx.fillStyle='#8a8f9c'; cx.fillRect(-11,-6,3.5,13); cx.fillRect(7.5,-6,3.5,13);
+  cx.fillStyle='#4d5464'; cx.fillRect(-12,6,5.5,3); cx.fillRect(6.5,6,5.5,3);
+  // корпус
+  cx.fillStyle='#e8ecf2'; cx.beginPath(); cx.roundRect(-7,-14,14,20,3); cx.fill();
+  cx.fillStyle='#2a6fd4'; cx.fillRect(-5,-10,4,3.5); cx.fillRect(1,-10,4,3.5); cx.fillRect(-5,-4,4,3.5); // синие панели
+  cx.fillStyle='#c7ccd6'; cx.fillRect(-7,-1,14,1.6);
+  // купол
+  cx.fillStyle='#dde3ea'; cx.beginPath(); cx.arc(0,-14,7.5,Math.PI,0); cx.fill();
+  cx.fillStyle='#2a6fd4'; cx.fillRect(-6,-17,4,2); cx.fillRect(2,-19,3,2);
+  cx.fillStyle='#111'; cx.beginPath(); cx.arc(2,-17,2.2,0,TAU); cx.fill(); // глаз
+  cx.fillStyle=Math.sin(t*5)>0?'#ff4b4b':'#5b1a1a'; cx.beginPath(); cx.arc(-3,-19.5,1.3,0,TAU); cx.fill();
+  if(idle){ // сигнал бедствия — заметен вблизи
+    cx.strokeStyle='rgba(94,200,255,'+(0.3+0.25*Math.sin(t*4))+')'; cx.lineWidth=2;
+    cx.beginPath(); cx.arc(0,-16,14+Math.sin(t*4)*3,0,TAU); cx.stroke();
+  }
+  cx.restore();
 }
 
 /* ---------- enemies ---------- */
