@@ -556,7 +556,11 @@ function cellObstacle(i,j){
   if(h<0.17) return {x:ox,y:oy,r:22,kind:'vap',solid:true,h};
   if(h<0.24) return {x:ox,y:oy,r:44,kind:'hut',solid:true,h};
   if(h<0.29) return {x:ox,y:oy,r:88,kind:'pit',solid:false,h};
-  return {x:ox,y:oy,r:78,kind:'beacon',solid:false,h};
+  if(h<0.315) return {x:ox,y:oy,r:78,kind:'beacon',solid:false,h};
+  // аномалия этапа: дюны-гребни на Татуине (вязнешь), ледяные трещины на Хоте (несёт)
+  return (G&&G.stage)==='hoth'
+    ? {x:ox,y:oy,r:100,kind:'crack',solid:false,h}
+    : {x:ox,y:oy,r:110,kind:'dune',solid:false,h};
 }
 function freeSpot(x,y){ // выталкивает точку из солидных препятствий (чтобы лут был достижим)
   for(const o of nearObstacles(x,y)) if(o.solid&&dist2(x,y,o.x,o.y)<(o.r+40)*(o.r+40)){
@@ -1046,19 +1050,24 @@ function update(dt){
     if(d<8) G.target=null; else { mx=dx/d; my=dy/d; }
   }
   const ml=Math.hypot(mx,my);
+  const terr=G.terrMul||1; // аномалии этапа: дюна вяжет, лёд несёт (значение с прошлого кадра)
   if(ml>0){
     mx/=ml; my/=ml;
-    p.x+=mx*p.speed*dt; p.y+=my*p.speed*dt;
+    p.x+=mx*p.speed*terr*dt; p.y+=my*p.speed*terr*dt;
     p.moving=true; p.walkT+=dt*9;
     p.lastMove={x:mx,y:my};
     if(mx!==0) p.face=mx>0?1:-1;
   } else p.moving=false;
+  if(G.slide>0){ // ледяная трещина: скольжение по инерции в направлении последнего движения
+    p.x+=p.lastMove.x*p.speed*0.5*G.slide*dt;
+    p.y+=p.lastMove.y*p.speed*0.5*G.slide*dt;
+  }
   p.hp=Math.min(p.hpMax,p.hp+p.recovery*dt);
   if(p.inv>0)p.inv-=dt;
   if(p.swingT>0)p.swingT-=dt;
   /* --- terrain: solid obstacles, sarlacc pits, rebel beacons --- */
   const obs=nearObstacles(p.x,p.y);
-  let inPit=false, inBeacon=false;
+  let inPit=false, inBeacon=false, onDune=false, onIce=false;
   for(const o of obs){
     const d2o=dist2(p.x,p.y,o.x,o.y);
     if(o.solid){
@@ -1066,7 +1075,11 @@ function update(dt){
       if(d2o<rr*rr){ const d=Math.sqrt(d2o)||1; p.x=o.x+(p.x-o.x)/d*rr; p.y=o.y+(p.y-o.y)/d*rr; }
     } else if(o.kind==='pit'&&d2o<o.r*o.r) inPit=true;
     else if(o.kind==='beacon'&&d2o<o.r*o.r) inBeacon=true;
+    else if(o.kind==='dune'&&d2o<o.r*o.r) onDune=true;
+    else if(o.kind==='crack'&&d2o<o.r*o.r) onIce=true;
   }
+  G.terrMul=onDune?0.55:1;
+  G.slide=onIce? Math.min(1,(G.slide||0)+dt*2.5) : Math.max(0,(G.slide||0)-dt*1.8);
   if(inPit){
     G.pitTick-=dt;
     if(G.pitTick<=0){ G.pitTick=0.8; const dmgT=Math.max(2,4+G.time/120); p.hp-=dmgT; G.dmgTexts.push({x:p.x,y:p.y-24,v:'-'+Math.round(dmgT)+' яма',t:0.6,crit:false}); if(p.hp<=0){p.hp=0;endRun(false);return;} }
@@ -1829,6 +1842,30 @@ function drawTerrain(o){
     const wob=Math.sin(t*2.2)*8;
     cx.strokeStyle='#6a4a28'; cx.lineWidth=5; cx.lineCap='round';
     cx.beginPath(); cx.moveTo(0,0); cx.quadraticCurveTo(14,-26+wob,4+wob,-42); cx.stroke();
+  } else if(o.kind==='dune'){ // дюна-гребень: вязкий песок, замедляет
+    const rot=o.h*30;
+    cx.rotate(rot);
+    cx.fillStyle='rgba(160,115,55,.18)';
+    cx.beginPath(); cx.ellipse(0,0,o.r,o.r*0.62,0,0,TAU); cx.fill();
+    for(let k=-1;k<=1;k++){
+      cx.strokeStyle='rgba(110,75,30,.35)'; cx.lineWidth=4; cx.lineCap='round';
+      cx.beginPath(); cx.moveTo(-o.r*0.75,k*26); cx.quadraticCurveTo(0,k*26-16,o.r*0.75,k*26); cx.stroke();
+      cx.strokeStyle='rgba(255,225,170,.28)'; cx.lineWidth=2;
+      cx.beginPath(); cx.moveTo(-o.r*0.72,k*26-4); cx.quadraticCurveTo(0,k*26-20,o.r*0.72,k*26-4); cx.stroke();
+    }
+  } else if(o.kind==='crack'){ // ледяная трещина: скользко, несёт по инерции
+    const rot=o.h*30;
+    cx.rotate(rot);
+    cx.fillStyle='rgba(120,190,235,.16)';
+    cx.beginPath(); cx.ellipse(0,0,o.r,o.r*0.55,0,0,TAU); cx.fill();
+    cx.strokeStyle='rgba(30,60,100,.55)'; cx.lineWidth=5; cx.lineCap='round';
+    cx.beginPath(); cx.moveTo(-o.r*0.8,0);
+    for(let k=0;k<5;k++){ const t2=(k+1)/5; cx.lineTo(-o.r*0.8+o.r*1.6*t2, Math.sin(o.h*97+k*2.7)*16); }
+    cx.stroke();
+    cx.strokeStyle='rgba(200,235,255,.7)'; cx.lineWidth=1.8;
+    cx.beginPath(); cx.moveTo(-o.r*0.8,-2);
+    for(let k=0;k<5;k++){ const t2=(k+1)/5; cx.lineTo(-o.r*0.8+o.r*1.6*t2, Math.sin(o.h*97+k*2.7)*16-2); }
+    cx.stroke();
   } else if(o.kind==='beacon'){ // маяк повстанцев — лечит
     const t=G?G.time:0, bl=(Math.sin(t*4)+1)/2;
     const gr=cx.createRadialGradient(0,0,6,0,0,o.r);
