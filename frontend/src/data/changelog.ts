@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.5.0",
+    date: "19 июля 2026, 19:30 (Алматы)",
+    title: "Jedi Survivors: живая карта",
+    items: [
+      "🪦 Охраняемая гробница на карте — победите стражей и освободите нового секретного героя",
+      "🗺 Реликвия «Карта Галактики» навсегда открывает миникарту-радар",
+      "🛒 После каждого босса прибывает торговец: лечение, воскрешения и усиления за золото забега",
+      "⚡ Limit Break: полностью прокачанный билд продолжает усиливаться сверх предела",
+    ],
+  },
+  {
     version: "3.4.0",
     date: "19 июля 2026, 18:48 (Алматы)",
     title: "Jedi Survivors: 20 видов оружия",

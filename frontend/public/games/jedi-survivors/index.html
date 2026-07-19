@@ -297,6 +297,7 @@ if(save.bestKills>=500) save.achs.kills500=true;
 if(save.best>=420) save.achs.chests3=true;
 if(save.best>=1799) save.achs.win=true;
 if(save.stats.r2Found) save.chars=Object.assign(save.chars||{},{r2:true}); // ветераны: R2 уже найден
+if(save.stats.coffinFound) save.chars=Object.assign(save.chars||{},{mando:true}); // ветераны: гробница уже открыта
 
 const CHARS={
   obiwan:{ico:'🧙‍♂️',nm:'Оби-Ван',weapon:'saber',  bonus:'+2 брони, +10% урона',cost:0},
@@ -307,7 +308,8 @@ const CHARS={
   leia:  {ico:'👸',  nm:'Лея',    weapon:'blaster',bonus:'+20% опыта, +20% золота, +10% удачи',cost:2200,ach:'boss1'},
   luke:  {ico:'👨‍🚀',nm:'Люк',    weapon:'saber',  bonus:'эволюции с 7 ур., +10% урона, +1 реролл',cost:3000,ach:'win'},
   yoda:  {ico:'🐸',  nm:'Йода',   weapon:'push',   bonus:'+25% урона, +12% скорости, −30 HP',cost:4000,ach:'lvl50'},
-  r2:    {ico:'🤖',  nm:'R2-D2',  weapon:'drones', bonus:'+1 снаряд, магнит ×1.5, −20 HP',cost:0,secret:true},
+  r2:    {ico:'🤖',  nm:'R2-D2',  weapon:'drones', bonus:'+1 снаряд, магнит ×1.5, −20 HP',cost:0,secret:true,hint:'кто-то ждёт в глуши…'},
+  mando: {ico:'🪖',  nm:'Мандалорец',weapon:'rocket',bonus:'+15% урона, +2 брони, +30% золота',cost:0,secret:true,hint:'покоится в охраняемой гробнице…'},
 };
 const ACHS=[
   {id:'surv5',    nm:'Продержаться 5 минут',      rw:'оружие 🛸 Дроиды-стражи', cond:g=>g.time>=300},
@@ -322,6 +324,8 @@ const ACHS=[
   {id:'maxw',     nm:'6 оружий в билде',          rw:'+300 🪙', gold:300,       cond:g=>g.p.weapons.length>=6},
   {id:'lvl50',    nm:'Достичь 50 уровня',         rw:'+500 🪙', gold:500,       cond:g=>g.p.lvl>=50},
   {id:'win',      nm:'Пережить осаду (30:00)',    rw:'⚡ Гипер-режим',           cond:g=>g.won},
+  {id:'map',      nm:'Найти Карту Галактики',     rw:'🗺 миникарта навсегда',   cond:g=>!!save.stats.mapFound},
+  {id:'coffin',   nm:'Открыть охраняемую гробницу',rw:'герой 🪖 Мандалорец',    cond:g=>!!save.stats.coffinFound},
 ];
 function checkAchs(){
   if(!G) return;
@@ -599,6 +603,8 @@ function newGame(){
     flyby:null, flybyT:rnd(50,90), prints:[], printT:0, printSide:false,
     scorch:[], tumble:[], tumbleT:10, critterT:12, lampT:0, lampSpawned:{}, lampBroken:{},
     rerolls:1+(m.reroll||0), skips:1, banishes:1+(m.banish||0), banned:[],
+    // точки интереса: гроб с охраной, торговец после боссов
+    coffin:null, merchant:null, shopBought:{},
   };
   const curseR=(m.curse||0);
   G.curse=1+0.06*curseR;                                  // HP врагов
@@ -618,6 +624,7 @@ function newGame(){
     case 'luke': p.might+=0.10; G.rerolls+=1; break;
     case 'yoda': p.might+=0.25; p.speed*=1.12; p.hpMax-=30; p.hp=Math.min(p.hp,p.hpMax); break;
     case 'r2': p.amount+=1; p.magnet*=1.5; p.hpMax-=20; p.hp=Math.min(p.hp,p.hpMax); break;
+    case 'mando': p.might+=0.15; p.armor+=2; p.goldMul*=1.3; break;
     default: p.armor+=2; p.might+=0.10; break;
   }
   // реликвии-голокроны далеко от старта (стрелки ведут) + секрет R2-D2 (без стрелки)
@@ -626,6 +633,10 @@ function newGame(){
     G.relics.push(freeSpot(Math.cos(a)*R,Math.sin(a)*R));
   }
   { const a=rnd(0,TAU), s=freeSpot(Math.cos(a)*2600,Math.sin(a)*2600); s.r2=true; G.relics.push(s); }
+  // гробница с охраной: далёкая загадка, внутри — секретный герой (стрелка появляется только вблизи)
+  { const a=rnd(0,TAU), s=freeSpot(Math.cos(a)*3100,Math.sin(a)*3100); G.coffin={x:s.x,y:s.y,woke:false,gRef:[],opened:false}; }
+  // реликвия «Карта Галактики»: пока не найдена — лежит в каждом забеге, навсегда открывает миникарту
+  if(!save.stats.mapFound){ const a=rnd(0,TAU), s=freeSpot(Math.cos(a)*2000,Math.sin(a)*2000); s.map=true; G.relics.push(s); }
   // динамичный старт: империя уже окружает — первые враги видны сразу
   for(let i=0;i<9;i++){
     const a=i/9*TAU+rnd(-0.2,0.2);
@@ -1204,6 +1215,10 @@ function killEnemy(e){
     else if(roll>0.9963&&roll<=0.9975) G.pickups.push({kind:'freeze',x:e.x,y:e.y,t:0});
   }
   if(e.boss) G.bossRef=null;
+  if(e.boss&&!e.emperor){ // торговец приходит к месту гибели босса (как в VS у босс-этапов)
+    G.merchant={x:e.x+70,y:e.y,cd:1.5};
+    G.dmgTexts.push({x:e.x,y:e.y-70,v:'🛒 ТОРГОВЕЦ ПРИБЫЛ — потрать золото забега',t:2.4,crit:true,str:true});
+  }
   if(e.vader){
     G.vaderKilled=true;
     G.dmgTexts.push({x:e.x,y:e.y-50,v:'⚔️ ВЕЙДЕР ПОВЕРЖЕН! ПРОДЕРЖИСЬ ДО 30:00',t:2.5,crit:true,str:true});
@@ -1269,6 +1284,12 @@ function upgradeOptions(){
   // shuffle, pick 3
   for(let i=opts.length-1;i>0;i--){ const j=rndi(0,i); [opts[i],opts[j]]=[opts[j],opts[i]]; }
   const picks=opts.slice(0, 3+(Math.random()<(p.luck-1)*0.5?1:0));
+  if(!picks.length){
+    // Limit Break (как в VS): всё прокачано — уровни продолжают усиливать оружие сверх предела
+    const lb=p.weapons.filter(w=>w.evolved||w.lvl>=maxWLvl());
+    for(let i=lb.length-1;i>0;i--){ const j=rndi(0,i); [lb[i],lb[j]]=[lb[j],lb[i]]; }
+    for(const w of lb.slice(0,3)) picks.push({kind:'lb', id:w.id});
+  }
   if(!picks.length) picks.push({kind:'gold', id:'gold'});
   return picks;
 }
@@ -1307,6 +1328,7 @@ function renderCards(picks,withActions){
     else if(o.kind==='p'){ const cur=G.p.passives[o.id]||0; ico=PASSIVES[o.id].ico; nm=PASSIVES[o.id].nm; lvTxt=cur?('Уровень '+(cur+1)):'НОВЫЙ НАВЫК'; ds=PASSIVES[o.id].ds; }
     else if(o.kind==='evo'){ ico='🔥'; nm=EVOS[o.id].nm; lvTxt='ЭВОЛЮЦИЯ'; ds=EVOS[o.id].ds; }
     else if(o.kind==='arc'){ const a=ARCANAS.find(x=>x.id===o.id); ico=a.ico; nm=a.nm; lvTxt='АРКАНА'; ds=a.ds; c.classList.add('evo'); }
+    else if(o.kind==='lb'){ const w=G.p.weapons.find(w=>w.id===o.id); ico=WEAPONS[o.id].ico; nm=WEAPONS[o.id].nm; lvTxt='⚡ LIMIT BREAK · ур. '+(w.lvl+1); ds='Сверх предела: оружие продолжает набирать мощь. +25🪙'; c.classList.add('evo'); }
     else { ico='🪙'; nm='Кредиты'; lvTxt='+25'; ds='Всё прокачано — держи золото.'; }
     c.innerHTML='<div class="ico">'+ico+'</div><div class="nm">'+nm+'</div><div class="lv">'+lvTxt+'</div><div class="ds">'+ds+'</div>';
     c.onclick=()=>{
@@ -1325,6 +1347,7 @@ function renderCards(picks,withActions){
       else if(o.kind==='p'){ applyPassive(o.id); }
       else if(o.kind==='evo'){ const w=G.p.weapons.find(w=>w.id===o.id); w.evolved=true; G.evosRun++; S.chest(); }
       else if(o.kind==='arc'){ applyArcana(o.id); }
+      else if(o.kind==='lb'){ G.p.weapons.find(w=>w.id===o.id).lvl++; G.goldRun+=25; }
       else { G.goldRun+=25; }
       luEl.classList.add('hidden');
       G.state='playing';
@@ -1375,6 +1398,50 @@ function openChest(){
     }
     G.dmgTexts.push({x:G.p.x,y:G.p.y-40,v:'📦 +улучшение!',t:1.4,crit:true,str:true});
   }
+}
+
+/* --- Торговец (как в VS у босс-этапов): тратим золото текущего забега --- */
+const SHOP_ITEMS=[
+  {id:'heal',  ico:'🍗', nm:'Полевой паёк',    ds:'Полностью восстанавливает здоровье.', base:100, fx:()=>{G.p.hp=G.p.hpMax;}},
+  {id:'magnet',ico:'🧲', nm:'Магнит-импульс',  ds:'Притягивает весь опыт на карте.', base:60, fx:()=>{for(const g of G.gems) g.pull=true;}},
+  {id:'reroll',ico:'🔄', nm:'Предвидение',     ds:'+2 реролла и +1 изгнание на этот забег.', base:120, fx:()=>{G.rerolls+=2;G.banishes+=1;}},
+  {id:'bomb',  ico:'💥', nm:'Орбитальный удар',ds:'Уничтожает всех обычных врагов на поле.', base:150, fx:()=>{for(const e of [...G.enemies]) if(!e.boss&&!e.crate&&!e.lamp&&!e.neutral) damageEnemy(e,99999,false);}},
+  {id:'might', ico:'💪', nm:'Боевой стим',     ds:'+8% урона до конца забега.', base:220, fx:()=>{G.p.might+=0.08;}},
+  {id:'revive',ico:'✨', nm:'Воля Силы',       ds:'+1 воскрешение.', base:400, fx:()=>{G.p.revives+=1;}},
+];
+const shopPrice=it=>Math.round(it.base*(1+0.6*(G.shopBought[it.id]||0)));
+function openShop(){
+  G.state='shop'; S.chest(); saveRun();
+  renderMerchant();
+}
+function renderMerchant(){
+  luTitle.textContent='🛒 ТОРГОВЕЦ · у тебя 🪙 '+G.goldRun;
+  cardsEl.innerHTML='';
+  for(const it of SHOP_ITEMS){
+    const price=shopPrice(it), afford=G.goldRun>=price;
+    const c=document.createElement('div'); c.className='card';
+    if(!afford) c.style.opacity='0.45';
+    c.innerHTML='<div class="ico">'+it.ico+'</div><div class="nm">'+it.nm+'</div>'+
+      '<div class="lv" style="color:#ffd76a">🪙 '+price+'</div><div class="ds">'+it.ds+'</div>';
+    c.onclick=()=>{
+      if(G.goldRun<shopPrice(it)){ S.hurt(); return; }
+      G.goldRun-=shopPrice(it);
+      G.shopBought[it.id]=(G.shopBought[it.id]||0)+1;
+      it.fx(); S.chest(); saveRun();
+      renderMerchant(); // цены растут после покупки — защита от повторной «бесплатной»
+    };
+    cardsEl.appendChild(c);
+  }
+  const act=document.getElementById('luActions');
+  act.classList.remove('hidden'); act.innerHTML='';
+  const b=document.createElement('button');
+  b.className='btn btn-sec lu-act'; b.textContent='⚔️ Вернуться в бой';
+  b.onclick=()=>{
+    luEl.classList.add('hidden'); G.state='playing';
+    if(G.merchant) G.merchant.cd=2.5; // не открываться заново мгновенно
+  };
+  act.appendChild(b);
+  luEl.classList.remove('hidden');
 }
 
 /* ============================================================
@@ -1505,6 +1572,16 @@ function update(dt){
       }
       continue;
     }
+    if(rl.map){ // «Карта Галактики»: навсегда открывает миникарту
+      if(dist2(rl.x,rl.y,p.x,p.y)<40*40){
+        G.relics.splice(i,1);
+        G.zoomPulse=0.05; G.goldRun+=100;
+        save.stats.mapFound=true; persist();
+        G.dmgTexts.push({x:p.x,y:p.y-46,v:'🗺 КАРТА ГАЛАКТИКИ! Миникарта открыта навсегда · +100🪙',t:2.6,crit:true,str:true});
+        S.chest();
+      }
+      continue;
+    }
     if(dist2(rl.x,rl.y,p.x,p.y)<38*38){
       G.relics.splice(i,1);
       G.zoomPulse=0.05;
@@ -1513,6 +1590,41 @@ function update(dt){
       G.dmgTexts.push({x:p.x,y:p.y-46,v:'📀 ГОЛОКРОН ДЖЕДАЕВ! +50🪙',t:1.9,crit:true,str:true});
       openChest();
     }
+  }
+
+  /* --- гробница: охрана просыпается вблизи, открытие после зачистки --- */
+  if(G.coffin&&!G.coffin.opened){
+    const c=G.coffin, d2c=dist2(c.x,c.y,p.x,p.y);
+    if(!c.woke&&d2c<680*680){
+      c.woke=true; c.gRef=[];
+      const n=8;
+      for(let k=0;k<n;k++){
+        const a=k/n*TAU;
+        const e=spawnEnemy('magna',c.x+Math.cos(a)*95,c.y+Math.sin(a)*95,(1+G.time/500)*(G.curse||1));
+        if(e){ e.guard=true; c.gRef.push(e); }
+      }
+      G.shake=Math.min(12,G.shake+6);
+      G.dmgTexts.push({x:c.x,y:c.y-60,v:'🪦 СТРАЖИ ГРОБНИЦЫ ПРОБУДИЛИСЬ!',t:2.2,crit:true,str:true});
+      S.boom();
+    }
+    if(c.woke&&d2c<44*44&&!c.gRef.some(e=>e.hp>0)){
+      c.opened=true; G.zoomPulse=0.06; S.chest();
+      if(!save.chars.mando){
+        save.chars.mando=true; save.stats.coffinFound=true; persist();
+        G.dmgTexts.push({x:p.x,y:p.y-52,v:'🪖 МАНДАЛОРЕЦ ОСВОБОЖДЁН! Новый герой в ангаре',t:3,crit:true,str:true});
+      } else {
+        save.stats.coffinFound=true; persist();
+        G.goldRun+=Math.round(200*p.goldMul*(G.rewardMul||1));
+        G.dmgTexts.push({x:p.x,y:p.y-52,v:'🪦 ГРОБНИЦА ОТКРЫТА · +золото и сундук',t:2.2,crit:true,str:true});
+        openChest();
+      }
+    }
+  }
+
+  /* --- торговец: стоит у места гибели босса, вход по касанию --- */
+  if(G.merchant){
+    const m=G.merchant; m.cd=(m.cd||0)-dt;
+    if(m.cd<=0&&G.state==='playing'&&dist2(m.x,m.y,p.x,p.y)<48*48){ openShop(); return; }
   }
 
   /* --- enemies --- */
@@ -2032,6 +2144,15 @@ function draw(){
   // реликвии-голокроны: столб света + вращающийся куб
   for(const rl of G.relics){
     if(rl.r2){ drawR2(rl.x,rl.y,true); continue; }
+    if(rl.map){ // реликвия «Карта Галактики»
+      const bob=Math.sin(G.time*2.2)*3;
+      cx.fillStyle='rgba(140,255,215,'+(0.14+0.08*Math.sin(G.time*4))+')';
+      cx.beginPath(); cx.arc(rl.x,rl.y-6,22,0,TAU); cx.fill();
+      cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(rl.x,rl.y+8,12,4.5,0,0,TAU); cx.fill();
+      cx.font='24px serif'; cx.textAlign='center';
+      cx.fillText('🗺',rl.x,rl.y+2+bob);
+      continue;
+    }
     const t=G.time*1.4, bob=Math.sin(t*2)*3;
     const beam=cx.createLinearGradient(rl.x,rl.y-120,rl.x,rl.y);
     beam.addColorStop(0,'rgba(120,220,255,0)'); beam.addColorStop(1,'rgba(120,220,255,0.20)');
@@ -2047,6 +2168,48 @@ function draw(){
     cx.fillStyle='#8adfff';
     cx.beginPath(); cx.moveTo(0,-11); cx.lineTo(w2,-4); cx.lineTo(0,2); cx.lineTo(-d2,-4); cx.closePath(); cx.fill();
     cx.fillStyle='rgba(255,255,255,.85)'; cx.beginPath(); cx.arc(0,0,2.2,0,TAU); cx.fill();
+    cx.restore();
+  }
+
+  // гробница: каменный саркофаг с фиолетовым свечением
+  if(G.coffin&&!G.coffin.opened){
+    const c=G.coffin, t=G.time;
+    cx.save(); cx.translate(c.x,c.y);
+    cx.fillStyle='rgba(0,0,0,.3)'; cx.beginPath(); cx.ellipse(0,26,34,9,0,0,TAU); cx.fill();
+    cx.fillStyle='rgba(190,140,255,'+(0.10+0.06*Math.sin(t*3))+')';
+    cx.beginPath(); cx.arc(0,-4,44,0,TAU); cx.fill();
+    cx.fillStyle='#2a2f45'; cx.strokeStyle='#4a5378'; cx.lineWidth=2.5;
+    cx.beginPath(); cx.moveTo(-22,24); cx.lineTo(-16,-30); cx.lineTo(16,-30); cx.lineTo(22,24); cx.closePath();
+    cx.fill(); cx.stroke();
+    cx.fillStyle='#39406030'; cx.fillRect(-13,-22,26,38);
+    cx.strokeStyle='rgba(201,160,255,'+(0.55+0.35*Math.sin(t*3))+')'; cx.lineWidth=2;
+    cx.beginPath(); cx.moveTo(0,-24); cx.lineTo(0,12); cx.moveTo(-9,-10); cx.lineTo(9,-10); cx.stroke();
+    cx.restore();
+  } else if(G.coffin&&G.coffin.opened){
+    const c=G.coffin;
+    cx.fillStyle='rgba(0,0,0,.3)'; cx.beginPath(); cx.ellipse(c.x,c.y+26,34,9,0,0,TAU); cx.fill();
+    cx.fillStyle='#232840'; cx.strokeStyle='#3a4260'; cx.lineWidth=2;
+    cx.save(); cx.translate(c.x-14,c.y+8); cx.rotate(-0.5);
+    cx.beginPath(); cx.moveTo(-20,20); cx.lineTo(-14,-26); cx.lineTo(14,-26); cx.lineTo(20,20); cx.closePath(); cx.fill(); cx.stroke();
+    cx.restore();
+  }
+
+  // торговец: джава с тележкой
+  if(G.merchant){
+    const m=G.merchant, t=G.time, bob=Math.sin(t*3)*2;
+    cx.save(); cx.translate(m.x,m.y);
+    cx.fillStyle='rgba(255,215,106,'+(0.10+0.07*Math.sin(t*4))+')';
+    cx.beginPath(); cx.arc(0,-8,40,0,TAU); cx.fill();
+    cx.fillStyle='rgba(0,0,0,.3)'; cx.beginPath(); cx.ellipse(0,16,20,6,0,0,TAU); cx.fill();
+    cx.fillStyle='#6b4a2a'; // джава-капюшон
+    cx.beginPath(); cx.moveTo(-13,14+bob*0.3); cx.lineTo(0,-24+bob); cx.lineTo(13,14+bob*0.3); cx.closePath(); cx.fill();
+    cx.fillStyle='#1a1408'; cx.beginPath(); cx.arc(0,-8+bob,6.5,0,TAU); cx.fill();
+    cx.fillStyle='#ffb54a'; // светящиеся глаза
+    cx.beginPath(); cx.arc(-2.6,-9+bob,1.6,0,TAU); cx.arc(2.6,-9+bob,1.6,0,TAU); cx.fill();
+    cx.font='17px serif'; cx.textAlign='center'; cx.fillText('🛒',22,10+bob);
+    cx.font='bold 10px Verdana'; cx.fillStyle='#ffd76a';
+    cx.strokeStyle='rgba(0,0,0,.7)'; cx.lineWidth=3;
+    cx.strokeText('ТОРГОВЕЦ',0,-34); cx.fillText('ТОРГОВЕЦ',0,-34);
     cx.restore();
   }
 
@@ -2345,8 +2508,34 @@ function drawHUD(){
   };
   for(const u of G.pickups) if(u.kind==='chest') arrowTo(u.x,u.y,'rgba(255,215,106,.9)');
   // голубые стрелки ведут к голокронам (секрет R2 не подсвечиваем)
-  for(const rl of G.relics) if(!rl.r2) arrowTo(rl.x,rl.y,'rgba(120,220,255,.85)');
+  for(const rl of G.relics) if(!rl.r2) arrowTo(rl.x,rl.y,rl.map?'rgba(140,255,215,.9)':'rgba(120,220,255,.85)');
   if(G.mirage) arrowTo(G.mirage.x,G.mirage.y,'rgba(160,255,215,.9)');
+  // гробница подсказывается только вблизи (загадку целиком не выдаём), торговец — всегда
+  if(G.coffin&&!G.coffin.opened&&dist2(G.coffin.x,G.coffin.y,G.p.x,G.p.y)<1400*1400)
+    arrowTo(G.coffin.x,G.coffin.y,'rgba(201,160,255,.8)');
+  if(G.merchant) arrowTo(G.merchant.x,G.merchant.y,'rgba(255,215,106,.95)');
+  // миникарта-радар (реликвия «Карта Галактики»)
+  if(save.stats.mapFound){
+    const mR=54, mx=W-14-mR, my=H-24-mR, k=mR/3400;
+    cx.save();
+    cx.globalAlpha=0.9;
+    cx.fillStyle='rgba(6,10,24,.6)'; cx.strokeStyle='rgba(80,100,160,.5)'; cx.lineWidth=1.5;
+    cx.beginPath(); cx.arc(mx,my,mR,0,TAU); cx.fill(); cx.stroke();
+    cx.beginPath(); cx.arc(mx,my,mR,0,TAU); cx.clip();
+    const dot=(wx,wy,col,r)=>{
+      const dx=(wx-G.p.x)*k, dy=(wy-G.p.y)*k, dd=Math.hypot(dx,dy), lim=mR-5;
+      const s=dd>lim?lim/dd:1;
+      cx.fillStyle=col; cx.beginPath(); cx.arc(mx+dx*s,my+dy*s,r,0,TAU); cx.fill();
+    };
+    for(const rl of G.relics) dot(rl.x,rl.y,rl.r2?'rgba(120,220,255,.9)':(rl.map?'#8affd7':'#5ec8ff'),2.5);
+    if(G.coffin&&!G.coffin.opened) dot(G.coffin.x,G.coffin.y,'#c9a0ff',3);
+    if(G.merchant) dot(G.merchant.x,G.merchant.y,'#ffd76a',3);
+    if(G.bossRef&&G.bossRef.hp>0) dot(G.bossRef.x,G.bossRef.y,'#ff4b4b',3.5);
+    if(G.mirage) dot(G.mirage.x,G.mirage.y,'#8affd7',2.5);
+    for(const u of G.pickups) if(u.kind==='chest') dot(u.x,u.y,'#ffd76a',2);
+    cx.fillStyle='#fff'; cx.beginPath(); cx.arc(mx,my,2.5,0,TAU); cx.fill();
+    cx.restore();
+  }
   if(G.bossRef&&G.bossRef.hp>0) arrowTo(G.bossRef.x,G.bossRef.y,G.bossRef.emperor?'rgba(201,160,255,.9)':'rgba(255,75,75,.9)');
   // полоса босса снизу
   if(G.bossRef&&G.bossRef.hp>0&&!G.bossRef.emperor){
@@ -3446,7 +3635,7 @@ function renderMenuMeta(){
     const d=document.createElement('div');
     d.className='sel-card'+(save.selChar===id?' on':'')+(!owned?' lock':'');
     if(c.secret&&!owned){ // секретный герой: скрыт, пока не найден в мире
-      d.innerHTML='<span class="ic">❓</span><b>???</b><br>🔒 кто-то ждёт в глуши…';
+      d.innerHTML='<span class="ic">❓</span><b>???</b><br>🔒 '+(c.hint||'секрет…');
       d.onclick=()=>S.hurt();
       cr.appendChild(d); continue;
     }
@@ -3496,6 +3685,11 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'19 июля 2026, ~19:30 (Алматы) — v8 «Живая карта»',t:[
+    '🪦 Охраняемая гробница: далёкая загадка на карте — победи стражей и открой. Внутри ждёт новый секретный герой.',
+    '🗺 Реликвия «Карта Галактики»: найди её один раз — и миникарта-радар останется с тобой навсегда.',
+    '🛒 Торговец: после каждого босса прибывает торговец — трать золото забега на лечение, воскрешение, усиления и бомбы. Цены растут с покупками.',
+    '⚡ Limit Break: когда весь билд прокачан, уровни продолжают усиливать оружие сверх предела — бесконечный режим больше не девальвирует опыт.']},
   {d:'19 июля 2026, 18:48 (Алматы) — v7 «Арсенал»',t:[
     '⚔️ Арсенал расширен до 20 базовых оружий — у каждого есть собственная эволюция.',
     '🔥 Добавлены Огнемёт, Вибро-клинки, Мины-ловушки, Турель-дроид, Сфера Силы и Звено X-wing.',
