@@ -1709,6 +1709,8 @@ function drawHUD(){
     cx.restore();
   };
   for(const u of G.pickups) if(u.kind==='chest') arrowTo(u.x,u.y,'rgba(255,215,106,.9)');
+  // голубые стрелки ведут к голокронам (секрет R2 не подсвечиваем)
+  for(const rl of G.relics) if(!rl.r2) arrowTo(rl.x,rl.y,'rgba(120,220,255,.85)');
   if(G.bossRef&&G.bossRef.hp>0) arrowTo(G.bossRef.x,G.bossRef.y,G.bossRef.emperor?'rgba(201,160,255,.9)':'rgba(255,75,75,.9)');
   // полоса босса снизу
   if(G.bossRef&&G.bossRef.hp>0&&!G.bossRef.emperor){
