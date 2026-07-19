@@ -424,6 +424,7 @@ function newGame(){
   const mightM=1+0.05*(m.might||0), hpM=100+15*(m.hp||0), spM=1+0.04*(m.speed||0);
   G={
     state:'playing', time:0, shake:0, killCount:0, goldRun:0,
+    hitStop:0, kickX:0, kickY:0, zoomPulse:0,
     cam:{x:0,y:0},
     p:{
       x:0,y:0, r:13, hp:hpM, hpMax:hpM, face:1, moving:false, walkT:0,
@@ -557,7 +558,8 @@ function spawnEnemy(type,px,py,mul){
     chargeT:rnd(2,4), charging:0, chargeDx:0, chargeDy:0,
     fly:!!d.fly, shooter:!!d.shooter, charger:!!d.charger, boss:!!d.boss, elite:!!d.elite,
     vader:!!d.vader, emperor:!!d.emperor, inq:!!d.inq, buffer:!!d.buffer, crate:!!d.crate,
-    burst:d.burst||0, phaseT:0, seed:Math.random()*10 };
+    burst:d.burst||0, phaseT:0, seed:Math.random()*10,
+    spawnT:d.crate?0:0.45 };
   if(e.boss){ e.hp=d.hp*(1+G.time/600); G.bossRef=e; }
   e.hpMax=e.hp;
   G.enemies.push(e);
@@ -744,6 +746,7 @@ function damageEnemy(e,dmg,knock){
   const crit=Math.random()<0.05*G.p.luck;
   if(crit) dmg*=2;
   e.hp-=dmg; e.flash=0.1;
+  if(crit){ G.hitStop=Math.max(G.hitStop,0.05); e.flash=0.14; }
   G.dmgTexts.push({x:e.x+rnd(-8,8),y:e.y-e.r-6,v:Math.round(dmg),t:0.6,crit});
   if(knock&&e.kb>0){ const d=Math.hypot(e.x-G.p.x,e.y-G.p.y)||1; e.kx+=(e.x-G.p.x)/d*60*e.kb; e.ky+=(e.y-G.p.y)/d*60*e.kb; }
   S.hit();
@@ -753,6 +756,10 @@ function killEnemy(e){
   G.killCount++;
   if(!e.crate) save.stats.perEnemy[e.type]=(save.stats.perEnemy[e.type]||0)+1;
   if(e.boss) G.bossKills=(G.bossKills||0)+1;
+  // death pop: враг «лопается» — растянутое кольцо цвета тела
+  G.parts.push({kind:'pop',x:e.x,y:e.y,t:0.22,tMax:0.22,R:e.r*1.6,c:e.boss?'255,140,60':'205,218,242'});
+  if(e.boss){ G.hitStop=Math.max(G.hitStop,0.09); G.shake=Math.min(14,G.shake+8); }
+  else if(e.elite) G.hitStop=Math.max(G.hitStop,0.05);
   // particles
   for(let i=0;i<(e.boss?40:8);i++)
     G.parts.push({kind:'p',x:e.x,y:e.y,vx:rnd(-160,160),vy:rnd(-200,60),t:rnd(0.3,0.7),c:e.boss?'#ff8d3a':'#aebbd8',s:rnd(2,e.boss?7:4)});
@@ -861,7 +868,7 @@ function applyPassive(id){
   }
 }
 function showLevelUp(){
-  G.state='levelup'; S.lvl();
+  G.state='levelup'; S.lvl(); G.zoomPulse=0.05;
   luTitle.textContent='⬆ УРОВЕНЬ '+G.p.lvl+'!';
   renderCards(upgradeOptions(),true);
 }
@@ -924,7 +931,7 @@ function renderCards(picks,withActions){
 }
 function openChest(){
   S.chest();
-  G.chestsRun++;
+  G.chestsRun++; G.zoomPulse=0.05;
   // золотая лихорадка как в VS: из сундука иногда льётся дождь монет
   if(Math.random()<0.3){ G.feverT=5; G.dmgTexts.push({x:G.p.x,y:G.p.y-44,v:'💰 ЗОЛОТАЯ ЛИХОРАДКА!',t:1.6,crit:true,str:true}); }
   // evolution if eligible (VS rule: weapon max lvl + paired passive)
@@ -1027,6 +1034,7 @@ function update(dt){
     if(e.hp<=0){ G.enemies[i]=G.enemies[G.enemies.length-1]; G.enemies.pop(); continue; }
     e.flash=Math.max(0,e.flash-dt);
     if(frozen&&!e.emperor) continue; // крио-часы: все, кроме Императора, замирают
+    if(e.spawnT>0){ e.spawnT-=dt; continue; } // вылезает из портала — ещё не двигается и не бьёт
     e.walkT+=dt*8;
     // knockback decay
     e.x+=e.kx*dt; e.y+=e.ky*dt; e.kx*=Math.pow(0.01,dt); e.ky*=Math.pow(0.01,dt);
@@ -1186,6 +1194,9 @@ function update(dt){
         for(const e of G.enemies){ if(dist2(e.x,e.y,b.tx,b.ty)<b.R*b.R) damageEnemy(e,b.dmg,true); }
         G.parts.push({kind:'boom',x:b.tx,y:b.ty,t:0.4,tMax:0.4,R:b.R});
         G.shake=Math.min(10,G.shake+4); S.boom();
+        // направленный толчок камеры ОТ взрыва
+        { const kdx=p.x-b.tx, kdy=p.y-b.ty, kdd=Math.hypot(kdx,kdy)||1;
+          G.kickX+=kdx/kdd*7; G.kickY+=kdy/kdd*7; }
         G.bullets.splice(i,1);
       }
       continue;
@@ -1268,7 +1279,7 @@ function update(dt){
         case 'gold': G.goldRun+=Math.round(u.v*p.goldMul*(G.rewardMul||1)); S.pick(); break;
         case 'chicken': p.hp=Math.min(p.hpMax,p.hp+30); S.pick(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'+30 HP',t:0.8,heal:true,str:true}); break;
         case 'vacuum': for(const g of G.gems) g.pull=true; S.pick(); break;
-        case 'bomb': { S.boom(); G.shake=14; for(const e of [...G.enemies]) if(!e.boss) damageEnemy(e,9999,false); break; }
+        case 'bomb': { S.boom(); G.shake=14; G.zoomPulse=0.05; for(const e of [...G.enemies]) if(!e.boss) damageEnemy(e,9999,false); break; }
         case 'freeze': { G.freezeT=8; S.zap(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'❄️ ВРЕМЯ ЗАМЕРЛО',t:1.4,crit:true,str:true}); break; }
         case 'chest': openChest(); break;
       }
@@ -1296,10 +1307,10 @@ function update(dt){
    ============================================================ */
 function draw(){
   const p=G.p;
-  const zoom=cameraZoom();
+  const zoom=cameraZoom()*(1+(G.zoomPulse||0));
   const shake=save.settings.shake?G.shake:0;
   const shx=shake?rnd(-shake,shake):0, shy=shake?rnd(-shake,shake):0;
-  const camX=G.cam.x+shx/zoom, camY=G.cam.y+shy/zoom;
+  const camX=G.cam.x+(shx+(G.kickX||0))/zoom, camY=G.cam.y+(shy+(G.kickY||0))/zoom;
 
   cx.fillStyle=pal().base; cx.fillRect(0,0,W,H);
   cx.save();
@@ -1307,6 +1318,18 @@ function draw(){
   cx.scale(zoom,zoom);
   cx.translate(-camX,-camY);
   drawGround(camX,camY,W/zoom,H/zoom);
+
+  // контраст ААА: фон темнее и холоднее к краям, вокруг игрока — тёплое световое пятно
+  if(!ecoOn()){
+    const vw=W/zoom, vh=H/zoom;
+    const dk=cx.createRadialGradient(p.x,p.y,110,p.x,p.y,Math.max(vw,vh)*0.62);
+    dk.addColorStop(0,'rgba(10,8,28,0.10)');
+    dk.addColorStop(1,'rgba(10,8,28,0.34)');
+    cx.fillStyle=dk; cx.fillRect(camX-vw/2-8,camY-vh/2-8,vw+16,vh+16);
+    const lt=cx.createRadialGradient(p.x,p.y,10,p.x,p.y,175);
+    lt.addColorStop(0,'rgba(255,240,205,0.10)'); lt.addColorStop(1,'rgba(255,240,205,0)');
+    cx.fillStyle=lt; cx.beginPath(); cx.arc(p.x,p.y,175,0,TAU); cx.fill();
+  }
 
   // zones
   for(const z of G.zones){
@@ -1334,15 +1357,22 @@ function draw(){
     const big=g.v>=10, mid=g.v>=5&&!big;
     cx.fillStyle=big?'#ff5b6e':(mid?'#7dffa0':'#5ec8ff');
     cx.save(); cx.translate(g.x,g.y+bob); cx.rotate(0.785);
-    const s=big?7:(mid?6:4.5);
+    // подскок при выпадении
+    const pop=g.t<0.35? 0.4+0.6*(g.t/0.35)+Math.sin(Math.min(g.t*9,Math.PI))*0.45 : 1;
+    const s=(big?7:(mid?6:4.5))*pop;
     cx.fillRect(-s/2,-s/2,s,s);
     cx.restore();
   }
   // pickups
   for(const u of G.pickups){
-    const bob=Math.sin(u.t*3)*3;
+    let bob=Math.sin(u.t*3)*3;
+    if(u.t<0.4) bob-=Math.abs(Math.sin(u.t*7.8))*12*(1-u.t/0.4); // подскок при дропе
     cx.font='20px serif'; cx.textAlign='center';
     const ico={gold:'🪙',chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦',freeze:'❄️'}[u.kind];
+    if(u.kind==='gold'){ // пульсирующее золотое свечение — «полезное» читается издалека
+      cx.fillStyle='rgba(255,215,106,'+(0.10+0.06*Math.sin(u.t*6))+')';
+      cx.beginPath(); cx.arc(u.x,u.y,13,0,TAU); cx.fill();
+    }
     if(u.kind==='chest'){ cx.font='26px serif';
       cx.fillStyle='rgba(255,215,106,'+(0.25+0.15*Math.sin(u.t*5))+')';
       cx.beginPath(); cx.arc(u.x,u.y,22,0,TAU); cx.fill();
@@ -1445,6 +1475,12 @@ function draw(){
       cx.strokeStyle=q.ev?'rgba(180,120,255,'+(1-k)*0.7+')':'rgba(150,220,255,'+(1-k)*0.6+')';
       cx.lineWidth=4;
       cx.beginPath(); cx.arc(q.x,q.y,q.R*k,0,TAU); cx.stroke();
+    } else if(q.kind==='pop'){
+      const k=1-q.t/q.tMax;
+      cx.strokeStyle='rgba('+q.c+','+((1-k)*0.8)+')'; cx.lineWidth=3;
+      cx.save(); cx.translate(q.x,q.y); cx.scale(1+k*0.6,1-k*0.35);
+      cx.beginPath(); cx.arc(0,0,q.R*(0.4+k*0.9),0,TAU); cx.stroke();
+      cx.restore();
     } else if(q.kind==='boom'){
       const k=1-q.t/q.tMax;
       cx.fillStyle='rgba(255,170,60,'+(1-k)*0.55+')';
@@ -1776,6 +1812,20 @@ function drawPlayer(){
 
 /* ---------- enemies ---------- */
 function drawEnemy(e){
+  // спавн-портал: тёмная тень растёт из земли, враг выпрыгивает с overshoot
+  let spS=1;
+  if(e.spawnT>0){
+    const k=clamp(1-e.spawnT/0.45,0,1);
+    cx.save(); cx.translate(e.x,e.y);
+    cx.fillStyle='rgba(24,10,44,'+(0.55*Math.min(1,k*2.2))+')';
+    cx.beginPath(); cx.ellipse(0,e.r*0.5,e.r*1.25*Math.min(1,k*1.5),e.r*0.5*Math.min(1,k*1.5),0,0,TAU); cx.fill();
+    cx.strokeStyle='rgba(170,110,255,'+(0.7*(1-k))+')'; cx.lineWidth=2;
+    cx.beginPath(); cx.ellipse(0,e.r*0.5,e.r*1.45*k+2,e.r*0.58*k+1,0,0,TAU); cx.stroke();
+    cx.restore();
+    if(k<0.3) return;
+    const kk=(k-0.3)/0.7, c1=1.7;
+    spS=1+(c1+1)*Math.pow(kk-1,3)+c1*Math.pow(kk-1,2);
+  }
   const bob=e.fly? Math.sin(G.time*4+e.seed*9)*4 : Math.abs(Math.sin(e.walkT))*2.5;
   const legA=Math.sin(e.walkT)*5;
   cx.save(); cx.translate(e.x,e.y-(e.fly?12+bob:bob));
@@ -1783,8 +1833,13 @@ function drawEnemy(e){
   cx.fillStyle='rgba(0,0,0,.22)';
   cx.beginPath(); cx.ellipse(0,(e.fly?24:e.r*0.85),e.r*0.8,e.r*0.3,0,0,TAU); cx.fill();
   cx.scale(e.face,1);
+  // squash & stretch при получении урона (flash → сжатие)
+  if(e.flash>0){ const sq=e.flash*1.2; cx.scale(spS*(1+sq*0.5),spS*(1-sq)); }
+  else if(spS!==1) cx.scale(spS,spS);
   if(e.telegraph>0){ // charge warning glow
     cx.shadowColor='#ff3b3b'; cx.shadowBlur=18;
+  } else if((e.elite||e.boss)&&!ecoOn()){ // rim-свечение угрозы у элит и боссов
+    cx.shadowColor=e.emperor?'#b06aff':'#ff3b3b'; cx.shadowBlur=12;
   }
   switch(e.draw){
     case 'trooper': drawTrooper(legA,'#e8e8ee','#16161c'); break;
@@ -2192,6 +2247,12 @@ function drawEmperor(legA,e){
 function drawBullet(b){
   cx.save(); cx.translate(b.x,b.y);
   if(b.kind==='saberThrow'){
+    // ghost-трейл летящего меча
+    for(let k=1;k<=2;k++){
+      cx.save(); cx.translate(-b.vx*0.014*k,-b.vy*0.014*k); cx.rotate(b.spin-0.4*k);
+      cx.globalAlpha=0.16/k; cx.fillStyle=b.ev?'#7dff6a':'#4db2ff'; cx.fillRect(-16,-2,32,4);
+      cx.restore();
+    }
     cx.rotate(b.spin);
     cx.shadowColor=b.ev?'#7dff6a':'#4db2ff'; cx.shadowBlur=10;
     cx.fillStyle=b.ev?'#7dff6a':'#4db2ff';
@@ -2200,6 +2261,10 @@ function drawBullet(b){
     cx.fillStyle='#eaffea'; cx.fillRect(-14,-0.8,28,1.6);
     cx.fillStyle='#9aa5b5'; cx.fillRect(-4,-2.5,8,5);
   } else if(b.kind==='shard'){
+    // светящийся хвост
+    cx.globalAlpha=0.25; cx.strokeStyle=b.ev?'#e9b8ff':'#9fd4ff'; cx.lineWidth=3; cx.lineCap='round';
+    cx.beginPath(); cx.moveTo(-b.vx*0.03,-b.vy*0.03); cx.lineTo(0,0); cx.stroke();
+    cx.globalAlpha=1;
     const a=Math.atan2(b.vy,b.vx); cx.rotate(a);
     cx.shadowColor='#c9f'; cx.shadowBlur=8;
     cx.fillStyle=b.ev?'#e9b8ff':'#bfe3ff';
@@ -2461,7 +2526,14 @@ let last=performance.now();
 function frame(now){
   const dt=Math.min(0.033,(now-last)/1000); last=now;
   if(G){
-    if(G.state==='playing') update(dt);
+    // хитстоп: короткая заморозка мира на крит/убийство босса
+    if(G.state==='playing'){
+      if(G.hitStop>0) G.hitStop-=dt;
+      else update(dt);
+    }
+    // затухание толчка камеры и zoom-пульса
+    G.kickX*=Math.pow(0.002,dt); G.kickY*=Math.pow(0.002,dt);
+    if(G.zoomPulse>0) G.zoomPulse=Math.max(0,G.zoomPulse-dt*0.2);
     if(G.state!=='dead'||true) draw();
   } else {
     // menu backdrop: starfield
