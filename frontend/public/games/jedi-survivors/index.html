@@ -1268,6 +1268,31 @@ function update(dt){
     hurtPlayer(contactDamage+crowdPressure);
   }
 
+  /* --- мираж: временный портал-бонус, исчезает через 20 секунд --- */
+  if(!G.mirage){
+    G.mirageT-=dt;
+    if(G.mirageT<=0){
+      const a=rnd(0,TAU), R=rnd(400,700);
+      const s=freeSpot(p.x+Math.cos(a)*R,p.y+Math.sin(a)*R);
+      G.mirage={x:s.x,y:s.y,t:20,tMax:20};
+      G.dmgTexts.push({x:p.x,y:p.y-46,v:'✨ МИРАЖ! Успей за 20 сек',t:1.9,crit:true,str:true});
+      S.chest();
+    }
+  } else {
+    G.mirage.t-=dt;
+    if(G.mirage.t<=0){ G.mirage=null; G.mirageT=rnd(150,240); }
+    else if(dist2(G.mirage.x,G.mirage.y,p.x,p.y)<42*42){
+      G.feverT=Math.max(G.feverT,4.5);
+      gainXP(20+G.time*0.08);
+      G.goldRun+=Math.round(30*p.goldMul*(G.rewardMul||1));
+      for(const g of G.gems) g.pull=true;
+      G.parts.push({kind:'ring',x:p.x,y:p.y,t:0.5,tMax:0.5,R:220,ev:true});
+      G.dmgTexts.push({x:p.x,y:p.y-46,v:'✨ МИРАЖ ПОЙМАН!',t:1.6,crit:true,str:true});
+      G.zoomPulse=0.05; S.chest();
+      G.mirage=null; G.mirageT=rnd(150,240);
+    }
+  }
+
   /* --- компаньон R2-D2: семенит за игроком, бьёт током, приносит еду --- */
   if(G.r2){
     const tx=p.x-p.face*26, ty=p.y+6;
@@ -1538,6 +1563,33 @@ function draw(){
     cx.restore();
   }
 
+  // мираж-портал: дрожащее марево, мигает перед исчезновением
+  if(G.mirage){
+    const m=G.mirage, t=G.time;
+    const blink=m.t<5? (Math.sin(t*12)>-0.2?1:0.25) : 1;
+    cx.save(); cx.translate(m.x,m.y); cx.globalAlpha=blink;
+    const gr=cx.createRadialGradient(0,0,6,0,0,52);
+    gr.addColorStop(0,'rgba(160,255,225,.30)'); gr.addColorStop(1,'rgba(160,255,225,0)');
+    cx.fillStyle=gr; cx.beginPath(); cx.arc(0,0,52,0,TAU); cx.fill();
+    for(let k=0;k<2;k++){ // дрожащие кольца-линзы
+      const w=1+k, ph2=t*(3+k)+k*2;
+      cx.strokeStyle='rgba(140,255,215,'+(0.55-k*0.2)+')'; cx.lineWidth=2.5-k;
+      cx.beginPath();
+      for(let s2=0;s2<=24;s2++){
+        const a=s2/24*TAU, rr=26+k*9+Math.sin(a*3+ph2)*3;
+        const px2=Math.cos(a)*rr*0.75, py2=Math.sin(a)*rr-14;
+        s2?cx.lineTo(px2,py2):cx.moveTo(px2,py2);
+      }
+      cx.closePath(); cx.stroke();
+    }
+    cx.fillStyle='rgba(255,255,255,'+(0.5+0.3*Math.sin(t*7))+')';
+    cx.beginPath(); cx.arc(0,-14,3.5,0,TAU); cx.fill();
+    // таймер-дуга
+    cx.strokeStyle='rgba(255,215,106,.85)'; cx.lineWidth=3;
+    cx.beginPath(); cx.arc(0,-14,44,-Math.PI/2,-Math.PI/2+TAU*(m.t/m.tMax)); cx.stroke();
+    cx.restore();
+  }
+
   // slashes (lightsaber arcs)
   for(const s of G.slashes){
     const k=1-s.t/s.tMax;
@@ -1751,6 +1803,7 @@ function drawHUD(){
   for(const u of G.pickups) if(u.kind==='chest') arrowTo(u.x,u.y,'rgba(255,215,106,.9)');
   // голубые стрелки ведут к голокронам (секрет R2 не подсвечиваем)
   for(const rl of G.relics) if(!rl.r2) arrowTo(rl.x,rl.y,'rgba(120,220,255,.85)');
+  if(G.mirage) arrowTo(G.mirage.x,G.mirage.y,'rgba(160,255,215,.9)');
   if(G.bossRef&&G.bossRef.hp>0) arrowTo(G.bossRef.x,G.bossRef.y,G.bossRef.emperor?'rgba(201,160,255,.9)':'rgba(255,75,75,.9)');
   // полоса босса снизу
   if(G.bossRef&&G.bossRef.hp>0&&!G.bossRef.emperor){
