@@ -24,6 +24,16 @@
   .btn-big:active { transform:scale(.96); }
   .btn-sec { font-size:min(4vw,17px); padding:11px 34px; margin:6px; background:#232c45; border:1px solid #3a4770; }
   #menu .rec { color:#8b98b8; font-size:13px; margin-top:14px; }
+  .menu-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .sel-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; max-width:94vw; }
+  .sel-card { cursor:pointer; user-select:none; background:#161e36; border:1.5px solid #3a4770; border-radius:12px;
+    padding:7px 10px; text-align:center; min-width:64px; color:#c8d7f4; font-size:11px; line-height:1.3; }
+  .sel-card .ic { font-size:22px; display:block; }
+  .sel-card.on { border-color:#4db2ff; background:#1b2a4d; box-shadow:0 0 14px rgba(77,178,255,.35); }
+  .sel-card.lock { opacity:.55; }
+  .sel-card .pr { color:#ffd76a; }
+  .sel-card:active { transform:scale(.95); }
+  .lu-act { font-size:13px !important; padding:9px 16px !important; }
   #menu footer { position:absolute; bottom:calc(10px + env(safe-area-inset-bottom)); color:#66719b; font-size:12px; }
   #menu footer a { color:#8fbaff; text-decoration:none; font-weight:600; }
 
@@ -91,9 +101,14 @@
 <div id="menu" class="overlay">
   <h1>JEDI SURVIVORS</h1>
   <div class="sub">выживи в атаке Империи</div>
+  <div id="charRow" class="sel-row"></div>
+  <div id="stageRow" class="sel-row"></div>
   <button class="btn btn-big" id="startBtn">▶ ИГРАТЬ</button>
-  <button class="btn btn-sec" id="shopBtn">🛒 Академия джедаев (прокачка)</button>
-  <button class="btn btn-sec" id="settingsMenuBtn">⚙️ Настройки</button>
+  <div class="menu-row">
+    <button class="btn btn-sec" id="shopBtn">🏛 Академия</button>
+    <button class="btn btn-sec" id="collBtn">📚 Коллекция</button>
+    <button class="btn btn-sec" id="settingsMenuBtn">⚙️</button>
+  </div>
   <div class="rec" id="recLine"></div>
   <footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
 </div>
@@ -101,6 +116,7 @@
 <div id="levelup" class="overlay hidden">
   <h2 id="luTitle">НОВЫЙ УРОВЕНЬ!</h2>
   <div id="cards"></div>
+  <div id="luActions" class="hidden" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center"></div>
 </div>
 
 <div id="paused" class="overlay hidden">
@@ -137,8 +153,17 @@
 <div id="endscr" class="overlay hidden">
   <h2 id="endTitle">ТЫ ПАЛ…</h2>
   <div class="stats" id="endStats"></div>
+  <button class="btn btn-big hidden" id="contBtn" style="background:linear-gradient(180deg,#b06aff,#6a2fc4)">♾ Продолжить бесконечно</button>
   <button class="btn btn-big" id="againBtn">⟳ Ещё раз</button>
   <button class="btn btn-sec" id="menuBtn">В меню</button>
+</div>
+
+<div id="collection" class="overlay hidden">
+  <div class="pause-panel">
+    <h2 style="color:#ffd76a;letter-spacing:2px">📚 КОЛЛЕКЦИЯ</h2>
+    <div id="collBody" class="pause-build"></div>
+    <button class="btn btn-big" id="collBack">← Назад</button>
+  </div>
 </div>
 
 <div id="shop" class="overlay hidden">
@@ -221,6 +246,63 @@ muted=!!save.settings.muted;
 music.muted=muted;
 function persist(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){} }
 function cameraZoom(){ return clamp(Number(save.settings.zoom)||0.5,0.5,1); }
+/* --- прогрессия как в VS: герои, достижения, этапы, бестиарий --- */
+save.chars=Object.assign({obiwan:true},save.chars||{});
+save.selChar=save.chars[save.selChar]?save.selChar:'obiwan';
+save.achs=save.achs||{};
+save.stats=Object.assign({kills:0,timePlayed:0,runs:0,maxLvl:0,perEnemy:{}},save.stats||{});
+save.selStage=save.selStage||'tatooine';
+save.hyper=!!save.hyper;
+// миграция: ветераны до системы достижений получают их по своим рекордам
+if(save.best>=300) save.achs.surv5=true;
+if(save.best>=900) save.achs.surv15=true;
+if(save.best>=1200) save.achs.surv20=true;
+if(save.bestKills>=500) save.achs.kills500=true;
+if(save.best>=420) save.achs.chests3=true;
+if(save.best>=1799) save.achs.win=true;
+
+const CHARS={
+  obiwan:{ico:'🧙‍♂️',nm:'Оби-Ван',weapon:'saber',  bonus:'+2 брони, +10% урона',cost:0},
+  grogu: {ico:'👶',  nm:'Грогу',  weapon:'push',   bonus:'+15% скорости, −8% перезарядки',cost:800},
+  ahsoka:{ico:'👩‍🎤',nm:'Асока',  weapon:'throw',  bonus:'+1 снаряд ко всем атакам',cost:1200,ach:'evo1'},
+  han:   {ico:'🔫',  nm:'Хан Соло',weapon:'shards', bonus:'+30% удачи, +25% золота',cost:1500,ach:'surv20'},
+  chewie:{ico:'🐻',  nm:'Чубакка',weapon:'grenade',bonus:'+60 HP, +20% области',cost:2000,ach:'kills5000'},
+};
+const ACHS=[
+  {id:'surv5',    nm:'Продержаться 5 минут',      rw:'оружие 🛸 Дроиды-стражи', cond:g=>g.time>=300},
+  {id:'kills500', nm:'500 убийств за забег',      rw:'оружие 🌀 Бросок меча',   cond:g=>g.killCount>=500},
+  {id:'chests3',  nm:'3 сундука за забег',        rw:'оружие 💣 Термодетонатор',cond:g=>g.chestsRun>=3},
+  {id:'boss1',    nm:'Убить босса',               rw:'+300 🪙', gold:300,       cond:g=>g.bossKills>=1},
+  {id:'surv15',   nm:'Продержаться 15 минут',     rw:'этап ❄️ Хот',             cond:g=>g.time>=900},
+  {id:'evo1',     nm:'Первая эволюция оружия',    rw:'герой 👩‍🎤 Асока',         cond:g=>g.evosRun>=1},
+  {id:'surv20',   nm:'Продержаться 20 минут',     rw:'герой 🔫 Хан Соло',       cond:g=>g.time>=1200},
+  {id:'kills5000',nm:'5000 убийств суммарно',     rw:'герой 🐻 Чубакка',        cond:g=>save.stats.kills+g.killCount>=5000},
+  {id:'vader',    nm:'Победить Дарта Вейдера',    rw:'+1000 🪙', gold:1000,     cond:g=>g.vaderKilled},
+  {id:'maxw',     nm:'6 оружий в билде',          rw:'+300 🪙', gold:300,       cond:g=>g.p.weapons.length>=6},
+  {id:'lvl50',    nm:'Достичь 50 уровня',         rw:'+500 🪙', gold:500,       cond:g=>g.p.lvl>=50},
+  {id:'win',      nm:'Пережить осаду (30:00)',    rw:'⚡ Гипер-режим',           cond:g=>g.won},
+];
+function checkAchs(){
+  if(!G) return;
+  for(const a of ACHS){
+    if(save.achs[a.id]) continue;
+    let ok=false; try{ ok=a.cond(G); }catch(e){}
+    if(ok){
+      save.achs[a.id]=true;
+      if(a.gold) save.gold+=a.gold;
+      persist();
+      G.dmgTexts.push({x:G.p.x,y:G.p.y-58,v:'🏆 '+a.nm+' — '+a.rw,t:2.4,crit:true,str:true});
+      S.chest();
+    }
+  }
+}
+function weaponUnlocked(id){
+  if(id==='drones') return !!save.achs.surv5;
+  if(id==='throw') return !!save.achs.kills500;
+  if(id==='grenade') return !!save.achs.chests3;
+  return true;
+}
+const ENEMY_NAMES={trooper:'Штурмовик',scout:'Развед-дроид',b1:'Дроид B1',heavy:'Тяжёлый штурмовик',probe:'Пробо-дроид',dark:'Тёмный солдат',sith:'Сит-адепт',swarm:'Рой дроидов',tusken:'Тускен',jawa:'Джава',interro:'Дроид-дознаватель',magna:'Магна-страж',deka:'Дроидека',officer:'Имперский офицер',wampa:'Вампа',crate:'Ящик припасов',atst:'AT-ST',maul:'Дарт Мол',boba:'Боба Фетт',inquis:'Великий Инквизитор',vader:'Дарт Вейдер',emperor:'Император'};
 const META=[
   {id:'might', ico:'💎', nm:'Кристалл силы', desc:'+5% урона за ранг', max:5, cost:r=>Math.round(200*Math.pow(1.9,r))},
   {id:'hp',    ico:'❤️', nm:'Стойкость',     desc:'+15 макс. HP за ранг', max:5, cost:r=>Math.round(160*Math.pow(1.9,r))},
@@ -235,6 +317,9 @@ const META=[
   {id:'greed', ico:'🪙', nm:'Контрабандист', desc:'+12% золота за ранг', max:5, cost:r=>Math.round(180*Math.pow(1.9,r))},
   {id:'amount',ico:'🔮', nm:'Дуализм',       desc:'+1 снаряд ко всем атакам', max:1, cost:r=>5000},
   {id:'revive',ico:'✨', nm:'Воля Силы',     desc:'+1 воскрешение за ранг', max:2, cost:r=>Math.round(1500*Math.pow(2.5,r))},
+  {id:'reroll',ico:'🔄', nm:'Предвидение',   desc:'+1 реролл выбора за ранг', max:2, cost:r=>Math.round(600*Math.pow(2.2,r))},
+  {id:'banish',ico:'🚫', nm:'Отрешённость',  desc:'+1 изгнание карты за ранг', max:2, cost:r=>Math.round(600*Math.pow(2.2,r))},
+  {id:'curse', ico:'😈', nm:'Тёмная сторона',desc:'+6% скорости и HP врагов, +8% опыта и золота за ранг', max:5, cost:r=>Math.round(500*Math.pow(1.9,r))},
 ];
 
 /* ============================================================
@@ -346,7 +431,7 @@ function newGame(){
       magnet:60*(1+0.12*(m.magnet||0)), recovery:0.3*(m.recovery||0), luck:1+0.08*(m.luck||0),
       growth:1+0.05*(m.growth||0), goldMul:1+0.12*(m.greed||0), revives:(m.revive||0),
       lvl:1, xp:0, xpNext:5,
-      weapons:[{id:'saber',lvl:1,cd:0.3,evolved:false}],
+      weapons:[{id:(CHARS[save.selChar]||CHARS.obiwan).weapon,lvl:1,cd:0.3,evolved:false}],
       passives:{},
       inv:0, aimA:0, lastMove:{x:1,y:0}, swingT:0,
     },
@@ -355,11 +440,33 @@ function newGame(){
     joy:null, target:null,
     bossRef:null, vaderKilled:false,
     droneAngle:0, droneTimer:0, dronesActive:false, droneLife:0,
+    // прогрессия VS: этап, гипер, проклятие, рероллы, трекеры достижений
+    stage:save.selStage==='hoth'&&save.achs.surv15?'hoth':'tatooine',
+    hyper:save.hyper&&!!save.achs.win,
+    chestsRun:0, evosRun:0, bossKills:0, won:false, endless:false, goldCredited:0,
+    freezeT:0, feverT:0, feverTick:0, achTick:0,
+    rerolls:1+(m.reroll||0), skips:1, banishes:1+(m.banish||0), banned:[],
   };
+  const curseR=(m.curse||0);
+  G.curse=1+0.06*curseR;                                  // HP врагов
+  G.eSpd=(G.hyper?1.15:1)*(1+0.04*curseR);                // скорость врагов
+  G.spawnMul=(G.hyper?0.8:1)/(1+0.05*curseR);             // интервал спавна
+  G.rewardMul=(1+0.08*curseR)*(G.hyper?1.5:1)*(G.stage==='hoth'?1.25:1);
+  if(G.stage==='hoth') G.curse*=1.25;
+  // бонусы героя
+  const ch=CHARS[save.selChar]||CHARS.obiwan;
+  const p=G.p;
+  switch(save.selChar){
+    case 'grogu': p.speed*=1.15; p.cdr*=0.92; break;
+    case 'ahsoka': p.amount+=1; break;
+    case 'han': p.luck+=0.30; p.goldMul*=1.25; break;
+    case 'chewie': p.hpMax+=60; p.hp+=60; p.area+=0.20; break;
+    default: p.armor+=2; p.might+=0.10; break;
+  }
   // динамичный старт: империя уже окружает — первые враги видны сразу
-  for(let i=0;i<12;i++){
-    const a=i/12*TAU+rnd(-0.2,0.2);
-    const R=Math.min(W,H)*0.42/cameraZoom()+rnd(0,140);
+  for(let i=0;i<9;i++){
+    const a=i/9*TAU+rnd(-0.2,0.2);
+    const R=Math.min(W,H)*0.52/cameraZoom()+rnd(40,200);
     spawnEnemy(i%3===0?'scout':'trooper', Math.cos(a)*R, Math.sin(a)*R, 1);
   }
 }
@@ -427,7 +534,7 @@ function nearObstacles(x,y){
    SPAWNING
    ============================================================ */
 function waveCfg(){ return WAVES[Math.min(WAVES.length-1, Math.floor(G.time/60))]; }
-function hpMul(){ const mn=G.time/60; return 1+mn*0.42+mn*mn*0.027; }
+function hpMul(){ const mn=G.time/60; return (1+mn*0.42+mn*mn*0.027)*(G.curse||1); }
 function spawnPos(){
   const a=rnd(0,TAU), R=Math.hypot(W,H)/(2*cameraZoom())+60;
   return {x:G.p.x+Math.cos(a)*R, y:G.p.y+Math.sin(a)*R};
@@ -444,7 +551,7 @@ function spawnEnemy(type,px,py,mul){
   const d=ETYPES[type]; if(!d) return;
   const pos=(px!==undefined)?{x:px,y:py}:spawnPos();
   const e={type, x:pos.x, y:pos.y, hp:d.hp*(mul||hpMul())*(d.boss?1:1), hpMax:0,
-    sp:d.sp*rnd(0.9,1.1), dmg:d.dmg, r:d.r, xp:d.xp, draw:d.draw,
+    sp:d.sp*rnd(0.9,1.1)*(G.eSpd||1), dmg:d.dmg, r:d.r, xp:d.xp, draw:d.draw,
     face:1, walkT:rnd(0,10), flash:0, kx:0, ky:0, kb:d.kb ?? 1,
     shootT:rnd(3.5,5), aimT:0, aimX:0, aimY:0,
     chargeT:rnd(2,4), charging:0, chargeDx:0, chargeDy:0,
@@ -466,12 +573,12 @@ function updateSpawns(dt){
   const cfg=waveCfg(), mn=Math.floor(G.time/60);
   // Император на поле — как Смерть в VS: обычные волны прекращаются, остаётся только погоня
   if(mn>G.bossDone&&cfg.boss){ G.bossDone=mn; spawnEnemy(cfg.boss); S.boom(); }
-  for(const e of G.enemies) if(e.emperor) return;
+  for(const e of G.enemies) if(e.emperor&&!G.endless) return;
   // periodic spawn
   G.spawnT-=dt;
   const cap=clamp(60+mn*22,60,320);
   if(G.spawnT<=0 && G.enemies.length<cap){
-    G.spawnT=cfg.int;
+    G.spawnT=cfg.int*(G.spawnMul||1);
     for(let i=0;i<cfg.batch;i++) spawnEnemy(cfg.types[rndi(0,cfg.types.length-1)]);
   }
   // minute events: ring (once per minute row)
@@ -644,6 +751,8 @@ function damageEnemy(e,dmg,knock){
 }
 function killEnemy(e){
   G.killCount++;
+  if(!e.crate) save.stats.perEnemy[e.type]=(save.stats.perEnemy[e.type]||0)+1;
+  if(e.boss) G.bossKills=(G.bossKills||0)+1;
   // particles
   for(let i=0;i<(e.boss?40:8);i++)
     G.parts.push({kind:'p',x:e.x,y:e.y,vx:rnd(-160,160),vy:rnd(-200,60),t:rnd(0.3,0.7),c:e.boss?'#ff8d3a':'#aebbd8',s:rnd(2,e.boss?7:4)});
@@ -654,7 +763,8 @@ function killEnemy(e){
     if(roll<0.42) G.pickups.push({kind:'gold',x:e.x,y:e.y,v:rndi(8,20),t:0});
     else if(roll<0.68) G.pickups.push({kind:'chicken',x:e.x,y:e.y,t:0});
     else if(roll<0.82) G.pickups.push({kind:'vacuum',x:e.x,y:e.y,t:0});
-    else if(roll<0.92) for(let i=0;i<5;i++) G.gems.push({x:e.x+rnd(-25,25),y:e.y+rnd(-25,25),v:3,t:0});
+    else if(roll<0.90) for(let i=0;i<5;i++) G.gems.push({x:e.x+rnd(-25,25),y:e.y+rnd(-25,25),v:3,t:0});
+    else if(roll<0.96) G.pickups.push({kind:'freeze',x:e.x,y:e.y,t:0});
     else G.pickups.push({kind:'bomb',x:e.x,y:e.y,t:0});
     G.killCount--; // crates are not kills
   } else if(e.elite||e.boss){
@@ -668,6 +778,7 @@ function killEnemy(e){
     else if(roll<d.gold*G.p.luck+0.008*G.p.luck) G.pickups.push({kind:'chicken',x:e.x,y:e.y,t:0});
     else if(roll>0.9985) G.pickups.push({kind:'vacuum',x:e.x,y:e.y,t:0});
     else if(roll>0.9975&&roll<=0.9985) G.pickups.push({kind:'bomb',x:e.x,y:e.y,t:0});
+    else if(roll>0.9963&&roll<=0.9975) G.pickups.push({kind:'freeze',x:e.x,y:e.y,t:0});
   }
   if(e.boss) G.bossRef=null;
   if(e.vader){
@@ -707,7 +818,7 @@ function hurtPlayer(dmg){
    ============================================================ */
 const luEl=document.getElementById('levelup'), cardsEl=document.getElementById('cards'), luTitle=document.getElementById('luTitle');
 function gainXP(v){
-  const p=G.p; p.xp+=v*p.growth;
+  const p=G.p; p.xp+=v*p.growth*(G.rewardMul||1);
   while(p.xp>=p.xpNext){
     p.xp-=p.xpNext; p.lvl++;
     // VS-кривая: +10 XP за уровень до 20, +13 до 40, +16 дальше
@@ -719,11 +830,13 @@ function gainXP(v){
 }
 function upgradeOptions(){
   const p=G.p, opts=[];
-  for(const w of p.weapons) if(w.lvl<8&&!w.evolved) opts.push({kind:'w-up',id:w.id});
-  if(p.weapons.length<6) for(const id in WEAPONS) if(!p.weapons.find(w=>w.id===id)) opts.push({kind:'w-new',id});
+  const banned=G.banned||[];
+  for(const w of p.weapons) if(w.lvl<8&&!w.evolved&&!banned.includes('w'+w.id)) opts.push({kind:'w-up',id:w.id});
+  if(p.weapons.length<6) for(const id in WEAPONS)
+    if(!p.weapons.find(w=>w.id===id)&&weaponUnlocked(id)&&!banned.includes('w'+id)) opts.push({kind:'w-new',id});
   for(const id in PASSIVES){
     const cur=p.passives[id]||0;
-    if(cur<PASSIVES[id].max) opts.push({kind:'p',id});
+    if(cur<PASSIVES[id].max&&!banned.includes('p'+id)) opts.push({kind:'p',id});
   }
   // shuffle, pick 3
   for(let i=opts.length-1;i>0;i--){ const j=rndi(0,i); [opts[i],opts[j]]=[opts[j],opts[i]]; }
@@ -750,9 +863,11 @@ function applyPassive(id){
 function showLevelUp(){
   G.state='levelup'; S.lvl();
   luTitle.textContent='⬆ УРОВЕНЬ '+G.p.lvl+'!';
-  renderCards(upgradeOptions());
+  renderCards(upgradeOptions(),true);
 }
-function renderCards(picks){
+let banishMode=false;
+function renderCards(picks,withActions){
+  banishMode=false;
   cardsEl.innerHTML='';
   for(const o of picks){
     const c=document.createElement('div'); c.className='card';
@@ -766,20 +881,52 @@ function renderCards(picks){
     else { ico='🪙'; nm='Кредиты'; lvTxt='+25'; ds='Всё прокачано — держи золото.'; }
     c.innerHTML='<div class="ico">'+ico+'</div><div class="nm">'+nm+'</div><div class="lv">'+lvTxt+'</div><div class="ds">'+ds+'</div>';
     c.onclick=()=>{
+      if(banishMode){
+        if(o.kind==='w-up'||o.kind==='w-new'||o.kind==='p'){
+          // изгнание: этот предмет больше не появится в этом забеге (как в VS)
+          G.banned.push((o.kind==='p'?'p':'w')+o.id);
+          G.banishes--;
+        }
+        banishMode=false;
+        renderCards(upgradeOptions(),true);
+        return;
+      }
       if(o.kind==='w-up'){ G.p.weapons.find(w=>w.id===o.id).lvl++; }
       else if(o.kind==='w-new'){ G.p.weapons.push({id:o.id,lvl:1,cd:0.2,evolved:false}); }
       else if(o.kind==='p'){ applyPassive(o.id); }
-      else if(o.kind==='evo'){ const w=G.p.weapons.find(w=>w.id===o.id); w.evolved=true; S.chest(); }
+      else if(o.kind==='evo'){ const w=G.p.weapons.find(w=>w.id===o.id); w.evolved=true; G.evosRun++; S.chest(); }
       else { G.goldRun+=25; }
       luEl.classList.add('hidden');
       G.state='playing';
     };
     cardsEl.appendChild(c);
   }
+  // панель действий: реролл / изгнание / пропуск (механики VS)
+  const act=document.getElementById('luActions');
+  if(withActions){
+    act.classList.remove('hidden');
+    act.innerHTML='';
+    const mk=(txt,n,fn,dis)=>{
+      const b=document.createElement('button');
+      b.className='btn btn-sec lu-act'; b.textContent=txt+(n!==null?' ('+n+')':'');
+      if(dis) b.disabled=true;
+      b.onclick=fn; act.appendChild(b);
+    };
+    mk('🔄 Реролл',G.rerolls,()=>{ if(G.rerolls>0){ G.rerolls--; renderCards(upgradeOptions(),true); } },G.rerolls<=0);
+    mk('🚫 Изгнать',G.banishes,()=>{
+      if(G.banishes>0){ banishMode=!banishMode;
+        luTitle.textContent=banishMode?'🚫 ВЫБЕРИ КАРТУ ДЛЯ ИЗГНАНИЯ':'⬆ УРОВЕНЬ '+G.p.lvl+'!';
+      }
+    },G.banishes<=0);
+    mk('⏭ Пропустить',G.skips,()=>{ if(G.skips>0){ G.skips--; luEl.classList.add('hidden'); G.state='playing'; } },G.skips<=0);
+  } else act.classList.add('hidden');
   luEl.classList.remove('hidden');
 }
 function openChest(){
   S.chest();
+  G.chestsRun++;
+  // золотая лихорадка как в VS: из сундука иногда льётся дождь монет
+  if(Math.random()<0.3){ G.feverT=5; G.dmgTexts.push({x:G.p.x,y:G.p.y-44,v:'💰 ЗОЛОТАЯ ЛИХОРАДКА!',t:1.6,crit:true,str:true}); }
   // evolution if eligible (VS rule: weapon max lvl + paired passive)
   const evo=G.p.weapons.find(w=>w.lvl>=8&&!w.evolved&&(G.p.passives[WEAPONS[w.id].pair]||0)>0);
   if(evo){
@@ -856,6 +1003,21 @@ function update(dt){
   updateSpawns(dt);
   updateWeapons(dt);
 
+  /* --- крионические часы / золотая лихорадка / достижения --- */
+  if(G.freezeT>0) G.freezeT-=dt;
+  if(G.feverT>0){
+    G.feverT-=dt; G.feverTick-=dt;
+    if(G.feverTick<=0){
+      G.feverTick=0.14;
+      const a=rnd(0,TAU), R=rnd(30,150);
+      G.pickups.push({kind:'gold',x:p.x+Math.cos(a)*R,y:p.y+Math.sin(a)*R,v:rndi(2,6),t:0,fly:true});
+      G.parts.push({kind:'p',x:p.x+Math.cos(a)*R,y:p.y+Math.sin(a)*R-20,vx:0,vy:60,t:0.5,c:'#ffd76a',s:3});
+    }
+  }
+  G.achTick-=dt;
+  if(G.achTick<=0){ G.achTick=1; checkAchs(); }
+  const frozen=G.freezeT>0;
+
   /* --- enemies --- */
   const officers=[];
   for(const e of G.enemies) if(e.buffer&&e.hp>0) officers.push(e);
@@ -864,6 +1026,7 @@ function update(dt){
     const e=G.enemies[i];
     if(e.hp<=0){ G.enemies[i]=G.enemies[G.enemies.length-1]; G.enemies.pop(); continue; }
     e.flash=Math.max(0,e.flash-dt);
+    if(frozen&&!e.emperor) continue; // крио-часы: все, кроме Императора, замирают
     e.walkT+=dt*8;
     // knockback decay
     e.x+=e.kx*dt; e.y+=e.ky*dt; e.kx*=Math.pow(0.01,dt); e.ky*=Math.pow(0.01,dt);
@@ -1096,12 +1259,17 @@ function update(dt){
   /* --- pickups --- */
   for(let i=G.pickups.length-1;i>=0;i--){
     const u=G.pickups[i]; u.t+=dt;
+    if(u.fly){ // монеты лихорадки сами летят к игроку
+      const d=Math.hypot(p.x-u.x,p.y-u.y)||1;
+      u.x+=(p.x-u.x)/d*300*dt; u.y+=(p.y-u.y)/d*300*dt;
+    }
     if(dist2(u.x,u.y,p.x,p.y)<(p.r+16)*(p.r+16)){
       switch(u.kind){
-        case 'gold': G.goldRun+=Math.round(u.v*p.goldMul); S.pick(); break;
+        case 'gold': G.goldRun+=Math.round(u.v*p.goldMul*(G.rewardMul||1)); S.pick(); break;
         case 'chicken': p.hp=Math.min(p.hpMax,p.hp+30); S.pick(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'+30 HP',t:0.8,heal:true,str:true}); break;
         case 'vacuum': for(const g of G.gems) g.pull=true; S.pick(); break;
         case 'bomb': { S.boom(); G.shake=14; for(const e of [...G.enemies]) if(!e.boss) damageEnemy(e,9999,false); break; }
+        case 'freeze': { G.freezeT=8; S.zap(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'❄️ ВРЕМЯ ЗАМЕРЛО',t:1.4,crit:true,str:true}); break; }
         case 'chest': openChest(); break;
       }
       G.pickups.splice(i,1);
@@ -1119,8 +1287,8 @@ function update(dt){
     if(t.t<=0) G.dmgTexts.splice(i,1);
   }
 
-  /* --- win: пережить 30-минутную осаду --- */
-  if(G.time>=1800){ endRun(true); return; }
+  /* --- win: пережить 30-минутную осаду (в бесконечном режиме — играем дальше) --- */
+  if(G.time>=1800&&!G.endless){ G.won=true; checkAchs(); endRun(true); return; }
 }
 
 /* ============================================================
@@ -1133,7 +1301,7 @@ function draw(){
   const shx=shake?rnd(-shake,shake):0, shy=shake?rnd(-shake,shake):0;
   const camX=G.cam.x+shx/zoom, camY=G.cam.y+shy/zoom;
 
-  cx.fillStyle='#c9a05e'; cx.fillRect(0,0,W,H);
+  cx.fillStyle=pal().base; cx.fillRect(0,0,W,H);
   cx.save();
   cx.translate(W/2,H/2);
   cx.scale(zoom,zoom);
@@ -1174,7 +1342,7 @@ function draw(){
   for(const u of G.pickups){
     const bob=Math.sin(u.t*3)*3;
     cx.font='20px serif'; cx.textAlign='center';
-    const ico={gold:'🪙',chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦'}[u.kind];
+    const ico={gold:'🪙',chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦',freeze:'❄️'}[u.kind];
     if(u.kind==='chest'){ cx.font='26px serif';
       cx.fillStyle='rgba(255,215,106,'+(0.25+0.15*Math.sin(u.t*5))+')';
       cx.beginPath(); cx.arc(u.x,u.y,22,0,TAU); cx.fill();
@@ -1307,6 +1475,19 @@ function draw(){
     cx.beginPath(); cx.arc(G.joy.sx+dx/d*cl,G.joy.sy+dy/d*cl,20,0,TAU); cx.fill();
   }
 
+  // метель на Хоте + ледяной оттенок при заморозке (screen-space)
+  if(G.stage==='hoth'){
+    cx.strokeStyle='rgba(255,255,255,.55)'; cx.lineWidth=1.5;
+    for(let i=0;i<50;i++){
+      const spd=90+hash2(i,2)*140;
+      const sx=(hash2(i,1)*W+G.time*spd)%W, sy=(hash2(i,3)*H+G.time*spd*1.6)%H;
+      cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(sx-4,sy-7); cx.stroke();
+    }
+  }
+  if(G.freezeT>0){
+    cx.fillStyle='rgba(120,190,255,'+Math.min(0.14,G.freezeT*0.1)+')';
+    cx.fillRect(0,0,W,H);
+  }
   drawHUD();
 }
 
@@ -1352,6 +1533,20 @@ function drawHUD(){
   cx.strokeStyle='rgba(0,0,0,.75)'; cx.lineWidth=3;
   cx.strokeText('💀 '+G.killCount, W-14, 132); cx.fillStyle='#fff'; cx.fillText('💀 '+G.killCount, W-14, 132);
   cx.strokeText('🪙 '+G.goldRun, W-14, 152); cx.fillStyle='#ffd76a'; cx.fillText('🪙 '+G.goldRun, W-14, 152);
+  // стрелки к сундукам и боссу за краем экрана (как подсветка элит в VS)
+  const zoomA=cameraZoom();
+  const arrowTo=(tx,ty,color)=>{
+    const sx=W/2+(tx-G.cam.x)*zoomA, sy=H/2+(ty-G.cam.y)*zoomA;
+    if(sx>-10&&sx<W+10&&sy>-10&&sy<H+10) return;
+    const a=Math.atan2(sy-H/2,sx-W/2);
+    const ex=clamp(W/2+Math.cos(a)*W, 26, W-26), ey=clamp(H/2+Math.sin(a)*H, 46, H-46);
+    cx.save(); cx.translate(ex,ey); cx.rotate(a);
+    cx.fillStyle=color;
+    cx.beginPath(); cx.moveTo(12,0); cx.lineTo(-7,-8); cx.lineTo(-3,0); cx.lineTo(-7,8); cx.closePath(); cx.fill();
+    cx.restore();
+  };
+  for(const u of G.pickups) if(u.kind==='chest') arrowTo(u.x,u.y,'rgba(255,215,106,.9)');
+  if(G.bossRef&&G.bossRef.hp>0) arrowTo(G.bossRef.x,G.bossRef.y,G.bossRef.emperor?'rgba(201,160,255,.9)':'rgba(255,75,75,.9)');
   // полоса босса снизу
   if(G.bossRef&&G.bossRef.hp>0&&!G.bossRef.emperor){
     const e=G.bossRef, bw=Math.min(W*0.5,440);
@@ -1371,8 +1566,14 @@ function drawHUD(){
   }
 }
 
-/* ---------- ground: Tatooine desert with props ---------- */
+/* ---------- ground: Tatooine desert / Hoth snowfields ---------- */
+const STAGE_PAL={
+  tatooine:{base:'#c9a05e',rock:'#a3793f',crater:'90,60,20',bones:'#e8dcc0',tuft:'120,110,50'},
+  hoth:    {base:'#dce7f2',rock:'#9fb3c8',crater:'70,95,130',bones:'#f8fcff',tuft:'140,160,195'},
+};
+function pal(){ return STAGE_PAL[(G&&G.stage)||'tatooine']; }
 function drawGround(camX,camY,viewW,viewH){
+  const P=pal();
   const TS=240;
   const x0=Math.floor((camX-viewW/2)/TS)-1, x1=Math.floor((camX+viewW/2)/TS)+1;
   const y0=Math.floor((camY-viewH/2)/TS)-1, y1=Math.floor((camY+viewH/2)/TS)+1;
@@ -1385,17 +1586,17 @@ function drawGround(camX,camY,viewW,viewH){
     const h2=hash2(tx*7+1,ty*3+5);
     const cxp=px+hash2(tx,ty*2)*TS, cyp=py+hash2(tx*3,ty)*TS;
     if(h2<0.14){ // rock
-      cx.fillStyle='#a3793f';
+      cx.fillStyle=P.rock;
       cx.beginPath(); cx.ellipse(cxp,cyp,14+h2*60,9+h2*40,h2*3,0,TAU); cx.fill();
       cx.fillStyle='rgba(255,255,255,.13)';
       cx.beginPath(); cx.ellipse(cxp-3,cyp-4,8+h2*30,4+h2*15,h2*3,0,TAU); cx.fill();
     } else if(h2<0.2){ // crater
-      cx.strokeStyle='rgba(90,60,20,.35)'; cx.lineWidth=3;
+      cx.strokeStyle='rgba('+P.crater+',.35)'; cx.lineWidth=3;
       cx.beginPath(); cx.arc(cxp,cyp,16+h2*40,0,TAU); cx.stroke();
-      cx.fillStyle='rgba(90,60,20,.15)';
+      cx.fillStyle='rgba('+P.crater+',.15)';
       cx.beginPath(); cx.arc(cxp,cyp,16+h2*40,0,TAU); cx.fill();
     } else if(h2<0.25){ // krayt bones
-      cx.strokeStyle='#e8dcc0'; cx.lineWidth=4; cx.lineCap='round';
+      cx.strokeStyle=P.bones; cx.lineWidth=4; cx.lineCap='round';
       cx.beginPath(); cx.moveTo(cxp-20,cyp); cx.quadraticCurveTo(cxp,cyp-16,cxp+22,cyp-2); cx.stroke();
       cx.lineWidth=3;
       for(let k=-1;k<=1;k++){ cx.beginPath(); cx.moveTo(cxp+k*10,cyp-8+Math.abs(k)*3); cx.lineTo(cxp+k*10,cyp+8); cx.stroke(); }
@@ -1406,7 +1607,7 @@ function drawGround(camX,camY,viewW,viewH){
       cx.fillStyle='#2c313d'; cx.fillRect(-10,0,7,5);
       cx.restore();
     } else if(h2<0.42){ // tufts
-      cx.strokeStyle='rgba(120,110,50,.5)'; cx.lineWidth=2;
+      cx.strokeStyle='rgba('+P.tuft+',.5)'; cx.lineWidth=2;
       for(let k=0;k<3;k++){ cx.beginPath(); cx.moveTo(cxp+k*5,cyp); cx.quadraticCurveTo(cxp+k*5+3,cyp-9,cxp+k*5+6,cyp-12); cx.stroke(); }
     }
   }
@@ -1609,6 +1810,11 @@ function drawEnemy(e){
     case 'emperor': drawEmperor(legA,e); break;
   }
   cx.shadowBlur=0;
+  // ледяная корка при заморозке
+  if(G.freezeT>0&&!e.emperor){
+    cx.fillStyle='rgba(150,210,255,.35)';
+    cx.beginPath(); cx.arc(0,-e.r*0.3,e.r+3,0,TAU); cx.fill();
+  }
   // hit flash
   if(e.flash>0){
     cx.globalCompositeOperation='source-atop';
@@ -2043,11 +2249,19 @@ function startRun(){
 function endRun(win){
   if(G.state==='dead') return;
   G.state='dead';
+  checkAchs();
   luEl.classList.add('hidden'); pausedEl.classList.add('hidden');
-  save.gold+=G.goldRun;
+  save.gold+=G.goldRun-(G.goldCredited||0);
+  G.goldCredited=G.goldRun;
   save.best=Math.max(save.best,G.time);
   save.bestKills=Math.max(save.bestKills,G.killCount);
+  // итоги: при продолжении в бесконечном режиме зачитываем только дельту
+  save.stats.kills+=G.killCount-(G.killsCredited||0); G.killsCredited=G.killCount;
+  save.stats.timePlayed+=G.time-(G.timeCredited||0); G.timeCredited=G.time;
+  if(!G.statsCredited){ G.statsCredited=true; save.stats.runs++; }
+  save.stats.maxLvl=Math.max(save.stats.maxLvl,G.p.lvl);
   persist();
+  el('contBtn').classList.toggle('hidden', !win);
   el('endTitle').textContent = win? '🏆 ТЫ ПЕРЕЖИЛ ОСАДУ!' : '💀 ТЫ СТАЛ ЕДИНЫМ С СИЛОЙ';
   el('endTitle').style.color = win? '#7dffa0' : '#ff5b5b';
   const wl=G.p.weapons.map(w=>WEAPONS[w.id].ico+(w.evolved?'🔥':'')).join(' ');
@@ -2105,13 +2319,65 @@ function toMenu(){
   pausedEl.classList.add('hidden'); settingsEl.classList.add('hidden');
   endEl.classList.add('hidden'); hudEl.classList.add('hidden');
   menuEl.classList.remove('hidden'); music.pause();
-  updateRec();
+  updateRec(); renderMenuMeta();
 }
 function updateRec(){
   el('recLine').textContent = save.best>0
     ? 'Рекорд: '+fmtTime(save.best)+' · Убийств: '+save.bestKills+' · 🪙 '+save.gold
     : 'WASD / джойстик пальцем / тап — идти к точке';
 }
+function renderMenuMeta(){
+  const cr=el('charRow'); cr.innerHTML='';
+  for(const id in CHARS){
+    const c=CHARS[id], owned=!!save.chars[id];
+    const achOk=!c.ach||save.achs[c.ach];
+    const d=document.createElement('div');
+    d.className='sel-card'+(save.selChar===id?' on':'')+(!owned?' lock':'');
+    d.innerHTML='<span class="ic">'+c.ico+'</span><b>'+c.nm+'</b><br>'+
+      (owned?c.bonus:(achOk?'<span class="pr">🪙 '+c.cost+'</span>':'🔒 '+((ACHS.find(a=>a.id===c.ach)||{}).nm||'достижение')));
+    d.onclick=()=>{
+      if(owned){ save.selChar=id; persist(); renderMenuMeta(); }
+      else if(achOk&&save.gold>=c.cost){ save.gold-=c.cost; save.chars[id]=true; save.selChar=id; persist(); S.chest(); renderMenuMeta(); updateRec(); }
+      else S.hurt();
+    };
+    cr.appendChild(d);
+  }
+  const sr=el('stageRow'); sr.innerHTML='';
+  const stages=[['tatooine','🏜','Татуин','классика',true],['hoth','❄️','Хот','+25% сложность и награды',!!save.achs.surv15]];
+  for(const [id,ic,nm,ds,unl] of stages){
+    const d=document.createElement('div');
+    d.className='sel-card'+(save.selStage===id&&unl?' on':'')+(!unl?' lock':'');
+    d.innerHTML='<span class="ic">'+ic+'</span><b>'+nm+'</b><br>'+(unl?ds:'🔒 выживи 15 минут');
+    d.onclick=()=>{ if(unl){ save.selStage=id; persist(); renderMenuMeta(); } else S.hurt(); };
+    sr.appendChild(d);
+  }
+  if(save.achs.win){
+    const d=document.createElement('div');
+    d.className='sel-card'+(save.hyper?' on':'');
+    d.innerHTML='<span class="ic">⚡</span><b>Гипер</b><br>'+(save.hyper?'враги быстрее, награды ×1.5':'выкл');
+    d.onclick=()=>{ save.hyper=!save.hyper; persist(); renderMenuMeta(); };
+    sr.appendChild(d);
+  }
+}
+function renderCollection(){
+  const st=save.stats;
+  let html='<b>🏆 ДОСТИЖЕНИЯ</b> ('+ACHS.filter(a=>save.achs[a.id]).length+'/'+ACHS.length+')<br>';
+  html+=ACHS.map(a=>(save.achs[a.id]?'✅':'⬜')+' <b>'+a.nm+'</b> <span style="color:#66719b">→ '+a.rw+'</span>').join('<br>');
+  html+='<br><br><b>📖 БЕСТИАРИЙ</b><br>';
+  const seen=Object.entries(st.perEnemy||{}).filter(([k])=>k!=='crate'&&ENEMY_NAMES[k]);
+  html+=seen.length?seen.sort((a,b)=>b[1]-a[1]).map(([k,v])=>ENEMY_NAMES[k]+' — <b>'+v+'</b>').join('<br>'):'<span style="color:#66719b">пока никого не встретил</span>';
+  html+='<br><br><b>📊 ИТОГИ</b><br>Забегов: <b>'+st.runs+'</b> · Убийств: <b>'+st.kills+'</b><br>'+
+    'Времени в бою: <b>'+fmtTime(st.timePlayed)+'</b> · Макс. уровень: <b>'+st.maxLvl+'</b>';
+  el('collBody').innerHTML=html;
+}
+el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); el('collection').classList.remove('hidden'); };
+el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
+el('contBtn').onclick=()=>{
+  if(!G) return;
+  G.endless=true; G.state='playing';
+  endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
+  music.play().catch(()=>{});
+};
 el('startBtn').onclick=startRun;
 el('againBtn').onclick=startRun;
 el('menuBtn').onclick=toMenu;
@@ -2185,8 +2451,8 @@ function renderShop(){
   }
 }
 el('shopBtn').onclick=()=>{ renderShop(); menuEl.classList.add('hidden'); shopEl.classList.remove('hidden'); };
-el('shopBack').onclick=()=>{ shopEl.classList.add('hidden'); menuEl.classList.remove('hidden'); updateRec(); };
-updateRec();
+el('shopBack').onclick=()=>{ shopEl.classList.add('hidden'); menuEl.classList.remove('hidden'); updateRec(); renderMenuMeta(); };
+updateRec(); renderMenuMeta();
 
 /* ============================================================
    MAIN LOOP
