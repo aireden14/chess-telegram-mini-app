@@ -1483,8 +1483,16 @@ function update(dt){
 /* ============================================================
    DRAW
    ============================================================ */
+// солнце ползёт за 30-минутный забег: тени смещаются и вытягиваются
+let SUN={dx:0,st:1};
+function updateSun(){
+  const k=G?clamp(G.time/1800,0,1):0.3;
+  SUN.dx=lerp(-8,15,k);
+  SUN.st=1+Math.abs(k-0.45)*0.85; // в «полдень» короткая, к ночи длинная
+}
 function draw(){
   const p=G.p;
+  updateSun();
   const zoom=cameraZoom()*(1+(G.zoomPulse||0));
   const shake=save.settings.shake?G.shake:0;
   const shx=shake?rnd(-shake,shake):0, shy=shake?rnd(-shake,shake):0;
@@ -1987,7 +1995,7 @@ function drawTerrain(o){
   cx.save(); cx.translate(o.x,o.y);
   const h=o.h*100;
   if(o.kind==='mesa'){ // столовая скала
-    cx.fillStyle='rgba(0,0,0,.2)'; cx.beginPath(); cx.ellipse(6,o.r*0.55,o.r*1.05,o.r*0.42,0,0,TAU); cx.fill();
+    cx.fillStyle='rgba(0,0,0,.2)'; cx.beginPath(); cx.ellipse(6+SUN.dx*2.2,o.r*0.55,o.r*1.05*SUN.st,o.r*0.42,0,0,TAU); cx.fill();
     cx.fillStyle='#8f6a35';
     cx.beginPath(); cx.ellipse(0,0,o.r,o.r*0.72,0,0,TAU); cx.fill();
     cx.fillStyle='#a87f42';
@@ -1999,14 +2007,14 @@ function drawTerrain(o){
     cx.strokeStyle='rgba(70,45,15,.4)'; cx.lineWidth=2;
     for(let k=0;k<4;k++){ const a=h*0.7+k*1.7; cx.beginPath(); cx.moveTo(Math.cos(a)*o.r*0.8,Math.sin(a)*o.r*0.5); cx.lineTo(Math.cos(a)*o.r*0.55,Math.sin(a)*o.r*0.3-14); cx.stroke(); }
   } else if(o.kind==='vap'){ // влагоуловитель
-    cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(3,10,20,8,0,0,TAU); cx.fill();
+    cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(3+SUN.dx,10,20*SUN.st,8,0,0,TAU); cx.fill();
     cx.fillStyle='#9aa0ad'; cx.fillRect(-6,-58,12,66);
     cx.fillStyle='#6f7787'; cx.fillRect(-6,-58,4,66);
     for(let k=0;k<3;k++){ cx.fillStyle='#c7ccd6'; cx.fillRect(-13,-52+k*16,26,6); cx.fillStyle='#8a8f9c'; cx.fillRect(-13,-52+k*16,26,2); }
     cx.fillStyle='#2c313d'; cx.fillRect(-4,-64,8,7);
     cx.fillStyle=Math.sin(G?G.time*3:0)>0?'#ff4b4b':'#5b1a1a'; cx.fillRect(-2,-62,4,3);
   } else if(o.kind==='hut'){ // купольная хижина
-    cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(5,o.r*0.5,o.r*1.05,o.r*0.4,0,0,TAU); cx.fill();
+    cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(5+SUN.dx*1.6,o.r*0.5,o.r*1.05*SUN.st,o.r*0.4,0,0,TAU); cx.fill();
     cx.fillStyle='#e8dcc0';
     cx.beginPath(); cx.ellipse(0,0,o.r,o.r*0.62,0,Math.PI,0); cx.lineTo(o.r,o.r*0.28); cx.ellipse(0,o.r*0.28,o.r,o.r*0.3,0,0,Math.PI); cx.closePath(); cx.fill();
     cx.fillStyle='#d3c3a0';
@@ -2083,7 +2091,7 @@ function drawPlayer(){
   cx.save(); cx.translate(p.x,p.y-bob);
   // shadow (before flip, symmetric anyway)
   cx.fillStyle='rgba(0,0,0,.3)';
-  cx.beginPath(); cx.ellipse(0,14+bob,13,5,0,0,TAU); cx.fill();
+  cx.beginPath(); cx.ellipse(SUN.dx*0.6,14+bob,13*SUN.st,5,0,0,TAU); cx.fill();
   cx.scale(p.face,1);
   if(p.inv>0&&Math.floor(p.inv*20)%2===0) cx.globalAlpha=0.45;
   const OUT='#241a10'; // тёмная обводка для контраста на песке
@@ -2155,7 +2163,7 @@ function drawPlayer(){
 function drawR2(x,y,idle){
   const t=G.time, bob=idle?0:Math.sin(t*10)*1.2;
   cx.save(); cx.translate(x,y-bob);
-  cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(0,8,10,4,0,0,TAU); cx.fill();
+  cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(SUN.dx*0.5,8,10*SUN.st,4,0,0,TAU); cx.fill();
   // ножки
   cx.fillStyle='#8a8f9c'; cx.fillRect(-11,-6,3.5,13); cx.fillRect(7.5,-6,3.5,13);
   cx.fillStyle='#4d5464'; cx.fillRect(-12,6,5.5,3); cx.fillRect(6.5,6,5.5,3);
@@ -2196,7 +2204,7 @@ function drawEnemy(e){
   cx.save(); cx.translate(e.x,e.y-(e.fly?12+bob:bob));
   // shadow
   cx.fillStyle='rgba(0,0,0,.22)';
-  cx.beginPath(); cx.ellipse(0,(e.fly?24:e.r*0.85),e.r*0.8,e.r*0.3,0,0,TAU); cx.fill();
+  cx.beginPath(); cx.ellipse(SUN.dx*(e.r/16),(e.fly?24:e.r*0.85),e.r*0.8*SUN.st,e.r*0.3,0,0,TAU); cx.fill();
   cx.scale(e.face,1);
   // squash & stretch при получении урона (flash → сжатие)
   if(e.flash>0){ const sq=e.flash*1.2; cx.scale(spS*(1+sq*0.5),spS*(1-sq)); }
@@ -2543,7 +2551,7 @@ function drawWampa(legA,e){
 }
 function drawCrate(e){
   const bl=(Math.sin(G.time*3+e.seed)+1)/2;
-  cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(2,12,15,5,0,0,TAU); cx.fill();
+  cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(2+SUN.dx*0.8,12,15*SUN.st,5,0,0,TAU); cx.fill();
   cx.fillStyle='#6f7787'; cx.fillRect(-13,-10,26,22);
   cx.fillStyle='#8a8f9c'; cx.fillRect(-13,-10,26,7);
   cx.fillStyle='#4d5464'; cx.fillRect(-13,-3,26,2);
