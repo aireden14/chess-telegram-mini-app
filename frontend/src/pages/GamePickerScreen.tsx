@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "../store/auth";
@@ -7,7 +7,7 @@ import { useVisualModeStore } from "../store/visualMode";
 import { triggerHaptic } from "../hooks/useTelegram";
 import { hasUnseenWhatsNew } from "../data/changelog";
 import { type GameIconKind } from "../components/GameHubLogo";
-import { subscribe, getView, startSession } from "../data/playStats";
+import { claimContentMilestone, subscribe, getView, startSession } from "../data/playStats";
 
 type AppEntry = {
   key: GameIconKind | "card" | "catan_beta" | "icebreakers";
@@ -62,9 +62,26 @@ export function GamePickerScreen() {
   const beta = visualMode === "beta";
 
   const [query, setQuery] = useState("");
+  const [milestone, setMilestone] = useState<number | null>(null);
 
   // Статистика хаба (на текущий аккаунт): сколько раз запускали каждую игру.
   const stats = useSyncExternalStore(subscribe, getView, getView);
+  const exploredGames = useMemo(
+    () => ALL_APPS.filter((app) => (stats.launchCount[app.to] ?? 0) > 0).length,
+    [stats],
+  );
+  const contentProgress = Math.round((exploredGames / ALL_APPS.length) * 100);
+  const remainingProgress = Math.max(0, 100 - contentProgress);
+
+  useEffect(() => {
+    const reached = claimContentMilestone(contentProgress);
+    if (!reached) return;
+
+    setMilestone(reached);
+    triggerHaptic("success");
+    const timer = window.setTimeout(() => setMilestone(null), 5500);
+    return () => window.clearTimeout(timer);
+  }, [contentProgress]);
 
   // Один плоский список: чаще всего запускаемые — сверху, при равном счёте — недавно запущенные
   // выше, никогда не запускавшиеся остаются в конце в порядке каталога.
@@ -126,6 +143,35 @@ export function GamePickerScreen() {
         <h1 className="home-title">Игры</h1>
       </header>
 
+      <section className="home-content-progress" aria-label="Шкала исследования контента">
+        <div className="home-content-progress-head">
+          <span className="home-content-progress-kicker">ШКАЛА 3 · ИССЛЕДОВАНИЕ</span>
+          <strong>{contentProgress}%</strong>
+        </div>
+        <div
+          className="home-content-progress-track"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={contentProgress}
+          aria-label={`Исследовано ${contentProgress}% контента`}
+        >
+          <span style={{ width: `${contentProgress}%` }} />
+        </div>
+        <p>
+          Открыто {exploredGames} из {ALL_APPS.length} игр · до финиша {remainingProgress}%
+        </p>
+      </section>
+
+      {milestone !== null && (
+        <div className="home-progress-toast" role="status">
+          <span aria-hidden>🏆</span>
+          <p>
+            <strong>Так держать!</strong> Ты выполнил {milestone}% контента. До финиша ещё {100 - milestone}%.
+          </p>
+        </div>
+      )}
+
       <div className="home-search">
         <span className="home-search-icon" aria-hidden>⌕</span>
         <input
@@ -148,6 +194,10 @@ export function GamePickerScreen() {
           <p className="home-search-empty">Ничего не нашлось</p>
         )}
       </div>
+
+      <footer className="home-powered">
+        Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a>
+      </footer>
 
       {/* Док снизу: профиль («домой» / аккаунт) слева, переключатели справа. Как dock на iPhone. */}
       <nav className="home-dock" aria-label="Профиль и настройки">

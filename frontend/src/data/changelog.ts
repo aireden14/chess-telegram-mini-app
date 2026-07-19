@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.3.2",
+    date: "19 июля 2026, 11:25 (Алматы)",
+    title: "Шкала исследования GamePass",
+    items: [
+      "📊 На главном экране появилась третья шкала: она считает, какую долю каталога вы уже открыли и сколько осталось до финиша",
+      "🏆 При каждом новом рубеже 10% GamePass поздравляет на главном экране и показывает оставшийся путь",
+    ],
+  },
+  {
     version: "3.3.1",
     date: "19 июля 2026, 11:13 (Алматы)",
     title: "GamePass обновлён",

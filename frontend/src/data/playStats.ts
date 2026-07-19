@@ -15,10 +15,15 @@ type StatsData = {
 };
 
 const STATS_KEY_PREFIX = "gamepass-stats-v2";
+const CONTENT_MILESTONE_KEY_PREFIX = "gamepass-content-milestone-v1";
 
 function accountKey(userId?: string | number | null): string {
   const suffix = userId != null && userId !== "" ? String(userId) : "guest";
   return [STATS_KEY_PREFIX, suffix].join(":");
+}
+
+function contentMilestoneKey(): string {
+  return `${CONTENT_MILESTONE_KEY_PREFIX}:${activeKey.slice(STATS_KEY_PREFIX.length + 1)}`;
 }
 
 let activeKey = accountKey(null);
@@ -97,6 +102,26 @@ export function startSession(to: string): void {
   d.launchCount[to] = (d.launchCount[to] ?? 0) + 1;
   d.lastPlayedAt[to] = Date.now();
   persist(d);
+}
+
+/**
+ * Возвращает новый достигнутый рубеж исследования (10, 20 … 100) только один раз
+ * на аккаунт. Сам процент вычисляет экран хаба, потому что именно он знает каталог.
+ */
+export function claimContentMilestone(progressPercent: number): number | null {
+  if (typeof window === "undefined") return null;
+  const milestone = Math.min(100, Math.floor(Math.max(0, progressPercent) / 10) * 10);
+  if (milestone < 10) return null;
+
+  try {
+    const key = contentMilestoneKey();
+    const previous = Number(localStorage.getItem(key) ?? 0);
+    if (milestone <= previous) return null;
+    localStorage.setItem(key, String(milestone));
+    return milestone;
+  } catch {
+    return null;
+  }
 }
 
 export function getView(): StatsView {
