@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
 <title>Jedi Survivors</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent;
@@ -348,7 +349,11 @@ function weaponUnlocked(id){
   if(id==='bowcaster') return !!save.achs.maxw;
   if(id==='freezer') return !!save.achs.lvl50;
   if(id==='beam') return !!save.achs.win;
-  return true;
+  if(id==='mines') return !!save.achs.chests3;
+  if(id==='turret') return !!save.achs.surv20;
+  if(id==='orb') return !!save.achs.kills5000;
+  if(id==='falcon') return !!save.achs.vader;
+  return true; // flame и vibro доступны сразу
 }
 /* --- Арканы (как в VS): модификаторы забега, открываются после первого босса --- */
 const ARCANAS=[
@@ -446,6 +451,12 @@ const WEAPONS={
   bowcaster:{ico:'🏹',nm:'Арбалет Чубакки',ds:'Заряженный болт пробивает всё на пути.', pair:'might'},
   freezer: {ico:'❄️', nm:'Крио-излучатель',ds:'Замораживает врагов. Мороженые получают +25% урона.', pair:'cooldown'},
   beam:    {ico:'📡', nm:'Орбитальный луч',ds:'«Звезда Смерти» бьёт лучами с орбиты.', pair:'luck'},
+  flame:   {ico:'🔥', nm:'Огнемёт',       ds:'Конус пламени по направлению движения, поджигает землю.', pair:'area'},
+  vibro:   {ico:'🗡', nm:'Вибро-клинки',  ds:'Режут всё вокруг. В движении бьют в полтора раза больнее.', pair:'speed'},
+  mines:   {ico:'🧨', nm:'Мины-ловушки',  ds:'Оставляет за собой мины, взрывающиеся под врагами.', pair:'hpmax'},
+  turret:  {ico:'🗼', nm:'Турель-дроид',  ds:'Ставит турель, бьющую по ближайшим врагам.', pair:'amount'},
+  orb:     {ico:'🔮', nm:'Сфера Силы',    ds:'Медленная сфера плывёт сквозь толпу, перемалывая её.', pair:'magnet'},
+  falcon:  {ico:'🛩', nm:'Звено X-wing',  ds:'Истребитель проносится штурмовкой через поле боя.', pair:'luck'},
 };
 const EVOS={
   saber:   {nm:'Меч Скайуокера',    ds:'Огромные дуги с обеих сторон + ударная волна.'},
@@ -462,6 +473,12 @@ const EVOS={
   bowcaster:{nm:'Раскат Кашиика',   ds:'Разрывные болты — взрыв на каждом пробитии.'},
   freezer: {nm:'Карбонитная волна', ds:'Долгая заморозка + ледяной удар по мороженым.'},
   beam:    {nm:'Гнев Империи',      ds:'Шквал лучей, выжигающих зоны на земле.'},
+  flame:   {nm:'Дыхание крайт-дракона',ds:'Огненная волна шире и жжёт землю дольше.'},
+  vibro:   {nm:'Танец Силы',        ds:'Бег оставляет след из режущих зон.'},
+  mines:   {nm:'Минное поле',       ds:'Мин больше, взрывы кассетные с огнём.'},
+  turret:  {nm:'Батарея «Эхо»',     ds:'Две турели с очередями и рикошетом.'},
+  orb:     {nm:'Сингулярность',     ds:'Сфера затягивает врагов внутрь себя.'},
+  falcon:  {nm:'Красная эскадрилья',ds:'Три истребителя заходят волнами.'},
 };
 const PASSIVES={
   might:   {ico:'💎', nm:'Кайбер-кристалл', ds:'+10% урона за уровень', max:5},
@@ -567,7 +584,7 @@ function newGame(){
       passives:{},
       inv:0, aimA:0, lastMove:{x:1,y:0}, swingT:0,
     },
-    enemies:[], slashes:[], bullets:[], eshots:[], gems:[], pickups:[], parts:[], dmgTexts:[], zones:[], drones:[],
+    enemies:[], slashes:[], bullets:[], eshots:[], gems:[], pickups:[], parts:[], dmgTexts:[], zones:[], drones:[], turrets:[],
     spawnT:0.4, ringDone:-1, bossDone:-1, eliteT:100, crateT:14, pitTick:0,
     joy:null, target:null,
     bossRef:null, vaderKilled:false,
@@ -782,8 +799,14 @@ function updateSpawns(dt){
    WEAPONS — firing
    ============================================================ */
 function weaponCooldown(w){
-  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9}[w.id];
+  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9,flame:1.7,vibro:0.9,mines:2.0,turret:7.5,orb:4.2,falcon:5.0}[w.id];
   let cd=base*G.p.cdr;
+  if(w.id==='flame') cd*= (w.evolved?0.85:1) * (1-0.04*(w.lvl-1));
+  if(w.id==='vibro') cd*= 1-0.04*(w.lvl-1);
+  if(w.id==='mines') cd*= (w.evolved?0.7:1) * (1-0.05*(w.lvl-1));
+  if(w.id==='turret') cd*= 1-0.05*(w.lvl-1);
+  if(w.id==='orb') cd*= (w.evolved?0.85:1) * (1-0.04*(w.lvl-1));
+  if(w.id==='falcon') cd*= (w.evolved?0.8:1) * (1-0.04*(w.lvl-1));
   if(w.id==='whip') cd*= (w.evolved?0.8:1) * (1-0.04*(w.lvl-1));
   if(w.id==='bowcaster') cd*= 1-0.05*(w.lvl-1);
   if(w.id==='freezer') cd*= (w.evolved?0.85:1) * (1-0.05*(w.lvl-1));
@@ -993,6 +1016,74 @@ function fireWeapon(w){
       if(pool.length){ G.shake=Math.min(8,G.shake+2); S.boom(); }
       break;
     }
+    case 'flame':{ // конус огня по направлению движения
+      const R=(150+lv*12)*area*(ev?1.4:1), half=(ev?0.75:0.5);
+      const dmg=(10+lv*4)*might*(ev?1.5:1);
+      const fa=Math.atan2(p.lastMove.y,p.lastMove.x);
+      for(const e of G.enemies){
+        if(e.hp<=0) continue;
+        const d2e=dist2(e.x,e.y,p.x,p.y);
+        if(d2e>R*R) continue;
+        let da=Math.atan2(e.y-p.y,e.x-p.x)-fa;
+        while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
+        if(Math.abs(da)<half) damageEnemy(e,dmg,false);
+      }
+      G.zones.push({x:p.x+Math.cos(fa)*R*0.55,y:p.y+Math.sin(fa)*R*0.55,R:R*0.4,t:ev?2.5:1.2,dmg:dmg*0.2,tick:0,ev});
+      G.parts.push({kind:'flame',x:p.x,y:p.y,a:fa,R,half,t:0.25,tMax:0.25,ev});
+      break;
+    }
+    case 'vibro':{ // клинки вокруг; в движении — больнее, эво оставляет режущий след
+      const R=(78+lv*7)*area*(ev?1.3:1);
+      const dmg=(9+lv*4)*might*(p.moving?1.5:1)*(ev?1.5:1);
+      for(const e of G.enemies){
+        if(e.hp<=0) continue;
+        if(dist2(e.x,e.y,p.x,p.y)<R*R) damageEnemy(e,dmg,true);
+      }
+      G.parts.push({kind:'ring',x:p.x,y:p.y,t:0.22,tMax:0.22,R});
+      if(ev&&p.moving) G.zones.push({x:p.x,y:p.y,R:R*0.6,t:1.4,dmg:dmg*0.15,tick:0,ev:true});
+      break;
+    }
+    case 'mines':{ // мина под ногами, взрыв по контакту
+      const n=(ev?3:1)+Math.floor(p.amount/2);
+      const dmg=(28+lv*10)*might*(ev?1.3:1);
+      for(let i=0;i<n;i++){
+        const a=rnd(0,TAU), rr=i?rnd(30,90):0;
+        G.bullets.push({x:p.x+Math.cos(a)*rr,y:p.y+Math.sin(a)*rr,vx:0,vy:0,r:20,dmg,life:25,kind:'mine',R:(85+lv*7)*area*(ev?1.35:1),ev,hitCd:{}});
+      }
+      break;
+    }
+    case 'turret':{ // стационарная турель (эво — две)
+      G.turrets=G.turrets||[];
+      const n=ev?2:1;
+      for(let i=0;i<n;i++){
+        G.turrets.push({x:p.x+rnd(-40,40),y:p.y+rnd(-40,40),life:(8+lv*1.2)*(ev?1.2:1),cd:0,
+          dmg:(8+lv*3.5)*might*(ev?1.3:1),rate:ev?0.28:0.5,ric:ev?1:0});
+        while(G.turrets.length>(ev?3:2)) G.turrets.shift();
+      }
+      S.zap();
+      break;
+    }
+    case 'orb':{ // медленная сфера сквозь толпу
+      const n=1+Math.floor(p.amount/2);
+      const dmg=(8+lv*3.5)*might*(ev?1.4:1);
+      for(let i=0;i<n;i++){
+        const t=nearestEnemies(4,900)[i]||nearestEnemies(1,900)[0];
+        const a=t?Math.atan2(t.y-p.y,t.x-p.x):rnd(0,TAU);
+        G.bullets.push({x:p.x,y:p.y,vx:Math.cos(a)*95,vy:Math.sin(a)*95,r:(24+lv*2)*area*(ev?1.3:1),dmg,life:6,kind:'orb',hitCd:{},ev});
+      }
+      break;
+    }
+    case 'falcon':{ // штурмовка X-wing через позицию игрока
+      const n=ev?3:1;
+      const dmg=(30+lv*11)*might*(ev?1.25:1);
+      for(let i=0;i<n;i++){
+        const a=rnd(0,TAU);
+        const sx=p.x-Math.cos(a)*760, sy=p.y-Math.sin(a)*760+(i-(n-1)/2)*90;
+        G.bullets.push({x:sx,y:sy,vx:Math.cos(a)*920,vy:Math.sin(a)*920,r:(34+lv*2)*area,dmg,life:1.8,kind:'ship',hitCd:{},ev});
+      }
+      S.saber();
+      break;
+    }
   }
 }
 function rocketBoom(b){
@@ -1005,6 +1096,20 @@ function updateWeapons(dt){
   for(const w of G.p.weapons){
     w.cd-=dt;
     if(w.cd<=0){ w.cd=weaponCooldown(w); fireWeapon(w); if(ARC('echo')&&Math.random()<0.15) fireWeapon(w); }
+  }
+  // турели: живут на месте, бьют ближайших
+  if(G.turrets&&G.turrets.length){
+    for(let i=G.turrets.length-1;i>=0;i--){
+      const t=G.turrets[i]; t.life-=dt;
+      if(t.life<=0){ G.parts.push({kind:'pop',x:t.x,y:t.y,t:0.2,tMax:0.2,R:20,c:'150,200,255'}); G.turrets.splice(i,1); continue; }
+      t.cd-=dt;
+      if(t.cd<=0){
+        let best=null,bd=520*520;
+        for(const e of G.enemies){ if(e.hp<=0||e.neutral||e.crate||e.lamp) continue; const d=dist2(e.x,e.y,t.x,t.y); if(d<bd){bd=d;best=e;} }
+        if(best){ t.cd=t.rate; const a=Math.atan2(best.y-t.y,best.x-t.x); G.bullets.push({x:t.x,y:t.y-14,vx:Math.cos(a)*640,vy:Math.sin(a)*640,r:6,dmg:t.dmg,life:1.1,kind:'bolt',ric:t.ric,hitCd:{}}); }
+        else t.cd=0.2;
+      }
+    }
   }
   // drones update
   if(G.dronesActive){
@@ -1682,14 +1787,22 @@ function update(dt){
       } else if(G.enemies.length) b.tgt=G.enemies[rndi(0,G.enemies.length-1)];
       if(Math.random()<0.6) G.parts.push({kind:'p',x:b.x,y:b.y,vx:rnd(-25,25),vy:rnd(-25,25),t:0.25,c:'#ffb45e',s:2.5});
     }
+    if(b.kind==='orb'&&b.ev){ // Сингулярность: затягивает толпу в сферу
+      for(const e of G.enemies){
+        if(e.hp<=0||e.boss||e.kb<=0||e.neutral) continue;
+        const d2e=dist2(e.x,e.y,b.x,b.y);
+        if(d2e<170*170){ const d=Math.sqrt(d2e)||1; e.kx+=(b.x-e.x)/d*34*e.kb; e.ky+=(b.y-e.y)/d*34*e.kb; }
+      }
+    }
     b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
     if(b.life<=0){ if(b.kind==='rocket') rocketBoom(b); G.bullets.splice(i,1); continue; }
     for(const e of G.enemies){
       if(e.hp<=0) continue;
       if(b.hitCd && b.hitCd[e.seed]>G.time-0.4) continue;
+      if(b.kind==='mine'&&(e.neutral||e.crate||e.lamp)) continue; // живность мины не подрывает
       if(dist2(b.x,b.y,e.x,e.y)<(b.r+e.r)*(b.r+e.r)){
         if(b.hitCd) b.hitCd[e.seed]=G.time;
-        if(b.kind==='rocket'){ rocketBoom(b); G.bullets.splice(i,1); break; }
+        if(b.kind==='rocket'||b.kind==='mine'){ rocketBoom(b); G.bullets.splice(i,1); break; }
         damageEnemy(e,b.dmg,true);
         if(b.kind==='bcbolt'&&b.ev){ // Раскат Кашиика: взрыв на каждом пробитии
           for(const e2 of G.enemies){ if(e2===e||e2.hp<=0) continue; if(dist2(e2.x,e2.y,b.x,b.y)<b.R*b.R) damageEnemy(e2,b.dmg*0.45,false); }
@@ -3383,6 +3496,10 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'19 июля 2026, 18:48 (Алматы) — v7 «Арсенал»',t:[
+    '⚔️ Арсенал расширен до 20 базовых оружий — у каждого есть собственная эволюция.',
+    '🔥 Добавлены Огнемёт, Вибро-клинки, Мины-ловушки, Турель-дроид, Сфера Силы и Звено X-wing.',
+    '🧭 Дальнейшие цели развития зафиксированы в ROADMAP проекта для следующих обновлений.']},
   {d:'19 июля 2026, вечер — v6 «Глубина»',t:[
     '⚔️ 4 новых оружия с эволюциями: 🔗 Энергокнут, 🏹 Арбалет Чубакки, ❄️ Крио-излучатель, 📡 Орбитальный луч. Всего 14 оружий.',
     '🎴 Аркан стало 16 (было 8), а за убийство второго босса теперь даётся вторая аркана.',

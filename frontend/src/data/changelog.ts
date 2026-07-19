@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.4.0",
+    date: "19 июля 2026, 18:48 (Алматы)",
+    title: "Jedi Survivors: 20 видов оружия",
+    items: [
+      "⚔️ Арсенал расширен до 20 базовых оружий — у каждого есть собственная эволюция",
+      "🔥 Добавлены Огнемёт, Вибро-клинки, Мины-ловушки, Турель-дроид, Сфера Силы и Звено X-wing",
+      "🧭 Дальнейшие цели развития зафиксированы в ROADMAP: реликвии, торговец и Limit Break идут первыми",
+    ],
+  },
+  {
     version: "3.3.2",
     date: "19 июля 2026, 11:25 (Алматы)",
     title: "Шкала исследования GamePass",
