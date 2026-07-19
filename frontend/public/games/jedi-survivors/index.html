@@ -1859,9 +1859,30 @@ const STAGE_PAL={
   hoth:    {base:'#dce7f2',rock:'#9fb3c8',crater:'70,95,130',bones:'#f8fcff',tuft:'140,160,195'},
 };
 function pal(){ return STAGE_PAL[(G&&G.stage)||'tatooine']; }
+function drawParallax(camX,camY,viewW,viewH){
+  // «дальние» гряды дюн: слои движутся медленнее камеры — глубина без 3D
+  for(const [f,cell,al] of [[0.78,1050,0.06],[0.6,1650,0.085]]){
+    const ox=camX*f, oy=camY*f, shx=camX*(1-f), shy=camY*(1-f);
+    const x0=Math.floor((ox-viewW/2)/cell)-1, x1=Math.floor((ox+viewW/2)/cell)+1;
+    const y0=Math.floor((oy-viewH/2)/cell)-1, y1=Math.floor((oy+viewH/2)/cell)+1;
+    for(let j=y0;j<=y1;j++) for(let i=x0;i<=x1;i++){
+      const h=hash2(i*19+Math.round(f*10),j*23+5); if(h>=0.22) continue;
+      const px=(i+0.15+hash2(i,j*7)*1.4)*cell+shx;
+      const py=(j+0.15+hash2(i*5,j)*1.4)*cell+shy;
+      const rw=cell*(0.35+h*0.9), rh=rw*0.3;
+      cx.save(); cx.translate(px,py); cx.rotate(h*7-1.7);
+      cx.fillStyle='rgba(60,38,14,'+al+')';
+      cx.beginPath(); cx.ellipse(0,rh*0.22,rw,rh,0,0,TAU); cx.fill();
+      cx.fillStyle='rgba(255,240,205,'+(al*0.8)+')';
+      cx.beginPath(); cx.ellipse(-rw*0.06,-rh*0.28,rw*0.82,rh*0.5,0,0,TAU); cx.fill();
+      cx.restore();
+    }
+  }
+}
 function drawGround(camX,camY,viewW,viewH){
   const P=pal();
   const TS=240;
+  if(!ecoOn()) drawParallax(camX,camY,viewW,viewH);
   const x0=Math.floor((camX-viewW/2)/TS)-1, x1=Math.floor((camX+viewW/2)/TS)+1;
   const y0=Math.floor((camY-viewH/2)/TS)-1, y1=Math.floor((camY+viewH/2)/TS)+1;
   for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
