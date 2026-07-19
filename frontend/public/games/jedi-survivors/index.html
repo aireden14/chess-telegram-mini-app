@@ -644,7 +644,7 @@ function updateSpawns(dt){
   }
   // нейтральная живность: womp-крысы и банты бродят по пустыне
   G.critterT-=dt;
-  if(G.critterT<=0){ G.critterT=rnd(14,26); if(G.crittersOn) spawnEnemy(Math.random()<0.7?'rat':'bantha',undefined,undefined,1); }
+  if(G.critterT<=0){ G.critterT=rnd(14,26); spawnEnemy(Math.random()<0.7?'rat':'bantha',undefined,undefined,1); }
   // фонари-жаровни: детерминированные точки на карте (разбил — получил лут, как лампы в VS)
   G.lampT-=dt;
   if(G.lampT<=0){
@@ -2009,6 +2009,8 @@ function drawEnemy(e){
     case 'wampa': drawWampa(legA,e); break;
     case 'crate': drawCrate(e); break;
     case 'lamp': drawLamp(e); break;
+    case 'rat': drawRat(legA,e); break;
+    case 'bantha': drawBantha(legA,e); break;
     case 'atst': drawATST(e); break;
     case 'maul': drawMaul(legA,e); break;
     case 'boba': drawBoba(e); break;
@@ -2336,6 +2338,43 @@ function drawCrate(e){
   cx.fillStyle='#2c313d'; cx.fillRect(-2,1,4,4);
   cx.strokeStyle='rgba(255,215,106,'+(0.25+bl*0.3)+')';
   cx.beginPath(); cx.arc(0,0,20,0,TAU); cx.stroke();
+}
+function drawRat(legA,e){
+  // womp-крыса: юркий грызун, на Хоте — светлый мех
+  const fur=G.stage==='hoth'?'#cfd6de':'#8a6a48', belly=G.stage==='hoth'?'#e8edf2':'#a8886280';
+  cx.strokeStyle=fur; cx.lineWidth=2; cx.lineCap='round';
+  // хвост дёргается
+  cx.beginPath(); cx.moveTo(-7,2); cx.quadraticCurveTo(-13,1+Math.sin(e.walkT*2)*3,-16,-2+Math.sin(e.walkT*2)*4); cx.stroke();
+  cx.fillStyle=fur;
+  cx.beginPath(); cx.ellipse(0,0,8,5,0,0,TAU); cx.fill();
+  cx.beginPath(); cx.arc(7,-2,4,0,TAU); cx.fill(); // голова
+  cx.fillStyle='#6a4a30'; // уши
+  cx.beginPath(); cx.arc(5,-6,2,0,TAU); cx.fill();
+  cx.beginPath(); cx.arc(8.5,-5.5,2,0,TAU); cx.fill();
+  cx.fillStyle='#1c140c'; cx.beginPath(); cx.arc(9,-2.5,1,0,TAU); cx.fill(); // глаз
+  cx.strokeStyle=fur; cx.lineWidth=1.8;
+  cx.beginPath(); cx.moveTo(-3,4); cx.lineTo(-3+legA*0.4,7); cx.stroke();
+  cx.beginPath(); cx.moveTo(3,4); cx.lineTo(3-legA*0.4,7); cx.stroke();
+}
+function drawBantha(legA,e){
+  // банта: лохматый тяжеловес с закрученными рогами (на Хоте мех светлее)
+  const fur=G.stage==='hoth'?'#b9c2cc':'#7a5c38', dark=G.stage==='hoth'?'#96a1ad':'#5c4428';
+  cx.strokeStyle=dark; cx.lineWidth=6; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-8,6); cx.lineTo(-9+legA*0.4,16); cx.stroke();
+  cx.beginPath(); cx.moveTo(8,6); cx.lineTo(9-legA*0.4,16); cx.stroke();
+  cx.beginPath(); cx.moveTo(-3,7); cx.lineTo(-3-legA*0.4,16); cx.stroke();
+  cx.beginPath(); cx.moveTo(4,7); cx.lineTo(4+legA*0.4,16); cx.stroke();
+  // мохнатое тело
+  cx.fillStyle=fur;
+  cx.beginPath(); cx.ellipse(0,-4,16,12,0,0,TAU); cx.fill();
+  cx.strokeStyle=dark; cx.lineWidth=1.5;
+  for(let k=0;k<5;k++){ cx.beginPath(); cx.moveTo(-12+k*5,-13); cx.quadraticCurveTo(-11+k*5,-6,-13+k*5,3); cx.stroke(); }
+  // голова с рогами
+  cx.fillStyle=fur; cx.beginPath(); cx.arc(13,-6,7,0,TAU); cx.fill();
+  cx.strokeStyle='#d8c9a8'; cx.lineWidth=3;
+  cx.beginPath(); cx.arc(13,-12,5,Math.PI*0.9,Math.PI*2.1); cx.stroke(); // рог полукругом
+  cx.beginPath(); cx.arc(11,-11,3,Math.PI*0.8,Math.PI*2.0); cx.stroke();
+  cx.fillStyle='#1c140c'; cx.beginPath(); cx.arc(15,-6,1.3,0,TAU); cx.fill();
 }
 function drawLamp(e){
   // жаровня: треножник с горящей чашей — разбивается одним ударом, даёт лут
