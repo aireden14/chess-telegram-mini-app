@@ -1096,6 +1096,19 @@ function update(dt){
   if(G.achTick<=0){ G.achTick=1; checkAchs(); }
   const frozen=G.freezeT>0;
 
+  /* --- реликвии-голокроны: лежат далеко, награда за вылазку --- */
+  for(let i=G.relics.length-1;i>=0;i--){
+    const rl=G.relics[i]; if(rl.r2) continue;
+    if(dist2(rl.x,rl.y,p.x,p.y)<38*38){
+      G.relics.splice(i,1);
+      G.zoomPulse=0.05;
+      G.goldRun+=Math.round(50*p.goldMul*(G.rewardMul||1));
+      for(const g of G.gems) g.pull=true;
+      G.dmgTexts.push({x:p.x,y:p.y-46,v:'📀 ГОЛОКРОН ДЖЕДАЕВ! +50🪙',t:1.9,crit:true,str:true});
+      openChest();
+    }
+  }
+
   /* --- enemies --- */
   const officers=[];
   for(const e of G.enemies) if(e.buffer&&e.hp>0) officers.push(e);
@@ -1458,6 +1471,27 @@ function draw(){
       cx.beginPath(); cx.arc(u.x,u.y,22,0,TAU); cx.fill();
     }
     cx.fillText(ico,u.x,u.y+7+bob);
+  }
+
+  // реликвии-голокроны: столб света + вращающийся куб
+  for(const rl of G.relics){
+    if(rl.r2) continue;
+    const t=G.time*1.4, bob=Math.sin(t*2)*3;
+    const beam=cx.createLinearGradient(rl.x,rl.y-120,rl.x,rl.y);
+    beam.addColorStop(0,'rgba(120,220,255,0)'); beam.addColorStop(1,'rgba(120,220,255,0.20)');
+    cx.fillStyle=beam;
+    cx.beginPath(); cx.moveTo(rl.x-4,rl.y-120); cx.lineTo(rl.x+4,rl.y-120); cx.lineTo(rl.x+13,rl.y); cx.lineTo(rl.x-13,rl.y); cx.closePath(); cx.fill();
+    cx.fillStyle='rgba(0,0,0,.25)'; cx.beginPath(); cx.ellipse(rl.x,rl.y+8,12,4.5,0,0,TAU); cx.fill();
+    cx.save(); cx.translate(rl.x,rl.y-14+bob);
+    cx.shadowColor='#5ec8ff'; cx.shadowBlur=14;
+    const w2=9*Math.abs(Math.cos(t)), d2=9*Math.abs(Math.sin(t));
+    cx.fillStyle='#ffd76a'; // золотые грани голокрона
+    cx.beginPath(); cx.moveTo(0,-11); cx.lineTo(w2,-4); cx.lineTo(w2,7); cx.lineTo(0,13); cx.lineTo(-d2,7); cx.lineTo(-d2,-4); cx.closePath(); cx.fill();
+    cx.shadowBlur=0;
+    cx.fillStyle='#8adfff';
+    cx.beginPath(); cx.moveTo(0,-11); cx.lineTo(w2,-4); cx.lineTo(0,2); cx.lineTo(-d2,-4); cx.closePath(); cx.fill();
+    cx.fillStyle='rgba(255,255,255,.85)'; cx.beginPath(); cx.arc(0,0,2.2,0,TAU); cx.fill();
+    cx.restore();
   }
 
   // slashes (lightsaber arcs)
