@@ -298,12 +298,12 @@ const ACHS=[
   {id:'surv5',    nm:'Продержаться 5 минут',      rw:'оружие 🛸 Дроиды-стражи', cond:g=>g.time>=300},
   {id:'kills500', nm:'500 убийств за забег',      rw:'оружие 🌀 Бросок меча',   cond:g=>g.killCount>=500},
   {id:'chests3',  nm:'3 сундука за забег',        rw:'оружие 💣 Термодетонатор',cond:g=>g.chestsRun>=3},
-  {id:'boss1',    nm:'Убить босса',               rw:'+300 🪙', gold:300,       cond:g=>g.bossKills>=1},
-  {id:'surv15',   nm:'Продержаться 15 минут',     rw:'этап ❄️ Хот',             cond:g=>g.time>=900},
+  {id:'boss1',    nm:'Убить босса',               rw:'🔫 Бластер + Арканы + 300 🪙', gold:300, cond:g=>g.bossKills>=1},
+  {id:'surv15',   nm:'Продержаться 15 минут',     rw:'этап ❄️ Хот + 💫 Электропосох', cond:g=>g.time>=900},
   {id:'evo1',     nm:'Первая эволюция оружия',    rw:'герой 👩‍🎤 Асока',         cond:g=>g.evosRun>=1},
   {id:'surv20',   nm:'Продержаться 20 минут',     rw:'герой 🔫 Хан Соло',       cond:g=>g.time>=1200},
   {id:'kills5000',nm:'5000 убийств суммарно',     rw:'герой 🐻 Чубакка',        cond:g=>save.stats.kills+g.killCount>=5000},
-  {id:'vader',    nm:'Победить Дарта Вейдера',    rw:'+1000 🪙', gold:1000,     cond:g=>g.vaderKilled},
+  {id:'vader',    nm:'Победить Дарта Вейдера',    rw:'🚀 Ракетный ранец + 1000 🪙', gold:1000, cond:g=>g.vaderKilled},
   {id:'maxw',     nm:'6 оружий в билде',          rw:'+300 🪙', gold:300,       cond:g=>g.p.weapons.length>=6},
   {id:'lvl50',    nm:'Достичь 50 уровня',         rw:'+500 🪙', gold:500,       cond:g=>g.p.lvl>=50},
   {id:'win',      nm:'Пережить осаду (30:00)',    rw:'⚡ Гипер-режим',           cond:g=>g.won},
@@ -326,6 +326,10 @@ function weaponUnlocked(id){
   if(id==='drones') return !!save.achs.surv5;
   if(id==='throw') return !!save.achs.kills500;
   if(id==='grenade') return !!save.achs.chests3;
+  // хайлевел-арсенал
+  if(id==='blaster') return !!save.achs.boss1;
+  if(id==='staff') return !!save.achs.surv15;
+  if(id==='rocket') return !!save.achs.vader;
   return true;
 }
 /* --- Арканы (как в VS): модификаторы забега, открываются после первого босса --- */
@@ -409,6 +413,9 @@ const WEAPONS={
   drones:  {ico:'🛸', nm:'Дроиды-стражи',  ds:'Дроиды кружат вокруг и таранят врагов.', pair:'area'},
   shards:  {ico:'✨', nm:'Осколки кайбера',ds:'Летят в направлении движения.', pair:'speed'},
   grenade: {ico:'💣', nm:'Термодетонатор', ds:'Взрыв и горящая плазма на земле.', pair:'hpmax'},
+  blaster: {ico:'🔫', nm:'Бластер DL-44', ds:'Метко бьёт ближайшего врага.', pair:'luck'},
+  staff:   {ico:'💫', nm:'Электропосох',  ds:'Круговой разряд, раскидывающий толпу.', pair:'armor'},
+  rocket:  {ico:'🚀', nm:'Ракетный ранец',ds:'Самонаводящиеся ракеты со взрывом.', pair:'amount'},
 };
 const EVOS={
   saber:   {nm:'Меч Скайуокера',    ds:'Огромные дуги с обеих сторон + ударная волна.'},
@@ -418,6 +425,9 @@ const EVOS={
   drones:  {nm:'Щит джедая',        ds:'Дроиды кружат постоянно и бьют сильнее.'},
   shards:  {nm:'Тысяча осколков',   ds:'Осколки летят во все стороны.'},
   grenade: {nm:'Орбитальный удар',  ds:'Двойные взрывы огромного радиуса.'},
+  blaster: {nm:'Дикий залп',        ds:'Тройные выстрелы, рикошетящие во врагов.'},
+  staff:   {nm:'Вихрь стражи',      ds:'Гигантский вихрь, оставляющий поле молний.'},
+  rocket:  {nm:'Залп «Раба I»',     ds:'Град ракет с огненными зонами.'},
 };
 const PASSIVES={
   might:   {ico:'💎', nm:'Кайбер-кристалл', ds:'+10% урона за уровень', max:5},
@@ -724,8 +734,11 @@ function updateSpawns(dt){
    WEAPONS — firing
    ============================================================ */
 function weaponCooldown(w){
-  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0}[w.id];
+  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5}[w.id];
   let cd=base*G.p.cdr;
+  if(w.id==='blaster') cd*= (w.evolved?0.7:1) * (1-0.04*(w.lvl-1));
+  if(w.id==='staff') cd*= 1-0.05*(w.lvl-1);
+  if(w.id==='rocket') cd*= 1-0.05*(w.lvl-1);
   if(w.id==='saber') cd*= (w.evolved?0.75:1) * (1-0.04*(w.lvl-1));
   if(w.id==='lightning') cd*= 1-0.05*(w.lvl-1);
   if(w.id==='shards') cd*= (w.evolved?0.55:1) * (1-0.05*(w.lvl-1));
@@ -828,7 +841,54 @@ function fireWeapon(w){
       }
       break;
     }
+    case 'blaster':{ // меткие выстрелы по ближайшему врагу
+      const t=nearestEnemies(1,620)[0];
+      if(!t) break;
+      const n=(ev?3:1)+p.amount;
+      const dmg=(9+lv*3.5)*might*(ev?1.35:1);
+      for(let i=0;i<n;i++){
+        const a=Math.atan2(t.y-p.y,t.x-p.x)+(i-(n-1)/2)*0.09;
+        G.bullets.push({x:p.x,y:p.y-8,vx:Math.cos(a)*640,vy:Math.sin(a)*640,r:6,dmg,life:1.2,kind:'bolt',ric:ev?1:0,hitCd:{}});
+      }
+      S.zap();
+      break;
+    }
+    case 'staff':{ // круговой электро-разряд
+      const R=(95+lv*9)*area*(ev?1.45:1);
+      const dmg=(14+lv*5)*might*(ev?1.6:1);
+      for(const e of G.enemies){
+        const d2e=dist2(e.x,e.y,p.x,p.y);
+        if(d2e<R*R){
+          damageEnemy(e,dmg,false);
+          const dd=Math.sqrt(d2e)||1, kb=ev?240:160;
+          if(e.kb>0){ e.kx+=(e.x-p.x)/dd*kb*e.kb; e.ky+=(e.y-p.y)/dd*kb*e.kb; }
+          if(Math.random()<0.3) G.parts.push({kind:'zap',x1:p.x,y1:p.y-10,x2:e.x,y2:e.y,t:0.14,ev});
+        }
+      }
+      G.parts.push({kind:'ring',x:p.x,y:p.y,t:0.4,tMax:0.4,R,ev:true});
+      p.swingT=Math.max(p.swingT,0.2);
+      if(ev) G.zones.push({x:p.x,y:p.y,R:R*0.75,t:2,dmg:dmg*0.15,tick:0,ev:true});
+      S.zap();
+      break;
+    }
+    case 'rocket':{ // самонаводящиеся ракеты
+      const n=(ev?3:1)+Math.floor(lv/3)+Math.floor(p.amount/2);
+      const dmg=(20+lv*7)*might*(ev?1.35:1);
+      for(let i=0;i<n;i++){
+        const tgt=G.enemies.length?G.enemies[rndi(0,G.enemies.length-1)]:null;
+        const a=rnd(-2.6,-0.5); // стартуют веером вверх
+        G.bullets.push({x:p.x,y:p.y-10,vx:Math.cos(a)*260,vy:Math.sin(a)*260,r:8,dmg,life:3,kind:'rocket',tgt,R:(55+lv*5)*area*(ev?1.35:1),ev});
+      }
+      S.saber();
+      break;
+    }
   }
+}
+function rocketBoom(b){
+  for(const e of G.enemies) if(dist2(e.x,e.y,b.x,b.y)<b.R*b.R) damageEnemy(e,b.dmg,true);
+  G.parts.push({kind:'boom',x:b.x,y:b.y,t:0.35,tMax:0.35,R:b.R});
+  if(b.ev) G.zones.push({x:b.x,y:b.y,R:b.R*0.9,t:2.5,dmg:b.dmg*0.12,tick:0,ev:true});
+  G.shake=Math.min(8,G.shake+2); S.boom();
 }
 function updateWeapons(dt){
   for(const w of G.p.weapons){
@@ -1147,7 +1207,7 @@ function update(dt){
       const rr=o.r+p.r;
       if(d2o<rr*rr){ const d=Math.sqrt(d2o)||1; p.x=o.x+(p.x-o.x)/d*rr; p.y=o.y+(p.y-o.y)/d*rr; }
     } else if(o.kind==='pit'&&d2o<o.r*o.r) inPit=true;
-    else if(o.kind==='beacon'&&d2o<o.r*o.r) inBeacon=true;
+    else if(o.kind==='beacon'&&d2o<o.r*o.r) inBeacon=o;
     else if(o.kind==='dune'&&d2o<o.r*o.r) onDune=true;
     else if(o.kind==='crack'&&d2o<o.r*o.r) onIce=true;
   }
@@ -1157,7 +1217,18 @@ function update(dt){
     G.pitTick-=dt;
     if(G.pitTick<=0){ G.pitTick=0.8; const dmgT=Math.max(2,4+G.time/120); p.hp-=dmgT; G.dmgTexts.push({x:p.x,y:p.y-24,v:'-'+Math.round(dmgT)+' яма',t:0.6,crit:false}); if(p.hp<=0){p.hp=0;endRun(false);return;} }
   }
-  if(inBeacon) p.hp=Math.min(p.hpMax,p.hp+5*dt);
+  // маяк лечит из конечного запаса энергии — отсидеться под ним бесконечно нельзя
+  G.beaconState=G.beaconState||{};
+  for(const k in G.beaconState){ const st=G.beaconState[k]; if(st.charge<=0){ st.cd-=dt; if(st.cd<=0) st.charge=55; } }
+  if(inBeacon){
+    const key=Math.round(inBeacon.x)+':'+Math.round(inBeacon.y);
+    const st=G.beaconState[key]||(G.beaconState[key]={charge:55,cd:0});
+    if(st.charge>0&&p.hp<p.hpMax){
+      const heal=Math.min(4.5*dt,st.charge,p.hpMax-p.hp);
+      p.hp+=heal; st.charge-=heal;
+      if(st.charge<=0){ st.cd=80; G.dmgTexts.push({x:p.x,y:p.y-30,v:'🔋 маяк разряжен',t:1.3,str:true,crit:true}); }
+    }
+  }
   /* camera */
   G.cam.x=lerp(G.cam.x,p.x,1-Math.pow(0.001,dt));
   G.cam.y=lerp(G.cam.y,p.y,1-Math.pow(0.001,dt));
@@ -1470,15 +1541,34 @@ function update(dt){
         if(d<24){ G.bullets.splice(i,1); continue; }
       }
     }
+    if(b.kind==='rocket'){ // самонаведение + шлейф
+      if(b.tgt&&b.tgt.hp>0){
+        const ta=Math.atan2(b.tgt.y-b.y,b.tgt.x-b.x), ca=Math.atan2(b.vy,b.vx);
+        let da=ta-ca; while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
+        const na=ca+clamp(da,-6.5*dt,6.5*dt), sp=430;
+        b.vx=Math.cos(na)*sp; b.vy=Math.sin(na)*sp;
+      } else if(G.enemies.length) b.tgt=G.enemies[rndi(0,G.enemies.length-1)];
+      if(Math.random()<0.6) G.parts.push({kind:'p',x:b.x,y:b.y,vx:rnd(-25,25),vy:rnd(-25,25),t:0.25,c:'#ffb45e',s:2.5});
+    }
     b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
-    if(b.life<=0){ G.bullets.splice(i,1); continue; }
+    if(b.life<=0){ if(b.kind==='rocket') rocketBoom(b); G.bullets.splice(i,1); continue; }
     for(const e of G.enemies){
       if(e.hp<=0) continue;
       if(b.hitCd && b.hitCd[e.seed]>G.time-0.4) continue;
       if(dist2(b.x,b.y,e.x,e.y)<(b.r+e.r)*(b.r+e.r)){
         if(b.hitCd) b.hitCd[e.seed]=G.time;
+        if(b.kind==='rocket'){ rocketBoom(b); G.bullets.splice(i,1); break; }
         damageEnemy(e,b.dmg,true);
         if(b.kind==='shard'){ b.pierce--; if(b.pierce<=0){ G.bullets.splice(i,1); break; } }
+        if(b.kind==='bolt'){
+          if(b.ric>0){ // эволюция: рикошет в следующего врага
+            b.ric--;
+            let best=null,bd=Infinity;
+            for(const e2 of G.enemies){ if(e2===e||e2.hp<=0) continue; const dd=dist2(e2.x,e2.y,b.x,b.y); if(dd<bd){bd=dd;best=e2;} }
+            if(best){ const aa=Math.atan2(best.y-b.y,best.x-b.x); b.vx=Math.cos(aa)*640; b.vy=Math.sin(aa)*640; b.life=1.0; }
+            else { G.bullets.splice(i,1); break; }
+          } else { G.bullets.splice(i,1); break; }
+        }
       }
     }
   }
@@ -1639,31 +1729,53 @@ function draw(){
     cx.beginPath(); cx.arc(t.x,t.y,3.5,0,TAU); cx.fill();
   }
 
-  // gems
+  // gems — сочные кристаллы с ореолом и тёмной обводкой (читаются на любом фоне)
   for(const g of G.gems){
     const bob=Math.sin(g.t*4+g.x)*2;
     const big=g.v>=10, mid=g.v>=5&&!big;
-    cx.fillStyle=big?'#ff5b6e':(mid?'#7dffa0':'#5ec8ff');
-    cx.save(); cx.translate(g.x,g.y+bob); cx.rotate(0.785);
-    // подскок при выпадении
+    const col=big?'#ff2e55':(mid?'#22ff7a':'#00d9ff');
+    const glow=big?'rgba(255,46,85,':(mid?'rgba(34,255,122,':'rgba(0,217,255,');
+    cx.save(); cx.translate(g.x,g.y+bob);
     const pop=g.t<0.35? 0.4+0.6*(g.t/0.35)+Math.sin(Math.min(g.t*9,Math.PI))*0.45 : 1;
-    const s=(big?7:(mid?6:4.5))*pop;
-    cx.fillRect(-s/2,-s/2,s,s);
+    const s=(big?8:(mid?6.5:5))*pop;
+    const pulse=0.5+0.5*Math.sin(g.t*5+g.x*0.1);
+    cx.fillStyle=glow+(0.16+0.10*pulse)+')';
+    cx.beginPath(); cx.arc(0,0,s*2.1,0,TAU); cx.fill();
+    cx.rotate(0.785);
+    cx.strokeStyle='rgba(8,16,34,.85)'; cx.lineWidth=2;
+    cx.strokeRect(-s/2-1,-s/2-1,s+2,s+2);
+    cx.fillStyle=col; cx.fillRect(-s/2,-s/2,s,s);
+    cx.fillStyle='rgba(255,255,255,.9)'; cx.fillRect(-s/2+1,-s/2+1,s*0.4,s*0.4);
     cx.restore();
   }
   // pickups
+  const HALO={chicken:'rgba(125,255,160,',vacuum:'rgba(94,200,255,',bomb:'rgba(255,110,80,',freeze:'rgba(160,225,255,'};
   for(const u of G.pickups){
     let bob=Math.sin(u.t*3)*3;
     if(u.t<0.4) bob-=Math.abs(Math.sin(u.t*7.8))*12*(1-u.t/0.4); // подскок при дропе
-    cx.font='20px serif'; cx.textAlign='center';
-    const ico={gold:'🪙',chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦',freeze:'❄️'}[u.kind];
-    if(u.kind==='gold'){ // пульсирующее золотое свечение — «полезное» читается издалека
-      cx.fillStyle='rgba(255,215,106,'+(0.10+0.06*Math.sin(u.t*6))+')';
-      cx.beginPath(); cx.arc(u.x,u.y,13,0,TAU); cx.fill();
+    if(u.kind==='gold'){ // сочная золотая монета вместо тусклого эмодзи
+      cx.save(); cx.translate(u.x,u.y+bob);
+      const tw=0.5+0.5*Math.sin(u.t*6+u.x*0.2);
+      cx.fillStyle='rgba(255,200,40,'+(0.20+0.14*tw)+')';
+      cx.beginPath(); cx.arc(0,0,15,0,TAU); cx.fill();
+      const spin=Math.abs(Math.cos(u.t*3.2)); // блик вращения
+      cx.strokeStyle='#7a5200'; cx.lineWidth=2;
+      cx.fillStyle='#ffc82e';
+      cx.beginPath(); cx.ellipse(0,0,8*Math.max(0.35,spin),8,0,0,TAU); cx.fill(); cx.stroke();
+      cx.fillStyle='#ffe89a';
+      cx.beginPath(); cx.ellipse(-2*spin,-2,3.5*Math.max(0.35,spin),3.5,0,0,TAU); cx.fill();
+      cx.restore();
+      continue;
+    }
+    cx.font='22px serif'; cx.textAlign='center';
+    const ico={chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦',freeze:'❄️'}[u.kind];
+    if(HALO[u.kind]){
+      cx.fillStyle=HALO[u.kind]+(0.18+0.10*Math.sin(u.t*5))+')';
+      cx.beginPath(); cx.arc(u.x,u.y,16,0,TAU); cx.fill();
     }
     if(u.kind==='chest'){ cx.font='26px serif';
-      cx.fillStyle='rgba(255,215,106,'+(0.25+0.15*Math.sin(u.t*5))+')';
-      cx.beginPath(); cx.arc(u.x,u.y,22,0,TAU); cx.fill();
+      cx.fillStyle='rgba(255,215,106,'+(0.28+0.16*Math.sin(u.t*5))+')';
+      cx.beginPath(); cx.arc(u.x,u.y,24,0,TAU); cx.fill();
     }
     cx.fillText(ico,u.x,u.y+7+bob);
   }
@@ -2166,8 +2278,20 @@ function drawTerrain(o){
     cx.beginPath(); cx.moveTo(-o.r*0.8,-2);
     for(let k=0;k<5;k++){ const t2=(k+1)/5; cx.lineTo(-o.r*0.8+o.r*1.6*t2, Math.sin(o.h*97+k*2.7)*16-2); }
     cx.stroke();
-  } else if(o.kind==='beacon'){ // маяк повстанцев — лечит
-    const t=G?G.time:0, bl=(Math.sin(t*4)+1)/2;
+  } else if(o.kind==='beacon'){ // маяк повстанцев — лечит из конечного заряда
+    const t=G?G.time:0;
+    const bst=G&&G.beaconState&&G.beaconState[Math.round(o.x)+':'+Math.round(o.y)];
+    const dead=bst&&bst.charge<=0;
+    const bl=dead?0:(Math.sin(t*4)+1)/2;
+    if(dead){ // разряжен: тусклый, без ауры
+      cx.globalAlpha=0.45;
+      cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(2,8,14,6,0,0,TAU); cx.fill();
+      cx.fillStyle='#6b707c'; cx.fillRect(-3,-38,6,44);
+      cx.fillStyle='#464b57'; cx.beginPath(); cx.arc(0,-44,6,0,TAU); cx.fill();
+      cx.font='bold 10px Verdana'; cx.textAlign='center'; cx.fillStyle='rgba(160,170,190,.9)';
+      cx.fillText('⌛',0,26);
+      cx.globalAlpha=1; cx.restore(); return;
+    }
     const gr=cx.createRadialGradient(0,0,6,0,0,o.r);
     gr.addColorStop(0,'rgba(90,200,255,'+(0.16+bl*0.08)+')'); gr.addColorStop(1,'rgba(90,200,255,0)');
     cx.fillStyle=gr; cx.beginPath(); cx.arc(0,0,o.r,0,TAU); cx.fill();
@@ -2821,6 +2945,18 @@ function drawBullet(b){
     cx.beginPath(); cx.arc(0,0,b.r,-1.1,1.1); cx.stroke();
     cx.strokeStyle='rgba(255,255,255,.7)'; cx.lineWidth=2;
     cx.beginPath(); cx.arc(0,0,b.r*0.8,-1.0,1.0); cx.stroke();
+  } else if(b.kind==='bolt'){
+    const a=Math.atan2(b.vy,b.vx); cx.rotate(a);
+    cx.shadowColor='#7dff6a'; cx.shadowBlur=8;
+    cx.fillStyle='#7dff6a'; cx.fillRect(-10,-2,20,4);
+    cx.shadowBlur=0;
+    cx.fillStyle='#eaffea'; cx.fillRect(-8,-1,16,2);
+  } else if(b.kind==='rocket'){
+    const a=Math.atan2(b.vy,b.vx); cx.rotate(a);
+    cx.fillStyle='#8a8f9c'; cx.beginPath(); cx.roundRect(-8,-3,14,6,3); cx.fill();
+    cx.fillStyle='#ff4b4b'; cx.beginPath(); cx.moveTo(6,-3); cx.lineTo(11,0); cx.lineTo(6,3); cx.closePath(); cx.fill();
+    cx.fillStyle='rgba(255,170,60,'+rnd(0.5,0.9)+')';
+    cx.beginPath(); cx.moveTo(-8,-2); cx.lineTo(-15-rnd(0,5),0); cx.lineTo(-8,2); cx.closePath(); cx.fill();
   }
   cx.restore();
 }
