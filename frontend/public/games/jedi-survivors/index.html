@@ -603,7 +603,7 @@ function spawnEnemy(type,px,py,mul){
     shootT:rnd(3.5,5), aimT:0, aimX:0, aimY:0,
     chargeT:rnd(2,4), charging:0, chargeDx:0, chargeDy:0,
     fly:!!d.fly, shooter:!!d.shooter, charger:!!d.charger, boss:!!d.boss, elite:!!d.elite,
-    neutral:!!d.neutral, lamp:!!d.lamp,
+    neutral:!!d.neutral, lamp:!!d.lamp, bigfoot:type==='wampa'||type==='bantha'||type==='atst',
     vader:!!d.vader, emperor:!!d.emperor, inq:!!d.inq, buffer:!!d.buffer, crate:!!d.crate,
     burst:d.burst||0, phaseT:0, seed:Math.random()*10,
     spawnT:d.crate?0:0.45 };
@@ -1062,6 +1062,19 @@ function update(dt){
     p.x+=p.lastMove.x*p.speed*0.5*G.slide*dt;
     p.y+=p.lastMove.y*p.speed*0.5*G.slide*dt;
   }
+  // следы на песке/снегу: пара отпечатков в шахматном порядке
+  if(p.moving){
+    G.printT-=dt;
+    if(G.printT<=0){
+      G.printT=0.17;
+      G.printSide=!G.printSide;
+      const side=G.printSide?4:-4;
+      G.prints.push({x:p.x-p.lastMove.y*side*0.25,y:p.y+13-p.lastMove.x*side*0.25,
+        a:Math.atan2(p.lastMove.y,p.lastMove.x),s:side,t:7,tMax:7,big:false});
+      if(G.prints.length>170) G.prints.shift();
+    }
+  }
+  for(let i=G.prints.length-1;i>=0;i--){ const f=G.prints[i]; f.t-=dt; if(f.t<=0) G.prints.splice(i,1); }
   p.hp=Math.min(p.hpMax,p.hp+p.recovery*dt);
   if(p.inv>0)p.inv-=dt;
   if(p.swingT>0)p.swingT-=dt;
@@ -1234,6 +1247,14 @@ function update(dt){
       }
     }
     if(e.charging<=0){ e.x+=vx*spd*dt; e.y+=vy*spd*dt; }
+    if(e.bigfoot){ // тяжеловесы продавливают грунт
+      e.printT=(e.printT||0)-dt;
+      if(e.printT<=0){
+        e.printT=0.34;
+        G.prints.push({x:e.x,y:e.y+e.r*0.8,a:Math.atan2(vy,vx),s:0,t:6,tMax:6,big:true});
+        if(G.prints.length>170) G.prints.shift();
+      }
+    }
     // solid terrain blocks ground enemies (fliers pass over)
     if(!e.fly&&!e.boss) for(const o of obs){
       if(!o.solid) continue;
@@ -1515,6 +1536,19 @@ function draw(){
     const lt=cx.createRadialGradient(p.x,p.y,10,p.x,p.y,175);
     lt.addColorStop(0,'rgba(255,240,205,0.10)'); lt.addColorStop(1,'rgba(255,240,205,0)');
     cx.fillStyle=lt; cx.beginPath(); cx.arc(p.x,p.y,175,0,TAU); cx.fill();
+  }
+
+  // следы: затухающие отпечатки (на снегу заметнее)
+  {
+    const base=G.stage==='hoth'?0.32:0.17;
+    for(const f of G.prints){
+      const al=(f.t/f.tMax)*base;
+      cx.save(); cx.translate(f.x,f.y); cx.rotate(f.a);
+      cx.fillStyle=G.stage==='hoth'?'rgba(70,95,130,'+al+')':'rgba(45,28,10,'+al+')';
+      if(f.big){ cx.beginPath(); cx.ellipse(0,0,7,4.6,0,0,TAU); cx.fill(); }
+      else { cx.beginPath(); cx.ellipse(0,f.s*0.9,3.6,2.1,0,0,TAU); cx.fill(); }
+      cx.restore();
+    }
   }
 
   // zones
