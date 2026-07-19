@@ -1816,6 +1816,17 @@ function drawGround(camX,camY,viewW,viewH){
       for(let k=0;k<3;k++){ cx.beginPath(); cx.moveTo(cxp+k*5,cyp); cx.quadraticCurveTo(cxp+k*5+3,cyp-9,cxp+k*5+6,cyp-12); cx.stroke(); }
     }
   }
+  // руины-«районы»: редкие кластеры крушения — большой корпус + поле обломков
+  {
+    const RC=1900, M=420;
+    const ri0=Math.floor((camX-viewW/2-M)/RC), ri1=Math.floor((camX+viewW/2+M)/RC);
+    const rj0=Math.floor((camY-viewH/2-M)/RC), rj1=Math.floor((camY+viewH/2+M)/RC);
+    for(let rj=rj0;rj<=rj1;rj++) for(let ri=ri0;ri<=ri1;ri++){
+      const h=hash2(ri*53+29,rj*47+31); if(h>=0.09) continue;
+      const dx=(ri+0.5)*RC+(hash2(ri,rj*9)-0.25)*700, dy=(rj+0.5)*RC+(hash2(ri*9,rj)-0.25)*700;
+      drawRuinCluster(dx,dy,h);
+    }
+  }
   // landmark terrain features (solid rocks / vaporators / huts, pits, beacons)
   const ci0=Math.floor((camX-viewW/2)/OB_CELL)-1, ci1=Math.floor((camX+viewW/2)/OB_CELL)+1;
   const cj0=Math.floor((camY-viewH/2)/OB_CELL)-1, cj1=Math.floor((camY+viewH/2)/OB_CELL)+1;
@@ -1834,6 +1845,40 @@ function drawGround(camX,camY,viewW,viewH){
     cx.fillStyle=drawGround._vg; cx.fillRect(0,0,W,H);
     cx.restore();
   }
+}
+function drawRuinCluster(x,y,h){
+  cx.save(); cx.translate(x,y); cx.rotate(h*40);
+  // выжженная земля под крушением
+  cx.fillStyle='rgba(30,20,12,.18)';
+  cx.beginPath(); cx.ellipse(0,0,150,90,0,0,TAU); cx.fill();
+  // борозда от падения
+  cx.strokeStyle='rgba(40,28,16,.28)'; cx.lineWidth=26; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-210,10); cx.lineTo(-40,2); cx.stroke();
+  // главный корпус — переломленный фюзеляж
+  cx.save(); cx.rotate(0.12);
+  cx.fillStyle='#5a6172'; cx.beginPath(); cx.roundRect(-46,-26,110,52,16); cx.fill();
+  cx.fillStyle='#454b5a'; cx.fillRect(-46,-26,110,15);
+  cx.fillStyle='#2c313d';
+  cx.beginPath(); cx.moveTo(64,-26); cx.lineTo(92,-14); cx.lineTo(84,6); cx.lineTo(64,26); cx.closePath(); cx.fill(); // рваный нос
+  cx.fillStyle='#20242e'; cx.beginPath(); cx.arc(-46,0,17,0,TAU); cx.fill(); // сопло
+  cx.fillStyle='#11141b'; cx.beginPath(); cx.arc(-46,0,10,0,TAU); cx.fill();
+  for(let k=0;k<3;k++){ cx.fillStyle='#3d434f'; cx.fillRect(-24+k*24,-8,12,8); } // иллюминаторы
+  cx.restore();
+  // рёбра каркаса торчат из песка
+  cx.strokeStyle='#6f7787'; cx.lineWidth=5; cx.lineCap='round';
+  for(let k=0;k<3;k++){
+    const a=h*90+k*1.1, rx=-110+hash2(k,h*100|0)*70, ry=-40+hash2(k*3,h*200|0)*100;
+    cx.beginPath(); cx.arc(rx,ry,22,Math.PI+a*0.1,Math.PI*1.75+a*0.05); cx.stroke();
+  }
+  // разбросанные панели
+  for(let k=0;k<5;k++){
+    const px2=(hash2(k*7,h*300|0)-0.25)*440, py2=(hash2(k*11,h*400|0)-0.25)*320;
+    cx.save(); cx.translate(px2,py2); cx.rotate(hash2(k,k*13)*12);
+    cx.fillStyle=k%2?'#4d5464':'#5f6675'; cx.fillRect(-14,-7,28,14);
+    cx.fillStyle='rgba(0,0,0,.25)'; cx.fillRect(-14,-7,28,4);
+    cx.restore();
+  }
+  cx.restore();
 }
 function drawTerrain(o){
   cx.save(); cx.translate(o.x,o.y);
