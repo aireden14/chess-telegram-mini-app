@@ -235,6 +235,28 @@ const S={
   chest:()=>{sfx(659,0.1,'square',0.08);setTimeout(()=>sfx(880,0.1,'square',0.08),100);setTimeout(()=>sfx(1046,0.25,'square',0.08),200);},
   pick:()=>sfx(660,0.09,'triangle',0.07,200),
 };
+/* ---------- ambient: шум ветра (brown noise + медленный LFO) ---------- */
+let windNode=null;
+function startWind(){
+  if(muted||windNode) return;
+  try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    const buf=actx.createBuffer(1,actx.sampleRate*2,actx.sampleRate);
+    const d=buf.getChannelData(0); let l=0;
+    for(let i=0;i<d.length;i++){ l=(l+(Math.random()*2-1)*0.02)*0.98; d[i]=l*3; }
+    const src=actx.createBufferSource(); src.buffer=buf; src.loop=true;
+    const g=actx.createGain(); g.gain.value=0.015;
+    const lfo=actx.createOscillator(); lfo.frequency.value=0.13;
+    const lg=actx.createGain(); lg.gain.value=0.008;
+    lfo.connect(lg); lg.connect(g.gain);
+    src.connect(g); g.connect(actx.destination);
+    lfo.start(); src.start();
+    windNode={src,g,lfo};
+  }catch(e){}
+}
+function stopWind(){
+  try{ if(windNode){ windNode.src.stop(); windNode.lfo.stop(); windNode=null; } }catch(e){ windNode=null; }
+}
 
 /* ---------- meta save ---------- */
 const SAVE_KEY='jediSurvSave1';
@@ -302,7 +324,7 @@ function weaponUnlocked(id){
   if(id==='grenade') return !!save.achs.chests3;
   return true;
 }
-const ENEMY_NAMES={trooper:'Штурмовик',scout:'Развед-дроид',b1:'Дроид B1',heavy:'Тяжёлый штурмовик',probe:'Пробо-дроид',dark:'Тёмный солдат',sith:'Сит-адепт',swarm:'Рой дроидов',tusken:'Тускен',jawa:'Джава',interro:'Дроид-дознаватель',magna:'Магна-страж',deka:'Дроидека',officer:'Имперский офицер',wampa:'Вампа',crate:'Ящик припасов',atst:'AT-ST',maul:'Дарт Мол',boba:'Боба Фетт',inquis:'Великий Инквизитор',vader:'Дарт Вейдер',emperor:'Император'};
+const ENEMY_NAMES={trooper:'Штурмовик',scout:'Развед-дроид',b1:'Дроид B1',heavy:'Тяжёлый штурмовик',probe:'Пробо-дроид',dark:'Тёмный солдат',sith:'Сит-адепт',swarm:'Рой дроидов',tusken:'Тускен',jawa:'Джава',interro:'Дроид-дознаватель',magna:'Магна-страж',deka:'Дроидека',officer:'Имперский офицер',wampa:'Вампа',rat:'Womp-крыса',bantha:'Банта',crate:'Ящик припасов',atst:'AT-ST',maul:'Дарт Мол',boba:'Боба Фетт',inquis:'Великий Инквизитор',vader:'Дарт Вейдер',emperor:'Император'};
 const META=[
   {id:'might', ico:'💎', nm:'Кристалл силы', desc:'+5% урона за ранг', max:5, cost:r=>Math.round(200*Math.pow(1.9,r))},
   {id:'hp',    ico:'❤️', nm:'Стойкость',     desc:'+15 макс. HP за ранг', max:5, cost:r=>Math.round(160*Math.pow(1.9,r))},
@@ -374,6 +396,9 @@ const ETYPES={
   officer:{hp:55, sp:44, dmg:10, r:14, xp:8, gold:.5,  draw:'officer', buffer:true, kb:.5},
   wampa:  {hp:210,sp:58, dmg:26, r:22, xp:10,gold:.2,  draw:'wampa', charger:true, kb:.1},
   crate:  {hp:30, sp:0,  dmg:0,  r:16, xp:0, gold:0,   draw:'crate', kb:0, crate:true},
+  rat:    {hp:3,  sp:70, dmg:0,  r:8,  xp:0, gold:.5,  draw:'rat', kb:1.3, neutral:true},
+  bantha: {hp:60, sp:22, dmg:0,  r:20, xp:2, gold:.3,  draw:'bantha', kb:.2, neutral:true},
+  lamp:   {hp:1,  sp:0,  dmg:0,  r:12, xp:0, gold:0,   draw:'lamp', kb:0, crate:true, lamp:true},
   atst:   {hp:1500,sp:30,dmg:24, r:34, xp:60,gold:1, draw:'atst', boss:true, shooter:true, kb:0},
   maul:   {hp:4200,sp:85,dmg:28, r:20, xp:100,gold:1, draw:'maul', boss:true, charger:true, kb:0},
   boba:   {hp:7000,sp:66,dmg:26, r:20, xp:120,gold:1, draw:'boba', boss:true, shooter:true, fly:true, kb:0},
@@ -446,6 +471,10 @@ function newGame(){
     hyper:save.hyper&&!!save.achs.win,
     chestsRun:0, evosRun:0, bossKills:0, won:false, endless:false, goldCredited:0,
     freezeT:0, feverT:0, feverTick:0, achTick:0,
+    // живой мир: реликвии, мираж, буря, пролёты, следы, декали, живность, фонари
+    relics:[], mirage:null, mirageT:rnd(150,240), stormT:0, stormCd:rnd(200,280),
+    flyby:null, flybyT:rnd(50,90), prints:[], printT:0, printSide:false,
+    scorch:[], tumble:[], tumbleT:10, critterT:12, lampT:0, lampSpawned:{}, lampBroken:{},
     rerolls:1+(m.reroll||0), skips:1, banishes:1+(m.banish||0), banned:[],
   };
   const curseR=(m.curse||0);
@@ -464,6 +493,12 @@ function newGame(){
     case 'chewie': p.hpMax+=60; p.hp+=60; p.area+=0.20; break;
     default: p.armor+=2; p.might+=0.10; break;
   }
+  // реликвии-голокроны далеко от старта (стрелки ведут) + секрет R2-D2 (без стрелки)
+  for(let i=0;i<2;i++){
+    const a=rnd(0,TAU), R=1500+rnd(0,900);
+    G.relics.push(freeSpot(Math.cos(a)*R,Math.sin(a)*R));
+  }
+  { const a=rnd(0,TAU), s=freeSpot(Math.cos(a)*2600,Math.sin(a)*2600); s.r2=true; G.relics.push(s); }
   // динамичный старт: империя уже окружает — первые враги видны сразу
   for(let i=0;i<9;i++){
     const a=i/9*TAU+rnd(-0.2,0.2);
@@ -523,6 +558,13 @@ function cellObstacle(i,j){
   if(h<0.29) return {x:ox,y:oy,r:88,kind:'pit',solid:false,h};
   return {x:ox,y:oy,r:78,kind:'beacon',solid:false,h};
 }
+function freeSpot(x,y){ // выталкивает точку из солидных препятствий (чтобы лут был достижим)
+  for(const o of nearObstacles(x,y)) if(o.solid&&dist2(x,y,o.x,o.y)<(o.r+40)*(o.r+40)){
+    const d=Math.hypot(x-o.x,y-o.y)||1;
+    x=o.x+(x-o.x)/d*(o.r+50); y=o.y+(y-o.y)/d*(o.r+50);
+  }
+  return {x,y};
+}
 function nearObstacles(x,y){
   const res=[], ci=Math.floor(x/OB_CELL), cj=Math.floor(y/OB_CELL);
   for(let j=cj-2;j<=cj+2;j++) for(let i=ci-2;i<=ci+2;i++){
@@ -557,6 +599,7 @@ function spawnEnemy(type,px,py,mul){
     shootT:rnd(3.5,5), aimT:0, aimX:0, aimY:0,
     chargeT:rnd(2,4), charging:0, chargeDx:0, chargeDy:0,
     fly:!!d.fly, shooter:!!d.shooter, charger:!!d.charger, boss:!!d.boss, elite:!!d.elite,
+    neutral:!!d.neutral, lamp:!!d.lamp,
     vader:!!d.vader, emperor:!!d.emperor, inq:!!d.inq, buffer:!!d.buffer, crate:!!d.crate,
     burst:d.burst||0, phaseT:0, seed:Math.random()*10,
     spawnT:d.crate?0:0.45 };
@@ -594,6 +637,26 @@ function updateSpawns(dt){
     G.crateT=22;
     const a=rnd(0,TAU), R=Math.min(W,H)/(2*cameraZoom())*rnd(0.5,0.85);
     spawnEnemy('crate', G.p.x+Math.cos(a)*R, G.p.y+Math.sin(a)*R, 1);
+  }
+  // нейтральная живность: womp-крысы и банты бродят по пустыне
+  G.critterT-=dt;
+  if(G.critterT<=0){ G.critterT=rnd(14,26); if(G.crittersOn) spawnEnemy(Math.random()<0.7?'rat':'bantha',undefined,undefined,1); }
+  // фонари-жаровни: детерминированные точки на карте (разбил — получил лут, как лампы в VS)
+  G.lampT-=dt;
+  if(G.lampT<=0){
+    G.lampT=0.7;
+    const LC=520, R2=Math.hypot(W,H)/(2*cameraZoom())+120;
+    const ci=Math.floor(G.p.x/LC), cj=Math.floor(G.p.y/LC);
+    for(let j=cj-3;j<=cj+3;j++) for(let i=ci-3;i<=ci+3;i++){
+      // hash2 на этих входах живёт в [0, 0.5) — порог берём с нижнего края (~20% ячеек)
+      const h=hash2(i*31+11,j*29+17); if(h>=0.10) continue;
+      const key=i+'_'+j;
+      if(G.lampSpawned[key]||G.lampBroken[key]) continue;
+      const s=freeSpot((i+0.2+h*9)*LC,(j+0.2+hash2(i,j*5)*1.2)*LC);
+      if(dist2(s.x,s.y,G.p.x,G.p.y)>R2*R2) continue;
+      const le=spawnEnemy('lamp',s.x,s.y,1);
+      if(le){ le.lampKey=key; G.lampSpawned[key]=true; }
+    }
   }
 }
 
@@ -765,7 +828,15 @@ function killEnemy(e){
     G.parts.push({kind:'p',x:e.x,y:e.y,vx:rnd(-160,160),vy:rnd(-200,60),t:rnd(0.3,0.7),c:e.boss?'#ff8d3a':'#aebbd8',s:rnd(2,e.boss?7:4)});
   const d=ETYPES[e.type];
   // drops
-  if(e.crate){ // supply crate: guaranteed useful loot
+  if(e.lamp){ // фонарь: гарантированный мелкий лут, как лампы в VS
+    const roll=Math.random();
+    if(roll<0.5) G.pickups.push({kind:'gold',x:e.x,y:e.y,v:rndi(2,6),t:0});
+    else if(roll<0.75) for(let i=0;i<3;i++) G.gems.push({x:e.x+rnd(-14,14),y:e.y+rnd(-14,14),v:2,t:0});
+    else if(roll<0.9) G.pickups.push({kind:'chicken',x:e.x,y:e.y,t:0});
+    else G.pickups.push({kind:'vacuum',x:e.x,y:e.y,t:0});
+    if(e.lampKey) G.lampBroken[e.lampKey]=true;
+    G.killCount--;
+  } else if(e.crate){ // supply crate: guaranteed useful loot
     const roll=Math.random();
     if(roll<0.42) G.pickups.push({kind:'gold',x:e.x,y:e.y,v:rndi(8,20),t:0});
     else if(roll<0.68) G.pickups.push({kind:'chicken',x:e.x,y:e.y,t:0});
@@ -1046,6 +1117,11 @@ function update(dt){
     if(!e.boss&&!e.buffer&&!e.crate&&officers.length){
       for(const o of officers) if(dist2(e.x,e.y,o.x,o.y)<260*260){ spd*=1.35; e.buffed=true; break; }
     }
+    if(e.neutral){ // живность: бродит, при приближении игрока — разбегается
+      const wa=Math.sin(G.time*0.35+e.seed*4)*TAU;
+      if(d<130){ vx=-dx/d; vy=-dy/d; spd=e.sp*1.6; }
+      else { vx=Math.cos(wa); vy=Math.sin(wa); spd=e.sp*0.5; }
+    }
     if(e.fly){ const s=Math.sin(G.time*3+e.seed*7); vx+=-dy/d*s*0.7; vy+=dx/d*s*0.7; }
     if(e.charger){
       e.chargeT-=dt;
@@ -1130,16 +1206,20 @@ function update(dt){
     // separation (cheap, sample few neighbors)
     // Collect the whole crowd as one damage event. Extra bodies add pressure,
     // instead of becoming harmless behind the first enemy's invulnerability hit.
-    if(!e.crate && d < e.r+p.r){
+    if(!e.crate && !e.neutral && d < e.r+p.r){
       contactCount++;
       contactDamage=Math.max(contactDamage,e.dmg);
     }
     if(e.crate){ // ящики не двигаются и не телепортируются; далёкие убираем
-      if(d>Math.hypot(W,H)/cameraZoom()+400){ G.enemies[i]=G.enemies[G.enemies.length-1]; G.enemies.pop(); }
+      if(d>Math.hypot(W,H)/cameraZoom()+400){
+        if(e.lampKey) delete G.lampSpawned[e.lampKey]; // фонарь вернётся, когда игрок снова рядом
+        G.enemies[i]=G.enemies[G.enemies.length-1]; G.enemies.pop();
+      }
       continue;
     }
     // despawn far non-boss
     if(!e.boss && d>Math.hypot(W,H)*0.9/cameraZoom()+300){
+      if(e.neutral){ G.enemies[i]=G.enemies[G.enemies.length-1]; G.enemies.pop(); continue; }
       // teleport to other side (VS-style)
       const a=Math.atan2(e.y-p.y,e.x-p.x)+Math.PI+rnd(-0.5,0.5);
       const R=Math.hypot(W,H)/(2*cameraZoom())+80;
@@ -1857,6 +1937,7 @@ function drawEnemy(e){
     case 'officer': drawOfficer(legA,e); break;
     case 'wampa': drawWampa(legA,e); break;
     case 'crate': drawCrate(e); break;
+    case 'lamp': drawLamp(e); break;
     case 'atst': drawATST(e); break;
     case 'maul': drawMaul(legA,e); break;
     case 'boba': drawBoba(e); break;
@@ -2184,6 +2265,25 @@ function drawCrate(e){
   cx.fillStyle='#2c313d'; cx.fillRect(-2,1,4,4);
   cx.strokeStyle='rgba(255,215,106,'+(0.25+bl*0.3)+')';
   cx.beginPath(); cx.arc(0,0,20,0,TAU); cx.stroke();
+}
+function drawLamp(e){
+  // жаровня: треножник с горящей чашей — разбивается одним ударом, даёт лут
+  const t=G.time+e.seed, fl=(Math.sin(t*9)+Math.sin(t*15.7))*0.5;
+  const gr=cx.createRadialGradient(0,-16,2,0,-16,30);
+  gr.addColorStop(0,'rgba(255,180,70,'+(0.30+fl*0.06)+')'); gr.addColorStop(1,'rgba(255,140,40,0)');
+  cx.fillStyle=gr; cx.beginPath(); cx.arc(0,-16,30,0,TAU); cx.fill();
+  cx.strokeStyle='#4d4438'; cx.lineWidth=2.5; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-6,10); cx.lineTo(0,-8); cx.stroke();
+  cx.beginPath(); cx.moveTo(6,10); cx.lineTo(0,-8); cx.stroke();
+  cx.beginPath(); cx.moveTo(0,10); cx.lineTo(0,-8); cx.stroke();
+  cx.fillStyle='#5c5142';
+  cx.beginPath(); cx.ellipse(0,-10,8,3.5,0,0,Math.PI); cx.fill();
+  cx.fillRect(-8,-13,16,3.5);
+  // пламя
+  cx.fillStyle='#ffb445';
+  cx.beginPath(); cx.moveTo(-5,-13); cx.quadraticCurveTo(-4+fl*2,-22,0,-25-fl*2); cx.quadraticCurveTo(4-fl*2,-21,5,-13); cx.closePath(); cx.fill();
+  cx.fillStyle='#ffe9b0';
+  cx.beginPath(); cx.moveTo(-2.5,-13); cx.quadraticCurveTo(0,-18-fl,0,-20-fl); cx.quadraticCurveTo(2,-17,2.5,-13); cx.closePath(); cx.fill();
 }
 function drawBoba(e){
   const t=G.time;
