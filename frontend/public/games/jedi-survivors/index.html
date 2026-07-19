@@ -1683,6 +1683,14 @@ function draw(){
     cx.fillStyle='rgba(120,190,255,'+Math.min(0.14,G.freezeT*0.1)+')';
     cx.fillRect(0,0,W,H);
   }
+  // смена освещения за 30-минутный забег: полдень → закат (~15 мин) → ночь (к 25 мин)
+  {
+    const ph=G.time/60;
+    const sunset=clamp(1-Math.abs(ph-15)/5,0,1);
+    if(sunset>0){ cx.fillStyle='rgba(255,120,40,'+(0.11*sunset)+')'; cx.fillRect(0,0,W,H); }
+    const night=clamp((ph-17)/8,0,1);
+    if(night>0){ cx.fillStyle='rgba(16,24,70,'+(0.30*night)+')'; cx.fillRect(0,0,W,H); }
+  }
   drawHUD();
 }
 
