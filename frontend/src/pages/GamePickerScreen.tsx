@@ -143,26 +143,6 @@ export function GamePickerScreen() {
         <h1 className="home-title">Игры</h1>
       </header>
 
-      <section className="home-content-progress" aria-label="Шкала исследования контента">
-        <div className="home-content-progress-head">
-          <span className="home-content-progress-kicker">ШКАЛА 3 · ИССЛЕДОВАНИЕ</span>
-          <strong>{contentProgress}%</strong>
-        </div>
-        <div
-          className="home-content-progress-track"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={contentProgress}
-          aria-label={`Исследовано ${contentProgress}% контента`}
-        >
-          <span style={{ width: `${contentProgress}%` }} />
-        </div>
-        <p>
-          Открыто {exploredGames} из {ALL_APPS.length} игр · до финиша {remainingProgress}%
-        </p>
-      </section>
-
       {milestone !== null && (
         <div className="home-progress-toast" role="status">
           <span aria-hidden>🏆</span>
@@ -194,6 +174,26 @@ export function GamePickerScreen() {
           <p className="home-search-empty">Ничего не нашлось</p>
         )}
       </div>
+
+      <section className="home-content-progress" aria-label="Шкала исследования контента">
+        <div className="home-content-progress-head">
+          <span className="home-content-progress-kicker">ШКАЛА 3 · ИССЛЕДОВАНИЕ</span>
+          <strong>{contentProgress}%</strong>
+        </div>
+        <div
+          className="home-content-progress-track"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={contentProgress}
+          aria-label={`Исследовано ${contentProgress}% контента`}
+        >
+          <span style={{ width: `${contentProgress}%` }} />
+        </div>
+        <p>
+          Открыто {exploredGames} из {ALL_APPS.length} игр · до финиша {remainingProgress}%
+        </p>
+      </section>
 
       <footer className="home-powered">
         Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a>

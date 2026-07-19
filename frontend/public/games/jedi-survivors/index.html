@@ -13,7 +13,9 @@
   .hidden { display:none !important; }
 
   /* ---- Menu ---- */
-  #menu { background:radial-gradient(ellipse at 50% 30%, #1a2340 0%, #05070f 70%); }
+  #menu { background:radial-gradient(ellipse at 50% 30%, #1a2340 0%, #05070f 70%);
+    justify-content:flex-start; overflow-y:auto; padding:max(24px, env(safe-area-inset-top)) 0 14px; }
+  #menu > * { flex-shrink:0; }
   #menu h1 { font-size:min(11vw,64px); letter-spacing:4px; font-weight:900;
     background:linear-gradient(180deg,#9fd8ff,#3fa9f5 45%,#0b5fa5); -webkit-background-clip:text; background-clip:text; color:transparent;
     text-shadow:0 0 40px rgba(63,169,245,.35); margin-bottom:2px; }
@@ -34,7 +36,7 @@
   .sel-card .pr { color:#ffd76a; }
   .sel-card:active { transform:scale(.95); }
   .lu-act { font-size:13px !important; padding:9px 16px !important; }
-  #menu footer { position:absolute; bottom:calc(10px + env(safe-area-inset-bottom)); color:#66719b; font-size:12px; }
+  #menu footer { position:static; margin-top:16px; color:#66719b; font-size:12px; }
   #menu footer a { color:#8fbaff; text-decoration:none; font-weight:600; }
 
   /* ---- Level up / chest ---- */
@@ -103,7 +105,9 @@
   <div class="sub">выживи в атаке Империи</div>
   <div id="charRow" class="sel-row"></div>
   <div id="stageRow" class="sel-row"></div>
+  <button class="btn btn-big hidden" id="resumeRunBtn" style="background:linear-gradient(180deg,#7dd88e,#1f9a4c)">⏯ Продолжить забег</button>
   <button class="btn btn-big" id="startBtn">▶ ИГРАТЬ</button>
+  <div id="rankBox" style="width:min(340px,86vw);margin-top:6px"></div>
   <div class="menu-row">
     <button class="btn btn-sec" id="shopBtn">🏛 Академия</button>
     <button class="btn btn-sec" id="collBtn">📚 Коллекция</button>
@@ -324,6 +328,56 @@ function weaponUnlocked(id){
   if(id==='grenade') return !!save.achs.chests3;
   return true;
 }
+/* --- Арканы (как в VS): модификаторы забега, открываются после первого босса --- */
+const ARCANAS=[
+  {id:'wrath', ico:'🎴', nm:'Гнев',      ds:'+25% урона, но враги бьют на 25% больнее.'},
+  {id:'thirst',ico:'🩸', nm:'Жажда',     ds:'Каждое убийство с шансом 10% лечит 2 HP.'},
+  {id:'tempo', ico:'⏳', nm:'Темп',      ds:'−15% перезарядки, заморозка и зоны длятся на 30% дольше.'},
+  {id:'greed2',ico:'🃏', nm:'Алчность',  ds:'+20% опыта и золота.'},
+  {id:'storm', ico:'🌩', nm:'Гроза',     ds:'Подбор кристалла с шансом 8% бьёт молнией.'},
+  {id:'resolve',ico:'🛡',nm:'Стойкость', ds:'+1 воскрешение, но −10% урона.'},
+  {id:'swarmA',ico:'🎯', nm:'Рой',       ds:'+1 снаряд, но −10% области.'},
+  {id:'void',  ico:'🕳', nm:'Пустота',   ds:'Заморозка вдвое дольше, бомбы ранят боссов.'},
+];
+const ARC=id=>!!(G&&G.arcana===id);
+
+/* --- сохранение забега: можно выйти и вернуться (пауза между сессиями) --- */
+const RUN_KEY='jediSurvRun1';
+function saveRun(){
+  if(!G||G.state==='dead') return;
+  try{
+    const p=G.p;
+    localStorage.setItem(RUN_KEY,JSON.stringify({
+      time:G.time,killCount:G.killCount,goldRun:G.goldRun,goldCredited:G.goldCredited||0,
+      killsCredited:G.killsCredited||0,timeCredited:G.timeCredited||0,statsCredited:!!G.statsCredited,
+      stage:G.stage,hyper:G.hyper,endless:G.endless,won:G.won,arcana:G.arcana||null,
+      chestsRun:G.chestsRun,evosRun:G.evosRun,bossKills:G.bossKills,
+      ringDone:G.ringDone,bossDone:G.bossDone,eliteT:G.eliteT,
+      rerolls:G.rerolls,skips:G.skips,banishes:G.banishes,banned:G.banned,
+      vaderKilled:G.vaderKilled,selChar:save.selChar,
+      p:{x:p.x,y:p.y,hp:p.hp,hpMax:p.hpMax,speed:p.speed,might:p.might,armor:p.armor,
+         area:p.area,cdr:p.cdr,amount:p.amount,magnet:p.magnet,recovery:p.recovery,
+         luck:p.luck,growth:p.growth,goldMul:p.goldMul,revives:p.revives,
+         lvl:p.lvl,xp:p.xp,xpNext:p.xpNext,weapons:p.weapons,passives:p.passives},
+    }));
+  }catch(e){}
+}
+function clearRun(){ try{localStorage.removeItem(RUN_KEY);}catch(e){} }
+function loadRun(){ try{return JSON.parse(localStorage.getItem(RUN_KEY)||'null');}catch(e){return null;} }
+
+/* --- Ранг джедая: мета-прогресс аккаунта в самой игре --- */
+const RANK_NAMES=['Юнлинг','Падаван','Оруженосец','Рыцарь-джедай','Страж','Мастер','Магистр','Гранд-мастер'];
+function rankPoints(){
+  const st=save.stats;
+  return st.kills + Math.floor(st.timePlayed/60)*15 + st.runs*50 + ACHS.filter(a=>save.achs[a.id]).length*300;
+}
+function rankInfo(){
+  const rp=rankPoints();
+  const lvl=Math.floor(Math.sqrt(rp/400));
+  const cur=400*lvl*lvl, next=400*(lvl+1)*(lvl+1);
+  return {lvl, nm:RANK_NAMES[Math.min(lvl,RANK_NAMES.length-1)], k:clamp((rp-cur)/(next-cur||1),0,1), rp, next};
+}
+
 const ENEMY_NAMES={trooper:'Штурмовик',scout:'Развед-дроид',b1:'Дроид B1',heavy:'Тяжёлый штурмовик',probe:'Пробо-дроид',dark:'Тёмный солдат',sith:'Сит-адепт',swarm:'Рой дроидов',tusken:'Тускен',jawa:'Джава',interro:'Дроид-дознаватель',magna:'Магна-страж',deka:'Дроидека',officer:'Имперский офицер',wampa:'Вампа',rat:'Womp-крыса',bantha:'Банта',crate:'Ящик припасов',atst:'AT-ST',maul:'Дарт Мол',boba:'Боба Фетт',inquis:'Великий Инквизитор',vader:'Дарт Вейдер',emperor:'Император'};
 const META=[
   {id:'might', ico:'💎', nm:'Кристалл силы', desc:'+5% урона за ранг', max:5, cost:r=>Math.round(200*Math.pow(1.9,r))},
@@ -399,7 +453,7 @@ const ETYPES={
   rat:    {hp:3,  sp:70, dmg:0,  r:8,  xp:0, gold:.5,  draw:'rat', kb:1.3, neutral:true},
   bantha: {hp:60, sp:22, dmg:0,  r:20, xp:2, gold:.3,  draw:'bantha', kb:.2, neutral:true},
   lamp:   {hp:1,  sp:0,  dmg:0,  r:12, xp:0, gold:0,   draw:'lamp', kb:0, crate:true, lamp:true},
-  atst:   {hp:1500,sp:30,dmg:24, r:34, xp:60,gold:1, draw:'atst', boss:true, shooter:true, kb:0},
+  atst:   {hp:950,sp:30,dmg:20, r:34, xp:60,gold:1, draw:'atst', boss:true, shooter:true, kb:0},
   maul:   {hp:4200,sp:85,dmg:28, r:20, xp:100,gold:1, draw:'maul', boss:true, charger:true, kb:0},
   boba:   {hp:7000,sp:66,dmg:26, r:20, xp:120,gold:1, draw:'boba', boss:true, shooter:true, fly:true, kb:0},
   inquis: {hp:9500,sp:78,dmg:30, r:20, xp:150,gold:1, draw:'inquis', boss:true, charger:true, inq:true, kb:0},
@@ -408,11 +462,11 @@ const ETYPES={
 };
 /* per-minute spawn director (VS-style waves, 30-minute run) */
 const WAVES=[
-  {types:['trooper'],                              int:0.55, batch:2},
-  {types:['trooper','scout'],                      int:0.70, batch:2},
-  {types:['scout','trooper'],                      int:0.80, batch:2, ring:'scout'},
-  {types:['trooper','tusken','scout'],             int:0.75, batch:2},
-  {types:['tusken','trooper','jawa'],              int:0.70, batch:2},
+  {types:['trooper'],                              int:0.42, batch:2},
+  {types:['trooper','scout'],                      int:0.50, batch:3},
+  {types:['scout','trooper'],                      int:0.62, batch:3, ring:'scout'},
+  {types:['trooper','tusken','scout'],             int:0.60, batch:3},
+  {types:['tusken','trooper','jawa'],              int:0.58, batch:3},
   {types:['heavy','b1','probe'],                   int:0.65, batch:2, boss:'atst'},
   {types:['probe','heavy','tusken','jawa'],        int:0.58, batch:3, ring:'scout'},
   {types:['dark','probe','b1'],                    int:0.55, batch:3},
@@ -625,13 +679,15 @@ function updateSpawns(dt){
   for(const e of G.enemies) if(e.emperor&&!G.endless) return;
   // periodic spawn
   G.spawnT-=dt;
-  const cap=clamp(60+mn*22,60,320);
+  const cap=clamp(80+mn*24,80,340);
+  // пока жив босс — обычный спавн разрежен, чтобы к боссу можно было подойти
+  const bossAlive=G.bossRef&&G.bossRef.hp>0&&!G.bossRef.emperor;
   if(G.spawnT<=0 && G.enemies.length<cap){
-    G.spawnT=cfg.int*(G.spawnMul||1);
+    G.spawnT=cfg.int*(G.spawnMul||1)*(bossAlive?1.9:1);
     for(let i=0;i<cfg.batch;i++) spawnEnemy(cfg.types[rndi(0,cfg.types.length-1)]);
   }
-  // minute events: ring (once per minute row)
-  if(mn>G.ringDone){ G.ringDone=mn; if(cfg.ring) spawnRing(cfg.ring, 26+mn*2); }
+  // minute events: ring (once per minute row; при живом боссе кольцо не давит)
+  if(mn>G.ringDone){ G.ringDone=mn; if(cfg.ring&&!bossAlive) spawnRing(cfg.ring, 26+mn*2); }
   if(mn>G.bossDone) G.bossDone=mn;
   // elite sith every 75s after min 5
   if(G.time>300){ G.eliteT-=dt; if(G.eliteT<=0){ G.eliteT=75; spawnEnemy('sith'); } }
@@ -821,6 +877,7 @@ function damageEnemy(e,dmg,knock){
 }
 function killEnemy(e){
   G.killCount++;
+  if(ARC('thirst')&&Math.random()<0.1) G.p.hp=Math.min(G.p.hpMax,G.p.hp+2);
   if(!e.crate) save.stats.perEnemy[e.type]=(save.stats.perEnemy[e.type]||0)+1;
   if(e.boss) G.bossKills=(G.bossKills||0)+1;
   // death pop: враг «лопается» — растянутое кольцо цвета тела
@@ -851,6 +908,7 @@ function killEnemy(e){
     G.killCount--; // crates are not kills
   } else if(e.elite||e.boss){
     G.pickups.push({kind:'chest',x:e.x,y:e.y,t:0});
+    if(e.boss) G.pickups.push({kind:'vacuum',x:e.x+rnd(-30,30),y:e.y+rnd(-30,30),t:0}); // награда: собрать всё поле
     for(let i=0;i<(e.boss?14:6);i++) G.gems.push({x:e.x+rnd(-40,40),y:e.y+rnd(-40,40),v:e.boss?10:5,t:0});
     G.pickups.push({kind:'gold',x:e.x+rnd(-20,20),y:e.y+rnd(-20,20),v:e.boss?(e.vader?300:60):20,t:0});
   } else {
@@ -875,7 +933,7 @@ function killEnemy(e){
 function hurtPlayer(dmg){
   const p=G.p;
   if(p.inv>0) return false;
-  const real=Math.max(1,dmg-p.armor);
+  const real=Math.max(1,dmg*(ARC('wrath')?1.25:1)-p.armor);
   p.hp-=real; p.inv=0.45; G.shake=Math.min(12,G.shake+5);
   S.hurt();
   if(p.hp<=0){
@@ -960,6 +1018,7 @@ function renderCards(picks,withActions){
     else if(o.kind==='w-new'){ ico=WEAPONS[o.id].ico; nm=WEAPONS[o.id].nm; lvTxt='НОВОЕ ОРУЖИЕ'; ds=WEAPONS[o.id].ds; }
     else if(o.kind==='p'){ const cur=G.p.passives[o.id]||0; ico=PASSIVES[o.id].ico; nm=PASSIVES[o.id].nm; lvTxt=cur?('Уровень '+(cur+1)):'НОВЫЙ НАВЫК'; ds=PASSIVES[o.id].ds; }
     else if(o.kind==='evo'){ ico='🔥'; nm=EVOS[o.id].nm; lvTxt='ЭВОЛЮЦИЯ'; ds=EVOS[o.id].ds; }
+    else if(o.kind==='arc'){ const a=ARCANAS.find(x=>x.id===o.id); ico=a.ico; nm=a.nm; lvTxt='АРКАНА'; ds=a.ds; c.classList.add('evo'); }
     else { ico='🪙'; nm='Кредиты'; lvTxt='+25'; ds='Всё прокачано — держи золото.'; }
     c.innerHTML='<div class="ico">'+ico+'</div><div class="nm">'+nm+'</div><div class="lv">'+lvTxt+'</div><div class="ds">'+ds+'</div>';
     c.onclick=()=>{
@@ -977,6 +1036,7 @@ function renderCards(picks,withActions){
       else if(o.kind==='w-new'){ G.p.weapons.push({id:o.id,lvl:1,cd:0.2,evolved:false}); }
       else if(o.kind==='p'){ applyPassive(o.id); }
       else if(o.kind==='evo'){ const w=G.p.weapons.find(w=>w.id===o.id); w.evolved=true; G.evosRun++; S.chest(); }
+      else if(o.kind==='arc'){ applyArcana(o.id); }
       else { G.goldRun+=25; }
       luEl.classList.add('hidden');
       G.state='playing';
@@ -1120,6 +1180,8 @@ function update(dt){
   }
   G.achTick-=dt;
   if(G.achTick<=0){ G.achTick=1; checkAchs(); }
+  G.runSaveT=(G.runSaveT||0)+dt;
+  if(G.runSaveT>=5){ G.runSaveT=0; saveRun(); } // автосейв забега каждые 5 сек
   const frozen=G.freezeT>0;
 
   /* --- реликвии-голокроны: лежат далеко, награда за вылазку --- */
@@ -1389,7 +1451,7 @@ function update(dt){
       b.t+=dt;
       const k=b.t/b.tMax;
       if(k>=1){
-        G.zones.push({x:b.tx,y:b.ty,R:b.R,t:3,dmg:b.dmg*0.25,tick:0,ev:b.ev});
+        G.zones.push({x:b.tx,y:b.ty,R:b.R,t:ARC('tempo')?3.9:3,dmg:b.dmg*0.25,tick:0,ev:b.ev});
         for(const e of G.enemies){ if(dist2(e.x,e.y,b.tx,b.ty)<b.R*b.R) damageEnemy(e,b.dmg,true); }
         G.parts.push({kind:'boom',x:b.tx,y:b.ty,t:0.4,tMax:0.4,R:b.R});
         G.shake=Math.min(10,G.shake+4); S.boom();
@@ -1462,7 +1524,13 @@ function update(dt){
       const d=Math.sqrt(d2)||1;
       const sp=Math.max(240, 560-d);
       g.x+=(p.x-g.x)/d*sp*dt; g.y+=(p.y-g.y)/d*sp*dt;
-      if(d<18){ gainXP(g.v); S.gem(); G.gems.splice(i,1); }
+      if(d<18){
+        gainXP(g.v); S.gem(); G.gems.splice(i,1);
+        if(ARC('storm')&&Math.random()<0.08){
+          const t=nearestEnemies(1,500)[0];
+          if(t){ damageEnemy(t,25*p.might,true); G.parts.push({kind:'zap',x1:p.x,y1:p.y-30,x2:t.x,y2:t.y,t:0.14}); S.zap(); }
+        }
+      }
     }
   }
 
@@ -1478,8 +1546,8 @@ function update(dt){
         case 'gold': G.goldRun+=Math.round(u.v*p.goldMul*(G.rewardMul||1)*(G.stormT>0?2:1)); S.pick(); break;
         case 'chicken': p.hp=Math.min(p.hpMax,p.hp+30); S.pick(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'+30 HP',t:0.8,heal:true,str:true}); break;
         case 'vacuum': for(const g of G.gems) g.pull=true; S.pick(); break;
-        case 'bomb': { S.boom(); G.shake=14; G.zoomPulse=0.05; for(const e of [...G.enemies]) if(!e.boss) damageEnemy(e,9999,false); break; }
-        case 'freeze': { G.freezeT=8; S.zap(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'❄️ ВРЕМЯ ЗАМЕРЛО',t:1.4,crit:true,str:true}); break; }
+        case 'bomb': { S.boom(); G.shake=14; G.zoomPulse=0.05; for(const e of [...G.enemies]){ if(!e.boss) damageEnemy(e,9999,false); else if(ARC('void')&&!e.emperor) damageEnemy(e,800,false); } break; }
+        case 'freeze': { G.freezeT=ARC('void')?16:(ARC('tempo')?10.5:8); S.zap(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'❄️ ВРЕМЯ ЗАМЕРЛО',t:1.4,crit:true,str:true}); break; }
         case 'chest': openChest(); break;
       }
       G.pickups.splice(i,1);
@@ -2771,15 +2839,53 @@ function goFullscreen(){
 }
 function startRun(){
   goFullscreen();
+  clearRun();
   newGame();
   menuEl.classList.add('hidden'); settingsEl.classList.add('hidden');
   endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
   music.currentTime=0;
   music.play().catch(()=>{});
+  // Арканы: выбор модификатора забега (открывается после первого босса)
+  if(save.achs.boss1){
+    const pool=[...ARCANAS];
+    for(let i=pool.length-1;i>0;i--){ const j=rndi(0,i); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    G.state='levelup';
+    luTitle.textContent='🎴 ВЫБЕРИ АРКАНУ ЗАБЕГА';
+    renderCards(pool.slice(0,3).map(a=>({kind:'arc',id:a.id})),false);
+  }
+}
+function applyArcana(id){
+  const p=G.p; G.arcana=id;
+  if(id==='wrath') p.might*=1.25;
+  else if(id==='tempo') p.cdr*=0.85;
+  else if(id==='greed2') G.rewardMul*=1.2;
+  else if(id==='resolve'){ p.revives+=1; p.might*=0.9; }
+  else if(id==='swarmA'){ p.amount+=1; p.area*=0.9; }
+}
+function resumeRun(){
+  const r=loadRun(); if(!r){ startRun(); return; }
+  goFullscreen();
+  save.selChar=save.chars[r.selChar]?r.selChar:save.selChar;
+  save.selStage=r.stage; save.hyper=r.hyper;
+  newGame();
+  Object.assign(G,{time:r.time,killCount:r.killCount,goldRun:r.goldRun,goldCredited:r.goldCredited,
+    killsCredited:r.killsCredited,timeCredited:r.timeCredited,statsCredited:r.statsCredited,
+    chestsRun:r.chestsRun,evosRun:r.evosRun,bossKills:r.bossKills,
+    ringDone:r.ringDone,bossDone:r.bossDone,eliteT:r.eliteT,
+    rerolls:r.rerolls,skips:r.skips,banishes:r.banishes,banned:r.banned||[],
+    vaderKilled:r.vaderKilled,endless:r.endless,won:r.won,arcana:r.arcana});
+  Object.assign(G.p,r.p);
+  G.p.weapons=(r.p.weapons||[]).map(w=>({id:w.id,lvl:w.lvl,cd:0.5,evolved:!!w.evolved}));
+  G.enemies.length=0; // поле чистое, волны продолжаются с сохранённой минуты
+  G.cam.x=G.p.x; G.cam.y=G.p.y;
+  menuEl.classList.add('hidden'); settingsEl.classList.add('hidden');
+  endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
+  music.play().catch(()=>{});
 }
 function endRun(win){
   if(G.state==='dead') return;
   G.state='dead';
+  clearRun();
   checkAchs();
   luEl.classList.add('hidden'); pausedEl.classList.add('hidden');
   save.gold+=G.goldRun-(G.goldCredited||0);
@@ -2841,7 +2947,7 @@ function renderPauseInfo(){
 }
 function pauseGame(){
   if(G&&G.state==='playing'){
-    G.state='paused'; renderPauseInfo(); pausedEl.classList.remove('hidden'); music.pause();
+    G.state='paused'; saveRun(); renderPauseInfo(); pausedEl.classList.remove('hidden'); music.pause();
   }
 }
 function resumeGame(){ if(G&&G.state==='paused'){ G.state='playing'; pausedEl.classList.add('hidden'); music.play().catch(()=>{}); } }
@@ -2858,6 +2964,17 @@ function updateRec(){
     : 'WASD / джойстик пальцем / тап — идти к точке';
 }
 function renderMenuMeta(){
+  // кнопка возврата в сохранённый забег
+  const rr=loadRun();
+  el('resumeRunBtn').classList.toggle('hidden',!rr);
+  if(rr) el('resumeRunBtn').textContent='⏯ Продолжить забег ('+fmtTime(rr.time)+' · ур. '+rr.p.lvl+')';
+  // Ранг джедая — мета-прогресс аккаунта
+  const ri=rankInfo();
+  el('rankBox').innerHTML=
+    '<div style="display:flex;justify-content:space-between;font-size:11px;color:#9fb0d8;margin-bottom:3px">'+
+    '<span>🎖 '+ri.nm+' · ранг '+ri.lvl+'</span><span>'+ri.rp+' / '+ri.next+'</span></div>'+
+    '<div style="height:7px;border-radius:4px;background:#182038;overflow:hidden">'+
+    '<div style="height:100%;width:'+Math.round(ri.k*100)+'%;background:linear-gradient(90deg,#2f7fd8,#7dffa0)"></div></div>';
   const cr=el('charRow'); cr.innerHTML='';
   for(const id in CHARS){
     const c=CHARS[id], owned=!!save.chars[id];
@@ -2910,6 +3027,7 @@ el('contBtn').onclick=()=>{
   music.play().catch(()=>{});
 };
 el('startBtn').onclick=startRun;
+el('resumeRunBtn').onclick=resumeRun;
 el('againBtn').onclick=startRun;
 el('menuBtn').onclick=toMenu;
 el('pauseBtn').onclick=()=>{ if(G&&G.state==='playing') pauseGame(); else resumeGame(); };
