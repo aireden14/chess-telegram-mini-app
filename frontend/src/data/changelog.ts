@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.12.0",
+    date: "20 июля 2026, 21:10 (Алматы)",
+    title: "Jedi Survivors: арсенал 30",
+    items: [
+      "🪩 Дискоблейд (рикошеты), 🔵 Ионная пушка (оглушение) и 👥 Голограмма-приманка (агрит врагов и взрывается) — с эволюциями",
+      "⚔️ Всего 30 оружий — три четверти пути к цели в 40",
+    ],
+  },
+  {
     version: "3.11.0",
     date: "20 июля 2026, 20:30 (Алматы)",
     title: "Jedi Survivors: арсенал 27 и новые юнионы",
