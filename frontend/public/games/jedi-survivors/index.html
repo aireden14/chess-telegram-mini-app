@@ -84,6 +84,11 @@
   #pauseBtn { pointer-events:auto; position:fixed; top:calc(64px + env(safe-area-inset-top)); right:calc(12px + env(safe-area-inset-right));
     width:44px; height:44px; border-radius:13px;
     background:rgba(10,16,34,.72); border:1px solid #3a4770; color:#cfe0ff; font-size:18px; cursor:pointer; }
+  #stanceBtn { pointer-events:auto; position:fixed; top:calc(112px + env(safe-area-inset-top)); right:calc(12px + env(safe-area-inset-right));
+    height:40px; min-width:44px; padding:0 10px; border-radius:12px;
+    background:rgba(10,16,34,.72); border:1px solid #3a4770; color:#cfe0ff; font-size:13px; font-weight:700; cursor:pointer; }
+  #stanceBtn.st2 { border-color:#ffd76a; color:#ffd76a; }
+  #stanceBtn.st3 { border-color:#8affd7; color:#8affd7; }
   #paused, #settings { background:rgba(3,6,14,.9); backdrop-filter:blur(8px); z-index:31; padding:24px 16px; }
   #paused h2, #settings h2 { color:#fff; margin-bottom:14px; font-size:28px; letter-spacing:3px; }
   .pause-panel, .settings-panel { width:min(420px,94vw); max-height:82vh; overflow:auto;
@@ -104,6 +109,7 @@
 
 <div id="hud" class="hidden">
   <button id="pauseBtn">⏸</button>
+  <button id="stanceBtn">🥋 I</button>
 </div>
 
 <div id="menu" class="overlay">
@@ -416,7 +422,7 @@ function saveRun(){
       chestsRun:G.chestsRun,evosRun:G.evosRun,bossKills:G.bossKills,
       ringDone:G.ringDone,bossDone:G.bossDone,eliteT:G.eliteT,
       rerolls:G.rerolls,skips:G.skips,banishes:G.banishes,banned:G.banned,
-      vaderKilled:G.vaderKilled,selChar:save.selChar,
+      vaderKilled:G.vaderKilled,selChar:save.selChar,stance:G.stance||1,
       p:{x:p.x,y:p.y,hp:p.hp,hpMax:p.hpMax,speed:p.speed,might:p.might,armor:p.armor,
          area:p.area,cdr:p.cdr,amount:p.amount,magnet:p.magnet,recovery:p.recovery,
          luck:p.luck,growth:p.growth,goldMul:p.goldMul,revives:p.revives,
@@ -628,6 +634,7 @@ function newGame(){
     rerolls:1+(m.reroll||0), skips:1, banishes:1+(m.banish||0), banned:[],
     // точки интереса: гроб с охраной, торговец после боссов
     coffin:null, merchant:null, shopBought:{},
+    stance:1, // стойка: 1 классика, 2 фарм ×3, 3 слоу-мо ×0.5
   };
   const curseR=(m.curse||0);
   G.curse=1+0.06*curseR;                                  // HP врагов
@@ -2899,8 +2906,21 @@ function drawTerrain(o){
 }
 
 /* ---------- player (jedi, high-contrast light robes) ---------- */
+/* --- облики героев: у каждого свой узнаваемый спрайт --- */
+const SKINS={
+  obiwan:{sc:1,   robe:'#f4ecd9',inner:'#d9cdb0',legs:'#3a3226',skin:'#ffdbb0',hair:'#8a6a45',beard:'#8a6a45'},
+  grogu: {sc:0.8, robe:'#cfc7b0',inner:'#b8ae94',legs:'#8a8068',skin:'#93c765',ears:true,bigHead:1.35},
+  ahsoka:{sc:1,   robe:'#7a3b22',inner:'#5e2c18',legs:'#3a2216',skin:'#d9884f',montrals:true},
+  han:   {sc:1,   robe:'#e9e4d8',inner:'#d8d2c2',legs:'#28304a',skin:'#ffdbb0',hair:'#3a2a1a',vest:'#23262e'},
+  chewie:{sc:1.15,fur:'#7a5a38',furD:'#5e4128',skin:'#7a5a38',hair:'#5e4128',bandolier:'#8d8d99'},
+  leia:  {sc:1,   robe:'#f8f4ec',inner:'#e8e2d4',legs:'#8a8478',skin:'#ffd9b8',hair:'#33231a',buns:true},
+  luke:  {sc:1,   robe:'#22242c',inner:'#17181e',legs:'#17181e',skin:'#ffdbb0',hair:'#d8b45a'},
+  yoda:  {sc:0.82,robe:'#b9ac8e',inner:'#9b8f74',legs:'#6e6450',skin:'#8fbf5f',ears:true,wisps:'#e8e4da'},
+  mando: {sc:1,   robe:'#6e5a44',inner:'#57493a',legs:'#3a3226',armor:'#96a3b4',armorD:'#6e7c8e',helmet:true},
+};
 function drawPlayer(){
   const p=G.p, t=p.walkT;
+  const chId=CHARS[save.selChar]?save.selChar:'obiwan';
   const bob=p.moving?Math.abs(Math.sin(t))*3:Math.sin(G.time*2)*1.2;
   const legA=p.moving?Math.sin(t)*6:0;
   cx.save(); cx.translate(p.x,p.y-bob);
@@ -2909,35 +2929,117 @@ function drawPlayer(){
   cx.beginPath(); cx.ellipse(SUN.dx*0.6,14+bob,13*SUN.st,5,0,0,TAU); cx.fill();
   cx.scale(p.face,1);
   if(p.inv>0&&Math.floor(p.inv*20)%2===0) cx.globalAlpha=0.45;
+  if(chId==='r2'){ // R2-D2 — дроид, а не человек в робе
+    const wob=p.moving?Math.sin(t*1.4)*0.08:0;
+    cx.rotate(wob);
+    cx.fillStyle='#8a8f9c'; cx.fillRect(-11,-6,3.5,17); cx.fillRect(7.5,-6,3.5,17);
+    cx.fillStyle='#4d5464'; cx.fillRect(-12.5,10,5.5,3.5); cx.fillRect(7,10,5.5,3.5);
+    cx.fillStyle='#e8ecf2'; cx.beginPath(); cx.roundRect(-7,-14,14,24,3); cx.fill();
+    cx.strokeStyle='#241a10'; cx.lineWidth=1.5; cx.beginPath(); cx.roundRect(-7,-14,14,24,3); cx.stroke();
+    cx.fillStyle='#2a6fd4'; cx.fillRect(-5,-10,4,3.5); cx.fillRect(1,-10,4,3.5); cx.fillRect(-5,-4,4,3.5); cx.fillRect(1,-4,4,3.5);
+    cx.fillStyle='#c7ccd6'; cx.fillRect(-7,1,14,1.6);
+    cx.fillStyle='#dde3ea'; cx.beginPath(); cx.arc(0,-14,7.5,Math.PI,0); cx.fill();
+    cx.strokeStyle='#241a10'; cx.beginPath(); cx.arc(0,-14,7.5,Math.PI,0); cx.stroke();
+    cx.fillStyle='#2a6fd4'; cx.fillRect(-6,-17,4,2); cx.fillRect(2,-19,3,2);
+    cx.fillStyle='#111'; cx.beginPath(); cx.arc(3,-17,2.2,0,TAU); cx.fill();
+    cx.fillStyle=Math.sin(G.time*5)>0?'#ff4b4b':'#5b1a1a'; cx.beginPath(); cx.arc(-3,-19.5,1.3,0,TAU); cx.fill();
+    // электрощуп вместо меча
+    cx.strokeStyle='#8a8f9c'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(7,-8); cx.lineTo(13,-11); cx.stroke();
+    cx.fillStyle='#5ec8ff'; cx.beginPath(); cx.arc(14,-11.5,2+Math.sin(G.time*20)*0.7,0,TAU); cx.fill();
+    cx.restore(); cx.globalAlpha=1; return;
+  }
+  const SK=SKINS[chId]||SKINS.obiwan;
+  cx.scale(SK.sc,SK.sc);
   const OUT='#241a10'; // тёмная обводка для контраста на песке
-  // legs (dark trousers + boots)
-  cx.strokeStyle='#3a3226'; cx.lineWidth=5; cx.lineCap='round';
+  // legs
+  cx.strokeStyle=SK.fur?SK.furD:SK.legs; cx.lineWidth=SK.fur?6:5; cx.lineCap='round';
   cx.beginPath(); cx.moveTo(-3,2); cx.lineTo(-3+legA*0.5,13); cx.stroke();
   cx.beginPath(); cx.moveTo(4,2); cx.lineTo(4-legA*0.5,13); cx.stroke();
-  cx.fillStyle='#1e1812';
-  cx.fillRect(-6+legA*0.5,11,6,4); cx.fillRect(1-legA*0.5,11,6,4); // boots
-  // robe body — light cream tunic with dark outline
-  cx.fillStyle='#f4ecd9';
+  if(!SK.fur){
+    cx.fillStyle='#1e1812';
+    cx.fillRect(-6+legA*0.5,11,6,4); cx.fillRect(1-legA*0.5,11,6,4); // boots
+  }
+  // body
+  cx.fillStyle=SK.fur||SK.robe;
   cx.strokeStyle=OUT; cx.lineWidth=2;
   cx.beginPath(); cx.moveTo(-9,-9); cx.quadraticCurveTo(-13,8,-8,11); cx.lineTo(8,11); cx.quadraticCurveTo(13,8,9,-9); cx.closePath();
   cx.fill(); cx.stroke();
-  // inner tunic V + belt
-  cx.fillStyle='#d9cdb0';
-  cx.beginPath(); cx.moveTo(-4,-9); cx.lineTo(0,-2); cx.lineTo(4,-9); cx.closePath(); cx.fill();
-  cx.fillStyle='#4a341f';
-  cx.fillRect(-9,-1,18,4); // тёмный пояс
-  cx.fillStyle='#c8a54a'; cx.fillRect(-2,-1,4,4); // пряжка
+  if(SK.fur){ // Чубакка: пряди шерсти + патронташ
+    cx.strokeStyle=SK.furD; cx.lineWidth=1.4;
+    for(let i=-7;i<=7;i+=3){ cx.beginPath(); cx.moveTo(i,-6); cx.quadraticCurveTo(i-1,2,i+1,9); cx.stroke(); }
+    cx.strokeStyle=SK.bandolier; cx.lineWidth=3.5;
+    cx.beginPath(); cx.moveTo(-8,-7); cx.lineTo(9,6); cx.stroke();
+    cx.fillStyle='#c8a54a'; for(let i=0;i<4;i++) cx.fillRect(-6+i*4,-5.5+i*3,2.2,3);
+  } else if(SK.vest){ // Хан: тёмный жилет поверх рубахи
+    cx.fillStyle=SK.vest;
+    cx.beginPath(); cx.moveTo(-9,-9); cx.quadraticCurveTo(-12,6,-8,11); cx.lineTo(-3,11); cx.lineTo(-3,-9); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.moveTo(9,-9); cx.quadraticCurveTo(12,6,8,11); cx.lineTo(3,11); cx.lineTo(3,-9); cx.closePath(); cx.fill();
+  } else if(SK.armor){ // Мандалорец: бескаровые пластины
+    cx.fillStyle=SK.armor;
+    cx.beginPath(); cx.roundRect(-7,-9,14,9,2); cx.fill();
+    cx.fillStyle=SK.armorD; cx.fillRect(-7,-4.5,14,1.4);
+    cx.fillStyle=SK.armor; cx.fillRect(-11,-8,3.5,6); cx.fillRect(7.5,-8,3.5,6); // наплечники
+  } else {
+    cx.fillStyle=SK.inner;
+    cx.beginPath(); cx.moveTo(-4,-9); cx.lineTo(0,-2); cx.lineTo(4,-9); cx.closePath(); cx.fill();
+  }
+  if(!SK.fur){ // пояс
+    cx.fillStyle='#4a341f'; cx.fillRect(-9,-1,18,4);
+    cx.fillStyle='#c8a54a'; cx.fillRect(-2,-1,4,4);
+  }
   // arms
-  cx.strokeStyle='#f4ecd9'; cx.lineWidth=4.5;
+  cx.strokeStyle=SK.fur||SK.armor||SK.robe; cx.lineWidth=4.5;
   const swinging=p.swingT>0;
   const armA=p.moving?Math.sin(t+1)*3:0;
   cx.beginPath(); cx.moveTo(-6,-5); cx.lineTo(-10,3+armA); cx.stroke();
-  // head — визор-капюшон убран: тёмные волосы, светлое лицо
-  cx.fillStyle='#ffdbb0'; cx.strokeStyle=OUT; cx.lineWidth=1.5;
-  cx.beginPath(); cx.arc(1,-15,6.5,0,TAU); cx.fill(); cx.stroke();
-  cx.fillStyle='#2e2016';
-  cx.beginPath(); cx.arc(0,-17,6.6,Math.PI*0.95,Math.PI*1.95); cx.fill(); // волосы
-  cx.fillStyle='#1c140c'; cx.fillRect(3,-16,2.4,1.8); // глаз
+  // head
+  const hs=SK.bigHead||1, hy0=-15-(hs-1)*4;
+  cx.fillStyle=SK.skin; cx.strokeStyle=OUT; cx.lineWidth=1.5;
+  cx.beginPath(); cx.arc(1,hy0,6.5*hs,0,TAU); cx.fill(); cx.stroke();
+  if(SK.helmet){ // шлем Мандалорца: бескар + Т-визор
+    cx.fillStyle=SK.armor;
+    cx.beginPath(); cx.arc(1,hy0,7,0,TAU); cx.fill();
+    cx.strokeStyle=OUT; cx.stroke();
+    cx.fillStyle=SK.armorD; cx.fillRect(-6,hy0-8,14,3);
+    cx.fillStyle='#14161c';
+    cx.fillRect(-1.5,hy0-4,8,2.2); // горизонталь визора
+    cx.fillRect(2.2,hy0-4,2.4,6);  // вертикаль
+  } else if(SK.ears){ // Грогу / Йода: большие уши
+    cx.fillStyle=SK.skin; cx.strokeStyle=OUT; cx.lineWidth=1.2;
+    cx.beginPath(); cx.ellipse(-7*hs,hy0-1,6,2.6,-0.25,0,TAU); cx.fill(); cx.stroke();
+    cx.beginPath(); cx.ellipse(9*hs,hy0-1,6,2.6,0.25,0,TAU); cx.fill(); cx.stroke();
+    if(SK.wisps){ cx.strokeStyle=SK.wisps; cx.lineWidth=1;
+      cx.beginPath(); cx.moveTo(-2,hy0-6.5); cx.quadraticCurveTo(0,hy0-9,3,hy0-7); cx.stroke(); }
+    cx.fillStyle='#1c140c';
+    cx.beginPath(); cx.arc(3.4*hs,hy0-1,1.6,0,TAU); cx.fill(); // крупный глаз
+    cx.beginPath(); cx.arc(-1.5*hs,hy0-1,1.6,0,TAU); cx.fill();
+  } else if(SK.montrals){ // Асока: бело-синие монтралы
+    const mono=(x0,len)=>{
+      cx.fillStyle='#e8e8f0'; cx.beginPath();
+      cx.moveTo(x0-2,hy0-4); cx.quadraticCurveTo(x0+2,hy0+len*0.5,x0,hy0+len); cx.lineTo(x0+3.4,hy0+len); cx.quadraticCurveTo(x0+5.4,hy0+len*0.4,x0+3.4,hy0-5); cx.closePath(); cx.fill();
+      cx.strokeStyle='#3f6fb8'; cx.lineWidth=1.6;
+      for(let k=1;k<=3;k++){ cx.beginPath(); cx.moveTo(x0-1,hy0-4+k*len/3.4); cx.lineTo(x0+4,hy0-5+k*len/3.4); cx.stroke(); }
+    };
+    mono(-9,14); mono(5.5,17);
+    cx.fillStyle='#e8e8f0'; // купол-монтралы сверху
+    cx.beginPath(); cx.moveTo(-5,hy0-4); cx.quadraticCurveTo(-3,hy0-11,1,hy0-6.4); cx.quadraticCurveTo(5,hy0-11,7,hy0-4); cx.closePath(); cx.fill();
+    cx.fillStyle='#1c140c'; cx.fillRect(3,hy0-1,2.4,1.8);
+  } else if(SK.buns){ // Лея: пучки по бокам
+    cx.fillStyle=SK.hair;
+    cx.beginPath(); cx.arc(-6.5,hy0,3.6,0,TAU); cx.fill();
+    cx.beginPath(); cx.arc(8.5,hy0,3.6,0,TAU); cx.fill();
+    cx.beginPath(); cx.arc(0,hy0-2,6.6,Math.PI*0.95,Math.PI*1.95); cx.fill();
+    cx.fillStyle='#1c140c'; cx.fillRect(3,hy0-1,2.4,1.8);
+  } else {
+    cx.fillStyle=SK.hair;
+    cx.beginPath(); cx.arc(0,hy0-2,6.6,Math.PI*0.95,Math.PI*1.95); cx.fill(); // волосы
+    if(SK.beard){ cx.fillStyle=SK.beard;
+      cx.beginPath(); cx.arc(1.5,hy0+3.4,4.6,Math.PI*1.85,Math.PI*1.05,true); cx.fill(); }
+    if(SK.fur){ cx.fillStyle=SK.furD; // морда вуки
+      cx.beginPath(); cx.ellipse(3.5,hy0+2,3.4,2.4,0,0,TAU); cx.fill();
+      cx.fillStyle='#2a1c10'; cx.beginPath(); cx.arc(5,hy0+1.6,1,0,TAU); cx.fill(); }
+    cx.fillStyle='#1c140c'; cx.fillRect(3,hy0-1,2.4,1.8); // глаз
+  }
   // saber arm + lightsaber with swing animation
   const evo=p.weapons.find(w=>w.id==='saber'&&w.evolved);
   const bladeCol=evo?'#7df0a0':'#3fb6ff';
@@ -3572,6 +3674,7 @@ function startRun(){
   goFullscreen();
   clearRun();
   newGame();
+  syncStanceBtn();
   menuEl.classList.add('hidden'); settingsEl.classList.add('hidden');
   endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
   music.currentTime=0;
@@ -3612,7 +3715,8 @@ function resumeRun(){
     rerolls:r.rerolls,skips:r.skips,banishes:r.banishes,banned:r.banned||[],
     vaderKilled:r.vaderKilled,endless:r.endless,won:r.won,arcana:r.arcana,arcana2:r.arcana2});
   Object.assign(G.p,r.p);
-  G.p.weapons=(r.p.weapons||[]).map(w=>({id:w.id,lvl:w.lvl,cd:0.5,evolved:!!w.evolved}));
+  G.p.weapons=(r.p.weapons||[]).map(w=>({id:w.id,lvl:w.lvl,cd:0.5,evolved:!!w.evolved,union:!!w.union}));
+  G.stance=r.stance||1; syncStanceBtn();
   G.enemies.length=0; // поле чистое, волны продолжаются с сохранённой минуты
   G.cam.x=G.p.x; G.cam.y=G.p.y;
   menuEl.classList.add('hidden'); settingsEl.classList.add('hidden');
@@ -3776,6 +3880,10 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'20 июля 2026, ~02:20 (Алматы) — v11 «Стойки и облики»',t:[
+    '🥋 СТОЙКИ (кнопка под паузой или клавиша T): I — классика; ⚡ II — весь мир ×3 быстрее, фарм летит; 🐢 III — слоу-мо ×0.5, легче уворачиваться, когда жарко.',
+    '🧙 У каждого героя теперь свой облик: Грогу — зелёный малыш с ушами, Чубакка — мохнатый вуки с патронташем, Асока с монтралами, Лея с пучками, Люк в чёрном, Йода, Хан в жилете, Мандалорец в бескаре с Т-визором, R2-D2 — настоящий дроид.',
+    '🛠 Фикс: юнион-оружие больше не «умирало» после продолжения сохранённого забега.']},
   {d:'20 июля 2026, ~01:50 (Алматы) — v10 «Церемония сундука»',t:[
     '🎰 Сундук теперь открывается слот-машиной: барабаны крутятся, награды фиксируются одна за другой под фанфары.',
     '✨ Редкие сундуки: с шансом (растёт от удачи) выпадает 3 или даже 5 наград сразу — улучшения, новые оружия и золото.',
@@ -3824,6 +3932,22 @@ el('resumeRunBtn').onclick=resumeRun;
 el('againBtn').onclick=startRun;
 el('menuBtn').onclick=toMenu;
 el('pauseBtn').onclick=()=>{ if(G&&G.state==='playing') pauseGame(); else resumeGame(); };
+/* --- стойки: переключение кнопкой или клавишей T --- */
+const STANCES={1:{ico:'🥋',nm:'СТОЙКА I · КЛАССИКА',cls:''},2:{ico:'⚡',nm:'СТОЙКА II · ФАРМ ×3',cls:'st2'},3:{ico:'🐢',nm:'СТОЙКА III · ФОКУС ×0.5',cls:'st3'}};
+function syncStanceBtn(){
+  const st=STANCES[(G&&G.stance)||1];
+  el('stanceBtn').textContent=st.ico+' '+['','I','II','III'][(G&&G.stance)||1];
+  el('stanceBtn').className=st.cls;
+}
+function setStance(n){
+  if(!G) return;
+  G.stance=n; syncStanceBtn();
+  if(G.p) G.dmgTexts.push({x:G.p.x,y:G.p.y-46,v:STANCES[n].ico+' '+STANCES[n].nm,t:1.4,crit:true,str:true});
+  S.pick();
+}
+function cycleStance(){ if(G&&(G.state==='playing'||G.state==='paused')) setStance((G.stance||1)%3+1); }
+el('stanceBtn').onclick=cycleStance;
+window.addEventListener('keydown',e=>{ if(e.code==='KeyT') cycleStance(); });
 el('resumeBtn').onclick=resumeGame;
 el('quitBtn').onclick=toMenu;
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) pauseGame(); });
@@ -3906,7 +4030,11 @@ function frame(now){
     // хитстоп: короткая заморозка мира на крит/убийство босса
     if(G.state==='playing'){
       if(G.hitStop>0) G.hitStop-=dt;
-      else update(dt);
+      else{ // стойки: I ×1, II ×3 (быстрый фарм), III ×0.5 (слоу-мо)
+        const st=G.stance||1;
+        if(st===2){ update(dt); if(G&&G.state==='playing') update(dt); if(G&&G.state==='playing') update(dt); }
+        else update(dt*(st===3?0.5:1));
+      }
     }
     // затухание толчка камеры и zoom-пульса
     G.kickX*=Math.pow(0.002,dt); G.kickY*=Math.pow(0.002,dt);
