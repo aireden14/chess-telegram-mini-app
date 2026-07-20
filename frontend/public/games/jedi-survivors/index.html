@@ -309,6 +309,8 @@ save.achs=save.achs||{};
 save.stats=Object.assign({kills:0,timePlayed:0,runs:0,maxLvl:0,perEnemy:{}},save.stats||{});
 save.selStage=save.selStage||'tatooine';
 save.hyper=!!save.hyper;
+save.hurry=!!save.hurry;
+save.eggs=Object.assign({n:0,st:{}},save.eggs||{}); // золотые яйца: бесконечная мета-прокачка
 // миграция: ветераны до системы достижений получают их по своим рекордам
 if(save.best>=300) save.achs.surv5=true;
 if(save.best>=900) save.achs.surv15=true;
@@ -415,7 +417,7 @@ const ARCANAS=[
   {id:'pole',  ico:'🧭', nm:'Полюс',     ds:'Радиус сбора ×1.6, каждые 45 сек — авто-сбор всего поля.'},
   {id:'chrono',ico:'⏱', nm:'Хронопетля',ds:'Каждые 60 сек время замирает на 3 сек.'},
 ];
-const ARC=id=>!!(G&&(G.arcana===id||G.arcana2===id));
+const ARC=id=>!!(G&&(G.arcana===id||G.arcana2===id||G.arcana3===id));
 
 /* --- сохранение забега: можно выйти и вернуться (пауза между сессиями) --- */
 const RUN_KEY='jediSurvRun1';
@@ -426,7 +428,7 @@ function saveRun(){
     localStorage.setItem(RUN_KEY,JSON.stringify({
       time:G.time,killCount:G.killCount,goldRun:G.goldRun,goldCredited:G.goldCredited||0,
       killsCredited:G.killsCredited||0,timeCredited:G.timeCredited||0,statsCredited:!!G.statsCredited,
-      stage:G.stage,hyper:G.hyper,endless:G.endless,won:G.won,arcana:G.arcana||null,arcana2:G.arcana2||null,
+      stage:G.stage,hyper:G.hyper,hurry:G.hurry,endless:G.endless,won:G.won,arcana:G.arcana||null,arcana2:G.arcana2||null,arcana3:G.arcana3||null,
       chestsRun:G.chestsRun,evosRun:G.evosRun,bossKills:G.bossKills,
       ringDone:G.ringDone,bossDone:G.bossDone,eliteT:G.eliteT,
       rerolls:G.rerolls,skips:G.skips,banishes:G.banishes,banned:G.banned,
@@ -641,6 +643,7 @@ function newGame(){
     // прогрессия VS: этап, гипер, проклятие, рероллы, трекеры достижений
     stage:stageUnlocked(save.selStage)&&STAGE_MUL[save.selStage]?save.selStage:'tatooine',
     hyper:save.hyper&&!!save.achs.win,
+    hurry:save.hurry&&!!save.achs.surv20, // Hurry: игровое время ×2, забег вдвое короче
     chestsRun:0, evosRun:0, bossKills:0, won:false, endless:false, goldCredited:0,
     freezeT:0, feverT:0, feverTick:0, achTick:0,
     // живой мир: реликвии, мираж, буря, пролёты, следы, декали, живность, фонари
@@ -656,7 +659,7 @@ function newGame(){
   G.curse=1+0.06*curseR;                                  // HP врагов
   G.eSpd=(G.hyper?1.15:1)*(1+0.04*curseR);                // скорость врагов
   G.spawnMul=(G.hyper?0.8:1)/(1+0.05*curseR);             // интервал спавна
-  G.rewardMul=(1+0.08*curseR)*(G.hyper?1.5:1)*(STAGE_MUL[G.stage]||1);
+  G.rewardMul=(1+0.08*curseR)*(G.hyper?1.5:1)*(G.hurry?1.2:1)*(STAGE_MUL[G.stage]||1);
   G.curse*=STAGE_MUL[G.stage]||1;
   // бонусы героя
   const ch=CHARS[save.selChar]||CHARS.obiwan;
@@ -673,6 +676,10 @@ function newGame(){
     case 'mando': p.might+=0.15; p.armor+=2; p.goldMul*=1.3; break;
     default: p.armor+=2; p.might+=0.10; break;
   }
+  // золотые яйца: крошечные постоянные бонусы (бесконечная мета после закрытия контента)
+  { const eg=save.eggs.st;
+    p.might+=eg.might||0; p.hpMax+=eg.hp||0; p.hp+=eg.hp||0;
+    p.speed*=1+(eg.speed||0); p.luck+=eg.luck||0; p.area+=eg.area||0; p.magnet*=1+(eg.magnet||0); }
   // реликвии-голокроны далеко от старта (стрелки ведут) + секрет R2-D2 (без стрелки)
   for(let i=0;i<2;i++){
     const a=rnd(0,TAU), R=1500+rnd(0,900);
@@ -1329,8 +1336,9 @@ function killEnemy(e){
   if(!e.crate) save.stats.perEnemy[e.type]=(save.stats.perEnemy[e.type]||0)+1;
   if(e.boss){
     G.bossKills=(G.bossKills||0)+1;
-    // вторая аркана — награда за второго убитого босса
+    // вторая аркана — за второго босса, третья — за четвёртого (как «до трёх» в VS)
     if(G.bossKills>=2&&G.arcana&&!G.arcana2) G.arc2Due=true;
+    if(G.bossKills>=4&&G.arcana2&&!G.arcana3) G.arc3Due=true;
   }
   // death pop: враг «лопается» — растянутое кольцо цвета тела
   G.parts.push({kind:'pop',x:e.x,y:e.y,t:0.22,tMax:0.22,R:e.r*1.6,c:e.boss?'255,140,60':'205,218,242'});
@@ -1660,7 +1668,7 @@ function renderMerchant(){
    ============================================================ */
 function update(dt){
   const p=G.p;
-  G.time+=dt;
+  G.time+=dt*(G.hurry?2:1);
   /* --- player movement --- */
   let mx=0,my=0;
   if(keys.KeyW||keys.ArrowUp)my-=1; if(keys.KeyS||keys.ArrowDown)my+=1;
@@ -1763,6 +1771,7 @@ function update(dt){
   G.achTick-=dt;
   if(G.achTick<=0){ G.achTick=1; checkAchs(); }
   if(G.arc2Due&&G.state==='playing'){ G.arc2Due=false; offerArcana('🎴 ВТОРАЯ АРКАНА'); return; }
+  if(G.arc3Due&&G.state==='playing'){ G.arc3Due=false; offerArcana('🎴 ТРЕТЬЯ АРКАНА'); return; }
   if(ARC('pole')){ G.poleT=(G.poleT??45)-dt; if(G.poleT<=0){ G.poleT=45; for(const g of G.gems) g.pull=true; } }
   if(ARC('chrono')){ G.chronoT=(G.chronoT??60)-dt; if(G.chronoT<=0){ G.chronoT=60; G.freezeT=Math.max(G.freezeT,3); G.dmgTexts.push({x:p.x,y:p.y-30,v:'⏱ ХРОНОПЕТЛЯ',t:1,crit:true,str:true}); } }
   G.runSaveT=(G.runSaveT||0)+dt;
@@ -3870,7 +3879,7 @@ function startRun(){
 }
 function applyArcana(id){
   const p=G.p;
-  if(!G.arcana) G.arcana=id; else G.arcana2=id;
+  if(!G.arcana) G.arcana=id; else if(!G.arcana2) G.arcana2=id; else G.arcana3=id;
   if(id==='wrath') p.might*=1.25;
   else if(id==='tempo') p.cdr*=0.85;
   else if(id==='greed2') G.rewardMul*=1.2;
@@ -3882,7 +3891,7 @@ function applyArcana(id){
   else if(id==='pole') p.magnet*=1.6;
 }
 function offerArcana(title){
-  const pool=ARCANAS.filter(a=>a.id!==G.arcana&&a.id!==G.arcana2);
+  const pool=ARCANAS.filter(a=>a.id!==G.arcana&&a.id!==G.arcana2&&a.id!==G.arcana3);
   for(let i=pool.length-1;i>0;i--){ const j=rndi(0,i); [pool[i],pool[j]]=[pool[j],pool[i]]; }
   G.state='levelup';
   luTitle.textContent=title;
@@ -3892,14 +3901,14 @@ function resumeRun(){
   const r=loadRun(); if(!r){ startRun(); return; }
   goFullscreen();
   save.selChar=save.chars[r.selChar]?r.selChar:save.selChar;
-  save.selStage=r.stage; save.hyper=r.hyper;
+  save.selStage=r.stage; save.hyper=r.hyper; save.hurry=!!r.hurry;
   newGame();
   Object.assign(G,{time:r.time,killCount:r.killCount,goldRun:r.goldRun,goldCredited:r.goldCredited,
     killsCredited:r.killsCredited,timeCredited:r.timeCredited,statsCredited:r.statsCredited,
     chestsRun:r.chestsRun,evosRun:r.evosRun,bossKills:r.bossKills,
     ringDone:r.ringDone,bossDone:r.bossDone,eliteT:r.eliteT,
     rerolls:r.rerolls,skips:r.skips,banishes:r.banishes,banned:r.banned||[],
-    vaderKilled:r.vaderKilled,endless:r.endless,won:r.won,arcana:r.arcana,arcana2:r.arcana2});
+    vaderKilled:r.vaderKilled,endless:r.endless,won:r.won,arcana:r.arcana,arcana2:r.arcana2,arcana3:r.arcana3||null});
   Object.assign(G.p,r.p);
   G.p.weapons=(r.p.weapons||[]).map(w=>({id:w.id,lvl:w.lvl,cd:0.5,evolved:!!w.evolved,union:!!w.union}));
   G.stance=r.stance||1; syncStanceBtn();
@@ -4050,6 +4059,13 @@ function renderMenuMeta(){
     d.onclick=()=>{ save.hyper=!save.hyper; persist(); renderMenuMeta(); };
     sr.appendChild(d);
   }
+  if(save.achs.surv20){ // Hurry: как в VS — время ×2, забег вдвое короче
+    const d=document.createElement('div');
+    d.className='sel-card'+(save.hurry?' on':'');
+    d.innerHTML='<span class="ic">⏩</span><b>Hurry</b><br>'+(save.hurry?'время ×2, награды ×1.2':'выкл');
+    d.onclick=()=>{ save.hurry=!save.hurry; persist(); renderMenuMeta(); };
+    sr.appendChild(d);
+  }
 }
 function renderCollection(){
   const st=save.stats;
@@ -4066,6 +4082,10 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'20 июля 2026, ~03:20 (Алматы) — v13 «Три арканы, Hurry и яйца»',t:[
+    '🎴 Теперь до ТРЁХ аркан за забег: на старте, за 2-го и за 4-го босса.',
+    '⏩ Режим Hurry (за «20 минут»): игровое время ×2 — весь забег за 15 реальных минут, награды ×1.2. Совместим с Гипером и стойками.',
+    '🥚 Золотые яйца в Академии (после победы): бесконечная прокачка — каждое яйцо даёт случайный крошечный бонус навсегда. Цена медленно растёт.']},
   {d:'20 июля 2026, ~02:50 (Алматы) — v12 «Арсенал 24»',t:[
     '🌪 Вихрь Силы (1000 🪙 за забег): блуждающий смерч затягивает толпу. Эво «Песчаная буря» — два смерча.',
     '🎯 Тускенская винтовка (3 эволюции за забег): мощный выстрел по самому живучему врагу. Эво «Око охотника» — пробивает линию.',
@@ -4204,6 +4224,32 @@ function renderShop(){
       const c=m.cost(r);
       if(save.gold>=c){ save.gold-=c; save.meta[m.id]=r+1; persist(); S.pick(); renderShop(); }
       else S.hurt();
+    };
+    box.appendChild(d);
+  }
+  // золотое яйцо (как в VS): открывается после победы, бесконечно, +случайный крошечный стат навсегда
+  if(save.achs.win){
+    const EGG_STATS=[
+      ['might',0.002,'+0.2% урона'],['hp',2,'+2 макс. HP'],['speed',0.002,'+0.2% скорости'],
+      ['luck',0.004,'+0.4% удачи'],['area',0.003,'+0.3% области'],['magnet',0.004,'+0.4% радиуса сбора']];
+    const n=save.eggs.n, cost=Math.round(1000*Math.pow(1.03,n));
+    const d=document.createElement('div'); d.className='shopItem';
+    d.style.borderColor='#c8a54a';
+    d.innerHTML='<div class="ico">🥚</div><div class="nm">Золотое яйцо</div>'+
+      '<div class="rk" style="color:#ffd76a">куплено: '+n+'</div>'+
+      '<div style="color:#93a1c4;font-size:11px;margin-top:3px">Случайный крошечный бонус — навсегда. Без предела.</div>'+
+      '<div class="cost">🪙 '+cost+'</div>';
+    d.onclick=()=>{
+      if(save.gold<cost){ S.hurt(); return; }
+      save.gold-=cost;
+      const [st,v,label]=EGG_STATS[rndi(0,EGG_STATS.length-1)];
+      save.eggs.st[st]=+((save.eggs.st[st]||0)+v).toFixed(4);
+      save.eggs.n++;
+      persist(); S.chest();
+      el('shopGold').textContent='🪙 '+save.gold+'  ·  🥚 '+label+'!';
+      renderShop.eggMsg='🥚 '+label+'!';
+      renderShop();
+      el('shopGold').textContent='🪙 '+save.gold+'  ·  '+renderShop.eggMsg;
     };
     box.appendChild(d);
   }
