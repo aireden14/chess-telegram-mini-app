@@ -387,6 +387,9 @@ function weaponUnlocked(id){
   if(id==='sniper') return !!save.achs.evo3;
   if(id==='pylon') return !!save.achs.union1;
   if(id==='shield') return !!save.achs.surv25;
+  if(id==='grav') return !!save.achs.coffin;
+  if(id==='porg') return !!save.achs.map;
+  if(id==='kami') return !!save.achs.lvl50;
   return true; // flame и vibro доступны сразу
 }
 /* --- Юнионы (как в VS): две эволюции сливаются в одно оружие, слот освобождается --- */
@@ -394,6 +397,8 @@ const UNIONS=[
   {id:'u_juyo',  a:'saber',  b:'throw', ico:'🌟', nm:'Форма VII: Джуйо', ds:'Меч и бросок сливаются в единый вихрь Силы. Оба бьют чаще, слот освобождается.'},
   {id:'u_hunter',a:'blaster',b:'rocket',ico:'☄️', nm:'Арсенал охотника', ds:'Бластер и ракетный ранец работают как один. Слот освобождается.'},
   {id:'u_army',  a:'drones', b:'turret',ico:'🤖', nm:'Дроид-армия',      ds:'Дроиды и турели под общим командованием. Слот освобождается.'},
+  {id:'u_zero',  a:'freezer',b:'staff', ico:'🧊', nm:'Абсолютный ноль',  ds:'Мороз и разряд бьют как одно целое. Слот освобождается.'},
+  {id:'u_inferno',a:'flame', b:'grenade',ico:'🌋', nm:'Армагеддон',      ds:'Пламя и взрывы сливаются в огненный шторм. Слот освобождается.'},
 ];
 // инфо об оружии с учётом юнионов (для карточек, HUD и паузы)
 const WINFO=id=>WEAPONS[id]||UNIONS.find(u=>u.id===id);
@@ -504,6 +509,9 @@ const WEAPONS={
   shield:  {ico:'🛡', nm:'Энергощит',     ds:'Вращающийся сегмент: бьёт врагов и сжигает вражеские выстрелы.', pair:'armor'},
   sniper:  {ico:'🎯', nm:'Тускенская винтовка', ds:'Редкий мощный выстрел по самому живучему врагу.', pair:'luck'},
   pylon:   {ico:'⛓', nm:'Энергопилоны',  ds:'Ставит пилоны — между ними бьют смертельные дуги.', pair:'cooldown'},
+  grav:    {ico:'🕳', nm:'Гравитационная ловушка', ds:'Воронка стягивает толпу и схлопывается взрывом.', pair:'hpmax'},
+  porg:    {ico:'🐦', nm:'Порг-стая',     ds:'Стая порогов носится по полю и клюёт врагов.', pair:'speed'},
+  kami:    {ico:'🛰', nm:'Дрон-камикадзе',ds:'Дроны самонаводятся и взрываются в толпе.', pair:'amount'},
 };
 const EVOS={
   saber:   {nm:'Меч Скайуокера',    ds:'Огромные дуги с обеих сторон + ударная волна.'},
@@ -530,6 +538,9 @@ const EVOS={
   shield:  {nm:'Эгида Силы',        ds:'Полное кольцо, отражающее выстрелы во врагов.'},
   sniper:  {nm:'Око охотника',      ds:'Выстрел пробивает всех на линии, криты чаще.'},
   pylon:   {nm:'Грозовая клетка',   ds:'Больше пилонов, дуги мощнее и живут дольше.'},
+  grav:    {nm:'Коллапс',           ds:'Две воронки, шире и больнее схлопываются.'},
+  porg:    {nm:'Стая с Ач-То',      ds:'Порогов больше, клюют чаще и больнее.'},
+  kami:    {nm:'Рой камикадзе',     ds:'Волна дронов с большими взрывами.'},
 };
 const PASSIVES={
   might:   {ico:'💎', nm:'Кайбер-кристалл', ds:'+10% урона за уровень', max:5},
@@ -866,7 +877,7 @@ function updateSpawns(dt){
 function weaponCooldown(w){
   if(w.union){ const u=UNIONS.find(u=>u.id===w.id);
     return Math.max(0.15,(weaponCooldown({id:u.a,lvl:w.lvl,evolved:true})+weaponCooldown({id:u.b,lvl:w.lvl,evolved:true}))/2); }
-  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9,flame:1.7,vibro:0.9,mines:2.0,turret:7.5,orb:4.2,falcon:5.0,tornado:5.2,shield:2.5,sniper:2.6,pylon:3.8}[w.id];
+  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9,flame:1.7,vibro:0.9,mines:2.0,turret:7.5,orb:4.2,falcon:5.0,tornado:5.2,shield:2.5,sniper:2.6,pylon:3.8,grav:4.6,porg:5.5,kami:2.3}[w.id];
   let cd=base*G.p.cdr;
   if(w.id==='flame') cd*= (w.evolved?0.85:1) * (1-0.04*Math.min(w.lvl-1,11));
   if(w.id==='vibro') cd*= 1-0.04*Math.min(w.lvl-1,11);
@@ -889,6 +900,9 @@ function weaponCooldown(w){
   if(w.id==='tornado') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
   if(w.id==='sniper') cd*= (w.evolved?0.75:1) * (1-0.05*Math.min(w.lvl-1,11));
   if(w.id==='pylon') cd*= 1-0.05*Math.min(w.lvl-1,11);
+  if(w.id==='grav') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='porg') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='kami') cd*= 1-0.05*Math.min(w.lvl-1,11);
   return Math.max(0.15,cd);
 }
 function nearestEnemies(n,maxR){
@@ -947,6 +961,41 @@ function fireWeapon(w){
       const a=rnd(0,TAU), rr=rnd(70,160);
       const s=freeSpot(p.x+Math.cos(a)*rr,p.y+Math.sin(a)*rr);
       G.pylons.push({x:s.x,y:s.y,life:(9+lv)*(ev?1.5:1),dmg:(7+lv*3)*might*(ev?1.4:1)});
+      S.pick();
+      break;
+    }
+    case 'grav':{ // воронка: стягивает толпу, затем схлопывается взрывом
+      const R=(58+lv*6)*area*(ev?1.3:1);
+      const boom=(26+lv*11)*might*(ev?1.5:1);
+      const n=(ev?2:1);
+      for(let i=0;i<n;i++){
+        const t2=G.enemies.length?G.enemies[rndi(0,G.enemies.length-1)]:null;
+        const x=t2?t2.x:p.x+rnd(-200,200), y=t2?t2.y:p.y+rnd(-200,200);
+        G.zones.push({x,y,R,t:2.2,dmg:0,tick:9,grav:true,boom,ev});
+      }
+      S.zap();
+      break;
+    }
+    case 'porg':{ // стая порогов носится по полю и клюёт
+      const n=Math.round((2+Math.floor(lv/2)+p.amount)*(ev?1.5:1));
+      const dmg=(6+lv*3)*might*(ev?1.4:1);
+      for(let i=0;i<n;i++){
+        const a=rnd(0,TAU);
+        G.bullets.push({x:p.x+Math.cos(a)*30,y:p.y+Math.sin(a)*30,vx:Math.cos(a)*240,vy:Math.sin(a)*240,
+          r:9,dmg,life:(6+lv*0.4)*(ev?1.2:1),kind:'porg',hitCd:{},wt:0,seed:Math.random()*10,ev});
+      }
+      S.pick();
+      break;
+    }
+    case 'kami':{ // дроны-камикадзе: самонаводка + взрыв
+      const n=1+Math.floor(lv/3)+p.amount+(ev?2:0);
+      const dmg=(16+lv*7)*might*(ev?1.4:1);
+      for(let i=0;i<n;i++){
+        const a=rnd(0,TAU);
+        const tgt=G.enemies.length?G.enemies[rndi(0,G.enemies.length-1)]:null;
+        G.bullets.push({x:p.x,y:p.y-10,vx:Math.cos(a)*300,vy:Math.sin(a)*300,
+          r:7,dmg,life:3.2,kind:'kami',tgt,R:(52+lv*4)*area*(ev?1.3:1),ev});
+      }
       S.pick();
       break;
     }
@@ -2110,7 +2159,18 @@ function update(dt){
         if(d<24){ G.bullets.splice(i,1); continue; }
       }
     }
-    if(b.kind==='rocket'){ // самонаведение + шлейф
+    if(b.kind==='porg'){ // порг: хаотичный полёт с тягой к врагам, не улетает от игрока
+      b.wt-=dt;
+      if(b.wt<=0){
+        b.wt=rnd(0.3,0.7);
+        let t2=null;
+        if(G.enemies.length&&Math.random()<0.7) t2=G.enemies[rndi(0,G.enemies.length-1)];
+        const a=t2?Math.atan2(t2.y-b.y,t2.x-b.x)+rnd(-0.5,0.5):rnd(0,TAU);
+        const sp=rnd(200,330); b.vx=Math.cos(a)*sp; b.vy=Math.sin(a)*sp;
+      }
+      if(dist2(b.x,b.y,p.x,p.y)>520*520){ const a=Math.atan2(p.y-b.y,p.x-b.x); b.vx=Math.cos(a)*320; b.vy=Math.sin(a)*320; }
+    }
+    if(b.kind==='rocket'||b.kind==='kami'){ // самонаведение + шлейф
       if(b.tgt&&b.tgt.hp>0){
         const ta=Math.atan2(b.tgt.y-b.y,b.tgt.x-b.x), ca=Math.atan2(b.vy,b.vx);
         let da=ta-ca; while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
@@ -2127,14 +2187,14 @@ function update(dt){
       }
     }
     b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
-    if(b.life<=0){ if(b.kind==='rocket') rocketBoom(b); G.bullets.splice(i,1); continue; }
+    if(b.life<=0){ if(b.kind==='rocket'||b.kind==='kami') rocketBoom(b); G.bullets.splice(i,1); continue; }
     for(const e of G.enemies){
       if(e.hp<=0) continue;
       if(b.hitCd && b.hitCd[e.seed]>G.time-0.4) continue;
       if(b.kind==='mine'&&(e.neutral||e.crate||e.lamp)) continue; // живность мины не подрывает
       if(dist2(b.x,b.y,e.x,e.y)<(b.r+e.r)*(b.r+e.r)){
         if(b.hitCd) b.hitCd[e.seed]=G.time;
-        if(b.kind==='rocket'||b.kind==='mine'){ rocketBoom(b); G.bullets.splice(i,1); break; }
+        if(b.kind==='rocket'||b.kind==='mine'||b.kind==='kami'){ rocketBoom(b); G.bullets.splice(i,1); break; }
         damageEnemy(e,b.dmg,true);
         if(b.kind==='bcbolt'&&b.ev){ // Раскат Кашиика: взрыв на каждом пробитии
           for(const e2 of G.enemies){ if(e2===e||e2.hp<=0) continue; if(dist2(e2.x,e2.y,b.x,b.y)<b.R*b.R) damageEnemy(e2,b.dmg*0.45,false); }
@@ -2178,7 +2238,22 @@ function update(dt){
   /* --- zones (burning plasma) --- */
   for(let i=G.zones.length-1;i>=0;i--){
     const z=G.zones[i]; z.t-=dt; z.tick-=dt;
-    if(z.t<=0){ G.zones.splice(i,1); continue; }
+    if(z.t<=0){
+      if(z.grav){ // схлопывание воронки: взрыв по стянутой толпе
+        for(const e of G.enemies) if(e.hp>0&&dist2(e.x,e.y,z.x,z.y)<z.R*1.2*z.R*1.2) damageEnemy(e,z.boom,true);
+        G.parts.push({kind:'boom',x:z.x,y:z.y,t:0.35,tMax:0.35,R:z.R*1.2});
+        G.shake=Math.min(9,G.shake+3); S.boom();
+      }
+      G.zones.splice(i,1); continue;
+    }
+    if(z.grav){ // воронка: сильное притяжение к центру
+      const pr=z.R*2.1;
+      for(const e of G.enemies){
+        if(e.hp<=0||e.boss||e.crate||e.lamp||e.neutral||e.spawnT>0) continue;
+        const d2=dist2(e.x,e.y,z.x,z.y);
+        if(d2<pr*pr){ const d=Math.sqrt(d2)||1, f=220*dt*(1-d/pr/1.4); e.x+=(z.x-e.x)/d*f*(e.kb||0.5); e.y+=(z.y-e.y)/d*f*(e.kb||0.5); }
+      }
+    }
     if(z.torn){ // смерч: блуждает к толпе и затягивает врагов
       z.wt-=dt;
       if(z.wt<=0){
@@ -2309,6 +2384,20 @@ function draw(){
 
   // zones
   for(const z of G.zones){
+    if(z.grav){ // воронка: тёмный водоворот с сужающимся кольцом
+      const k=1-z.t/2.2;
+      cx.save(); cx.translate(z.x,z.y);
+      const gr=cx.createRadialGradient(0,0,0,0,0,z.R);
+      gr.addColorStop(0,'rgba(30,10,60,'+(0.45+k*0.25)+')'); gr.addColorStop(1,'rgba(30,10,60,0)');
+      cx.fillStyle=gr; cx.beginPath(); cx.arc(0,0,z.R,0,TAU); cx.fill();
+      cx.strokeStyle='rgba(190,140,255,'+(0.5+k*0.4)+')'; cx.lineWidth=2.5;
+      cx.beginPath(); cx.arc(0,0,z.R*(1-k*0.75),0,TAU); cx.stroke();
+      for(let s2=0;s2<3;s2++){ const ph=G.time*6+s2*2.1;
+        cx.strokeStyle='rgba(150,100,230,'+0.35*(1-k*0.5)+')'; cx.lineWidth=1.8;
+        cx.beginPath(); cx.arc(0,0,z.R*(0.3+s2*0.22)*(1-k*0.4),ph,ph+2.2); cx.stroke(); }
+      cx.restore();
+      continue;
+    }
     if(z.torn){ // смерч: закрученные дуги
       const a=clamp(z.t/2,0,1), t=G.time*7;
       cx.save(); cx.translate(z.x,z.y);
@@ -3814,6 +3903,24 @@ function drawBullet(b){
     cx.fillStyle=b.ev?'#e9b8ff':'#bfe3ff';
     cx.beginPath(); cx.moveTo(8,0); cx.lineTo(-6,-4); cx.lineTo(-3,0); cx.lineTo(-6,4); cx.closePath(); cx.fill();
     cx.shadowBlur=0;
+  } else if(b.kind==='porg'){ // порг: круглая птичка с машущими крыльями
+    const flap=Math.sin(G.time*18+b.seed*7)*0.9;
+    if(b.vx<0) cx.scale(-1,1);
+    cx.fillStyle='rgba(0,0,0,.18)'; cx.beginPath(); cx.ellipse(0,9,6,2.4,0,0,TAU); cx.fill();
+    cx.fillStyle='#8a6a48'; cx.beginPath(); cx.ellipse(0,0,7,7.6,0,0,TAU); cx.fill(); // тело
+    cx.fillStyle='#f2ead8'; cx.beginPath(); cx.ellipse(1.5,2,4.4,4.8,0,0,TAU); cx.fill(); // белое пузо
+    cx.save(); cx.rotate(-0.5+flap); cx.fillStyle='#6e5438'; cx.beginPath(); cx.ellipse(-6,-1,5,2.4,0.5,0,TAU); cx.fill(); cx.restore(); // крыло
+    cx.fillStyle='#2a1c10'; cx.beginPath(); cx.arc(3,-2.4,1.7,0,TAU); cx.fill(); // глазище
+    cx.fillStyle='#fff'; cx.beginPath(); cx.arc(3.6,-3,0.6,0,TAU); cx.fill();
+    cx.fillStyle='#d88a3a'; cx.beginPath(); cx.moveTo(6.4,-1); cx.lineTo(9,0); cx.lineTo(6.4,1); cx.closePath(); cx.fill(); // клюв
+  } else if(b.kind==='kami'){ // дрон-камикадзе: серый корпус, мигающий красный
+    const a=Math.atan2(b.vy,b.vx); cx.rotate(a);
+    cx.globalAlpha=0.3; cx.strokeStyle='#ffb45e'; cx.lineWidth=2.5; cx.lineCap='round';
+    cx.beginPath(); cx.moveTo(-14,0); cx.lineTo(-5,0); cx.stroke(); cx.globalAlpha=1;
+    cx.fillStyle='#8a8f9c'; cx.beginPath(); cx.ellipse(0,0,7.5,4.6,0,0,TAU); cx.fill();
+    cx.fillStyle='#5a6070'; cx.fillRect(-3,-6,6,12);
+    cx.fillStyle=Math.sin(G.time*22)>0?'#ff4b4b':'#7a1d1d';
+    cx.beginPath(); cx.arc(3.4,0,2,0,TAU); cx.fill();
   } else if(b.kind==='nade'){
     const k=b.t/b.tMax;
     const x=lerp(b.sx,b.tx,k)-b.x, y=lerp(b.sy,b.ty,k)-b.y - Math.sin(k*Math.PI)*90;
@@ -4082,6 +4189,11 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'20 июля 2026, ~20:30 (Алматы) — v14 «Арсенал 27»',t:[
+    '🕳 Гравитационная ловушка (за гробницу): воронка стягивает толпу и схлопывается взрывом. Эво «Коллапс».',
+    '🐦 Порг-стая (за Карту Галактики): пороги носятся по полю и клюют врагов. Эво «Стая с Ач-То».',
+    '🛰 Дрон-камикадзе (за 50 уровень): самонаводящиеся дроны со взрывами. Эво «Рой камикадзе».',
+    '⚜️ 2 новых юниона: 🧊 Абсолютный ноль (крио+посох) и 🌋 Армагеддон (огнемёт+детонатор). Всего юнионов 5, оружий 27.']},
   {d:'20 июля 2026, ~03:20 (Алматы) — v13 «Три арканы, Hurry и яйца»',t:[
     '🎴 Теперь до ТРЁХ аркан за забег: на старте, за 2-го и за 4-го босса.',
     '⏩ Режим Hurry (за «20 минут»): игровое время ×2 — весь забег за 15 реальных минут, награды ×1.2. Совместим с Гипером и стойками.',
