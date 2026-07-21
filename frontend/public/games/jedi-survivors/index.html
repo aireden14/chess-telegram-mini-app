@@ -3612,6 +3612,72 @@ function drawPlayer(){
     cx.fillStyle='#5ec8ff'; cx.beginPath(); cx.arc(14,-11.5,2+Math.sin(G.time*20)*0.7,0,TAU); cx.fill();
     cx.restore(); cx.globalAlpha=1; return;
   }
+  if(chId==='grogu'){ // Грогу — малыш в парящей люльке, атакует Силой (без меча)
+    const hover=Math.sin(G.time*2.4)*1.6; // мягкое парение люльки
+    cx.translate(0,hover);
+    // парящая тень с зазором
+    cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(SUN.dx*0.6,18-hover,12,3.6,0,0,TAU); cx.fill();
+    // корпус люльки (металлический кокон)
+    cx.strokeStyle='#241a10'; cx.lineWidth=2;
+    const podGrad=cx.createLinearGradient(0,-2,0,15);
+    podGrad.addColorStop(0,'#dfe3ea'); podGrad.addColorStop(0.5,'#b7bcc6'); podGrad.addColorStop(1,'#878d99');
+    cx.fillStyle=podGrad;
+    cx.beginPath(); cx.moveTo(-13,-1); cx.quadraticCurveTo(-15,13,-7,15); cx.lineTo(7,15); cx.quadraticCurveTo(15,13,13,-1); cx.closePath();
+    cx.fill(); cx.stroke();
+    // сегменты обшивки
+    cx.strokeStyle='rgba(90,96,108,.7)'; cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(-5,-0.5); cx.lineTo(-6,15); cx.stroke();
+    cx.beginPath(); cx.moveTo(5,-0.5); cx.lineTo(6,15); cx.stroke();
+    cx.beginPath(); cx.moveTo(-12,7); cx.quadraticCurveTo(0,9.5,12,7); cx.stroke();
+    // ободок люльки (где сидит малыш)
+    cx.fillStyle='#c7ccd6'; cx.strokeStyle='#241a10'; cx.lineWidth=2;
+    cx.beginPath(); cx.ellipse(0,-1.5,13,4,0,0,TAU); cx.fill(); cx.stroke();
+    cx.fillStyle='#5a6068'; cx.beginPath(); cx.ellipse(0,-1.5,10.5,2.8,0,0,TAU); cx.fill();
+    // коричневая рубаха-балахон, торчит из ободка
+    cx.fillStyle='#a98d5f';
+    cx.beginPath(); cx.moveTo(-7,-2.5); cx.quadraticCurveTo(0,-6,7,-2.5); cx.quadraticCurveTo(6,2,0,2.4); cx.quadraticCurveTo(-6,2,-7,-2.5); cx.closePath(); cx.fill();
+    // голова малыша
+    const gy=-12;
+    cx.fillStyle='#93c765'; cx.strokeStyle='#241a10'; cx.lineWidth=1.5;
+    cx.beginPath(); cx.arc(1,gy,6.6,0,TAU); cx.fill(); cx.stroke();
+    // большие уши
+    cx.fillStyle='#93c765'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.ellipse(-8.5,gy+1,7,2.8,-0.22,0,TAU); cx.fill(); cx.stroke();
+    cx.beginPath(); cx.ellipse(10.5,gy+1,7,2.8,0.22,0,TAU); cx.fill(); cx.stroke();
+    cx.fillStyle='rgba(120,80,60,.5)'; // внутренняя раковина ушей
+    cx.beginPath(); cx.ellipse(-8,gy+1,4,1.5,-0.22,0,TAU); cx.fill();
+    cx.beginPath(); cx.ellipse(10,gy+1,4,1.5,0.22,0,TAU); cx.fill();
+    // редкие волоски
+    cx.strokeStyle='#6f9247'; cx.lineWidth=0.8;
+    cx.beginPath(); cx.moveTo(-2,gy-6); cx.lineTo(-2.5,gy-8); cx.stroke();
+    cx.beginPath(); cx.moveTo(1,gy-6.6); cx.lineTo(1,gy-8.6); cx.stroke();
+    cx.beginPath(); cx.moveTo(4,gy-6); cx.lineTo(4.6,gy-8); cx.stroke();
+    // большие тёмные глаза
+    cx.fillStyle='#1c140c';
+    cx.beginPath(); cx.arc(-2,gy+0.5,2.3,0,TAU); cx.fill();
+    cx.beginPath(); cx.arc(4.4,gy+0.5,2.3,0,TAU); cx.fill();
+    cx.fillStyle='rgba(255,255,255,.85)';
+    cx.beginPath(); cx.arc(-1.3,gy-0.2,0.7,0,TAU); cx.fill();
+    cx.beginPath(); cx.arc(5.1,gy-0.2,0.7,0,TAU); cx.fill();
+    // малюсенький ротик
+    cx.strokeStyle='#3a2a18'; cx.lineWidth=0.9;
+    cx.beginPath(); cx.arc(1.2,gy+3.4,1.2,0.15,Math.PI-0.15); cx.stroke();
+    // атака Силой: поднятая трёхпалая ручка + телекинетическое сияние
+    const chan=0.55+0.45*Math.sin(G.time*6); // пульс сосредоточения
+    cx.strokeStyle='#8a6a45'; cx.lineWidth=2.4; cx.lineCap='round';
+    cx.beginPath(); cx.moveTo(6,-1); cx.lineTo(11,-5); cx.stroke();
+    cx.fillStyle='#93c765';
+    cx.beginPath(); cx.arc(11.5,-5.5,1.8,0,TAU); cx.fill();
+    cx.save(); cx.globalAlpha=0.35+0.3*chan;
+    const glow=cx.createRadialGradient(12.5,-6.5,0,12.5,-6.5,9);
+    glow.addColorStop(0,'rgba(180,255,190,0.9)'); glow.addColorStop(1,'rgba(120,220,150,0)');
+    cx.fillStyle=glow; cx.beginPath(); cx.arc(12.5,-6.5,9,0,TAU); cx.fill();
+    cx.restore();
+    // искры телекинеза
+    cx.fillStyle='rgba(200,255,210,'+(0.5+0.4*chan)+')';
+    for(let s=0;s<3;s++){ const a=G.time*3+s*2.1; cx.beginPath(); cx.arc(12.5+Math.cos(a)*6,-6.5+Math.sin(a)*6,0.9,0,TAU); cx.fill(); }
+    cx.restore(); cx.globalAlpha=1; return;
+  }
   const SK=SKINS[chId]||SKINS.obiwan;
   cx.scale(SK.sc,SK.sc);
   const OUT='#241a10'; // тёмная обводка для контраста на песке
@@ -4599,6 +4665,8 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'21 июля 2026, ~20:30 (Алматы) — v17.1 «Грогу в люльке»',t:[
+    '👶 Грогу больше не машет джедайским мечом: теперь это малыш в парящей люльке, который бьёт Силой (Толчок Силы). Новая уникальная моделька — больше не путается с Йодой.']},
   {d:'21 июля 2026, ~19:40 (Алматы) — v17 «Арсенал 36»',t:[
     '🌑 Чёрная дыра (за 15 минут): сингулярность ползёт по полю, всасывает врагов и опыт, тикает уроном и схлопывается взрывом. Эво «Горизонт событий» — вторая воронка на схлопывании.',
     '🎆 Каскадный заряд (за 3 сундука): взрыв прыгает цепочкой меньших взрывов от врага к врагу. Эво «Цепная реакция» — длиннее цепь и тлеющий огонь.',
