@@ -396,6 +396,9 @@ function weaponUnlocked(id){
   if(id==='net') return !!save.achs.surv5;
   if(id==='hook') return !!save.achs.kills500;
   if(id==='virus') return !!save.achs.kills5000;
+  if(id==='blackhole') return !!save.achs.surv15;
+  if(id==='cascade') return !!save.achs.chests3;
+  if(id==='mirror') return !!save.achs.surv20;
   return true; // flame и vibro доступны сразу
 }
 /* --- Юнионы (как в VS): две эволюции сливаются в одно оружие, слот освобождается --- */
@@ -524,6 +527,9 @@ const WEAPONS={
   net:     {ico:'🕸', nm:'Ловчая сеть',   ds:'Поле-ловушка сильно замедляет врагов внутри.', pair:'magnet'},
   hook:    {ico:'🪝', nm:'Хлыст-крюк',    ds:'Цепляет врагов на линии и подтягивает к тебе.', pair:'area'},
   virus:   {ico:'☣️', nm:'Заражённый болт',ds:'Отрава грызёт врага, а после его смерти перескакивает дальше.', pair:'luck'},
+  blackhole:{ico:'🌑', nm:'Чёрная дыра',  ds:'Сингулярность ползёт по полю, всасывая врагов и лут.', pair:'magnet'},
+  cascade: {ico:'🎆', nm:'Каскадный заряд',ds:'Взрыв рождает цепочку меньших взрывов по соседям.', pair:'hpmax'},
+  mirror:  {ico:'🪞', nm:'Зеркальный дроид',ds:'Дроид кружит и отражает вражеские выстрелы обратно во врагов.', pair:'armor'},
 };
 const EVOS={
   saber:   {nm:'Меч Скайуокера',    ds:'Огромные дуги с обеих сторон + ударная волна.'},
@@ -559,6 +565,9 @@ const EVOS={
   net:     {nm:'Стазис-поле',       ds:'Огромное поле, враги в нём почти стоят.'},
   hook:    {nm:'Коготь ранкора',    ds:'Цепляет в обе стороны, больше целей, больнее.'},
   virus:   {nm:'Пандемия',          ds:'Зараза прыгает дальше и грызёт сильнее.'},
+  blackhole:{nm:'Горизонт событий', ds:'Огромная дыра, тянет сильнее, схлопывается новой.'},
+  cascade: {nm:'Цепная реакция',    ds:'Длиннее цепь, взрывы больше и чаще.'},
+  mirror:  {nm:'Зеркальный зал',    ds:'Два дроида, отражённые залпы бьют по площади.'},
 };
 const PASSIVES={
   might:   {ico:'💎', nm:'Кайбер-кристалл', ds:'+10% урона за уровень', max:5},
@@ -895,7 +904,7 @@ function updateSpawns(dt){
 function weaponCooldown(w){
   if(w.union){ const u=UNIONS.find(u=>u.id===w.id);
     return Math.max(0.15,(weaponCooldown({id:u.a,lvl:w.lvl,evolved:true})+weaponCooldown({id:u.b,lvl:w.lvl,evolved:true}))/2); }
-  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9,flame:1.7,vibro:0.9,mines:2.0,turret:7.5,orb:4.2,falcon:5.0,tornado:5.2,shield:2.5,sniper:2.6,pylon:3.8,grav:4.6,porg:5.5,kami:2.3,disc:1.9,ion:3.4,holo:6.0,net:4.4,hook:2.4,virus:1.5}[w.id];
+  const base={saber:1.15,lightning:1.3,throw:2.3,push:1.25,shards:1.0,grenade:2.6,drones:6.0,blaster:0.62,staff:2.6,rocket:2.5,whip:1.35,bowcaster:2.1,freezer:3.4,beam:2.9,flame:1.7,vibro:0.9,mines:2.0,turret:7.5,orb:4.2,falcon:5.0,tornado:5.2,shield:2.5,sniper:2.6,pylon:3.8,grav:4.6,porg:5.5,kami:2.3,disc:1.9,ion:3.4,holo:6.0,net:4.4,hook:2.4,virus:1.5,blackhole:6.5,cascade:2.8,mirror:5.5}[w.id];
   let cd=base*G.p.cdr;
   if(w.id==='flame') cd*= (w.evolved?0.85:1) * (1-0.04*Math.min(w.lvl-1,11));
   if(w.id==='vibro') cd*= 1-0.04*Math.min(w.lvl-1,11);
@@ -927,6 +936,9 @@ function weaponCooldown(w){
   if(w.id==='net') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
   if(w.id==='hook') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
   if(w.id==='virus') cd*= (w.evolved?0.75:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='blackhole') cd*= (w.evolved?0.8:1) * (1-0.04*Math.min(w.lvl-1,11));
+  if(w.id==='cascade') cd*= (w.evolved?0.8:1) * (1-0.05*Math.min(w.lvl-1,11));
+  if(w.id==='mirror') cd*= (w.evolved?0.85:1) * (1-0.04*Math.min(w.lvl-1,11));
   return Math.max(0.15,cd);
 }
 function nearestEnemies(n,maxR){
@@ -1122,6 +1134,32 @@ function fireWeapon(w){
       S.pick();
       break;
     }
+    case 'blackhole':{ // чёрная дыра: сингулярность ползёт, тянет врагов и лут, тикает уроном
+      const R=(70+lv*7)*area*(ev?1.4:1);
+      const dmg=(6+lv*3)*might*(ev?1.4:1);
+      const max=ev?2:1;
+      let holes=G.zones.filter(z=>z.hole).length;
+      while(holes>=max){ const idx=G.zones.findIndex(z=>z.hole); if(idx<0) break; G.zones.splice(idx,1); holes--; }
+      const t2=nearestEnemies(1,700)[0];
+      const x=t2?t2.x:p.x+rnd(-120,120), y=t2?t2.y:p.y+rnd(-120,120);
+      G.zones.push({x,y,R,t:(ev?7:5.5),dmg,tick:0.4,hole:true,vx:0,vy:0,wt:0,boom:(24+lv*10)*might*(ev?1.6:1),ev});
+      S.zap();
+      break;
+    }
+    case 'cascade':{ // каскадный заряд: взрыв → цепочка меньших взрывов по соседям
+      const n=1+Math.floor(p.amount/2);
+      const R=(46+lv*5)*area*(ev?1.3:1);
+      const boom=(20+lv*9)*might*(ev?1.5:1);
+      const chain=(2+Math.floor(lv/2))+(ev?3:0);
+      for(let i=0;i<n;i++){
+        const t2=nearestEnemies(1+i,640)[i]||nearestEnemies(1,640)[0];
+        const x=t2?t2.x:p.x+rnd(-140,140), y=t2?t2.y:p.y+rnd(-140,140);
+        G.zones.push({x,y,R,cfuse:0.05,boom,chain,jump:(150+lv*6),ev,t:1.5,dmg:0,tick:999});
+      }
+      S.zap();
+      break;
+    }
+    case 'mirror': break; // постоянный эффект — орбитальные зеркала в updateWeapons
     case 'saber':{
       const dmg=(12+lv*4)*might*(ev?2.2:1);
       const R=(72+lv*7)*area*(ev?1.5:1);
@@ -1457,6 +1495,32 @@ function updateWeapons(dt){
         G.eshots.splice(i,1);
       }
     } else G.shieldA=undefined;
+  }
+  // зеркальные дроиды: кружат, отражают вражеские выстрелы во врагов и таранят
+  {
+    const wm=G.p.weapons.find(w=>w.id==='mirror');
+    if(wm){
+      const n=wm.evolved?2:1;
+      const R=(70+wm.lvl*4)*G.p.area;
+      const dmg=(8+wm.lvl*4)*G.p.might*(wm.evolved?1.6:1);
+      const ang=G.time*2.2;
+      G.mirrorTick=(G.mirrorTick||0)-dt;
+      const doTick=G.mirrorTick<=0; if(doTick) G.mirrorTick=0.25;
+      for(let m=0;m<n;m++){
+        const mx=G.p.x+Math.cos(ang+m*TAU/n)*R, my=G.p.y+Math.sin(ang+m*TAU/n)*R;
+        for(let i=G.eshots.length-1;i>=0;i--){
+          const s2=G.eshots[i];
+          if(dist2(s2.x,s2.y,mx,my)>26*26) continue;
+          const t2=nearestEnemies(1,600)[0];
+          const a2=t2?Math.atan2(t2.y-my,t2.x-mx):Math.atan2(-(s2.vy||1),-(s2.vx||1));
+          const rdmg=(s2.dmg||8)*3+dmg;
+          G.bullets.push({x:mx,y:my,vx:Math.cos(a2)*560,vy:Math.sin(a2)*560,r:wm.evolved?8:5,dmg:rdmg,life:1.1,kind:'bolt',ric:wm.evolved?2:0,hitCd:{}});
+          G.parts.push({kind:'pop',x:s2.x,y:s2.y,t:0.15,tMax:0.15,R:10,c:'200,230,255'});
+          G.eshots.splice(i,1);
+        }
+        if(doTick) for(const e of G.enemies){ if(e.hp<=0||e.neutral||e.crate||e.lamp) continue; if(dist2(e.x,e.y,mx,my)<(16+e.r)*(16+e.r)) damageEnemy(e,dmg,true); }
+      }
+    }
   }
   // пилоны: жизнь + дуги между парами, режущие врагов
   if(G.pylons&&G.pylons.length){
@@ -2414,11 +2478,40 @@ function update(dt){
   /* --- zones (burning plasma) --- */
   for(let i=G.zones.length-1;i>=0;i--){
     const z=G.zones[i]; z.t-=dt; z.tick-=dt;
+    if(z.cfuse!=null){ // каскад: фугас с фитилём — рвётся и прыгает цепью к соседу
+      z.cfuse-=dt;
+      if(z.cfuse<=0){
+        const seen=z.seen||[];
+        for(const e of G.enemies) if(e.hp>0&&!e.neutral&&!e.crate&&!e.lamp&&dist2(e.x,e.y,z.x,z.y)<z.R*z.R){ damageEnemy(e,z.boom,true); if(seen.indexOf(e.seed)<0) seen.push(e.seed); }
+        G.parts.push({kind:'boom',x:z.x,y:z.y,t:0.3,tMax:0.3,R:z.R});
+        G.shake=Math.min(8,G.shake+2); S.boom();
+        if(z.ev) G.zones.push({x:z.x,y:z.y,R:z.R*0.85,t:1.6,dmg:z.boom*0.1,tick:0,ev:true}); // эво: тлеющий огонь
+        if(z.chain>0){ // прыжок вперёд к ближайшему ещё не задетому врагу
+          let best=null,bd=z.jump*z.jump;
+          for(const e of G.enemies){
+            if(e.hp<=0||e.neutral||e.crate||e.lamp) continue;
+            if(seen.indexOf(e.seed)>=0) continue;
+            const d2=dist2(e.x,e.y,z.x,z.y);
+            if(d2<bd){bd=d2;best=e;}
+          }
+          if(best){ seen.push(best.seed);
+            G.zones.push({x:best.x,y:best.y,R:z.R*(z.ev?0.96:0.9),cfuse:0.11,boom:z.boom*0.9,chain:z.chain-1,jump:z.jump,ev:z.ev,t:1.4,dmg:0,tick:999,seen}); }
+        }
+        G.zones.splice(i,1); continue;
+      }
+      continue; // ещё тлеет — остальную логику зоны пропускаем
+    }
     if(z.t<=0){
       if(z.grav){ // схлопывание воронки: взрыв по стянутой толпе
         for(const e of G.enemies) if(e.hp>0&&dist2(e.x,e.y,z.x,z.y)<z.R*1.2*z.R*1.2) damageEnemy(e,z.boom,true);
         G.parts.push({kind:'boom',x:z.x,y:z.y,t:0.35,tMax:0.35,R:z.R*1.2});
         G.shake=Math.min(9,G.shake+3); S.boom();
+      }
+      if(z.hole){ // коллапс чёрной дыры: взрыв, эво порождает вторичную воронку
+        for(const e of G.enemies) if(e.hp>0&&dist2(e.x,e.y,z.x,z.y)<z.R*1.3*z.R*1.3) damageEnemy(e,z.boom,true);
+        G.parts.push({kind:'boom',x:z.x,y:z.y,t:0.4,tMax:0.4,R:z.R*1.3});
+        if(z.ev) G.zones.push({x:z.x,y:z.y,R:z.R*0.9,t:2.2,dmg:0,tick:9,grav:true,boom:z.boom*0.7,ev:true});
+        G.shake=Math.min(10,G.shake+4); S.boom();
       }
       G.zones.splice(i,1); continue;
     }
@@ -2452,6 +2545,24 @@ function update(dt){
         if(e.hp<=0||e.boss||e.crate||e.lamp||e.neutral||e.spawnT>0) continue;
         if(dist2(e.x,e.y,z.x,z.y)<z.R*z.R){ e.slowUntil=G.time+0.3; e.slowMul=z.slowMul; }
       }
+    }
+    if(z.hole){ // чёрная дыра: медленно ползёт к толпе, тянет врагов и магнитит лут
+      z.wt-=dt;
+      if(z.wt<=0){
+        z.wt=rnd(0.9,1.6);
+        let best=null,bd=760*760;
+        for(const e of G.enemies){ if(e.hp<=0||e.neutral||e.crate||e.lamp||e.boss) continue; const d2=dist2(e.x,e.y,z.x,z.y); if(d2<bd){bd=d2;best=e;} }
+        if(best){ const d=Math.hypot(best.x-z.x,best.y-z.y)||1; z.vx=(best.x-z.x)/d*55; z.vy=(best.y-z.y)/d*55; }
+        else{ const a=rnd(0,TAU); z.vx=Math.cos(a)*45; z.vy=Math.sin(a)*45; }
+      }
+      z.x+=z.vx*dt; z.y+=z.vy*dt;
+      const pr=z.R*2.6, strong=z.ev?300:230;
+      for(const e of G.enemies){
+        if(e.hp<=0||e.boss||e.crate||e.lamp||e.neutral||e.spawnT>0) continue;
+        const d2=dist2(e.x,e.y,z.x,z.y);
+        if(d2<pr*pr){ const d=Math.sqrt(d2)||1, f=strong*dt*(1-d/pr*0.6)*Math.max(e.kb||0.5,0.4); e.x+=(z.x-e.x)/d*f; e.y+=(z.y-e.y)/d*f; }
+      }
+      for(const g of G.gems){ if(dist2(g.x,g.y,z.x,z.y)<pr*pr) g.pull=true; } // всасывает опыт-лут
     }
     if(z.tick<=0){
       z.tick=0.5;
@@ -2606,6 +2717,32 @@ function draw(){
         cx.stroke(); }
       cx.strokeStyle='rgba(120,255,180,'+(0.55*a)+')'; cx.lineWidth=2;
       cx.beginPath(); cx.arc(0,0,z.R*(0.94+0.05*Math.sin(G.time*5)),0,TAU); cx.stroke();
+      cx.restore();
+      continue;
+    }
+    if(z.hole){ // чёрная дыра: тёмное ядро + аккреционный диск
+      cx.save(); cx.translate(z.x,z.y);
+      const gr=cx.createRadialGradient(0,0,0,0,0,z.R*1.4);
+      gr.addColorStop(0,'rgba(0,0,0,0.92)'); gr.addColorStop(0.5,'rgba(20,6,40,0.7)'); gr.addColorStop(1,'rgba(20,6,40,0)');
+      cx.fillStyle=gr; cx.beginPath(); cx.arc(0,0,z.R*1.4,0,TAU); cx.fill();
+      for(let s2=0;s2<4;s2++){ const ph=G.time*4+s2*1.7;
+        cx.strokeStyle='rgba('+(z.ev?'255,150,90':'150,110,255')+','+(0.5-s2*0.1)+')'; cx.lineWidth=2.4-s2*0.4;
+        cx.beginPath(); cx.arc(0,0,z.R*(0.7+s2*0.18),ph,ph+2.6); cx.stroke(); }
+      cx.fillStyle='#000'; cx.beginPath(); cx.arc(0,0,z.R*0.42,0,TAU); cx.fill();
+      cx.strokeStyle='rgba('+(z.ev?'255,180,110':'190,150,255')+',0.9)'; cx.lineWidth=2;
+      cx.beginPath(); cx.arc(0,0,z.R*0.42,0,TAU); cx.stroke();
+      cx.restore();
+      continue;
+    }
+    if(z.cfuse!=null){ // фугас каскада: искрящий заряд перед взрывом
+      const k=clamp(z.cfuse/0.12,0,1);
+      cx.save(); cx.translate(z.x,z.y);
+      cx.globalAlpha=0.5+0.5*Math.abs(Math.sin(G.time*40));
+      cx.fillStyle=z.ev?'#ffd36a':'#ff8a3a';
+      cx.beginPath(); cx.arc(0,0,4+(1-k)*4,0,TAU); cx.fill();
+      cx.globalAlpha=1;
+      cx.strokeStyle=z.ev?'rgba(255,200,120,0.6)':'rgba(255,150,90,0.5)'; cx.lineWidth=1.5;
+      cx.beginPath(); cx.arc(0,0,z.R*(1-k)*0.5,0,TAU); cx.stroke();
       cx.restore();
       continue;
     }
@@ -2831,6 +2968,27 @@ function draw(){
     cx.restore();
   }
   cx.globalAlpha=1;
+  // зеркальные дроиды: кружат вокруг игрока (позиции совпадают с логикой в updateWeapons)
+  {
+    const wm=G.p.weapons.find(w=>w.id==='mirror');
+    if(wm){
+      const n=wm.evolved?2:1, R=(70+wm.lvl*4)*G.p.area, ang=G.time*2.2;
+      for(let m=0;m<n;m++){
+        const mx=G.p.x+Math.cos(ang+m*TAU/n)*R, my=G.p.y+Math.sin(ang+m*TAU/n)*R;
+        cx.save(); cx.translate(mx,my); cx.rotate(ang+m*TAU/n+Math.PI/2);
+        cx.fillStyle='rgba(0,0,0,.22)'; cx.beginPath(); cx.ellipse(0,7,9,3,0,0,TAU); cx.fill();
+        // рамка зеркала
+        cx.fillStyle=wm.evolved?'#d9b3ff':'#9fb6d8'; cx.beginPath(); cx.roundRect(-8,-11,16,22,4); cx.fill();
+        // отражающая гладь с бликом
+        const gr=cx.createLinearGradient(-6,-9,6,9);
+        gr.addColorStop(0,'#eaf6ff'); gr.addColorStop(0.5,'#9cd0ff'); gr.addColorStop(1,'#cfe8ff');
+        cx.fillStyle=gr; cx.beginPath(); cx.roundRect(-6,-9,12,18,3); cx.fill();
+        cx.strokeStyle='rgba(255,255,255,'+(0.5+0.4*Math.sin(G.time*8+m))+')'; cx.lineWidth=1.4;
+        cx.beginPath(); cx.moveTo(-4,-6); cx.lineTo(3,7); cx.stroke();
+        cx.restore();
+      }
+    }
+  }
   // пилоны + дуги между ними
   if(G.pylons&&G.pylons.length){
     for(let i=0;i<G.pylons.length;i++) for(let j=i+1;j<G.pylons.length;j++){
@@ -4441,6 +4599,11 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'21 июля 2026, ~19:40 (Алматы) — v17 «Арсенал 36»',t:[
+    '🌑 Чёрная дыра (за 15 минут): сингулярность ползёт по полю, всасывает врагов и опыт, тикает уроном и схлопывается взрывом. Эво «Горизонт событий» — вторая воронка на схлопывании.',
+    '🎆 Каскадный заряд (за 3 сундука): взрыв прыгает цепочкой меньших взрывов от врага к врагу. Эво «Цепная реакция» — длиннее цепь и тлеющий огонь.',
+    '🪞 Зеркальный дроид (за 20 минут): кружит и отражает вражеские выстрелы обратно во врагов, таранит вблизи. Эво «Зеркальный зал» — два дроида, рикошет-залпы.',
+    '⚔️ Всего 36 оружий — до цели в 40 осталось 4. Комбо: загнать толпу в дыру и добить каскадом.']},
   {d:'21 июля 2026, ~18:20 (Алматы) — v16 «Арсенал 33»',t:[
     '🕸 Ловчая сеть (за 5 минут): статичное поле сильно замедляет всех врагов внутри. Эво «Стазис-поле» — огромное, враги почти стоят.',
     '🪝 Хлыст-крюк (за 500 убийств): цепляет врагов на линии и подтягивает к тебе. Эво «Коготь ранкора» — бьёт в обе стороны, больше целей.',
