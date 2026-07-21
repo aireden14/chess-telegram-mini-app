@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.13.0",
+    date: "21 июля 2026, 18:20 (Алматы)",
+    title: "Jedi Survivors: арсенал 33",
+    items: [
+      "🕸 Ловчая сеть — статичное поле сильно замедляет врагов внутри. Эво «Стазис-поле»",
+      "🪝 Хлыст-крюк — цепляет врагов на линии и подтягивает к тебе. Эво «Коготь ранкора» (в обе стороны)",
+      "☣️ Заражённый болт — отрава грызёт врага, а после его смерти перескакивает на ближайшего. Эво «Пандемия»",
+      "⚔️ Всего 33 оружия — идём к цели в 40",
+    ],
+  },
+  {
     version: "3.12.0",
     date: "20 июля 2026, 21:10 (Алматы)",
     title: "Jedi Survivors: арсенал 30",
