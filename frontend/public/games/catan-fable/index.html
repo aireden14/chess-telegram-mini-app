@@ -12,7 +12,8 @@
     --danger:#ff6b6b; --ok:#4dbb72;
     font-size:15px;
   }
-  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  input,textarea,select,[contenteditable]{user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
   html,body{height:100%;overflow:hidden}
   body{
     background:radial-gradient(1200px 700px at 30% -10%, #16202e 0%, var(--bg) 60%);
@@ -171,7 +172,7 @@
       <button id="tGo">Обменять (<span id="tRate">4</span>:1)</button>
     </div>
   </div>
-  <div class="sec"><button id="exitBtn" style="width:100%">← В меню игр</button></div>
+  <div class="sec"><button id="exitBtn" style="width:100%">← В меню игр</button><div style="text-align:center;color:var(--dim);font-size:.7rem;margin-top:9px">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">@Denrech</a></div></div>
 </div>
 <div id="modal"><div class="card" id="modalCard"></div></div>
 <div id="toast"></div>
@@ -625,6 +626,9 @@ document.getElementById("pGo").onclick=()=>{
   afterAction();
 };
 document.getElementById("exitBtn").onclick=()=>parent.postMessage("hexland:exit","*");
+document.addEventListener("selectionstart",e=>{if(!e.target.closest("input,textarea,select,[contenteditable]"))e.preventDefault()});
+document.addEventListener("dragstart",e=>e.preventDefault());
+document.addEventListener("contextmenu",e=>{if(!e.target.closest("input,textarea,select,[contenteditable]"))e.preventDefault()});
 
 function clickStl(v){
   const me=players[0];
