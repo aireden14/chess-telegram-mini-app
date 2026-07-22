@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.16.0",
+    date: "22 июля 2026, 07:00 (Алматы)",
+    title: "Jedi Survivors: Инверсия",
+    items: [
+      "🔄 Инверсия (в меню за победу над осадой) — зеркальный вариант любого этапа: мир перекрашен, враги живучее и быстрее, спавн плотнее, но награды ×2.2 (опыт и золото)",
+      "⚔️ Совмещается с Гипером, Hurry и стойками — лучший способ фармить золото и ранг джедая",
+    ],
+  },
+  {
     version: "3.15.0",
     date: "22 июля 2026, 06:25 (Алматы)",
     title: "Jedi Survivors: арсенал 40 — цель достигнута",

@@ -310,6 +310,7 @@ save.stats=Object.assign({kills:0,timePlayed:0,runs:0,maxLvl:0,perEnemy:{}},save
 save.selStage=save.selStage||'tatooine';
 save.hyper=!!save.hyper;
 save.hurry=!!save.hurry;
+save.inverse=!!save.inverse; // Инверсия: зеркальный усложнённый вариант этапа
 save.eggs=Object.assign({n:0,st:{}},save.eggs||{}); // золотые яйца: бесконечная мета-прокачка
 // миграция: ветераны до системы достижений получают их по своим рекордам
 if(save.best>=300) save.achs.surv5=true;
@@ -449,7 +450,7 @@ function saveRun(){
     localStorage.setItem(RUN_KEY,JSON.stringify({
       time:G.time,killCount:G.killCount,goldRun:G.goldRun,goldCredited:G.goldCredited||0,
       killsCredited:G.killsCredited||0,timeCredited:G.timeCredited||0,statsCredited:!!G.statsCredited,
-      stage:G.stage,hyper:G.hyper,hurry:G.hurry,endless:G.endless,won:G.won,arcana:G.arcana||null,arcana2:G.arcana2||null,arcana3:G.arcana3||null,
+      stage:G.stage,hyper:G.hyper,inverse:G.inverse,hurry:G.hurry,endless:G.endless,won:G.won,arcana:G.arcana||null,arcana2:G.arcana2||null,arcana3:G.arcana3||null,
       chestsRun:G.chestsRun,evosRun:G.evosRun,bossKills:G.bossKills,
       ringDone:G.ringDone,bossDone:G.bossDone,eliteT:G.eliteT,
       rerolls:G.rerolls,skips:G.skips,banishes:G.banishes,banned:G.banned,
@@ -696,6 +697,7 @@ function newGame(){
     // прогрессия VS: этап, гипер, проклятие, рероллы, трекеры достижений
     stage:stageUnlocked(save.selStage)&&STAGE_MUL[save.selStage]?save.selStage:'tatooine',
     hyper:save.hyper&&!!save.achs.win,
+    inverse:save.inverse&&!!save.achs.win, // Инверсия: зеркальный мир — куда злее, награды жирнее
     hurry:save.hurry&&!!save.achs.surv20, // Hurry: игровое время ×2, забег вдвое короче
     chestsRun:0, evosRun:0, bossKills:0, won:false, endless:false, goldCredited:0,
     freezeT:0, feverT:0, feverTick:0, achTick:0,
@@ -710,10 +712,11 @@ function newGame(){
   };
   const curseR=(m.curse||0);
   G.curse=1+0.06*curseR;                                  // HP врагов
-  G.eSpd=(G.hyper?1.15:1)*(1+0.04*curseR);                // скорость врагов
-  G.spawnMul=(G.hyper?0.8:1)/(1+0.05*curseR);             // интервал спавна
-  G.rewardMul=(1+0.08*curseR)*(G.hyper?1.5:1)*(G.hurry?1.2:1)*(STAGE_MUL[G.stage]||1);
-  G.curse*=STAGE_MUL[G.stage]||1;
+  G.eSpd=(G.hyper?1.15:1)*(G.inverse?1.12:1)*(1+0.04*curseR);      // скорость врагов
+  G.spawnMul=(G.hyper?0.8:1)*(G.inverse?0.78:1)/(1+0.05*curseR);   // интервал спавна
+  G.rewardMul=(1+0.08*curseR)*(G.hyper?1.5:1)*(G.inverse?2.2:1)*(G.hurry?1.2:1)*(STAGE_MUL[G.stage]||1);
+  G.curse*=(STAGE_MUL[G.stage]||1)*(G.inverse?1.6:1);
+  try{ cv.style.filter=G.inverse?'hue-rotate(155deg) saturate(1.12) contrast(1.04)':''; }catch(e){} // зеркальный мир
   // бонусы героя
   const ch=CHARS[save.selChar]||CHARS.obiwan;
   const p=G.p;
@@ -4620,6 +4623,7 @@ function startRun(){
   endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
   music.currentTime=0;
   music.play().catch(()=>{});
+  if(G.inverse) G.dmgTexts.push({x:G.p.x,y:G.p.y-60,v:'🔄 ИНВЕРСИЯ — мир зеркален, награды ×2.2',t:2.8,crit:true,str:true});
   // Арканы: выбор модификатора забега (открывается после первого босса)
   if(save.achs.boss1) offerArcana('🎴 ВЫБЕРИ АРКАНУ ЗАБЕГА');
 }
@@ -4647,7 +4651,7 @@ function resumeRun(){
   const r=loadRun(); if(!r){ startRun(); return; }
   goFullscreen();
   save.selChar=save.chars[r.selChar]?r.selChar:save.selChar;
-  save.selStage=r.stage; save.hyper=r.hyper; save.hurry=!!r.hurry;
+  save.selStage=r.stage; save.hyper=r.hyper; save.inverse=!!r.inverse; save.hurry=!!r.hurry;
   newGame();
   Object.assign(G,{time:r.time,killCount:r.killCount,goldRun:r.goldRun,goldCredited:r.goldCredited,
     killsCredited:r.killsCredited,timeCredited:r.timeCredited,statsCredited:r.statsCredited,
@@ -4740,6 +4744,7 @@ function pauseGame(){
 function resumeGame(){ if(G&&G.state==='paused'){ G.state='playing'; pausedEl.classList.add('hidden'); music.play().catch(()=>{}); } }
 function toMenu(){
   G=null;
+  try{ cv.style.filter=''; }catch(e){} // снять зеркальный фильтр Инверсии
   if(chestTimer){ clearInterval(chestTimer); chestTimer=null; }
   el('chestCer').classList.add('hidden');
   pausedEl.classList.add('hidden'); settingsEl.classList.add('hidden');
@@ -4805,6 +4810,13 @@ function renderMenuMeta(){
     d.onclick=()=>{ save.hyper=!save.hyper; persist(); renderMenuMeta(); };
     sr.appendChild(d);
   }
+  if(save.achs.win){ // Инверсия: зеркальный усложнённый вариант этапа с жирными наградами
+    const d=document.createElement('div');
+    d.className='sel-card'+(save.inverse?' on':'');
+    d.innerHTML='<span class="ic">🔄</span><b>Инверсия</b><br>'+(save.inverse?'зеркальный мир, злее, награды ×2.2':'выкл');
+    d.onclick=()=>{ save.inverse=!save.inverse; persist(); renderMenuMeta(); };
+    sr.appendChild(d);
+  }
   if(save.achs.surv20){ // Hurry: как в VS — время ×2, забег вдвое короче
     const d=document.createElement('div');
     d.className='sel-card'+(save.hurry?' on':'');
@@ -4828,6 +4840,9 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'22 июля 2026, ~07:00 (Алматы) — v19 «Инверсия»',t:[
+    '🔄 ИНВЕРСИЯ (в меню, рядом с Гипером, за победу над осадой): зеркальный вариант любого этапа — весь мир перекрашен, враги куда живучее и быстрее, спавн плотнее, но НАГРАДЫ ×2.2 (опыт и золото). Совмещается с Гипером, Hurry и стойками.',
+    '⚔️ Лучший способ фармить золото и ранг: включи Инверсию на знакомом этапе с готовым билдом.']},
   {d:'22 июля 2026, ~06:25 (Алматы) — v18 «Арсенал 40»',t:[
     '🌈 Призматический луч (за 3 эволюции): луч бьёт врага и в точке попадания расщепляется веером лучей. Эво «Радужный спектр» — веер шире и гуще, осколки рикошетят.',
     '🦠 Рой нанитов (за 20 минут): облако микромашин лениво тянется за тобой и разъедает всех внутри. Эво «Серая слизь» — облако огромно, а разъеденные враги получают на 22% больше урона от всего.',
