@@ -1742,8 +1742,9 @@ function killEnemy(e){
   }
   if(e.boss) G.bossRef=null;
   if(e.boss&&!e.emperor){ // торговец приходит к месту гибели босса (как в VS у босс-этапов)
-    G.merchant={x:e.x+70,y:e.y,cd:1.5};
-    G.dmgTexts.push({x:e.x,y:e.y-70,v:'🛒 ТОРГОВЕЦ ПРИБЫЛ — потрать золото забега',t:2.4,crit:true,str:true});
+    const black=Math.random()<Math.min(0.5,0.20+(G.p.luck-1)*0.12); // редкий чёрный рынок, шанс растёт от удачи
+    G.merchant={x:e.x+70,y:e.y,cd:1.5,black};
+    G.dmgTexts.push({x:e.x,y:e.y-70,v:black?'🕶 ЧЁРНЫЙ РЫНОК ПРИБЫЛ — редкий товар за золото':'🛒 ТОРГОВЕЦ ПРИБЫЛ — потрать золото забега',t:2.4,crit:true,str:true});
   }
   if(e.vader){
     G.vaderKilled=true;
@@ -1987,7 +1988,21 @@ const SHOP_ITEMS=[
   {id:'reroll',ico:'🔄', nm:'Предвидение',     ds:'+2 реролла и +1 изгнание на этот забег.', base:120, fx:()=>{G.rerolls+=2;G.banishes+=1;}},
   {id:'bomb',  ico:'💥', nm:'Орбитальный удар',ds:'Уничтожает всех обычных врагов на поле.', base:150, fx:()=>{for(const e of [...G.enemies]) if(!e.boss&&!e.crate&&!e.lamp&&!e.neutral) damageEnemy(e,99999,false);}},
   {id:'might', ico:'💪', nm:'Боевой стим',     ds:'+8% урона до конца забега.', base:220, fx:()=>{G.p.might+=0.08;}},
+  {id:'area',  ico:'🥋', nm:'Роба мастера',    ds:'+8% области атак до конца забега.', base:200, fx:()=>{G.p.area+=0.08;}},
+  {id:'speed', ico:'👢', nm:'Спидер-ботинки',  ds:'+10% скорости до конца забега.', base:180, fx:()=>{G.p.speed*=1.10;}},
   {id:'revive',ico:'✨', nm:'Воля Силы',       ds:'+1 воскрешение.', base:400, fx:()=>{G.p.revives+=1;}},
+];
+// Чёрный рынок: редкий вариант торговца с премиум-товаром, которого нет в обычной лавке
+const BLACK_MARKET=[
+  {id:'bm_evo',  ico:'🔴', nm:'Контрабандный кайбер', ds:'Мгновенно эволюционирует одно твоё оружие в обход правил.', base:480, fx:()=>{
+      const cands=G.p.weapons.filter(w=>!w.evolved&&!w.union&&WEAPONS[w.id]);
+      if(cands.length){ const w=cands[rndi(0,cands.length-1)]; w.lvl=maxWLvl(); w.evolved=true; G.evosRun=(G.evosRun||0)+1;
+        G.dmgTexts.push({x:G.p.x,y:G.p.y-46,v:'🔥 '+WINFO(w.id).ico+' '+(EVOS[w.id]?EVOS[w.id].nm:'эволюция')+'!',t:2,crit:true,str:true}); }
+      else G.p.might+=0.12; }},
+  {id:'bm_amount',ico:'🔮', nm:'Голо-дубликатор',    ds:'+1 снаряд ко ВСЕМ атакам. Дорожает быстро.', base:640, fx:()=>{G.p.amount+=1;}},
+  {id:'bm_pact', ico:'😈', nm:'Тёмный пакт',         ds:'+30% урона навсегда, но враги +15% живучее.', base:300, fx:()=>{G.p.might+=0.30;G.curse*=1.15;}},
+  {id:'bm_vein', ico:'💰', nm:'Золотая жила',        ds:'+25% золота до конца забега.', base:260, fx:()=>{G.p.goldMul*=1.25;}},
+  {id:'bm_charge',ico:'⚡', nm:'Перегруз ядра',      ds:'−12% перезарядки всего оружия до конца забега.', base:360, fx:()=>{G.p.cdr*=0.88;}},
 ];
 const shopPrice=it=>Math.round(it.base*(1+0.6*(G.shopBought[it.id]||0)));
 function openShop(){
@@ -1995,14 +2010,16 @@ function openShop(){
   renderMerchant();
 }
 function renderMerchant(){
-  luTitle.textContent='🛒 ТОРГОВЕЦ · у тебя 🪙 '+G.goldRun;
+  const black=!!(G.merchant&&G.merchant.black), pool=black?BLACK_MARKET:SHOP_ITEMS;
+  luTitle.textContent=(black?'🕶 ЧЁРНЫЙ РЫНОК · у тебя 🪙 ':'🛒 ТОРГОВЕЦ · у тебя 🪙 ')+G.goldRun;
   cardsEl.innerHTML='';
-  for(const it of SHOP_ITEMS){
+  for(const it of pool){
     const price=shopPrice(it), afford=G.goldRun>=price;
     const c=document.createElement('div'); c.className='card';
     if(!afford) c.style.opacity='0.45';
+    if(black){ c.style.borderColor='#a06aff'; c.style.background='#1c1633'; }
     c.innerHTML='<div class="ico">'+it.ico+'</div><div class="nm">'+it.nm+'</div>'+
-      '<div class="lv" style="color:#ffd76a">🪙 '+price+'</div><div class="ds">'+it.ds+'</div>';
+      '<div class="lv" style="color:'+(black?'#c9a0ff':'#ffd76a')+'">🪙 '+price+'</div><div class="ds">'+it.ds+'</div>';
     c.onclick=()=>{
       if(G.goldRun<shopPrice(it)){ S.hurt(); return; }
       G.goldRun-=shopPrice(it);
@@ -3031,20 +3048,22 @@ function draw(){
 
   // торговец: джава с тележкой
   if(G.merchant){
-    const m=G.merchant, t=G.time, bob=Math.sin(t*3)*2;
+    const m=G.merchant, t=G.time, bob=Math.sin(t*3)*2, black=!!m.black;
+    const glow=black?'160,90,255':'255,215,106', hood=black?'#2a1c44':'#6b4a2a', eye=black?'#c98aff':'#ffb54a', label=black?'#c9a0ff':'#ffd76a';
     cx.save(); cx.translate(m.x,m.y);
-    cx.fillStyle='rgba(255,215,106,'+(0.10+0.07*Math.sin(t*4))+')';
+    cx.fillStyle='rgba('+glow+','+(0.10+0.07*Math.sin(t*4))+')';
     cx.beginPath(); cx.arc(0,-8,40,0,TAU); cx.fill();
     cx.fillStyle='rgba(0,0,0,.3)'; cx.beginPath(); cx.ellipse(0,16,20,6,0,0,TAU); cx.fill();
-    cx.fillStyle='#6b4a2a'; // джава-капюшон
+    cx.fillStyle=hood; // капюшон (тёмный на чёрном рынке)
     cx.beginPath(); cx.moveTo(-13,14+bob*0.3); cx.lineTo(0,-24+bob); cx.lineTo(13,14+bob*0.3); cx.closePath(); cx.fill();
     cx.fillStyle='#1a1408'; cx.beginPath(); cx.arc(0,-8+bob,6.5,0,TAU); cx.fill();
-    cx.fillStyle='#ffb54a'; // светящиеся глаза
+    cx.fillStyle=eye; // светящиеся глаза
     cx.beginPath(); cx.arc(-2.6,-9+bob,1.6,0,TAU); cx.arc(2.6,-9+bob,1.6,0,TAU); cx.fill();
-    cx.font='17px serif'; cx.textAlign='center'; cx.fillText('🛒',22,10+bob);
-    cx.font='bold 10px Verdana'; cx.fillStyle='#ffd76a';
+    cx.font='17px serif'; cx.textAlign='center'; cx.fillText(black?'🕶':'🛒',22,10+bob);
+    cx.font='bold 10px Verdana'; cx.fillStyle=label;
     cx.strokeStyle='rgba(0,0,0,.7)'; cx.lineWidth=3;
-    cx.strokeText('ТОРГОВЕЦ',0,-34); cx.fillText('ТОРГОВЕЦ',0,-34);
+    const nm=black?'ЧЁРНЫЙ РЫНОК':'ТОРГОВЕЦ';
+    cx.strokeText(nm,0,-34); cx.fillText(nm,0,-34);
     cx.restore();
   }
 
@@ -4861,6 +4880,9 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'22 июля 2026, ~08:00 (Алматы) — v21 «Чёрный рынок»',t:[
+    '🕶 ЧЁРНЫЙ РЫНОК: иногда после босса вместо обычного торговца прибывает чёрный рынок (шанс растёт от удачи) — тёмный капюшон, фиолетовые карточки. Товар редкий и мощный, но дорогой: 🔴 Контрабандный кайбер (мгновенная эволюция оружия), 🔮 Голо-дубликатор (+1 снаряд ко всем атакам), 😈 Тёмный пакт (+30% урона, но враги живучее), 💰 Золотая жила (+25% золота), ⚡ Перегруз ядра (−12% перезарядки).',
+    '🛒 Обычный торговец тоже пополнился: добавлены 🥋 Роба мастера (+область) и 👢 Спидер-ботинки (+скорость).']},
   {d:'22 июля 2026, ~07:30 (Алматы) — v20 «Печати»',t:[
     '🔒 ПЕЧАТИ (кнопка в меню): запечатай оружие или пассивки — и они больше НЕ будут выпадать в выборе уровня во всех забегах. Это перманентный фильтр, а не разовое изгнание в забеге.',
     '🎯 Зачем: убери из пула лишнее, чтобы нужные оружия и их эволюции собирались быстрее и надёжнее. Стартовое оружие героя остаётся даже под печатью.']},

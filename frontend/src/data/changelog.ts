@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.19.0",
+    date: "22 июля 2026, 08:00 (Алматы)",
+    title: "Jedi Survivors: Чёрный рынок",
+    items: [
+      "🕶 Чёрный рынок — иногда после босса вместо торговца прибывает чёрный рынок (шанс растёт от удачи): редкий мощный товар за золото — мгновенная эволюция оружия, +1 снаряд ко всем атакам, тёмный пакт, золотая жила, перегруз перезарядки",
+      "🛒 Обычный торговец пополнился робой мастера (+область) и спидер-ботинками (+скорость)",
+    ],
+  },
+  {
     version: "3.18.0",
     date: "22 июля 2026, 07:30 (Алматы)",
     title: "Jedi Survivors: Печати",
