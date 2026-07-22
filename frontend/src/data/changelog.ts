@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.18.0",
+    date: "22 июля 2026, 07:30 (Алматы)",
+    title: "Jedi Survivors: Печати",
+    items: [
+      "🔒 Печати (кнопка в меню) — запечатай оружие или пассивки, и они больше не выпадают в выборе уровня во всех забегах (перманентный фильтр, не разовое изгнание)",
+      "🎯 Убери лишнее из пула, чтобы нужные оружия и эволюции собирались быстрее; стартовое оружие героя остаётся даже под печатью",
+    ],
+  },
+  {
     version: "3.17.0",
     date: "22 июля 2026, 07:00 (Алматы)",
     title: "Jedi Survivors: Инверсия",

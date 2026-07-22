@@ -37,6 +37,15 @@
   .sel-card .pr { color:#ffd76a; }
   .sel-card:active { transform:scale(.95); }
   .lu-act { font-size:13px !important; padding:9px 16px !important; }
+  .seal-grid { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:6px 0 2px; }
+  .seal-chip { cursor:pointer; user-select:none; background:#161e36; border:1.5px solid #3a4770; border-radius:10px;
+    padding:5px 7px; text-align:center; width:82px; color:#c8d7f4; font-size:10px; line-height:1.25; }
+  .seal-chip .sn { display:block; font-weight:600; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .seal-chip .st { display:block; color:#66719b; font-size:9px; margin-top:1px; }
+  .seal-chip.sealed { border-color:#a06aff; background:#241a3d; opacity:1; filter:grayscale(.35); }
+  .seal-chip.sealed .st { color:#c9a0ff; }
+  .seal-chip.lock { opacity:.45; pointer-events:none; }
+  .seal-chip:active { transform:scale(.94); }
   #menu footer { position:static; margin-top:16px; color:#66719b; font-size:12px; }
   #menu footer a { color:#8fbaff; text-decoration:none; font-weight:600; }
 
@@ -123,6 +132,7 @@
   <div class="menu-row">
     <button class="btn btn-sec" id="shopBtn">🏛 Академия</button>
     <button class="btn btn-sec" id="collBtn">📚 Коллекция</button>
+    <button class="btn btn-sec" id="sealsBtn">🔒 Печати</button>
     <button class="btn btn-sec" id="wnBtn">🆕 Что нового</button>
     <button class="btn btn-sec" id="settingsMenuBtn">⚙️</button>
   </div>
@@ -197,6 +207,15 @@
     <h2 style="color:#7dffa0;letter-spacing:2px">🆕 ЧТО НОВОГО</h2>
     <div id="wnBody" class="pause-build"></div>
     <button class="btn btn-big" id="wnBack">← Назад</button>
+  </div>
+</div>
+
+<div id="seals" class="overlay hidden">
+  <div class="pause-panel">
+    <h2 style="color:#c9a0ff;letter-spacing:2px">🔒 ПЕЧАТИ</h2>
+    <div style="color:#8a93b8;font-size:12px;margin:-4px 0 10px;max-width:min(460px,88vw);text-align:center">Запечатанное <b>не выпадает</b> в выборе уровня — во всех забегах. Стартовое оружие героя остаётся. Тапни карточку, чтобы запечатать или снять печать.</div>
+    <div id="sealsBody" class="pause-build"></div>
+    <button class="btn btn-big" id="sealsBack">← Назад</button>
   </div>
 </div>
 
@@ -311,6 +330,7 @@ save.selStage=save.selStage||'tatooine';
 save.hyper=!!save.hyper;
 save.hurry=!!save.hurry;
 save.inverse=!!save.inverse; // Инверсия: зеркальный усложнённый вариант этапа
+save.sealed=Array.isArray(save.sealed)?save.sealed:[]; // Печати: перманентный бан-лист оружия/пассивок в выдаче уровней
 save.eggs=Object.assign({n:0,st:{}},save.eggs||{}); // золотые яйца: бесконечная мета-прокачка
 // миграция: ветераны до системы достижений получают их по своим рекордам
 if(save.best>=300) save.achs.surv5=true;
@@ -1781,12 +1801,13 @@ function gainXP(v){
 function upgradeOptions(){
   const p=G.p, opts=[];
   const banned=G.banned||[];
+  const sealed=save.sealed||[]; // Печати: перманентный бан-лист (только новые оружия/пассивки, стартовое оружие не трогаем)
   for(const w of p.weapons) if(w.lvl<maxWLvl()&&!w.evolved&&!banned.includes('w'+w.id)) opts.push({kind:'w-up',id:w.id});
   if(p.weapons.length<6) for(const id in WEAPONS)
-    if(!p.weapons.find(w=>w.id===id)&&weaponUnlocked(id)&&!banned.includes('w'+id)) opts.push({kind:'w-new',id});
+    if(!p.weapons.find(w=>w.id===id)&&weaponUnlocked(id)&&!banned.includes('w'+id)&&!sealed.includes('w'+id)) opts.push({kind:'w-new',id});
   for(const id in PASSIVES){
     const cur=p.passives[id]||0;
-    if(cur<PASSIVES[id].max&&!banned.includes('p'+id)) opts.push({kind:'p',id});
+    if(cur<PASSIVES[id].max&&!banned.includes('p'+id)&&!sealed.includes('p'+id)) opts.push({kind:'p',id});
   }
   // shuffle, pick 3
   for(let i=opts.length-1;i>0;i--){ const j=rndi(0,i); [opts[i],opts[j]]=[opts[j],opts[i]]; }
@@ -4840,6 +4861,9 @@ el('collBtn').onclick=()=>{ renderCollection(); menuEl.classList.add('hidden'); 
 el('collBack').onclick=()=>{ el('collection').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'22 июля 2026, ~07:30 (Алматы) — v20 «Печати»',t:[
+    '🔒 ПЕЧАТИ (кнопка в меню): запечатай оружие или пассивки — и они больше НЕ будут выпадать в выборе уровня во всех забегах. Это перманентный фильтр, а не разовое изгнание в забеге.',
+    '🎯 Зачем: убери из пула лишнее, чтобы нужные оружия и их эволюции собирались быстрее и надёжнее. Стартовое оружие героя остаётся даже под печатью.']},
   {d:'22 июля 2026, ~07:00 (Алматы) — v19 «Инверсия»',t:[
     '🔄 ИНВЕРСИЯ (в меню, рядом с Гипером, за победу над осадой): зеркальный вариант любого этапа — весь мир перекрашен, враги куда живучее и быстрее, спавн плотнее, но НАГРАДЫ ×2.2 (опыт и золото). Совмещается с Гипером, Hurry и стойками.',
     '⚔️ Лучший способ фармить золото и ранг: включи Инверсию на знакомом этапе с готовым билдом.']},
@@ -4923,6 +4947,29 @@ el('wnBtn').onclick=()=>{
   menuEl.classList.add('hidden'); el('whatsnew').classList.remove('hidden');
 };
 el('wnBack').onclick=()=>{ el('whatsnew').classList.add('hidden'); menuEl.classList.remove('hidden'); };
+/* --- Печати: перманентный бан-лист оружия/пассивок из выдачи уровней --- */
+function renderSeals(){
+  save.sealed=Array.isArray(save.sealed)?save.sealed:[];
+  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const chip=(key,ico,nm,unlocked,sealed)=>'<div class="seal-chip'+(sealed?' sealed':'')+(unlocked?'':' lock')+'" data-key="'+key+'">'
+    +'<span style="font-size:20px">'+ico+'</span><span class="sn">'+esc(nm)+'</span>'
+    +'<span class="st">'+(!unlocked?'🔒 не открыто':(sealed?'🔒 запечатано':'выпадает'))+'</span></div>';
+  let html='<b style="color:#c9a0ff">⚔️ ОРУЖИЕ</b> <span style="color:#66719b;font-size:11px">('+save.sealed.filter(k=>k[0]==='w').length+' запечатано)</span><div class="seal-grid">';
+  for(const id in WEAPONS) html+=chip('w'+id, WEAPONS[id].ico, WEAPONS[id].nm, weaponUnlocked(id), save.sealed.includes('w'+id));
+  html+='</div><br><b style="color:#c9a0ff">💠 ПАССИВКИ</b><div class="seal-grid">';
+  for(const id in PASSIVES) html+=chip('p'+id, PASSIVES[id].ico, PASSIVES[id].nm, true, save.sealed.includes('p'+id));
+  html+='</div>';
+  const body=el('sealsBody'); body.innerHTML=html;
+  body.querySelectorAll('.seal-chip').forEach(ch=>{
+    ch.onclick=()=>{
+      const key=ch.getAttribute('data-key'), i=save.sealed.indexOf(key);
+      if(i>=0) save.sealed.splice(i,1); else save.sealed.push(key);
+      persist(); renderSeals(); S.pick();
+    };
+  });
+}
+el('sealsBtn').onclick=()=>{ renderSeals(); menuEl.classList.add('hidden'); el('seals').classList.remove('hidden'); };
+el('sealsBack').onclick=()=>{ el('seals').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 el('contBtn').onclick=()=>{
   if(!G) return;
   G.endless=true; G.state='playing';
