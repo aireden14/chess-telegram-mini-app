@@ -732,31 +732,61 @@ const ADVENTURES=[
    char:null, stage:'hoth',
    mods:{spawnMul:0.9},
    obj:{type:'boss', v:2},
-   reward:{gold:450}, req:'training'},
+   reward:{gold:450, egg:{hp:15}}, req:'training'},
   {id:'duel', ico:'⚔️', nm:'Дуэль на песках',
    desc:'Время бежит вдвое — вырасти в силе как можно быстрее.',
    char:'obiwan', stage:'tatooine',
    mods:{timeScale:2, rewardMul:1.2},
    obj:{type:'level', v:20},
-   reward:{gold:600}, req:'siege'},
+   reward:{gold:600, char:'grogu'}, req:'siege'},
+  {id:'frost', ico:'🥶', nm:'Ледяной марафон',
+   desc:'Метель не стихает. Продержись пятнадцать минут в белом аду.',
+   char:null, stage:'hoth',
+   mods:{spawnMul:0.85, eSpd:1.1},
+   obj:{type:'survive', v:15},
+   reward:{gold:750, egg:{speed:0.02}}, req:'duel'},
   {id:'horde', ico:'🌲', nm:'Орда Эндора',
    desc:'Лес кишит имперцами. Коси их сотнями.',
    char:null, stage:'endor',
    mods:{spawnMul:0.75, eSpd:1.1},
    obj:{type:'kills', v:2000},
-   reward:{gold:800}, req:'duel'},
+   reward:{gold:900, char:'chewie'}, req:'frost'},
+  {id:'bounty', ico:'🎯', nm:'Охота за головами',
+   desc:'Империя выслала командиров. Свали троих подряд.',
+   char:null, stage:'endor',
+   mods:{spawnMul:0.8, curse:1.2},
+   obj:{type:'boss', v:3},
+   reward:{gold:1050, egg:{luck:0.05}}, req:'horde'},
+  {id:'sage', ico:'🧘', nm:'Путь мастера',
+   desc:'Время летит вдвое. Достигни тридцатого уровня силы.',
+   char:'obiwan', stage:'tatooine',
+   mods:{timeScale:2, rewardMul:1.3},
+   obj:{type:'level', v:30},
+   reward:{gold:1200, egg:{might:0.03}}, req:'bounty'},
   {id:'darkside', ico:'🌋', nm:'Зов тёмной стороны',
    desc:'Мустафар пылает. Враги злее — награды жирнее.',
    char:null, stage:'mustafar',
    mods:{curse:1.5, eSpd:1.15, rewardMul:2},
    obj:{type:'survive', v:12},
-   reward:{gold:1100}, req:'horde'},
+   reward:{gold:1300, egg:{area:0.03}}, req:'sage'},
+  {id:'inferno', ico:'🔥', nm:'Адское жнивьё',
+   desc:'В пламени Мустафара выкоси три тысячи имперцев.',
+   char:null, stage:'mustafar',
+   mods:{spawnMul:0.72, curse:1.3},
+   obj:{type:'kills', v:3000},
+   reward:{gold:1500, egg:{magnet:0.1}}, req:'darkside'},
   {id:'emperor', ico:'👑', nm:'Тень Императора',
    desc:'Доживи до появления Вейдера. Испытание мастера.',
    char:null, stage:'tatooine',
    mods:{spawnMul:0.7, eSpd:1.2, curse:1.4, rewardMul:1.8},
    obj:{type:'survive', v:25},
-   reward:{gold:1600}, req:'darkside'},
+   reward:{gold:1800, char:'luke'}, req:'inferno'},
+  {id:'legend', ico:'🏆', nm:'Легенда осады',
+   desc:'Финальное испытание: 25 минут в самом пекле Мустафара.',
+   char:null, stage:'mustafar',
+   mods:{spawnMul:0.68, eSpd:1.25, curse:1.6, rewardMul:2.2},
+   obj:{type:'survive', v:25},
+   reward:{gold:3000, egg:{might:0.05, hp:30}}, req:'emperor'},
 ];
 function advDone(id){ return !!save.adv[id]; }
 function advUnlocked(m){ return !m.req || advDone(m.req); }
@@ -776,6 +806,14 @@ function advModText(md){
   if(md.spawnMul&&md.spawnMul<1) t.push('плотнее орда');
   if(md.rewardMul&&md.rewardMul>1) t.push('награды ×'+md.rewardMul);
   return t.join(' · ');
+}
+// Текст награды миссии: золото + разовые анлоки (герой / бонус к статам)
+function advRewardText(m){
+  const rw=m.reward||{}, parts=[];
+  if(rw.gold) parts.push(rw.gold+' 🪙');
+  if(rw.char){ const c=CHARS[rw.char]; parts.push('🔓 '+(c?c.ico+' '+c.nm:rw.char)); }
+  if(rw.egg)  parts.push('🥚 +статы навсегда');
+  return parts.join(' · ');
 }
 let pendingMission=null;
 function startMission(id){
@@ -797,7 +835,7 @@ function renderAdventures(){
       '<div class="adv-t"><b>'+m.nm+'</b>'+(done?'<span class="adv-badge">✅ пройдено</span>':'')+
       '<div class="adv-d">'+m.desc+'</div></div></div>'+
       (open
-        ? '<div class="adv-meta">🎯 '+advObjText(m.obj)+' &nbsp;·&nbsp; 🏆 '+m.reward.gold+' 🪙'+
+        ? '<div class="adv-meta">🎯 '+advObjText(m.obj)+' &nbsp;·&nbsp; 🏆 '+advRewardText(m)+
           (modTxt?'<br><span class="adv-mods">⚙️ '+modTxt+'</span>':'')+'</div>'
         : '<div class="adv-lock">🔒 сначала пройди: '+((ADVENTURES.find(x=>x.id===m.req)||{}).nm||'предыдущее')+'</div>');
     if(open) d.onclick=()=>startMission(m.id);
@@ -815,11 +853,17 @@ function advObjProgress(g){
 }
 // Цель миссии достигнута → победа миссии: отметка пройдено + награда (разово)
 function completeMission(){
-  const m=G.mission, first=!save.adv[m.id];
+  const m=G.mission, first=!save.adv[m.id], rw=m.reward||{};
   save.adv[m.id]=true;
-  const reward=(m.reward&&m.reward.gold)||0;
-  G.missionReward=first?reward:0;
+  G.missionReward=first?(rw.gold||0):0;
+  G.missionUnlock=''; // текст доп-награды для финала
   if(G.missionReward) G.goldRun+=G.missionReward; // пройдёт через обычный кредит золота в endRun
+  if(first){
+    if(rw.char && !save.chars[rw.char]){ save.chars[rw.char]=true; const c=CHARS[rw.char];
+      G.missionUnlock='🔓 Открыт герой: '+(c?c.ico+' '+c.nm:rw.char); }
+    if(rw.egg){ for(const k in rw.egg){ save.eggs.st[k]=(save.eggs.st[k]||0)+rw.egg[k]; }
+      G.missionUnlock=(G.missionUnlock?G.missionUnlock+' · ':'')+'🥚 Бонус к статам навсегда'; }
+  }
   G.won=true; G.missionWin=true;
   endRun(true);
 }
@@ -4899,7 +4943,8 @@ function endRun(win){
   const wl=G.p.weapons.map(w=>WINFO(w.id).ico+(w.union?'⚜️':w.evolved?'🔥':'')).join(' ');
   const missionLine = isMission
     ? '<div style="color:#ffd76a;font-weight:700;margin-bottom:7px">'+G.mission.ico+' '+G.mission.nm+' · 🎯 '+advObjText(G.mission.obj)+
-      (win?(G.missionReward>0?' ✅ +'+G.missionReward+' 🪙':' ✅ пройдено'):' ❌ не выполнена')+'</div>'
+      (win?(G.missionReward>0?' ✅ +'+G.missionReward+' 🪙':' ✅ пройдено'):' ❌ не выполнена')+
+      (win&&G.missionUnlock?'<br><span style="color:#7dffa0">'+G.missionUnlock+'</span>':'')+'</div>'
     : '';
   el('endStats').innerHTML = missionLine +
     'Время: <b>'+fmtTime(G.time)+'</b> &nbsp; Уровень: <b>'+G.p.lvl+'</b><br>'+
@@ -5055,10 +5100,11 @@ el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.cla
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
   {d:'25 июля 2026 (Алматы) — v22 «Приключения»',t:[
-    '🗺 ПРИКЛЮЧЕНИЯ (новая кнопка в меню): курируемые испытания-миссии со своим героем, этапом, правилами и конкретной целью. Выполни цель — получишь золото и откроешь следующую миссию по цепочке.',
-    '🎯 6 стартовых миссий: 🌱 Тренировка джедая (выжить 8 мин), ❄️ Осада Хота (одолеть 2 боссов), ⚔️ Дуэль на песках (ур. 20, время бежит вдвое), 🌲 Орда Эндора (2000 убийств), 🌋 Зов тёмной стороны (выжить 12 мин, враги злее ×2 награды), 👑 Тень Императора (дожить до Вейдера — 25 мин).',
+    '🗺 ПРИКЛЮЧЕНИЯ (новая кнопка в меню): курируемые испытания-миссии со своим героем, этапом, правилами и конкретной целью. Выполни цель — получишь награду и откроешь следующую миссию по цепочке.',
+    '🎯 11 миссий-кампания: от 🌱 Тренировки (выжить 8 мин) через ❄️ Осаду Хота, ⚔️ Дуэль (время ×2), 🌲 Орду Эндора, 🎯 Охоту за головами до 👑 Тени Императора и 🏆 Легенды осады (25 мин в пекле Мустафара).',
+    '🏆 НАГРАДЫ ЗА МИССИИ (разово): золото, а также ОТКРЫТИЕ ГЕРОЕВ (Грогу, Чубакка, Люк — теперь можно получить не только за золото/достижения) и 🥚 постоянные бонусы к статам.',
     '⚙️ В миссии свои правила вместо тумблеров: форс героя и этапа, ускорение времени, плотность и живучесть орды, множители наград. Сверху виден баннер с текущей целью и прогрессом.',
-    '🏆 Награда за первое прохождение выдаётся один раз; миссию можно перепроходить. Дальше будем добавлять новые миссии просто контентом.']},
+    '🔁 Миссию можно перепроходить (награда за первое прохождение — один раз). Дальше кампания расширяется просто новыми миссиями.']},
   {d:'22 июля 2026, ~08:00 (Алматы) — v21 «Чёрный рынок»',t:[
     '🕶 ЧЁРНЫЙ РЫНОК: иногда после босса вместо обычного торговца прибывает чёрный рынок (шанс растёт от удачи) — тёмный капюшон, фиолетовые карточки. Товар редкий и мощный, но дорогой: 🔴 Контрабандный кайбер (мгновенная эволюция оружия), 🔮 Голо-дубликатор (+1 снаряд ко всем атакам), 😈 Тёмный пакт (+30% урона, но враги живучее), 💰 Золотая жила (+25% золота), ⚡ Перегруз ядра (−12% перезарядки).',
     '🛒 Обычный торговец тоже пополнился: добавлены 🥋 Роба мастера (+область) и 👢 Спидер-ботинки (+скорость).']},
