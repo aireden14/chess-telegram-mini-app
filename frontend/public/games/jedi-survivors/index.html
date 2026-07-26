@@ -549,6 +549,7 @@ const META=[
   {id:'recovery',ico:'🧘',nm:'Дух джедая',   desc:'+0.3 HP/сек за ранг', max:3, cost:r=>Math.round(350*Math.pow(2.1,r))},
   {id:'cooldown',ico:'⏱️',nm:'Фокус Силы',   desc:'-4% перезарядки за ранг', max:3, cost:r=>Math.round(500*Math.pow(2.2,r))},
   {id:'area',  ico:'🥋', nm:'Владение мечом',desc:'+5% области атак за ранг', max:3, cost:r=>Math.round(450*Math.pow(2.2,r))},
+  {id:'duration',ico:'⏳',nm:'Медитация Силы',desc:'+6% длительности зон, турелей, дронов и заморозки за ранг', max:5, cost:r=>Math.round(300*Math.pow(2,r))},
   {id:'greed', ico:'🪙', nm:'Контрабандист', desc:'+12% золота за ранг', max:5, cost:r=>Math.round(180*Math.pow(1.9,r))},
   {id:'amount',ico:'🔮', nm:'Дуализм',       desc:'+1 снаряд ко всем атакам', max:1, cost:r=>5000},
   {id:'revive',ico:'✨', nm:'Воля Силы',     desc:'+1 воскрешение за ранг', max:2, cost:r=>Math.round(1500*Math.pow(2.5,r))},
@@ -920,6 +921,7 @@ function newGame(){
       speed:185*spM, might:mightM, armor:(m.armor||0), area:1+0.05*(m.area||0), cdr:1*Math.pow(0.96,(m.cooldown||0)), amount:(m.amount||0),
       magnet:60*(1+0.12*(m.magnet||0)), recovery:0.3*(m.recovery||0), luck:1+0.08*(m.luck||0),
       growth:1+0.05*(m.growth||0), goldMul:1+0.12*(m.greed||0), revives:(m.revive||0),
+      duration:1+0.06*(m.duration||0), // Длительность: продлевает зоны, турели, дронов, заморозку
       lvl:1, xp:0, xpNext:5,
       weapons:[{id:(CHARS[selChar]||CHARS.obiwan).weapon,lvl:1,cd:0.3,evolved:false}],
       passives:{},
@@ -1761,7 +1763,7 @@ function updateWeapons(dt){
   // турели: живут на месте, бьют ближайших
   if(G.turrets&&G.turrets.length){
     for(let i=G.turrets.length-1;i>=0;i--){
-      const t=G.turrets[i]; t.life-=dt;
+      const t=G.turrets[i]; t.life-=dt/(G.p.duration||1);
       if(t.life<=0){ G.parts.push({kind:'pop',x:t.x,y:t.y,t:0.2,tMax:0.2,R:20,c:'150,200,255'}); G.turrets.splice(i,1); continue; }
       t.cd-=dt;
       if(t.cd<=0){
@@ -1875,7 +1877,7 @@ function updateWeapons(dt){
   }
   // drones update
   if(G.dronesActive){
-    G.droneLife-=dt;
+    G.droneLife-=dt/(G.p.duration||1);
     if(G.droneLife<=0){ G.dronesActive=false; G.drones=[]; }
     let wd=G.p.weapons.find(w=>w.id==='drones');
     if(!wd){ const un=G.p.weapons.find(w=>w.union&&UNIONS.find(u=>u.id===w.id&&(u.a==='drones'||u.b==='drones'))); if(un) wd={id:'drones',lvl:un.lvl,evolved:true}; }
@@ -1952,8 +1954,9 @@ function killEnemy(e){
     else if(roll<0.68) G.pickups.push({kind:'chicken',x:e.x,y:e.y,t:0});
     else if(roll<0.82) G.pickups.push({kind:'vacuum',x:e.x,y:e.y,t:0});
     else if(roll<0.90) for(let i=0;i<5;i++) G.gems.push({x:e.x+rnd(-25,25),y:e.y+rnd(-25,25),v:3,t:0});
-    else if(roll<0.96) G.pickups.push({kind:'freeze',x:e.x,y:e.y,t:0});
-    else G.pickups.push({kind:'bomb',x:e.x,y:e.y,t:0});
+    else if(roll<0.94) G.pickups.push({kind:'freeze',x:e.x,y:e.y,t:0});
+    else if(roll<0.98) G.pickups.push({kind:'bomb',x:e.x,y:e.y,t:0});
+    else G.pickups.push({kind:'rampage',x:e.x,y:e.y,t:0});
     G.killCount--; // crates are not kills
   } else if(e.elite||e.boss){
     G.pickups.push({kind:'chest',x:e.x,y:e.y,t:0});
@@ -1968,6 +1971,7 @@ function killEnemy(e){
     else if(roll>0.9985) G.pickups.push({kind:'vacuum',x:e.x,y:e.y,t:0});
     else if(roll>0.9975&&roll<=0.9985) G.pickups.push({kind:'bomb',x:e.x,y:e.y,t:0});
     else if(roll>0.9963&&roll<=0.9975) G.pickups.push({kind:'freeze',x:e.x,y:e.y,t:0});
+    else if(roll>0.9957&&roll<=0.9963) G.pickups.push({kind:'rampage',x:e.x,y:e.y,t:0});
   }
   if(e.boss) G.bossRef=null;
   if(e.boss&&!e.emperor){ // торговец приходит к месту гибели босса (как в VS у босс-этапов)
@@ -2380,6 +2384,18 @@ function update(dt){
       const a=rnd(0,TAU), R=rnd(30,150);
       G.pickups.push({kind:'gold',x:p.x+Math.cos(a)*R,y:p.y+Math.sin(a)*R,v:rndi(2,6),t:0,fly:true});
       G.parts.push({kind:'p',x:p.x+Math.cos(a)*R,y:p.y+Math.sin(a)*R-20,vx:0,vy:60,t:0.5,c:'#ffd76a',s:3});
+    }
+  }
+  // 🌶️ Ярость (Nduja): пока активна — неуязвимость + пульсирующий огненный урон вокруг
+  if(G.rampageT>0){
+    G.rampageT-=dt; p.inv=Math.max(p.inv,0.3);
+    G.rampageTick=(G.rampageTick||0)-dt;
+    if(G.rampageTick<=0){ G.rampageTick=0.2;
+      const R=115*p.area;
+      for(const e of G.enemies) if(e.hp>0&&!e.crate&&!e.neutral&&!e.lamp&&dist2(e.x,e.y,p.x,p.y)<R*R){
+        if(!e.boss) damageEnemy(e,38*dmgMul()*p.might,false); else if(!e.emperor) damageEnemy(e,38*dmgMul()*p.might,false);
+      }
+      G.parts.push({kind:'boom',x:p.x,y:p.y,t:0.28,tMax:0.28,R:R});
     }
   }
   G.achTick-=dt;
@@ -2840,7 +2856,7 @@ function update(dt){
 
   /* --- zones (burning plasma) --- */
   for(let i=G.zones.length-1;i>=0;i--){
-    const z=G.zones[i]; z.t-=dt; z.tick-=dt;
+    const z=G.zones[i]; z.t-=dt/(G.p.duration||1); z.tick-=dt; // Длительность продлевает жизнь зоны
     if(z.cfuse!=null){ // каскад: фугас с фитилём — рвётся и прыгает цепью к соседу
       z.cfuse-=dt;
       if(z.cfuse<=0){
@@ -2990,7 +3006,8 @@ function update(dt){
         case 'chicken': p.hp=Math.min(p.hpMax,p.hp+30); S.pick(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'+30 HP',t:0.8,heal:true,str:true}); break;
         case 'vacuum': for(const g of G.gems) g.pull=true; S.pick(); break;
         case 'bomb': { S.boom(); G.shake=14; G.zoomPulse=0.05; for(const e of [...G.enemies]){ if(!e.boss) damageEnemy(e,9999,false); else if(ARC('void')&&!e.emperor) damageEnemy(e,800,false); } break; }
-        case 'freeze': { G.freezeT=ARC('void')?16:(ARC('tempo')?10.5:8); S.zap(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'❄️ ВРЕМЯ ЗАМЕРЛО',t:1.4,crit:true,str:true}); break; }
+        case 'freeze': { G.freezeT=(ARC('void')?16:(ARC('tempo')?10.5:8))*(p.duration||1); S.zap(); G.dmgTexts.push({x:p.x,y:p.y-30,v:'❄️ ВРЕМЯ ЗАМЕРЛО',t:1.4,crit:true,str:true}); break; }
+        case 'rampage': { G.rampageT=Math.max(G.rampageT||0,8*(p.duration||1)); S.boom(); G.shake=10; G.dmgTexts.push({x:p.x,y:p.y-30,v:'🌶️ ЯРОСТЬ! неуязвим и жжёшь всё',t:1.8,crit:true,str:true}); break; }
         case 'chest': openChest(); break;
       }
       G.pickups.splice(i,1);
@@ -3200,7 +3217,7 @@ function draw(){
     cx.restore();
   }
   // pickups
-  const HALO={chicken:'rgba(125,255,160,',vacuum:'rgba(94,200,255,',bomb:'rgba(255,110,80,',freeze:'rgba(160,225,255,'};
+  const HALO={chicken:'rgba(125,255,160,',vacuum:'rgba(94,200,255,',bomb:'rgba(255,110,80,',freeze:'rgba(160,225,255,',rampage:'rgba(255,140,40,'};
   for(const u of G.pickups){
     let bob=Math.sin(u.t*3)*3;
     if(u.t<0.4) bob-=Math.abs(Math.sin(u.t*7.8))*12*(1-u.t/0.4); // подскок при дропе
@@ -3219,7 +3236,7 @@ function draw(){
       continue;
     }
     cx.font='22px serif'; cx.textAlign='center';
-    const ico={chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦',freeze:'❄️'}[u.kind];
+    const ico={chicken:'🍗',vacuum:'🧲',bomb:'💥',chest:'📦',freeze:'❄️',rampage:'🌶️'}[u.kind];
     if(HALO[u.kind]){
       cx.fillStyle=HALO[u.kind]+(0.18+0.10*Math.sin(u.t*5))+')';
       cx.beginPath(); cx.arc(u.x,u.y,16,0,TAU); cx.fill();
@@ -4033,6 +4050,16 @@ function drawPlayer(){
   const chId=CHARS[save.selChar]?save.selChar:'obiwan';
   const bob=p.moving?Math.abs(Math.sin(t))*3:Math.sin(G.time*2)*1.2;
   const legA=p.moving?Math.sin(t)*6:0;
+  // 🌶️ аура ярости: пульсирующее огненное кольцо вокруг игрока
+  if(G.rampageT>0){
+    const R=115*p.area, pl=0.5+0.5*Math.sin(G.time*14);
+    const g=cx.createRadialGradient(p.x,p.y-bob,10,p.x,p.y-bob,R);
+    g.addColorStop(0,'rgba(255,170,60,'+(0.16+0.10*pl)+')');
+    g.addColorStop(1,'rgba(255,90,20,0)');
+    cx.fillStyle=g; cx.beginPath(); cx.arc(p.x,p.y-bob,R,0,TAU); cx.fill();
+    cx.strokeStyle='rgba(255,150,50,'+(0.5+0.3*pl)+')'; cx.lineWidth=3;
+    cx.beginPath(); cx.arc(p.x,p.y-bob,R*(0.9+0.06*pl),0,TAU); cx.stroke();
+  }
   cx.save(); cx.translate(p.x,p.y-bob);
   // shadow (before flip, symmetric anyway)
   cx.fillStyle='rgba(0,0,0,.3)';
@@ -5154,6 +5181,9 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'25 июля 2026 (Алматы) — v22.5 «Ярость и Длительность»',t:[
+    '🌶️ ЯРОСТЬ (редкий пикап из ящиков и с врагов): на 8 секунд становишься неуязвимым и жжёшь всё вокруг пульсирующим уроном — прорвись сквозь толпу как таран.',
+    '⏳ ДЛИТЕЛЬНОСТЬ (новый навык в Академии «Медитация Силы»): продлевает жизнь зон, турелей, дроидов-стражей и заморозки. Особенно силён с зональным арсеналом (вихрь, дыра, наниты, маяк, огнемёт и т.д.).']},
   {d:'25 июля 2026 (Алматы) — v22.4 «Меню, выход и сохранение»',t:[
     '🧭 МЕНЮ ПЕРЕДЕЛАНО: герои и этапы теперь компактные ленты со свайпом (а не простыня на весь экран), кнопка «Играть» сразу на виду.',
     '🚪 СЛУЧАЙНЫЙ ВЫХОД: кнопка «Назад» во время забега теперь спрашивает подтверждение — больше не выкинет в GamePass одним касанием.',

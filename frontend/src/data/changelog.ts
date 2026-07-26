@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.20.3",
+    date: "25 июля 2026 (Алматы)",
+    title: "Jedi Survivors: Ярость и Длительность",
+    items: [
+      "🌶️ Ярость — редкий пикап (из ящиков и с врагов): 8 секунд неуязвимости + пульсирующий урон по всему вокруг, прорывайся сквозь толпу тараном",
+      "⏳ Длительность — новый навык в Академии («Медитация Силы»): продлевает зоны, турели, дроидов и заморозку; особенно силён с зональным арсеналом",
+    ],
+  },
+  {
     version: "3.20.2",
     date: "25 июля 2026 (Алматы)",
     title: "Jedi Survivors: меню, выход и сохранение",
