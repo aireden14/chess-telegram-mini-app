@@ -1065,6 +1065,9 @@ function nearObstacles(x,y){
 function waveCfg(){ return WAVES[Math.min(WAVES.length-1, Math.floor(G.time/60))]; }
 // кривая HP врагов: смягчена в v9 — поздние крипы были «губками» (15+ мин)
 function hpMul(){ const mn=G.time/60; return (1+mn*0.34+mn*mn*0.012)*(G.curse||1); }
+// Урон врагов тоже растёт со временем (иначе к ~15 мин защита/реген игрока перерастают
+// плоский урон и убить перестаёт быть возможным). ~×2.2 к 15 мин, ~×3.8 к 30.
+function dmgMul(){ const mn=G.time/60; return 1 + mn*0.07 + mn*mn*0.0008; }
 function spawnPos(){
   const a=rnd(0,TAU), R=Math.hypot(W,H)/(2*cameraZoom())+60;
   return {x:G.p.x+Math.cos(a)*R, y:G.p.y+Math.sin(a)*R};
@@ -1081,7 +1084,7 @@ function spawnEnemy(type,px,py,mul){
   const d=ETYPES[type]; if(!d) return;
   const pos=(px!==undefined)?{x:px,y:py}:spawnPos();
   const e={type, x:pos.x, y:pos.y, hp:d.hp*(mul||hpMul())*(d.boss?1:1), hpMax:0,
-    sp:d.sp*rnd(0.9,1.1)*(G.eSpd||1), dmg:d.dmg, r:d.r, xp:d.xp, draw:d.draw,
+    sp:d.sp*rnd(0.9,1.1)*(G.eSpd||1), dmg:d.dmg*dmgMul(), r:d.r, xp:d.xp, draw:d.draw,
     face:1, walkT:rnd(0,10), flash:0, kx:0, ky:0, kb:d.kb ?? 1,
     shootT:rnd(3.5,5), aimT:0, aimX:0, aimY:0,
     chargeT:rnd(2,4), charging:0, chargeDx:0, chargeDy:0,
@@ -5127,6 +5130,9 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'25 июля 2026 (Алматы) — v22.3 «Баланс: поздняя игра»',t:[
+    '⚖️ ФИКС ИМБЫ: раньше урон врагов был плоским весь забег, а защита и реген игрока росли — к ~15 минуте становишься неуязвимым и можно стоять на месте. Теперь урон врагов (ближний, дальний и боссы) растёт со временем: ~×2.2 к 15-й минуте, ~×3.8 к 30-й.',
+    '🏃 Поздняя игра снова требует кайтить и думать о позиции — стоять на месте больше не выйдет. Ранняя игра не изменилась.']},
   {d:'25 июля 2026 (Алматы) — v22 «Приключения»',t:[
     '🗺 ПРИКЛЮЧЕНИЯ (новая кнопка в меню): курируемые испытания-миссии со своим героем, этапом, правилами и конкретной целью. Выполни цель — получишь награду и откроешь следующую миссию по цепочке.',
     '🎯 11 миссий-кампания: от 🌱 Тренировки (выжить 8 мин) через ❄️ Осаду Хота, ⚔️ Дуэль (время ×2), 🌲 Орду Эндора, 🎯 Охоту за головами до 👑 Тени Императора и 🏆 Легенды осады (25 мин в пекле Мустафара).',

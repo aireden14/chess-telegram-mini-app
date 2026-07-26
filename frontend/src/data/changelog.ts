@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.20.1",
+    date: "25 июля 2026 (Алматы)",
+    title: "Jedi Survivors: баланс поздней игры",
+    items: [
+      "⚖️ Фикс имбы: урон врагов был плоским весь забег, а защита/реген игрока росли — к ~15 минуте становишься неуязвимым и можно стоять на месте",
+      "🏃 Теперь урон врагов (ближний, дальний, боссы) растёт со временем (~×2.2 к 15 мин, ~×3.8 к 30) — поздняя игра снова требует кайтить; ранняя не изменилась",
+    ],
+  },
+  {
     version: "3.20.0",
     date: "25 июля 2026 (Алматы)",
     title: "Jedi Survivors: Приключения",
