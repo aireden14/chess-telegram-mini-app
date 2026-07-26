@@ -28,9 +28,16 @@
   .btn-sec { font-size:min(4vw,17px); padding:11px 34px; margin:6px; background:#232c45; border:1px solid #3a4770; }
   #menu .rec { color:#8b98b8; font-size:13px; margin-top:14px; }
   .menu-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-  .sel-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; max-width:94vw; }
-  .sel-card { cursor:pointer; user-select:none; background:#161e36; border:1.5px solid #3a4770; border-radius:12px;
-    padding:7px 10px; text-align:center; min-width:64px; color:#c8d7f4; font-size:11px; line-height:1.3; }
+  /* горизонтальные ленты-свайпы вместо длинной простыни карточек */
+  .sel-row { display:flex; gap:8px; justify-content:flex-start; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden;
+    margin-bottom:6px; max-width:min(560px,94vw); padding:2px 2px 8px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch; }
+  .sel-row::-webkit-scrollbar { height:5px; }
+  .sel-row::-webkit-scrollbar-thumb { background:#2a3a5f; border-radius:3px; }
+  .sel-label { width:min(560px,94vw); text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    color:#6b7aa3; margin:2px 2px -2px; font-weight:700; }
+  .sel-card { flex:0 0 auto; width:138px; scroll-snap-align:start; cursor:pointer; user-select:none;
+    background:#161e36; border:1.5px solid #3a4770; border-radius:12px;
+    padding:8px 8px; text-align:center; color:#c8d7f4; font-size:11px; line-height:1.3; }
   .sel-card .ic { font-size:22px; display:block; }
   .sel-card.on { border-color:#4db2ff; background:#1b2a4d; box-shadow:0 0 14px rgba(77,178,255,.35); }
   .sel-card.lock { opacity:.55; }
@@ -138,7 +145,9 @@
 <div id="menu" class="overlay">
   <h1>JEDI SURVIVORS</h1>
   <div class="sub">выживи в атаке Империи</div>
+  <div class="sel-label">Герой ›</div>
   <div id="charRow" class="sel-row"></div>
+  <div class="sel-label">Этап и режим ›</div>
   <div id="stageRow" class="sel-row"></div>
   <button class="btn btn-big hidden" id="resumeRunBtn" style="background:linear-gradient(180deg,#7dd88e,#1f9a4c)">⏯ Продолжить забег</button>
   <button class="btn btn-big" id="startBtn">▶ ИГРАТЬ</button>
@@ -501,6 +510,10 @@ function saveRun(){
       ringDone:G.ringDone,bossDone:G.bossDone,eliteT:G.eliteT,
       rerolls:G.rerolls,skips:G.skips,banishes:G.banishes,banned:G.banned,
       vaderKilled:G.vaderKilled,selChar:save.selChar,stance:G.stance||1,
+      // поле боя: гемы-токены, подборы и враги — чтобы перезаход не терял прогресс и позицию
+      gems:G.gems.slice(0,700).map(g=>({x:g.x,y:g.y,v:g.v,t:g.t||0})),
+      pickups:G.pickups.slice(0,250).map(k=>({kind:k.kind,x:k.x,y:k.y,v:k.v||0,t:k.t||0,fly:!!k.fly})),
+      foes:G.enemies.filter(e=>!e.crate&&!e.neutral&&!e.boss&&!e.lamp).slice(0,140).map(e=>({type:e.type,x:e.x,y:e.y,hp:e.hp,hpMax:e.hpMax})),
       p:{x:p.x,y:p.y,hp:p.hp,hpMax:p.hpMax,speed:p.speed,might:p.might,armor:p.armor,
          area:p.area,cdr:p.cdr,amount:p.amount,magnet:p.magnet,recovery:p.recovery,
          luck:p.luck,growth:p.growth,goldMul:p.goldMul,revives:p.revives,
@@ -4891,6 +4904,8 @@ function goFullscreen(){
   try{ if(d.requestFullscreen) d.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
        else if(d.webkitRequestFullscreen) d.webkitRequestFullscreen(); }catch(e){}
 }
+// Сообщаем обёртке GamePass, идёт ли забег — чтобы «Назад» просил подтверждение и не терял игру
+function postRunState(active){ try{ parent.postMessage({type:'jedi:run',active:!!active},'*'); }catch(e){} }
 function startRun(){
   goFullscreen();
   clearRun();
@@ -4900,6 +4915,7 @@ function startRun(){
   endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
   music.currentTime=0;
   music.play().catch(()=>{});
+  postRunState(true);
   if(G.inverse) G.dmgTexts.push({x:G.p.x,y:G.p.y-60,v:'🔄 ИНВЕРСИЯ — мир зеркален, награды ×2.2',t:2.8,crit:true,str:true});
   // Арканы: выбор модификатора забега (открывается после первого босса)
   if(save.achs.boss1) offerArcana('🎴 ВЫБЕРИ АРКАНУ ЗАБЕГА');
@@ -4939,15 +4955,22 @@ function resumeRun(){
   Object.assign(G.p,r.p);
   G.p.weapons=(r.p.weapons||[]).map(w=>({id:w.id,lvl:w.lvl,cd:0.5,evolved:!!w.evolved,union:!!w.union}));
   G.stance=r.stance||1; syncStanceBtn();
-  G.enemies.length=0; // поле чистое, волны продолжаются с сохранённой минуты
+  // восстановить поле боя: гемы-токены, подборы, враги — как было при выходе
+  G.gems.length=0; for(const g of (r.gems||[])) G.gems.push({x:g.x,y:g.y,v:g.v,t:g.t||0});
+  G.pickups.length=0; for(const k of (r.pickups||[])) G.pickups.push({kind:k.kind,x:k.x,y:k.y,v:k.v||0,t:k.t||0,fly:!!k.fly});
+  G.enemies.length=0;
+  for(const se of (r.foes||[])){ const e=spawnEnemy(se.type, se.x, se.y, 1); if(e){ e.hp=se.hp; e.hpMax=se.hpMax||se.hp; } }
+  G.p.inv=Math.max(G.p.inv||0, 2.5); // краткая неуязвимость на возврате — не убить мгновенно
   G.cam.x=G.p.x; G.cam.y=G.p.y;
   menuEl.classList.add('hidden'); settingsEl.classList.add('hidden');
   endEl.classList.add('hidden'); hudEl.classList.remove('hidden');
   music.play().catch(()=>{});
+  postRunState(true);
 }
 function endRun(win){
   if(G.state==='dead') return;
   G.state='dead';
+  postRunState(false);
   clearRun();
   checkAchs();
   luEl.classList.add('hidden'); pausedEl.classList.add('hidden');
@@ -5032,6 +5055,7 @@ function pauseGame(){
 function resumeGame(){ if(G&&G.state==='paused'){ G.state='playing'; pausedEl.classList.add('hidden'); music.play().catch(()=>{}); } }
 function toMenu(){
   G=null;
+  postRunState(false);
   try{ cv.style.filter=''; }catch(e){} // снять зеркальный фильтр Инверсии
   if(chestTimer){ clearInterval(chestTimer); chestTimer=null; }
   el('chestCer').classList.add('hidden');
@@ -5130,6 +5154,10 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'25 июля 2026 (Алматы) — v22.4 «Меню, выход и сохранение»',t:[
+    '🧭 МЕНЮ ПЕРЕДЕЛАНО: герои и этапы теперь компактные ленты со свайпом (а не простыня на весь экран), кнопка «Играть» сразу на виду.',
+    '🚪 СЛУЧАЙНЫЙ ВЫХОД: кнопка «Назад» во время забега теперь спрашивает подтверждение — больше не выкинет в GamePass одним касанием.',
+    '💾 ВОЗВРАТ В ЗАБЕГ: «Продолжить забег» восстанавливает поле как было — твоя позиция, кристаллы (токены), подборы и враги, а не только время волны. На возврате даётся пара секунд неуязвимости.']},
   {d:'25 июля 2026 (Алматы) — v22.3 «Баланс: поздняя игра»',t:[
     '⚖️ ФИКС ИМБЫ: раньше урон врагов был плоским весь забег, а защита и реген игрока росли — к ~15 минуте становишься неуязвимым и можно стоять на месте. Теперь урон врагов (ближний, дальний и боссы) растёт со временем: ~×2.2 к 15-й минуте, ~×3.8 к 30-й.',
     '🏃 Поздняя игра снова требует кайтить и думать о позиции — стоять на месте больше не выйдет. Ранняя игра не изменилась.']},
