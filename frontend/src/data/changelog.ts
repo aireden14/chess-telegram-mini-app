@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.21.0",
+    date: "28 июля 2026, 15:09 (Алматы)",
+    title: "Новая игра: VOLT RUNNER",
+    items: [
+      "⚡ Скоростной неоновый платформер: 6 уровней, двойной прыжок, рывок, пружины, дроны, лазеры и разрушаемые барьеры",
+      "🏙 Оригинальная процедурная графика ночного города и синтезированные ретро-звуки — без чужих игровых ассетов",
+      "🏁 Чекпоинты, ранги S–C, рекорды и прогресс уровней сохраняются на устройстве",
+    ],
+  },
+  {
     version: "3.20.4",
     date: "25 июля 2026 (Алматы)",
     title: "Jedi Survivors: Арканы 22",
