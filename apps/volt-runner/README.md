@@ -6,8 +6,10 @@ This directory is the versioned source of truth for the GamePass build.
 - `engine/movement.js` contains deterministic movement, input buffers and
   swept top collisions without DOM dependencies.
 - `engine/save.js` owns save validation and v1/v2 → v3 migration.
+- `engine/ui.js` owns deterministic screen visibility and required button
+  bindings so a hidden overlay cannot block the menu.
 - `tests/` contains Node headless tests for movement, replay determinism,
-  moving-platform collision and save recovery.
+  moving-platform collision, save recovery and UI state transitions.
 
 Commands:
 

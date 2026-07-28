@@ -4,13 +4,21 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const gameUrl = new URL("../public/games/volt-runner/index.html", import.meta.url);
+const runnerScreenUrl = new URL(
+  "../src/features/voltRunner/VoltRunnerScreen.tsx",
+  import.meta.url,
+);
 const gamePath = fileURLToPath(gameUrl);
 
 let html;
+let runnerScreen;
 try {
-  html = await readFile(gameUrl, "utf8");
+  [html, runnerScreen] = await Promise.all([
+    readFile(gameUrl, "utf8"),
+    readFile(runnerScreenUrl, "utf8"),
+  ]);
 } catch (error) {
-  console.error(`ERROR Не удалось прочитать VOLT RUNNER: ${gamePath}`);
+  console.error(`ERROR Не удалось прочитать файлы VOLT RUNNER: ${gamePath}`);
   console.error(`      ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 }
@@ -53,6 +61,7 @@ const js = [
   ...externalScripts.map(({ source }) => source),
   ...inlineScripts,
 ].join("\n");
+const mainScript = inlineScripts.at(-1) || "";
 const newsSection =
   html.match(
     /<section\b[^>]*\bid\s*=\s*["']news["'][^>]*>[\s\S]*?<\/section>/iu,
@@ -134,8 +143,8 @@ check("Весь JavaScript синтаксически корректен", () =>
 check("Внешний movement engine найден и подключён", () => {
   requireMatch(
     html,
-    /<script\b[^>]*\bsrc\s*=\s*["']\.\/engine\/movement\.js["'][^>]*>/iu,
-    "index.html не подключает ./engine/movement.js.",
+    /<script\b[^>]*\bsrc\s*=\s*["']\.\/engine\/movement\.js\?v=1\.1\.1["'][^>]*>/iu,
+    "index.html не подключает версионированный ./engine/movement.js.",
   );
   requireCondition(
     externalScripts.some(({ path }) => path.endsWith("/engine/movement.js")),
@@ -148,6 +157,143 @@ check("Внешний movement engine найден и подключён", () =>
   );
 });
 
+check("UI engine жёстко управляет видимостью экранов", () => {
+  requireMatch(
+    html,
+    /<script\b[^>]*\bsrc\s*=\s*["']\.\/engine\/ui\.js\?v=1\.1\.1["'][^>]*>/iu,
+    "index.html не подключает версионированный ./engine/ui.js.",
+  );
+  requireCondition(
+    externalScripts.some(({ path }) => path.endsWith("/engine/ui.js")),
+    "Smoke-check не загрузил UI engine.",
+  );
+  requireMatch(
+    js,
+    /\bUI\s*\.\s*createScreenController\s*\(\s*document\b/u,
+    "DOM не подключён к createScreenController.",
+  );
+  requireMatch(
+    js,
+    /\bUI\s*\.\s*bindActions\s*\(\s*document\b/u,
+    "Кнопки не подключены через обязательную action map.",
+  );
+  requireMatch(
+    html,
+    /\.screen\s*\[\s*hidden\s*\]\s*\{[^}]*display\s*:\s*none\s*!important/iu,
+    "Hidden-экраны могут перекрыть меню.",
+  );
+  for (const id of ["pause", "info", "news", "result"]) {
+    requireMatch(
+      html,
+      new RegExp(
+        String.raw`<section\b[^>]*\bid\s*=\s*["']${id}["'][^>]*\bhidden\b`,
+        "iu",
+      ),
+      `Стартовый экран #${id} обязан иметь hidden.`,
+    );
+  }
+  requireMatch(
+    mainScript,
+    /\bpersist\s*\(\s*\)\s*;\s*show\s*\(\s*["']menu["']\s*\)\s*;\s*render\s*\(\s*\)\s*;[^]*\bnotifyHost\s*\(\s*["']menu["']\s*\)\s*;\s*notifyReady\s*\(\s*\)/u,
+    "Boot-путь не фиксирует menu перед сигналом ready.",
+  );
+});
+
+check("Кнопки ключевого маршрута объявлены и привязаны", () => {
+  const actionStart = mainScript.indexOf("UI.bindActions(document,{");
+  const actionEnd = mainScript.indexOf("function releasePointer", actionStart);
+  requireCondition(
+    actionStart >= 0 && actionEnd > actionStart,
+    "Не удалось выделить обязательную action map.",
+  );
+  const actionWindow = mainScript.slice(actionStart, actionEnd);
+  for (const id of [
+    "playBtn",
+    "labBtn",
+    "pauseBtn",
+    "resumeBtn",
+    "restartBtn",
+    "quitBtn",
+    "exitBtn",
+    "menuExitBtn",
+    "howBtn",
+    "handedBtn",
+    "closeInfoBtn",
+    "newsBtn",
+    "closeNewsBtn",
+    "soundBtn",
+    "menuSound",
+    "nextBtn",
+    "replayBtn",
+    "resultMenuBtn",
+  ]) {
+    requireMatch(
+      html,
+      new RegExp(String.raw`\bid\s*=\s*["']${id}["']`, "u"),
+      `В HTML нет #${id}.`,
+    );
+    requireMatch(
+      actionWindow,
+      new RegExp(String.raw`\b${id}\s*:`, "u"),
+      `Action map не содержит ${id}.`,
+    );
+  }
+});
+
+check("Telegram получает новый iframe и не накладывает TopNav на игру", () => {
+  requireMatch(
+    runnerScreen,
+    /VOLT_RUNNER_VERSION\s*=\s*["']1\.1\.1["']/u,
+    "React-оболочка не имеет build-id 1.1.1.",
+  );
+  requireMatch(
+    runnerScreen,
+    /index\.html\?v=\$\{VOLT_RUNNER_VERSION\}/u,
+    "iframe URL не сбрасывает Telegram cache.",
+  );
+  requireCondition(
+    !/<TopNav\b/u.test(runnerScreen),
+    "Внешний TopNav снова перекрывает игровой iframe.",
+  );
+  requireMatch(
+    runnerScreen,
+    /volt-runner:request-ready/u,
+    "Оболочка не запрашивает readiness handshake.",
+  );
+  requireMatch(
+    js,
+    /volt-runner:ready/u,
+    "Standalone-игра не отвечает readiness handshake.",
+  );
+});
+
+check("Компактное меню и результат рассчитаны без прокрутки", () => {
+  for (const className of [
+    "menu-shell",
+    "menu-layout",
+    "run-card",
+    "course-board",
+    "result-panel",
+    "result-actions",
+  ]) {
+    requireMatch(
+      html,
+      new RegExp(String.raw`\b${className}\b`, "u"),
+      `Нет интерфейсного блока ${className}.`,
+    );
+  }
+  requireMatch(
+    html,
+    /\.menu-shell\s*\{[^}]*overflow\s*:\s*hidden/iu,
+    "Главное меню может прокручиваться или выпадать за viewport.",
+  );
+  requireMatch(
+    html,
+    /@media\s*\(\s*max-height\s*:\s*520px\s*\)/iu,
+    "Нет отдельной компоновки для компактного Telegram landscape.",
+  );
+});
+
 check("Есть кликабельный бренд Powered by @Denrech", () => {
   requireMatch(
     html,
@@ -156,10 +302,19 @@ check("Есть кликабельный бренд Powered by @Denrech", () => 
   );
 });
 
-check("Есть внутриигровой экран «Что нового» для 1.1", () => {
+check("Есть внутриигровой экран «Что нового» для 1.1.1", () => {
   requireCondition(newsSection.length > 0, "Не найден экран #news.");
   requireMatch(newsSection, /что\s+нового/iu, "Не найден текст «Что нового».");
-  requireMatch(newsSection, /\b1\.1\b/u, "Экран «Что нового» не содержит версию 1.1.");
+  requireMatch(
+    newsSection,
+    /\b1\.1\.1\b/u,
+    "Экран «Что нового» не содержит версию 1.1.1.",
+  );
+  requireMatch(
+    newsSection,
+    /Interface Rescue/iu,
+    "Экран «Что нового» не описывает interface hotfix.",
+  );
   requireMatch(
     newsSection,
     /28\s+ИЮЛЯ\s+2026\s+·\s+\d{2}:\d{2}\s+АЛМАТЫ/iu,

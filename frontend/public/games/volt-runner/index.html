@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#06091a">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <title>VOLT RUNNER</title>
   <style>
     :root{color-scheme:dark;font-family:Inter,ui-rounded,"SF Pro Rounded",system-ui,sans-serif;--host-safe-top:0px;--host-safe-bottom:0px;--vr-safe-top:max(var(--host-safe-top),env(safe-area-inset-top));--vr-safe-bottom:max(var(--host-safe-bottom),env(safe-area-inset-bottom))}
@@ -67,7 +68,7 @@
     .how div{padding:12px;border-radius:14px;background:#ffffff08;border:1px solid #ffffff18}.how b{display:block;color:#fff;font-size:12px}.how span{color:#8293ad;font-size:10px}
     #toast{position:fixed;left:50%;top:18%;transform:translate(-50%,-20px);padding:10px 18px;border-radius:999px;background:#081224d9;border:1px solid #ffffff30;color:#fff;font-size:11px;font-weight:900;letter-spacing:.12em;opacity:0;pointer-events:none;transition:.25s;z-index:20}
     #toast.show{opacity:1;transform:translate(-50%,0)}
-    #brand{position:fixed;left:50%;bottom:max(4px,var(--vr-safe-bottom));transform:translateX(-50%);z-index:30;color:#ffffff52;font-size:9px;letter-spacing:.06em;white-space:nowrap;pointer-events:auto}
+    #brand{position:static;color:#ffffff52;font-size:9px;letter-spacing:.06em;white-space:nowrap;pointer-events:auto}
     #brand a{color:#63eaff;text-decoration:none}
     #rotate{display:none;z-index:50}.phone{font-size:60px;animation:turn 1.8s ease-in-out infinite}@keyframes turn{50%{transform:rotate(90deg)}}
     #rotate p{max-width:260px;text-align:center;color:#bcc9da;line-height:1.5}
@@ -80,8 +81,68 @@
     #debugHud{position:fixed;left:max(16px,env(safe-area-inset-left));top:max(104px,calc(var(--vr-safe-top) + 92px));z-index:8;min-width:178px;padding:9px 11px;border:1px solid #4df6ff4d;border-radius:12px;background:#020817c9;color:#bffcff;font:800 10px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;white-space:pre;pointer-events:none;box-shadow:0 8px 28px #0009,0 0 18px #4df6ff1c}
     #debugHud b{color:#ffe600}
     #newsList{text-align:left;margin:20px 0;padding:0;list-style:none}#newsList li{padding:12px 0;border-bottom:1px solid #ffffff15;color:#c9d7eb;font-size:13px;line-height:1.45}#newsList b{color:#ffe600}
+
+    /* 1.1.1 interface: one-tap start, zero-scroll compact landscape layout. */
+    button{min-height:44px;touch-action:manipulation}
+    .menu-shell{width:min(1040px,calc(100vw - 32px));height:100%;max-height:500px;display:flex;flex-direction:column;gap:16px;padding:clamp(16px,2.4vw,28px);border:1px solid #76f7ff3d;border-radius:28px;background:linear-gradient(145deg,#071224ed,#050713f3);box-shadow:0 34px 110px #000d,inset 0 1px #ffffff24;overflow:hidden}
+    .menu-topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:54px}
+    .logo-lockup{display:flex;align-items:center;gap:12px;min-width:0;text-align:left}
+    .logo-bolt{display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;border-radius:15px;background:linear-gradient(135deg,#ffe600,#ff5b19);color:#111528;font-size:27px;box-shadow:0 0 28px #ff8a005c}
+    .logo-copy{min-width:0}.logo-copy .eyebrow{margin:0 0 2px;font-size:9px;color:#7fefff}
+    .logo-lockup h1{margin:0;transform:none;font-size:clamp(29px,4.4vw,48px);line-height:.9;letter-spacing:-.055em;text-shadow:3px 3px 0 #5b235f,0 0 24px #ff8a0052;white-space:nowrap}
+    .logo-lockup h1 span{display:inline;margin-left:.16em;color:#fff;font-size:.62em;letter-spacing:.04em;text-shadow:2px 2px 0 #007c9a,0 0 18px #00eaff70}
+    .menu-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+    .menu-tool{min-width:46px;padding:9px 12px;border-radius:13px;background:#ffffff0b;border:1px solid #ffffff20;color:#dbe7ff;font-size:10px;font-weight:900;letter-spacing:.06em}
+    .menu-tool:hover,.menu-tool:focus-visible{border-color:#65f6ff91;background:#65f6ff12;outline:0}
+    .menu-tool.exit{color:#ffbd8c;border-color:#ff7a3047}
+    .menu-layout{display:grid;grid-template-columns:minmax(270px,.88fr) minmax(390px,1.35fr);gap:16px;flex:1;min-height:0}
+    .run-card,.course-board{min-height:0;border:1px solid #ffffff1c;border-radius:22px;background:linear-gradient(145deg,#ffffff0d,#ffffff05)}
+    .run-card{position:relative;display:flex;flex-direction:column;padding:clamp(17px,2.2vw,25px);overflow:hidden;text-align:left}
+    .run-card::after{content:"";position:absolute;right:-36px;bottom:-52px;width:180px;height:180px;border-radius:50%;background:var(--selected-color,#ffe600);filter:blur(54px);opacity:.18;pointer-events:none}
+    .run-card .eyebrow{position:relative;z-index:1;margin:0;color:#a8faff}
+    .course-kicker{position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-top:10px;color:#7f91ad;font-size:10px;font-weight:900;letter-spacing:.12em}
+    .course-kicker b{color:#ffe600;font-size:18px}
+    .run-card h2{position:relative;z-index:1;margin:5px 0 7px;max-width:430px;font-size:clamp(28px,4vw,48px);line-height:.92}
+    .run-card .subtitle{position:relative;z-index:1;margin:0 0 10px;max-width:430px;font-size:12px;line-height:1.45}
+    #selectedLevelMeta{position:relative;z-index:1;margin:auto 0 10px;color:#dce8fa;font-size:11px;font-weight:850;letter-spacing:.04em}
+    #playBtn{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:12px 17px;text-align:left}
+    #playBtn span{font-size:17px}#playBtn small{font-size:9px;letter-spacing:.1em;opacity:.72;text-align:right}
+    #labBtn{position:relative;z-index:1;min-height:44px;margin-top:8px;text-align:center}
+    .course-board{display:flex;flex-direction:column;padding:clamp(14px,2vw,22px);overflow:hidden}
+    .course-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;text-align:left}
+    .course-heading b{font-size:13px;letter-spacing:.08em}.course-heading span{color:#7f91ad;font-size:9px;letter-spacing:.08em}
+    .course-board .level-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:9px;flex:1;min-height:0;margin:0}
+    .course-board .level-card{min-height:0;padding:11px;border-radius:16px;transition:transform .14s,border-color .14s,background .14s}
+    .course-board .level-card:not(.locked):active{transform:scale(.97)}
+    .course-board .level-card.selected{border-color:var(--c);background:linear-gradient(145deg,#ffffff16,#ffffff08);box-shadow:inset 0 0 0 1px var(--c),0 0 24px color-mix(in srgb,var(--c) 18%,transparent)}
+    .course-board .level-card b{font-size:22px}.course-board .level-card span{margin-top:3px;font-size:8px}
+    .menu-hint{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0 0;color:#71819a;font-size:9px;line-height:1.35;text-align:left;letter-spacing:.03em}
+    .compact-panel{width:min(620px,calc(100vw - 26px));padding:clamp(18px,3vw,30px)}
+    .compact-panel h2{font-size:clamp(30px,6vw,54px)}
+    .result-panel{width:min(920px,calc(100vw - 28px));display:grid;grid-template-columns:minmax(220px,.7fr) minmax(390px,1.3fr);gap:20px;align-items:center;padding:clamp(18px,3vw,34px);overflow:hidden;text-align:left}
+    .result-hero{text-align:center}.result-hero .eyebrow{margin-bottom:9px}.result-hero h2{margin:10px 0 0;font-size:clamp(25px,4.2vw,44px)}
+    .result-panel #rank{font-size:clamp(72px,12vw,118px)}
+    .result-detail{min-width:0}.result-detail .subtitle{margin:0 0 12px;text-align:left}
+    .result-panel #resultsGrid{margin:0 0 12px}.result-panel .result{min-height:64px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+    .result-actions{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:9px}
+    .result-actions .primary,.result-actions .secondary{min-height:52px;padding:10px 12px}
+    .result-actions .primary{grid-row:span 1}.result-actions .secondary{font-size:10px}
+    .dialog-panel{width:min(760px,calc(100vw - 28px))}
+
     @media (orientation:portrait) and (max-aspect-ratio:4/5){#rotate{display:flex}}
-    @media (max-height:520px){.panel{padding:20px}.subtitle{margin:12px auto}.level-grid{margin:12px 0}.level-card{min-height:67px}.how{margin:12px 0}#brand{left:auto;right:8px;transform:none}}
+    @media (max-width:760px){.menu-tools .menu-tool span{display:none}.menu-tool{padding:8px 10px}.menu-layout{grid-template-columns:minmax(230px,.9fr) minmax(330px,1.2fr)}}
+    @media (max-height:520px){
+      .screen{padding:max(7px,var(--vr-safe-top)) max(8px,env(safe-area-inset-right)) max(7px,var(--vr-safe-bottom)) max(8px,env(safe-area-inset-left))}
+      .menu-shell{width:calc(100vw - 16px);height:100%;max-height:none;gap:9px;padding:11px 13px;border-radius:20px}
+      .menu-topbar{min-height:40px}.logo-bolt{width:38px;height:38px;flex-basis:38px;border-radius:12px;font-size:21px}.logo-lockup{gap:9px}.logo-lockup h1{font-size:28px}.logo-copy .eyebrow{font-size:7px}
+      .menu-tools{gap:6px}.menu-tool{min-width:44px;min-height:44px;padding:7px 9px;border-radius:11px;font-size:9px}
+      .menu-layout{gap:9px;grid-template-columns:minmax(245px,.88fr) minmax(375px,1.32fr)}
+      .run-card{padding:12px 14px;border-radius:16px}.run-card .eyebrow{font-size:8px}.course-kicker{margin-top:5px;font-size:8px}.course-kicker b{font-size:14px}.run-card h2{margin:3px 0 5px;font-size:25px}.run-card .subtitle{display:none}#selectedLevelMeta{margin:auto 0 6px;font-size:9px}#playBtn{min-height:49px;padding:8px 13px}#playBtn span{font-size:14px}#labBtn{min-height:44px;margin-top:6px;padding:7px 10px;font-size:9px}
+      .course-board{padding:11px;border-radius:16px}.course-heading{margin-bottom:7px}.course-board .level-grid{gap:7px}.course-board .level-card{padding:8px;border-radius:12px}.course-board .level-card b{font-size:18px}.course-board .level-card span{font-size:7px}.menu-hint{margin-top:6px;font-size:7px}
+      .compact-panel{padding:16px}.compact-panel .subtitle{margin:8px auto}.button-row{margin-top:8px}
+      .result-panel{width:calc(100vw - 18px);grid-template-columns:minmax(190px,.68fr) minmax(420px,1.32fr);gap:13px;padding:15px 17px;border-radius:20px}.result-hero .eyebrow{font-size:8px;margin-bottom:4px}.result-panel #rank{font-size:74px}.result-hero h2{margin-top:6px;font-size:24px}.result-detail .subtitle{display:none}.result-panel #resultsGrid{gap:7px;margin-bottom:8px}.result-panel .result{min-height:52px;padding:7px}.result-panel .result b{font-size:18px}.result-actions{gap:7px}.result-actions .primary,.result-actions .secondary{min-height:48px;padding:8px;font-size:9px}
+      .dialog-panel{padding:18px}.dialog-panel h2{font-size:30px}.dialog-panel .how{margin:10px 0}.dialog-panel #newsList{margin:10px 0;max-height:190px;overflow:auto}.dialog-panel #newsList li{padding:8px 0;font-size:10px}
+    }
   </style>
 </head>
 <body>
@@ -109,23 +170,43 @@
   <div id="debugHud" hidden aria-hidden="true"></div>
 
   <section class="screen" id="menu">
-    <div class="panel">
-      <p class="eyebrow">ОРИГИНАЛЬНАЯ ИГРА GAMEPASS</p>
-      <h1>VOLT<span>RUNNER</span></h1>
-      <p class="subtitle">Разгони неоновый импульс через шесть районов мегаполиса. Прыгай, разбивай дронов рывком и не дай энергии погаснуть.</p>
-      <div class="level-grid" id="levelGrid"></div>
-      <button class="primary" id="playBtn">НАЧАТЬ ЗАБЕГ</button>
-      <button class="secondary lab-launch" id="labBtn">⚙ MOVEMENT LAB · ТРЕНИРОВКА</button>
-      <div class="button-row">
-        <button class="secondary" id="howBtn">КАК ИГРАТЬ</button>
-        <button class="secondary" id="newsBtn">ЧТО НОВОГО</button>
-        <button class="secondary" id="menuSound">ЗВУК: ВКЛ</button>
+    <div class="menu-shell">
+      <header class="menu-topbar">
+        <div class="logo-lockup">
+          <div class="logo-bolt" aria-hidden="true">ϟ</div>
+          <div class="logo-copy">
+            <p class="eyebrow">ОРИГИНАЛЬНАЯ ИГРА GAMEPASS</p>
+            <h1>VOLT<span>RUNNER</span></h1>
+          </div>
+        </div>
+        <div class="menu-tools" aria-label="Настройки игры">
+          <button class="menu-tool" id="howBtn" aria-label="Как играть">?</button>
+          <button class="menu-tool" id="newsBtn"><span>ЧТО </span>НОВОГО</button>
+          <button class="menu-tool" id="menuSound">ЗВУК: ВКЛ</button>
+          <button class="menu-tool exit" id="menuExitBtn">← <span>GAMEPASS</span></button>
+        </div>
+      </header>
+      <div class="menu-layout">
+        <article class="run-card" id="selectedRunCard">
+          <p class="eyebrow">ВЫБРАННАЯ ТРАССА</p>
+          <div class="course-kicker"><b id="selectedLevelNumber">01</b><span id="selectedLevelStatus">ДОСТУПНА</span></div>
+          <h2 id="selectedLevelName">НЕОНОВЫЕ КРЫШИ</h2>
+          <p class="subtitle">Беги, прыгай и разбивай препятствия рывком. До старта — один тап.</p>
+          <p id="selectedLevelMeta">ЛУЧШИЙ РЕЗУЛЬТАТ · ЕЩЁ НЕ ПРОЙДЕНО</p>
+          <button class="primary" id="playBtn"><span>ИГРАТЬ</span><small id="playCourse">01 · КРЫШИ</small></button>
+          <button class="secondary lab-launch" id="labBtn">⚙ ТРЕНИРОВКА ДВИЖЕНИЯ</button>
+        </article>
+        <aside class="course-board">
+          <div class="course-heading"><b>ВЫБЕРИ ТРАССУ</b><span id="courseProgress">ОТКРЫТО 1 ИЗ 6</span></div>
+          <div class="level-grid" id="levelGrid"></div>
+          <div class="menu-hint"><span>Space — прыжок · Shift — рывок</span><span id="brand">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></span></div>
+        </aside>
       </div>
     </div>
   </section>
 
   <section class="screen" id="pause" hidden>
-    <div class="panel">
+    <div class="panel compact-panel">
       <p class="eyebrow">СИСТЕМА ПРИОСТАНОВЛЕНА</p><h2>ПАУЗА</h2>
       <p class="subtitle" id="pauseMessage">Город подождёт. Продолжишь с этой же точки, пока игра открыта.</p>
       <button class="primary" id="resumeBtn">ПРОДОЛЖИТЬ</button>
@@ -134,7 +215,7 @@
   </section>
 
   <section class="screen" id="info" hidden>
-    <div class="panel">
+    <div class="panel dialog-panel">
       <p class="eyebrow">УПРАВЛЕНИЕ</p><h2>БЕГИ. ЛЕТИ. РИСКУЙ.</h2>
       <div class="how">
         <div><b>↟ ПРЫЖОК</b><span>Левая кнопка / Space. Удерживай для высоты, нажми в воздухе ещё раз для двойного.</span></div>
@@ -143,14 +224,17 @@
         <div><b>◈ ЧЕКПОИНТ</b><span>После падения забег продолжится от последнего маяка.</span></div>
       </div>
       <button class="secondary lab-launch" id="handedBtn">РАСКЛАДКА: ОБЫЧНАЯ</button>
-      <button class="primary closeInfo">ПОНЯТНО</button>
+      <button class="primary closeInfo" id="closeInfoBtn">ПОНЯТНО</button>
     </div>
   </section>
 
   <section class="screen" id="news" hidden>
-    <div class="panel">
-      <p class="eyebrow">28 ИЮЛЯ 2026 · 17:09 АЛМАТЫ</p><h2>ЧТО НОВОГО</h2>
+    <div class="panel dialog-panel">
+      <p class="eyebrow">28 ИЮЛЯ 2026 · 17:40 АЛМАТЫ</p><h2>ЧТО НОВОГО</h2>
       <ul id="newsList">
+        <li><b>Релиз 1.1.1 · Interface Rescue</b> — полностью новое компактное меню и экран результата: старт, все трассы и действия помещаются в Telegram landscape без прокрутки.</li>
+        <li>Устранён старый overlay, который показывал пустой результат поверх меню. Видимость экранов и все обязательные кнопки теперь контролирует тестируемый UI-модуль.</li>
+        <li>Telegram получает версионированный iframe вместо старой копии из кэша; внешняя кнопка больше не перекрывает игру, а запуск readiness проверяется оболочкой GamePass.</li>
         <li><b>Релиз 1.1 · Movement Lab</b> — отдельная тренировочная трасса с движущимися и односторонними платформами, подсказками и скрытым debug HUD по клавише F2.</li>
         <li>Прыжок получил высоту по удержанию, 120 мс буфера и 100 мс coyote time; рывок — плавный разгон, buffer, cancel и честный предел скорости.</li>
         <li>Touch теперь поддерживает два одновременных пальца и леворукую раскладку. Сохранение v3 безопасно переносит рекорды v1/v2.</li>
@@ -160,31 +244,40 @@
         <li>Добавлены двойной прыжок, заряжаемый рывок, пружины, дроны, лазерные ворота, разрушаемые барьеры и чекпоинты.</li>
         <li>Новые процедурные ретро-звуки, ранги S–C и локальное сохранение рекордов.</li>
       </ul>
-      <button class="primary closeNews">НАЗАД</button>
+      <button class="primary closeNews" id="closeNewsBtn">НАЗАД</button>
     </div>
   </section>
 
   <section class="screen" id="result" hidden>
-    <div class="panel">
-      <p class="eyebrow" id="resultKicker">ТРАССА ЗАВЕРШЕНА</p>
-      <div id="rank">S</div><h2 id="resultTitle">НЕОНОВЫЕ КРЫШИ</h2>
-      <div id="resultsGrid">
-        <div class="result"><small>ВРЕМЯ</small><b id="resultTime">0:00</b></div>
-        <div class="result"><small>СЧЁТ</small><b id="resultScore">0</b></div>
-        <div class="result"><small>ИМПУЛЬСЫ</small><b id="resultPulses">0</b></div>
+    <div class="panel result-panel">
+      <div class="result-hero">
+        <p class="eyebrow" id="resultKicker">ТРАССА ЗАВЕРШЕНА</p>
+        <div id="rank">S</div>
+        <h2 id="resultTitle">НЕОНОВЫЕ КРЫШИ</h2>
       </div>
-      <button class="primary" id="nextBtn">СЛЕДУЮЩАЯ ТРАССА</button>
-      <div class="button-row"><button class="secondary" id="replayBtn">ЕЩЁ РАЗ</button><button class="secondary" id="resultMenuBtn">В МЕНЮ</button></div>
+      <div class="result-detail">
+        <p class="subtitle">Забег сохранён. Улучши время или сразу переходи к следующему району.</p>
+        <div id="resultsGrid">
+          <div class="result"><small>ВРЕМЯ</small><b id="resultTime">0:00</b></div>
+          <div class="result"><small>СЧЁТ</small><b id="resultScore">0</b></div>
+          <div class="result"><small>ИМПУЛЬСЫ</small><b id="resultPulses">0</b></div>
+        </div>
+        <div class="result-actions">
+          <button class="primary" id="nextBtn">СЛЕДУЮЩАЯ ТРАССА</button>
+          <button class="secondary" id="replayBtn">ЕЩЁ РАЗ</button>
+          <button class="secondary" id="resultMenuBtn">В МЕНЮ</button>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="screen" id="rotate">
     <div class="panel"><div class="phone">📱</div><h2>ПОВЕРНИ ТЕЛЕФОН</h2><p>VOLT RUNNER создан для скоростной игры в горизонтальном режиме.</p></div>
   </section>
-  <div id="brand">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
 
-  <script src="./engine/movement.js"></script>
-  <script src="./engine/save.js"></script>
+  <script src="./engine/movement.js?v=1.1.1"></script>
+  <script src="./engine/save.js?v=1.1.1"></script>
+  <script src="./engine/ui.js?v=1.1.1"></script>
   <script>
   (() => {
     "use strict";
@@ -192,8 +285,11 @@
     const canvas = $("#game"), ctx = canvas.getContext("2d");
     const Movement=globalThis.VoltMovement;
     const SaveEngine=globalThis.VoltSave;
+    const UI=globalThis.VoltUI;
+    const GAME_VERSION="1.1.1";
     if(!Movement)throw new Error("VOLT movement engine failed to load");
     if(!SaveEngine)throw new Error("VOLT save engine failed to load");
+    if(!UI)throw new Error("VOLT UI engine failed to load");
     const W = 1280, H = 720, FLOOR = 590;
     const SAVE_VERSION = 3;
     const SAVE_KEY = "gamepass.volt-runner.v3";
@@ -219,7 +315,8 @@
     }
     const SAVE_OPTIONS={version:SAVE_VERSION,key:SAVE_KEY,previousKeys:[PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY],levelCount:LEVELS.length,rankForRun};
     let save=SaveEngine.load(localStorage,SAVE_OPTIONS);
-    let dpr=1, scale=1, ox=0, oy=0, raf=0, last=0, state="menu", levelIndex=0, level=null, world=null;
+    const ui=UI.createScreenController(document,{screenIds:screens});
+    let dpr=1, scale=1, ox=0, oy=0, raf=0, last=0, state="menu", levelIndex=Math.max(0,Math.min(LEVELS.length-1,save.unlocked-1)), level=null, world=null;
     let player=null, camera=0, cameraY=0, previousCamera=0, previousCameraY=0, renderCamera=0, renderCameraY=0, renderAlpha=1, elapsed=0, simulationTime=0, score=0, pulseCount=0, collected=0, deaths=0, checkpoint=80, dash=1, combo=1, comboT=0, shake=0;
     let particles=[], floats=[], rain=[], audio=null, musicTimer=0, noteStep=0;
     let accumulator=0, raceElapsed=0, raceClockStartedAt=0, countdownTimer=0, respawnTimer=0;
@@ -231,20 +328,23 @@
       const oldWidth=viewportWidth, oldHeight=viewportHeight, wasPortrait=viewportPortrait;
       viewportWidth=innerWidth;viewportHeight=innerHeight;viewportPortrait=isPortraitBlocked();
       dpr=Math.min(devicePixelRatio||1,2); canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;
-      scale=Math.min(innerWidth/W,innerHeight/H);ox=(innerWidth-W*scale)/2;oy=(innerHeight-H*scale)/2;
+      scale=Math.max(innerWidth/W,innerHeight/H);ox=(innerWidth-W*scale)/2;oy=(innerHeight-H*scale)/2;
       canvas.style.width=innerWidth+"px";canvas.style.height=innerHeight+"px";
       const majorResize=oldWidth>0&&(Math.abs(innerWidth-oldWidth)>Math.max(24,oldWidth*.15)||Math.abs(innerHeight-oldHeight)>Math.max(24,oldHeight*.15));
       if(state==="playing"&&(viewportPortrait||wasPortrait!==viewportPortrait||majorResize))pauseGame(viewportPortrait?"rotate":"resize");
     }
     addEventListener("resize",resize);resize();
     function persist(){SaveEngine.persist(localStorage,SAVE_KEY,save,SAVE_VERSION)}
-    function show(id){screens.forEach(x=>$("#"+x).hidden=x!==id);$("#hud").style.display=id? "none":"block";$("#controls").style.display=id?"none":"block";$("#debugHud").hidden=!labMode||!debugEnabled||Boolean(id)}
+    function show(id){ui.show(id,{labMode,debugEnabled})}
     function isPortraitBlocked(){return innerHeight>innerWidth*1.25}
     function notifyHost(hostState){
       if(parent!==window)parent.postMessage({source:"volt-runner",type:"volt-runner:state",state:hostState},location.origin);
     }
     function exitReady(){
       if(parent!==window)parent.postMessage({source:"volt-runner",type:"volt-runner:exit-ready"},location.origin);
+    }
+    function notifyReady(){
+      if(parent!==window)parent.postMessage({source:"volt-runner",type:"volt-runner:ready",version:GAME_VERSION},location.origin);
     }
     function applyHostSafeArea(top,bottom){
       const safeTop=Math.max(0,Math.min(120,Number(top)||0));
@@ -601,19 +701,51 @@
     function applyHandedLayout(){document.body.classList.toggle("left-handed",save.leftHanded);$("#handedBtn").textContent="РАСКЛАДКА: "+(save.leftHanded?"ЛЕВША":"ОБЫЧНАЯ")}
     function toggleHandedLayout(){save.leftHanded=!save.leftHanded;applyHandedLayout();persist();sfx("coin")}
 
+    function updateMenuSelection(){
+      const selected=LEVELS[levelIndex],best=save.best[levelIndex];
+      $("#selectedLevelNumber").textContent=`0${levelIndex+1}`;
+      $("#selectedLevelName").textContent=selected.name;
+      $("#selectedLevelStatus").textContent=best?`${best.rank} · ${formatTime(best.time)}`:"ДОСТУПНА";
+      $("#selectedLevelMeta").textContent=best
+        ?`ЛУЧШИЙ РЕЗУЛЬТАТ · ${best.rank} · ${formatTime(best.time)}`
+        :"ЛУЧШИЙ РЕЗУЛЬТАТ · ЕЩЁ НЕ ПРОЙДЕНО";
+      $("#playCourse").textContent=`0${levelIndex+1} · ${selected.short}`;
+      $("#courseProgress").textContent=`ОТКРЫТО ${Math.min(save.unlocked,LEVELS.length)} ИЗ ${LEVELS.length}`;
+      $("#selectedRunCard").style.setProperty("--selected-color",selected.neon);
+      document.querySelectorAll(".level-card").forEach(card=>{
+        const selectedCard=Number(card.dataset.level)===levelIndex;
+        card.classList.toggle("selected",selectedCard);
+        card.setAttribute("aria-pressed",selectedCard?"true":"false");
+      });
+    }
     function renderLevelGrid(){
-      $("#levelGrid").innerHTML=LEVELS.map((l,i)=>{const locked=i>=save.unlocked,b=save.best[i];return `<button class="level-card ${locked?"locked":""}" data-level="${i}" ${locked?"disabled":""} style="--c:${l.neon}"><b>0${i+1}</b><span>${l.short}</span><span>${b?b.rank+" · "+formatTime(b.time):locked?"🔒 ЗАКРЫТО":"НОВАЯ ТРАССА"}</span></button>`}).join("");
-      document.querySelectorAll(".level-card:not(.locked)").forEach(b=>b.onclick=()=>{levelIndex=+b.dataset.level;document.querySelectorAll(".level-card").forEach(x=>x.style.outline="");b.style.outline="2px solid "+LEVELS[levelIndex].accent;startAudio();sfx("coin")});
+      $("#levelGrid").innerHTML=LEVELS.map((l,i)=>{const locked=i>=save.unlocked,b=save.best[i],selected=i===levelIndex;return `<button type="button" class="level-card ${locked?"locked":""} ${selected?"selected":""}" data-level="${i}" aria-label="Трасса ${i+1}: ${l.name}" aria-pressed="${selected?"true":"false"}" ${locked?"disabled":""} style="--c:${l.neon}"><b>0${i+1}</b><span>${l.short}</span><span>${b?b.rank+" · "+formatTime(b.time):locked?"🔒 ЗАКРЫТО":"НОВАЯ ТРАССА"}</span></button>`}).join("");
+      document.querySelectorAll(".level-card:not(.locked)").forEach(button=>button.addEventListener("click",()=>{
+        levelIndex=Number(button.dataset.level);updateMenuSelection();startAudio();sfx("coin");
+      }));
+      updateMenuSelection();
     }
     renderLevelGrid();applyHandedLayout();$("#soundBtn").textContent=save.sound?"♫":"×";$("#menuSound").textContent="ЗВУК: "+(save.sound?"ВКЛ":"ВЫКЛ");
-    $("#playBtn").onclick=()=>startLevel(levelIndex);$("#labBtn").onclick=startMovementLab;$("#pauseBtn").onclick=()=>pauseGame("manual");
-    $("#resumeBtn").onclick=resumeWithCountdown;
-    $("#restartBtn").onclick=()=>labMode?startMovementLab():startLevel(levelIndex);$("#quitBtn").onclick=()=>{stopCountdown();freezeRaceClock();state="menu";stopMusic();show("menu");notifyHost("menu");render()};
-    $("#exitBtn").onclick=()=>{freezeRaceClock();stopMusic();if(parent!==window)exitReady();else history.back()};
-    $("#howBtn").onclick=()=>show("info");$("#handedBtn").onclick=toggleHandedLayout;document.querySelector(".closeInfo").onclick=()=>show("menu");
-    $("#newsBtn").onclick=()=>show("news");document.querySelector(".closeNews").onclick=()=>show("menu");
-    $("#soundBtn").onclick=toggleSound;$("#menuSound").onclick=toggleSound;
-    $("#nextBtn").onclick=()=>labMode?startMovementLab():startLevel(levelIndex===LEVELS.length-1?0:levelIndex+1);$("#replayBtn").onclick=()=>labMode?startMovementLab():startLevel(levelIndex);$("#resultMenuBtn").onclick=()=>{state="menu";show("menu");notifyHost("menu");render()};
+    UI.bindActions(document,{
+      playBtn:()=>startLevel(levelIndex),
+      labBtn:startMovementLab,
+      pauseBtn:()=>pauseGame("manual"),
+      resumeBtn:resumeWithCountdown,
+      restartBtn:()=>labMode?startMovementLab():startLevel(levelIndex),
+      quitBtn:()=>{stopCountdown();freezeRaceClock();state="menu";stopMusic();show("menu");notifyHost("menu");render()},
+      exitBtn:()=>{freezeRaceClock();stopMusic();if(parent!==window)exitReady();else history.back()},
+      menuExitBtn:()=>{stopMusic();if(parent!==window)exitReady();else history.back()},
+      howBtn:()=>show("info"),
+      handedBtn:toggleHandedLayout,
+      closeInfoBtn:()=>show("menu"),
+      newsBtn:()=>show("news"),
+      closeNewsBtn:()=>show("menu"),
+      soundBtn:toggleSound,
+      menuSound:toggleSound,
+      nextBtn:()=>labMode?startMovementLab():startLevel(levelIndex===LEVELS.length-1?0:levelIndex+1),
+      replayBtn:()=>labMode?startMovementLab():startLevel(levelIndex),
+      resultMenuBtn:()=>{state="menu";show("menu");notifyHost("menu");render()}
+    });
     function releasePointer(event){
       const action=pointerActions.get(event.pointerId);if(!action)return;
       pointerActions.delete(event.pointerId);
@@ -634,7 +766,7 @@
     bindControl("#jumpBtn","jump");bindControl("#dashBtn","dash");
     const jumpCodes=new Set(["Space","ArrowUp","KeyW"]),dashCodes=new Set(["ShiftLeft","ShiftRight","ArrowRight","KeyD"]);
     addEventListener("keydown",event=>{
-      if(event.code==="F2"){event.preventDefault();debugEnabled=!debugEnabled;$("#debugHud").hidden=!labMode||!debugEnabled||state!=="playing";return}
+      if(event.code==="F2"){event.preventDefault();debugEnabled=!debugEnabled;if(state==="playing")show(null);return}
       if(event.repeat)return;
       const action=jumpCodes.has(event.code)?"jump":dashCodes.has(event.code)?"dash":null;
       if(action){event.preventDefault();keyboardActions.set(event.code,action);if(action==="jump")jump();else doDash()}
@@ -654,13 +786,20 @@
     addEventListener("message",event=>{
       if(event.source!==parent||event.origin!==location.origin||!event.data||event.data.source!=="gamepass")return;
       if(event.data.type==="volt-runner:safe-area")applyHostSafeArea(event.data.top,event.data.bottom);
+      if(event.data.type==="volt-runner:request-ready")notifyReady();
       if(event.data.type==="volt-runner:request-exit"){
         if(state==="playing"||state==="countdown")pauseGame("exit");
         else if(state==="paused"){$("#pauseMessage").textContent="Забег поставлен на паузу. Нажми «В GAMEPASS», чтобы подтвердить выход.";show("pause");notifyHost("paused")}
         else exitReady();
       }
     });
-    level=LEVELS[0];world=buildWorld(0);resetPlayer();player.x=300;camera=0;persist();render();notifyHost("menu");
+    addEventListener("pageshow",event=>{
+      if(!event.persisted)return;
+      if(state==="menu")show("menu");
+      notifyHost(state==="playing"?"running":state==="paused"||state==="countdown"?"paused":"menu");
+      notifyReady();
+    });
+    level=LEVELS[levelIndex];world=buildWorld(levelIndex);resetPlayer();player.x=300;camera=0;persist();show("menu");render();document.documentElement.dataset.voltReady="1";notifyHost("menu");notifyReady();
   })();
   </script>
 </body>
