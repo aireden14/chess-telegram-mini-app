@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.22.2",
+    date: "28 июля 2026 (Алматы)",
+    title: "Jedi Survivors: Победи Смерть",
+    items: [
+      "🌟 Секрет: Императора-Смерть (29 мин) раньше нельзя было убить — теперь завершённый билд (3+ эволюции/юниона) делает её уязвимой, успей одолеть до 30:00",
+      "🏆 За победу над Смертью — особый финал, +3000 золота, а за первую победу навсегда +8% урона; при появлении видно, уязвима она или нет",
+    ],
+  },
+  {
     version: "3.22.1",
     date: "28 июля 2026, 17:40 (Алматы)",
     title: "VOLT RUNNER 1.1.1: рабочий старт и новый интерфейс",
