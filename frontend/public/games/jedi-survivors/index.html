@@ -492,6 +492,12 @@ const ARCANAS=[
   {id:'phoenix',ico:'🔥',nm:'Феникс',    ds:'+1 воскрешение. Воскреснув — сжигаешь экран и +25% урона.'},
   {id:'pole',  ico:'🧭', nm:'Полюс',     ds:'Радиус сбора ×1.6, каждые 45 сек — авто-сбор всего поля.'},
   {id:'chrono',ico:'⏱', nm:'Хронопетля',ds:'Каждые 60 сек время замирает на 3 сек.'},
+  {id:'crit',  ico:'⭐', nm:'Точность',   ds:'+18% к шансу критического удара (×2 урона).'},
+  {id:'glass', ico:'💠', nm:'Стеклянная пушка',ds:'+45% урона, но −25% макс. HP.'},
+  {id:'bulwark',ico:'🧱',nm:'Бастион',    ds:'+4 брони, но −10% скорости.'},
+  {id:'harvest',ico:'🌾',nm:'Жатва',      ds:'+25% области атак и радиус сбора ×1.3.'},
+  {id:'surge', ico:'⚡', nm:'Перегруз',   ds:'−20% перезарядки, но −10% области.'},
+  {id:'fury',  ico:'😤', nm:'Неистовство',ds:'Убийство с шансом 6% даёт вспышку ярости (0.7 сек неуязвимости и урона).'},
 ];
 const ARC=id=>!!(G&&(G.arcana===id||G.arcana2===id||G.arcana3===id));
 
@@ -1907,7 +1913,7 @@ function damageEnemy(e,dmg,knock){
     if(Math.random()<0.06) G.dmgTexts.push({x:e.x,y:e.y-e.r-10,v:'НЕУЯЗВИМ',t:0.7,crit:true,str:true});
     return;
   }
-  const crit=Math.random()<0.05*G.p.luck;
+  const crit=Math.random()<0.05*G.p.luck+(ARC('crit')?0.18:0); // ⭐ Точность повышает шанс крита
   if(crit) dmg*=2;
   if(e.frz>0) dmg*=1.25; // мороженые уязвимее
   if(e.corrodeUntil>G.time) dmg*=1.22; // нанит-коррозия: разъеденная цель уязвимее
@@ -1924,6 +1930,7 @@ function killEnemy(e){
   G.killCount++;
   if(e.poison&&e.poison.jumps>0) virusJump(e); // зараза перескакивает после смерти носителя
   if(ARC('thirst')&&Math.random()<0.1) G.p.hp=Math.min(G.p.hpMax,G.p.hp+2);
+  if(ARC('fury')&&!e.neutral&&!e.crate&&Math.random()<0.06) G.rampageT=Math.max(G.rampageT||0,0.7); // 😤 вспышка ярости
   if(!e.crate) save.stats.perEnemy[e.type]=(save.stats.perEnemy[e.type]||0)+1;
   if(e.boss){
     G.bossKills=(G.bossKills||0)+1;
@@ -4959,6 +4966,11 @@ function applyArcana(id){
   else if(id==='gambler'){ G.rerolls+=2; G.banishes+=2; G.skips+=1; p.luck+=0.15; }
   else if(id==='phoenix') p.revives+=1;
   else if(id==='pole') p.magnet*=1.6;
+  else if(id==='glass'){ p.might*=1.45; p.hpMax*=0.75; p.hp=Math.min(p.hp,p.hpMax); }
+  else if(id==='bulwark'){ p.armor+=4; p.speed*=0.9; }
+  else if(id==='harvest'){ p.area*=1.25; p.magnet*=1.3; }
+  else if(id==='surge'){ p.cdr*=0.8; p.area*=0.9; }
+  // crit и fury — рантайм-арканы (эффект через ARC() в damageEnemy/killEnemy), стата не меняют
 }
 function offerArcana(title){
   const pool=ARCANAS.filter(a=>a.id!==G.arcana&&a.id!==G.arcana2&&a.id!==G.arcana3);
@@ -5181,6 +5193,9 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'25 июля 2026 (Алматы) — v22.6 «Арканы 22»',t:[
+    '🎴 +6 НОВЫХ АРКАН (теперь их 22, как в Vampire Survivors): ⭐ Точность (+18% крит), 💠 Стеклянная пушка (+45% урона / −25% HP), 🧱 Бастион (+4 брони / −10% скорости), 🌾 Жатва (+25% области и сбор ×1.3), ⚡ Перегруз (−20% перезарядки / −10% области), 😤 Неистовство (убийство иногда даёт вспышку ярости).',
+    '🎯 Больше комбинаций билдов на старте забега и за боссов — арканы выбираются из большего пула.']},
   {d:'25 июля 2026 (Алматы) — v22.5 «Ярость и Длительность»',t:[
     '🌶️ ЯРОСТЬ (редкий пикап из ящиков и с врагов): на 8 секунд становишься неуязвимым и жжёшь всё вокруг пульсирующим уроном — прорвись сквозь толпу как таран.',
     '⏳ ДЛИТЕЛЬНОСТЬ (новый навык в Академии «Медитация Силы»): продлевает жизнь зон, турелей, дроидов-стражей и заморозки. Особенно силён с зональным арсеналом (вихрь, дыра, наниты, маяк, огнемёт и т.д.).']},

@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.20.4",
+    date: "25 июля 2026 (Алматы)",
+    title: "Jedi Survivors: Арканы 22",
+    items: [
+      "🎴 +6 новых аркан (теперь их 22, как в Vampire Survivors): Точность (+18% крит), Стеклянная пушка (+45% урона / −25% HP), Бастион (+4 брони), Жатва (+область и сбор), Перегруз (−перезарядка), Неистовство (убийство даёт вспышку ярости)",
+      "🎯 Больше комбинаций билдов — арканы выбираются из большего пула на старте и за боссов",
+    ],
+  },
+  {
     version: "3.20.3",
     date: "25 июля 2026 (Алматы)",
     title: "Jedi Survivors: Ярость и Длительность",
