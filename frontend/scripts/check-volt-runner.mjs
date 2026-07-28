@@ -16,12 +16,30 @@ try {
 }
 
 const inlineScripts = [];
+const externalScripts = [];
 const scriptTagPattern = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/giu;
 let scriptMatch;
 
 while ((scriptMatch = scriptTagPattern.exec(html)) !== null) {
   const [, attributes, source] = scriptMatch;
-  if (/\bsrc\s*=/iu.test(attributes)) continue;
+  const sourceAttribute = attributes.match(
+    /\bsrc\s*=\s*(["'])(.*?)\1/iu,
+  )?.[2];
+  if (sourceAttribute) {
+    if (/^(?:https?:|data:|blob:)/iu.test(sourceAttribute)) continue;
+    const sourceUrl = new URL(sourceAttribute, gameUrl);
+    try {
+      externalScripts.push({
+        path: fileURLToPath(sourceUrl),
+        source: await readFile(sourceUrl, "utf8"),
+      });
+    } catch (error) {
+      console.error(`ERROR Не удалось прочитать внешний script ${sourceAttribute}`);
+      console.error(`      ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+    continue;
+  }
 
   const type = attributes.match(/\btype\s*=\s*(["'])(.*?)\1/iu)?.[2]?.toLowerCase();
   if (type && !["text/javascript", "application/javascript", "module"].includes(type)) {
@@ -31,7 +49,14 @@ while ((scriptMatch = scriptTagPattern.exec(html)) !== null) {
   inlineScripts.push(source);
 }
 
-const js = inlineScripts.join("\n");
+const js = [
+  ...externalScripts.map(({ source }) => source),
+  ...inlineScripts,
+].join("\n");
+const newsSection =
+  html.match(
+    /<section\b[^>]*\bid\s*=\s*["']news["'][^>]*>[\s\S]*?<\/section>/iu,
+  )?.[0] || "";
 const failures = [];
 let passed = 0;
 
@@ -88,17 +113,39 @@ check("Найден inline JavaScript", () => {
   requireCondition(inlineScripts.length > 0, "В HTML нет inline <script> для проверки.");
 });
 
-check("Inline JavaScript синтаксически корректен", () => {
-  inlineScripts.forEach((source, index) => {
+check("Весь JavaScript синтаксически корректен", () => {
+  const scripts = [
+    ...externalScripts,
+    ...inlineScripts.map((source, index) => ({
+      path: `volt-runner-inline-${index + 1}.js`,
+      source,
+    })),
+  ];
+  scripts.forEach(({ source, path }) => {
     try {
-      // VOLT RUNNER intentionally ships as a classic standalone script.
-      // new Function parses it without running browser-only code.
-      new Function(`${source}\n//# sourceURL=volt-runner-inline-${index + 1}.js`);
+      new Function(`${source}\n//# sourceURL=${path}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`inline script #${index + 1}: ${message}`);
+      throw new Error(`${path}: ${message}`);
     }
   });
+});
+
+check("Внешний movement engine найден и подключён", () => {
+  requireMatch(
+    html,
+    /<script\b[^>]*\bsrc\s*=\s*["']\.\/engine\/movement\.js["'][^>]*>/iu,
+    "index.html не подключает ./engine/movement.js.",
+  );
+  requireCondition(
+    externalScripts.some(({ path }) => path.endsWith("/engine/movement.js")),
+    "Smoke-check не загрузил movement engine.",
+  );
+  requireMatch(
+    js,
+    /\bVoltMovement\b/u,
+    "Внешний движок не экспортирует globalThis.VoltMovement.",
+  );
 });
 
 check("Есть кликабельный бренд Powered by @Denrech", () => {
@@ -109,10 +156,15 @@ check("Есть кликабельный бренд Powered by @Denrech", () => 
   );
 });
 
-check("Есть внутриигровой экран «Что нового» для 1.0.1", () => {
-  requireMatch(html, /<section\b[^>]*\bid\s*=\s*["']news["'][^>]*>/iu, "Не найден экран #news.");
-  requireMatch(html, /что\s+нового/iu, "Не найден текст «Что нового».");
-  requireMatch(html, /\b1\.0\.1\b/u, "Экран «Что нового» не содержит версию 1.0.1.");
+check("Есть внутриигровой экран «Что нового» для 1.1", () => {
+  requireCondition(newsSection.length > 0, "Не найден экран #news.");
+  requireMatch(newsSection, /что\s+нового/iu, "Не найден текст «Что нового».");
+  requireMatch(newsSection, /\b1\.1\b/u, "Экран «Что нового» не содержит версию 1.1.");
+  requireMatch(
+    newsSection,
+    /28\s+ИЮЛЯ\s+2026\s+·\s+\d{2}:\d{2}\s+АЛМАТЫ/iu,
+    "Экран «Что нового» не содержит точное время Алматы.",
+  );
 });
 
 check("Gameplay защищён от selection и iOS long-press", () => {
@@ -153,8 +205,16 @@ check("Сохранение имеет явную версию схемы", () =
     /\b(?:version|schemaVersion)\s*:\s*SAVE_(?:SCHEMA_)?VERSION\b/u,
     "Сохраняемый объект должен содержать version/schemaVersion из константы схемы.",
   );
-  requireMatch(js, /\blocalStorage\s*\.\s*getItem\s*\(/u, "Нет загрузки сохранения.");
-  requireMatch(js, /\blocalStorage\s*\.\s*setItem\s*\(/u, "Нет записи сохранения.");
+  requireMatch(
+    js,
+    /(?:\blocalStorage\s*\.\s*getItem\s*\(|\bSaveEngine\s*\.\s*load\s*\(\s*localStorage\b)/u,
+    "Нет загрузки сохранения.",
+  );
+  requireMatch(
+    js,
+    /(?:\blocalStorage\s*\.\s*setItem\s*\(|\bSaveEngine\s*\.\s*persist\s*\(\s*localStorage\b)/u,
+    "Нет записи сохранения.",
+  );
 });
 
 check("Игровая симуляция использует fixed-step accumulator", () => {
@@ -185,6 +245,53 @@ check("Игровая симуляция использует fixed-step accumul
     "Fixed-step loop не вычитает постоянный шаг из accumulator.",
   );
   requireMatch(js, /\bperformance\s*\.\s*now\s*\(/u, "Монотонные кадры должны опираться на performance.now().");
+});
+
+check("Movement Lab доступен из меню", () => {
+  requireMatch(
+    html,
+    /<button\b[^>]*\bid\s*=\s*["']labBtn["'][^>]*>[\s\S]*?MOVEMENT LAB/iu,
+    "В меню нет кнопки Movement Lab.",
+  );
+  requireMatch(js, /\bbuildMovementLab\s*\(/u, "Не найден генератор Movement Lab.");
+  requireMatch(
+    html,
+    /\bid\s*=\s*["']debugHud["']/iu,
+    "Не найден диагностический HUD Movement Lab.",
+  );
+  requireMatch(
+    html,
+    /\.screen\s*\[\s*hidden\s*\]\s*\{[^}]*display\s*:\s*none\s*!important/iu,
+    "Hidden-экраны могут перекрыть меню: нет .screen[hidden]{display:none!important}.",
+  );
+});
+
+check("Прыжок и рывок буферизуются в movement engine", () => {
+  for (const identifier of [
+    "coyoteTime",
+    "jumpBufferTime",
+    "jumpHoldTime",
+    "dashBufferTime",
+    "dashCancelLock",
+  ]) {
+    requireMatch(js, new RegExp(String.raw`\b${identifier}\b`, "u"), `Нет ${identifier}.`);
+  }
+  requireMatch(js, /\bMovement\s*\.\s*pressJump\s*\(/u, "DOM-ввод не ставит прыжок в буфер.");
+  requireMatch(js, /\bMovement\s*\.\s*step\s*\(/u, "Movement engine не вызывается на fixed tick.");
+  requireMatch(js, /\bMovement\s*\.\s*land\s*\(/u, "Landing buffer не подключён к посадке.");
+});
+
+check("Touch поддерживает независимые pointer ID", () => {
+  requireMatch(js, /\bpointerActions\s*=\s*new\s+Map\s*\(/u, "Нет Map для pointer ID.");
+  requireMatch(js, /\.setPointerCapture\s*\(/u, "Нет pointer capture.");
+  requireMatch(js, /["']lostpointercapture["']/u, "Нет lostpointercapture handler.");
+  requireMatch(eventListenerWindow("keyup", 4000), /\breleaseJump\s*\(/u, "keyup не отпускает прыжок.");
+});
+
+check("Камера и render используют интерполяцию", () => {
+  requireMatch(js, /\bcameraY\b/u, "Нет вертикальной камеры.");
+  requireMatch(js, /\brender\s*\(\s*accumulator\s*\/\s*FIXED_STEP\s*\)/u, "Render не получает interpolation alpha.");
+  requireMatch(js, /\bpreviousX\b[\s\S]{0,500}\brenderAlpha\b/u, "Позиция игрока не интерполируется.");
 });
 
 check("Telegram safe area принимается через postMessage", () => {

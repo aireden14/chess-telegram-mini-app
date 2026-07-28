@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "volt:build": "node scripts/build-volt-runner.mjs",
+    "volt:check": "node scripts/build-volt-runner.mjs --check && node --test ../apps/volt-runner/tests/*.test.mjs && node scripts/check-volt-runner.mjs"
   },
   "dependencies": {
     "@twa-dev/sdk": "^7.10.1",
