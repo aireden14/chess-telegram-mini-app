@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.22.0",
+    date: "28 июля 2026, 17:30 (Алматы)",
+    title: "Новая игра: NEON REQUIEM",
+    items: [
+      "🔻 Оригинальный top-down экшен в неоновом нуарном стиле: три контракта, скрытность, перестрелки, ближний бой, рывок, комбо и финальный босс",
+      "🎛 Авторский synthwave-саундтрек и все звуковые эффекты генерируются прямо в браузере — без чужих треков и игровых ассетов",
+      "📱 Полное управление мышью, клавиатурой и двумя touch-стиками; рекорды, ранги и открытые контракты сохраняются на устройстве",
+    ],
+  },
+  {
     version: "3.21.2",
     date: "28 июля 2026, 17:09 (Алматы)",
     title: "VOLT RUNNER 1.1: Movement Lab",

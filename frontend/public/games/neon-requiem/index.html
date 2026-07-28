@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#060311">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23060311'/%3E%3Cpath d='M12 48 32 10l20 38-20-9z' fill='%23ff174f' stroke='%2300f0ff' stroke-width='3'/%3E%3C/svg%3E">
+  <title>NEON REQUIEM — Denrech Original</title>
+  <style>
+    :root {
+      --pink: #ff174f;
+      --cyan: #00f0ff;
+      --gold: #ffd166;
+      --ink: #060311;
+      --panel: rgba(10, 5, 27, .91);
+      --line: rgba(0, 240, 255, .32);
+      --safe-top: max(64px, env(safe-area-inset-top));
+      --safe-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--ink);
+      color: #f7fbff;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #060311;
+      cursor: crosshair;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .layer {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+    }
+
+    .screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding:
+        var(--safe-top)
+        max(16px, env(safe-area-inset-right))
+        calc(var(--safe-bottom) + 48px)
+        max(16px, env(safe-area-inset-left));
+      background:
+        radial-gradient(circle at 14% 18%, rgba(255, 23, 79, .18), transparent 34%),
+        radial-gradient(circle at 84% 26%, rgba(0, 240, 255, .14), transparent 30%),
+        linear-gradient(150deg, rgba(6, 3, 17, .82), rgba(2, 1, 9, .96));
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .glass {
+      width: min(960px, 96vw);
+      max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 34px);
+      overflow: auto;
+      padding: clamp(18px, 3.5vw, 38px);
+      border: 1px solid rgba(0, 240, 255, .25);
+      border-radius: 26px;
+      background:
+        linear-gradient(140deg, rgba(255, 255, 255, .055), transparent 42%),
+        rgba(7, 3, 20, .88);
+      box-shadow:
+        0 30px 100px rgba(0, 0, 0, .58),
+        inset 0 1px rgba(255, 255, 255, .08),
+        0 0 42px rgba(0, 240, 255, .08);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 240, 255, .45) transparent;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .34em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    .logo {
+      margin-bottom: 2px;
+      font-size: clamp(42px, 8vw, 90px);
+      font-weight: 1000;
+      font-style: italic;
+      line-height: .88;
+      letter-spacing: -.075em;
+      text-transform: uppercase;
+      text-shadow:
+        .05em .04em 0 rgba(255, 23, 79, .88),
+        -.03em -.02em 0 rgba(0, 240, 255, .78),
+        0 0 28px rgba(255, 23, 79, .34);
+    }
+
+    .logo span {
+      color: transparent;
+      -webkit-text-stroke: 1.5px #f7fbff;
+    }
+
+    .tagline {
+      max-width: 600px;
+      margin: 14px 0 22px;
+      color: rgba(238, 247, 255, .7);
+      font-size: clamp(13px, 2vw, 17px);
+      line-height: 1.55;
+    }
+
+    .menu-actions,
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      min-height: 46px;
+      padding: 12px 20px;
+      border: 1px solid rgba(0, 240, 255, .38);
+      border-radius: 13px;
+      background: rgba(0, 240, 255, .08);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .06);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .btn:active {
+      transform: scale(.96);
+    }
+
+    .btn.primary {
+      border-color: rgba(255, 23, 79, .75);
+      background: linear-gradient(135deg, rgba(255, 23, 79, .38), rgba(255, 23, 79, .12));
+      box-shadow:
+        0 0 26px rgba(255, 23, 79, .23),
+        inset 0 1px rgba(255, 255, 255, .1);
+    }
+
+    .btn.ghost {
+      color: rgba(238, 247, 255, .75);
+      border-color: rgba(255, 255, 255, .15);
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .mission-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0 18px;
+    }
+
+    .mission-card {
+      position: relative;
+      min-height: 142px;
+      padding: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .13);
+      border-radius: 18px;
+      background:
+        linear-gradient(155deg, color-mix(in srgb, var(--mission) 18%, transparent), transparent 55%),
+        rgba(255, 255, 255, .035);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .mission-card::after {
+      position: absolute;
+      right: -22px;
+      bottom: -38px;
+      width: 110px;
+      height: 110px;
+      border: 18px solid color-mix(in srgb, var(--mission) 22%, transparent);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .mission-card.selected {
+      border-color: color-mix(in srgb, var(--mission) 78%, white);
+      box-shadow: 0 0 28px color-mix(in srgb, var(--mission) 22%, transparent);
+    }
+
+    .mission-card.locked {
+      opacity: .38;
+      filter: grayscale(.8);
+    }
+
+    .mission-card small,
+    .mission-card strong,
+    .mission-card em {
+      position: relative;
+      z-index: 1;
+      display: block;
+    }
+
+    .mission-card small {
+      color: var(--mission);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .18em;
+    }
+
+    .mission-card strong {
+      margin-top: 9px;
+      font-size: 18px;
+      letter-spacing: -.02em;
+    }
+
+    .mission-card em {
+      margin-top: 22px;
+      color: rgba(255, 255, 255, .56);
+      font-size: 11px;
+      font-style: normal;
+    }
+
+    .brand {
+      margin: 17px 0 0;
+      color: rgba(238, 247, 255, .54);
+      font-size: 12px;
+    }
+
+    .brand a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    .modal {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding:
+        var(--safe-top)
+        16px
+        calc(var(--safe-bottom) + 48px);
+      background: rgba(2, 1, 9, .78);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+    }
+
+    .modal .glass {
+      width: min(620px, 94vw);
+    }
+
+    .modal h2 {
+      margin-bottom: 10px;
+      font-size: clamp(27px, 5vw, 44px);
+      letter-spacing: -.04em;
+    }
+
+    .modal-copy {
+      color: rgba(238, 247, 255, .72);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0 20px;
+    }
+
+    .help-item,
+    .news-item {
+      padding: 13px 14px;
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .035);
+      color: rgba(238, 247, 255, .72);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .help-item b,
+    .news-item b {
+      display: block;
+      margin-bottom: 4px;
+      color: #fff;
+      font-size: 12px;
+      letter-spacing: .04em;
+    }
+
+    .news-date {
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    #missionIntro {
+      pointer-events: none;
+      background: rgba(2, 1, 9, .84);
+    }
+
+    #missionIntro .intro-copy {
+      position: absolute;
+      left: max(24px, env(safe-area-inset-left));
+      bottom: calc(15% + var(--safe-bottom));
+      max-width: min(620px, 82vw);
+    }
+
+    #introNumber {
+      color: var(--pink);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .28em;
+    }
+
+    #introTitle {
+      margin: 8px 0;
+      font-size: clamp(38px, 8vw, 82px);
+      font-style: italic;
+      line-height: .94;
+      letter-spacing: -.055em;
+      text-transform: uppercase;
+    }
+
+    #introObjective {
+      color: rgba(238, 247, 255, .7);
+      font-size: clamp(13px, 2vw, 17px);
+      line-height: 1.5;
+    }
+
+    #hud {
+      z-index: 12;
+      pointer-events: none;
+      padding:
+        var(--safe-top)
+        max(14px, env(safe-area-inset-right))
+        0
+        max(14px, env(safe-area-inset-left));
+    }
+
+    .hud-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .hud-block {
+      padding: 9px 12px;
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 13px;
+      background: rgba(6, 3, 17, .66);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #missionLabel,
+    #objectiveLabel {
+      display: block;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    #objectiveLabel {
+      margin-top: 4px;
+      color: rgba(255, 255, 255, .58);
+      font-size: 9px;
+    }
+
+    .hud-center {
+      text-align: center;
+    }
+
+    #score {
+      display: block;
+      font-size: 20px;
+      font-weight: 1000;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #combo {
+      display: block;
+      margin-top: 2px;
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .12em;
+    }
+
+    .hud-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    #vitals {
+      min-width: 100px;
+      text-align: right;
+    }
+
+    #hearts {
+      color: var(--pink);
+      font-size: 15px;
+      letter-spacing: .1em;
+      text-shadow: 0 0 12px rgba(255, 23, 79, .7);
+    }
+
+    #ammo {
+      display: block;
+      margin-top: 3px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .hud-icon {
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 12px;
+      background: rgba(6, 3, 17, .72);
+      cursor: pointer;
+    }
+
+    #alertBanner {
+      position: fixed;
+      top: calc(var(--safe-top) + 68px);
+      left: 50%;
+      z-index: 13;
+      padding: 7px 14px;
+      border: 1px solid rgba(255, 23, 79, .42);
+      border-radius: 999px;
+      background: rgba(54, 2, 22, .68);
+      color: #ff8eae;
+      font-size: 10px;
+      font-weight: 1000;
+      letter-spacing: .22em;
+      transform: translateX(-50%);
+      animation: alarm .7s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes alarm {
+      to { box-shadow: 0 0 26px rgba(255, 23, 79, .38); }
+    }
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(var(--safe-bottom) + 134px);
+      z-index: 19;
+      max-width: 82vw;
+      padding: 9px 15px;
+      border: 1px solid rgba(0, 240, 255, .26);
+      border-radius: 999px;
+      background: rgba(6, 3, 17, .78);
+      color: rgba(238, 247, 255, .82);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-align: center;
+      transform: translateX(-50%);
+      transition: opacity .25s;
+      pointer-events: none;
+    }
+
+    #touchControls {
+      z-index: 14;
+      pointer-events: none;
+    }
+
+    .stick {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 26px);
+      width: clamp(104px, 23vw, 146px);
+      height: clamp(104px, 23vw, 146px);
+      border: 1px solid rgba(255, 255, 255, .13);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, .05), rgba(255, 255, 255, .015));
+      box-shadow: inset 0 0 24px rgba(0, 0, 0, .24);
+      pointer-events: auto;
+    }
+
+    #moveStick {
+      left: max(18px, env(safe-area-inset-left));
+    }
+
+    #aimStick {
+      right: max(18px, env(safe-area-inset-right));
+      border-color: rgba(255, 23, 79, .2);
+    }
+
+    .stick::before,
+    .stick::after {
+      position: absolute;
+      inset: 50% auto auto 50%;
+      background: rgba(255, 255, 255, .08);
+      content: "";
+      transform: translate(-50%, -50%);
+    }
+
+    .stick::before { width: 74%; height: 1px; }
+    .stick::after { width: 1px; height: 74%; }
+
+    .knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 42%;
+      height: 42%;
+      border: 1px solid rgba(0, 240, 255, .46);
+      border-radius: 50%;
+      background: rgba(0, 240, 255, .12);
+      box-shadow: 0 0 18px rgba(0, 240, 255, .16);
+      transform: translate(-50%, -50%);
+    }
+
+    #aimStick .knob {
+      border-color: rgba(255, 23, 79, .54);
+      background: rgba(255, 23, 79, .13);
+      box-shadow: 0 0 18px rgba(255, 23, 79, .16);
+    }
+
+    .action-btn {
+      position: fixed;
+      width: 58px;
+      height: 58px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 50%;
+      background: rgba(6, 3, 17, .74);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .26);
+      font-size: 21px;
+      pointer-events: auto;
+    }
+
+    #meleeBtn {
+      right: max(150px, 28vw);
+      bottom: calc(var(--safe-bottom) + 90px);
+      border-color: rgba(255, 23, 79, .42);
+    }
+
+    #dashBtn {
+      left: max(150px, 28vw);
+      bottom: calc(var(--safe-bottom) + 90px);
+      border-color: rgba(0, 240, 255, .42);
+    }
+
+    #reloadBtn {
+      right: max(156px, 29vw);
+      bottom: calc(var(--safe-bottom) + 24px);
+      width: 46px;
+      height: 46px;
+      font-size: 15px;
+    }
+
+    .desktop-hint {
+      margin: 15px 0 0;
+      color: rgba(255, 255, 255, .42);
+      font-size: 10px;
+      letter-spacing: .05em;
+    }
+
+    @media (pointer: fine) {
+      #touchControls {
+        display: none !important;
+      }
+    }
+
+    @media (pointer: coarse) {
+      .desktop-hint {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .mission-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mission-card {
+        min-height: 112px;
+      }
+
+      .help-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .menu-actions .btn {
+        flex: 1 1 140px;
+      }
+
+      .hud-block {
+        padding: 7px 9px;
+      }
+
+      #missionLabel {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .hud-top {
+        gap: 6px;
+      }
+
+      #soundBtn {
+        display: none;
+      }
+
+      #vitals {
+        min-width: 88px;
+      }
+
+      #missionLabel {
+        max-width: 104px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      :root {
+        --safe-top: max(56px, env(safe-area-inset-top));
+      }
+
+      .screen {
+        align-items: flex-start;
+        padding-bottom: calc(var(--safe-bottom) + 42px);
+      }
+
+      .glass {
+        padding: 15px 19px;
+        border-radius: 20px;
+      }
+
+      .logo {
+        font-size: clamp(38px, 9vh, 64px);
+      }
+
+      .tagline {
+        margin: 8px 0 12px;
+        line-height: 1.35;
+      }
+
+      .mission-grid {
+        margin: 13px 0 11px;
+      }
+
+      .mission-card {
+        min-height: 106px;
+        padding: 12px;
+      }
+
+      .mission-card em {
+        margin-top: 12px;
+      }
+
+      .brand,
+      .desktop-hint {
+        margin-top: 8px;
+      }
+
+      .stick {
+        width: 104px;
+        height: 104px;
+        bottom: calc(var(--safe-bottom) + 12px);
+      }
+
+      #meleeBtn,
+      #dashBtn {
+        bottom: calc(var(--safe-bottom) + 65px);
+      }
+
+      #reloadBtn {
+        bottom: calc(var(--safe-bottom) + 8px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Игровое поле NEON REQUIEM"></canvas>
+
+  <section id="hud" class="layer hidden" aria-live="polite">
+    <div class="hud-top">
+      <div class="hud-block">
+        <span id="missionLabel">КОНТРАКТ 01</span>
+        <span id="objectiveLabel">ЦЕЛЕЙ: 0</span>
+      </div>
+      <div class="hud-block hud-center">
+        <span id="score">000000</span>
+        <span id="combo">ЦЕПЬ ×1</span>
+      </div>
+      <div class="hud-right">
+        <div id="vitals" class="hud-block">
+          <span id="hearts">♥♥♥</span>
+          <span id="ammo">8 / ∞</span>
+        </div>
+        <button id="soundBtn" class="hud-icon" aria-label="Выключить музыку">♫</button>
+        <button id="pauseBtn" class="hud-icon" aria-label="Пауза">Ⅱ</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="alertBanner" class="hidden">ТРЕВОГА</div>
+  <div id="toast" class="hidden"></div>
+
+  <section id="touchControls" class="layer hidden" aria-label="Сенсорное управление">
+    <div id="moveStick" class="stick" aria-label="Движение"><div class="knob"></div></div>
+    <div id="aimStick" class="stick" aria-label="Прицел и огонь"><div class="knob"></div></div>
+    <button id="dashBtn" class="action-btn" aria-label="Рывок">➜</button>
+    <button id="meleeBtn" class="action-btn" aria-label="Ближний бой">✦</button>
+    <button id="reloadBtn" class="action-btn" aria-label="Перезарядка">↻</button>
+  </section>
+
+  <main id="menu" class="layer screen">
+    <div class="glass">
+      <p class="eyebrow">Denrech original · GamePass exclusive</p>
+      <h1 class="logo"><span>NEON</span><br>REQUIEM</h1>
+      <p class="tagline">Ночной город помнит все долги. Выбери контракт, зачисти этаж и исчезни до рассвета.</p>
+
+      <div id="missionGrid" class="mission-grid" aria-label="Выбор контракта"></div>
+
+      <div class="menu-actions">
+        <button id="startBtn" class="btn primary">Начать контракт</button>
+        <button id="helpBtn" class="btn">Управление</button>
+        <button id="newsBtn" class="btn">Что нового</button>
+        <button id="menuSoundBtn" class="btn ghost">Музыка: вкл</button>
+      </div>
+
+      <p class="desktop-hint">WASD — движение · мышь — прицел · ЛКМ — огонь · SPACE — удар · SHIFT — рывок · R — перезарядка</p>
+      <p class="brand">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></p>
+    </div>
+  </main>
+
+  <section id="helpModal" class="layer modal hidden">
+    <div class="glass">
+      <p class="eyebrow">Оперативный брифинг</p>
+      <h2>Как играть</h2>
+      <p class="modal-copy">Враги видят и слышат тебя. Действуй тихо или превращай этаж в неоновую бурю — главное, выжить и дойти до точки выхода.</p>
+      <div class="help-grid">
+        <div class="help-item"><b>Движение</b>WASD или левый стик. Рывок проходит сквозь огонь и быстро сокращает дистанцию.</div>
+        <div class="help-item"><b>Атака</b>Мышь + ЛКМ или правый стик. Удерживай правый стик для автоматической стрельбы.</div>
+        <div class="help-item"><b>Ближний бой</b>SPACE или ✦. Бесшумно снимает цель перед тобой и отражает близкую пулю.</div>
+        <div class="help-item"><b>Контракт</b>Устрани все цели, затем доберись до мигающего выхода. Ранг зависит от времени, цепи и полученного урона.</div>
+      </div>
+      <div class="modal-actions"><button class="btn primary" data-close="helpModal">Понятно</button></div>
+    </div>
+  </section>
+
+  <section id="newsModal" class="layer modal hidden">
+    <div class="glass">
+      <p class="eyebrow">Журнал обновлений</p>
+      <h2>Что нового</h2>
+      <p class="news-date">28 июля 2026, 17:30 · Алматы</p>
+      <div class="news-item"><b>Версия 1.0 · Первый выход</b>Три авторских контракта, финальный босс, ближний бой, огнестрельное оружие, рывок, тревога, комбо и ранги.</div>
+      <div class="news-item"><b>Живой саундтрек</b>Музыка и эффекты синтезируются в реальном времени и усиливаются, когда охрана поднимает тревогу.</div>
+      <div class="news-item"><b>Игра везде</b>Клавиатура/мышь и полноценное dual-stick touch-управление, пауза при сворачивании, локальные рекорды.</div>
+      <div class="modal-actions"><button class="btn primary" data-close="newsModal">Закрыть</button></div>
+    </div>
+  </section>
+
+  <section id="missionIntro" class="layer hidden">
+    <div class="intro-copy">
+      <span id="introNumber">КОНТРАКТ 01</span>
+      <h2 id="introTitle">Клуб 404</h2>
+      <p id="introObjective">Найди курьера. Зачисти этаж. Доберись до выхода.</p>
+    </div>
+  </section>
+
+  <section id="pauseModal" class="layer modal hidden">
+    <div class="glass">
+      <p class="eyebrow">Сигнал приостановлен</p>
+      <h2>Пауза</h2>
+      <div class="modal-actions">
+        <button id="resumeBtn" class="btn primary">Продолжить</button>
+        <button id="restartBtn" class="btn">Заново</button>
+        <button id="quitBtn" class="btn ghost">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="deathModal" class="layer modal hidden">
+    <div class="glass">
+      <p class="eyebrow">Линия оборвалась</p>
+      <h2>Ты погиб</h2>
+      <p id="deathStats" class="modal-copy"></p>
+      <div class="modal-actions">
+        <button id="deathRestartBtn" class="btn primary">Повторить</button>
+        <button id="deathMenuBtn" class="btn ghost">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="resultModal" class="layer modal hidden">
+    <div class="glass">
+      <p class="eyebrow">Контракт закрыт</p>
+      <h2 id="resultTitle">Чистая работа</h2>
+      <div class="help-grid">
+        <div class="help-item"><b>Ранг</b><span id="resultRank">S</span></div>
+        <div class="help-item"><b>Счёт</b><span id="resultScore">0</span></div>
+        <div class="help-item"><b>Время</b><span id="resultTime">0:00</span></div>
+        <div class="help-item"><b>Лучшая цепь</b><span id="resultCombo">×1</span></div>
+      </div>
+      <p id="newRecord" class="news-date hidden">Новый рекорд</p>
+      <div class="modal-actions">
+        <button id="nextBtn" class="btn primary">Следующий контракт</button>
+        <button id="resultReplayBtn" class="btn">Ещё раз</button>
+        <button id="resultMenuBtn" class="btn ghost">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="./game.js"></script>
+</body>
+</html>

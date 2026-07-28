@@ -1435,6 +1435,25 @@ body {
   box-shadow: none;
 }
 
+/* NEON REQUIEM keeps the GamePass exit between its two touch sticks. The
+   standalone iframe owns the rest of the HUD and Telegram-safe spacing. */
+.neon-requiem-screen .topnav {
+  right: max(env(safe-area-inset-right), 8px);
+  bottom: calc(var(--safe-bottom) + 148px);
+  left: auto;
+  transform: none;
+}
+
+.neon-requiem-screen .topnav .back {
+  min-width: 92px;
+  min-height: 36px;
+  background: rgba(6, 3, 17, 0.8);
+  border-color: rgba(0, 240, 255, 0.4);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.42),
+    0 0 18px rgba(0, 240, 255, 0.12);
+}
+
 /* VOLT RUNNER keeps the same full-bleed iframe, but its GamePass exit control
    sits between (and above) the two touch controls. This keeps a generous gap
    from the right-side dash target on compact landscape viewports. */

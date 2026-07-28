@@ -21,6 +21,7 @@ import { WebgridScreen } from "./features/webgrid/WebgridScreen";
 import { NebulaDriftScreen } from "./features/nebulaDrift/NebulaDriftScreen";
 import { JediSurvivorsScreen } from "./features/jediSurvivors/JediSurvivorsScreen";
 import { NeonBladeScreen } from "./features/neonBlade/NeonBladeScreen";
+import { NeonRequiemScreen } from "./features/neonRequiem/NeonRequiemScreen";
 import { VoltRunnerScreen } from "./features/voltRunner/VoltRunnerScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
@@ -91,6 +92,7 @@ export function App() {
         <Route path="/nebula-drift" element={<Protected><NebulaDriftScreen /></Protected>} />
         <Route path="/jedi-survivors" element={<Protected><JediSurvivorsScreen /></Protected>} />
         <Route path="/neon-blade" element={<Protected><NeonBladeScreen /></Protected>} />
+        <Route path="/neon-requiem" element={<Protected><NeonRequiemScreen /></Protected>} />
         <Route path="/volt-runner" element={<Protected><VoltRunnerScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
