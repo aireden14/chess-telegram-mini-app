@@ -1435,6 +1435,37 @@ body {
   box-shadow: none;
 }
 
+/* VOLT RUNNER keeps the same full-bleed iframe, but its GamePass exit control
+   sits between (and above) the two touch controls. This keeps a generous gap
+   from the right-side dash target on compact landscape viewports. */
+.volt-runner-screen .topnav {
+  right: auto;
+  bottom: calc(var(--safe-bottom) + clamp(104px, 14vw, 128px));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.volt-runner-screen .topnav .back {
+  width: 92px;
+  min-height: 36px;
+  background: rgba(2, 8, 20, 0.76);
+  border-color: rgba(77, 246, 255, 0.36);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.38),
+    0 0 16px rgba(77, 246, 255, 0.12);
+}
+
+.volt-runner-safe-area-probe {
+  position: fixed;
+  width: 0;
+  height: 0;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  box-sizing: content-box;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Sudoku */
 .sudoku-screen {
   gap: 16px;
