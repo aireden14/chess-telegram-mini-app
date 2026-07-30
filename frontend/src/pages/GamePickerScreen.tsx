@@ -21,6 +21,7 @@ type AppEntry = {
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
+  { key: "card", icon: "🍬", title: "SUGAR STRIKE", to: "/sugar-strike", grad: ["#ff9fc4", "#8fd3ff"], badge: "NEW" },
   { key: "card", icon: "🎛️", title: "WAVE FORGE", to: "/beat-maker", grad: ["#24e0ff", "#ff2d96"], badge: "NEW" },
   { key: "card", icon: "🔻", title: "NEON REQUIEM", to: "/neon-requiem", grad: ["#ff174f", "#00f0ff"], badge: "NEW" },
   { key: "card", icon: "⚡", title: "VOLT RUNNER", to: "/volt-runner", grad: ["#ffe600", "#ff5c00"], badge: "NEW" },

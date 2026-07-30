@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Sugar Strike</title>
+<style>
+  :root{
+    --pink:#ff9fc4; --pink-d:#ff6fa8; --blue:#8fd3ff; --blue-d:#4bb6f5;
+    --mint:#a8ecc9; --butter:#ffe08a; --lilac:#c9b3ff; --ink:#3a2f4a;
+    --card:#fffdfa; --shadow:0 6px 0 rgba(58,47,74,.18);
+  }
+  *{ box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; overflow:hidden; background:#bfe3ff;
+    font-family:"Baloo 2",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); }
+  #app{ position:fixed; inset:0; }
+  canvas{ display:block; width:100%; height:100%; touch-action:none; }
+
+  /* ---------- HUD ---------- */
+  #hud{ position:fixed; inset:0; pointer-events:none; z-index:20; }
+  .pill{ background:var(--card); border:3px solid var(--ink); border-radius:16px;
+    box-shadow:var(--shadow); padding:6px 12px; text-align:center; font-weight:800; }
+  .lbl{ font-size:10px; letter-spacing:1px; opacity:.65; font-weight:800; }
+  .big{ font-size:20px; line-height:1; }
+
+  #topCenter{ position:absolute; top:calc(10px + var(--safe-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; gap:10px; }
+  #topCenter .pill{ min-width:64px; }
+  #scoreCT{ color:var(--blue-d); } #scoreT{ color:var(--pink-d); }
+
+  #topLeft{ position:absolute; top:calc(10px + var(--safe-top,0px)); left:10px; display:flex; flex-direction:column; gap:8px; width:210px; }
+  #miniBtns{ display:flex; gap:8px; }
+  .circBtn{ pointer-events:auto; width:46px; height:46px; border-radius:14px; background:var(--card);
+    border:3px solid var(--ink); box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:900; cursor:pointer; }
+  .circBtn:active{ transform:translateY(2px); box-shadow:0 3px 0 rgba(58,47,74,.18); }
+  #vitalityCard .lbl{ text-align:left; }
+  #vitBarWrap{ position:relative; height:20px; border:3px solid var(--ink); border-radius:12px; background:#f0e9f5; overflow:hidden; margin-top:4px; }
+  #vitBar{ position:absolute; inset:0; width:100%; background:linear-gradient(90deg,var(--mint),#7fe0aa);
+    border-radius:9px; transition:width .12s; }
+  #vitBar.low{ background:linear-gradient(90deg,#ffb0c8,var(--pink-d)); }
+  #vitNum{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; }
+  #ammoCard{ text-align:left; }
+  #ammoCard .wname{ font-size:12px; letter-spacing:.5px; opacity:.7; }
+  #ammoNum{ font-size:26px; font-weight:900; }
+  #ammoNum small{ font-size:14px; opacity:.6; }
+  #ammoNum.reload{ color:var(--pink-d); }
+  #moneyRow{ font-size:14px; font-weight:900; color:#2e9e6b; }
+
+  #killFeed{ position:absolute; top:calc(10px + var(--safe-top,0px)); right:10px; display:flex; flex-direction:column; gap:6px; align-items:flex-end; max-width:46vw; }
+  .kf{ background:var(--card); border:3px solid var(--ink); border-radius:14px; box-shadow:var(--shadow);
+    padding:4px 10px; font-size:12px; font-weight:800; display:flex; gap:6px; align-items:center; white-space:nowrap; }
+  .kf .att{ font-weight:900; } .kf .ct{ color:var(--blue-d);} .kf .t{ color:var(--pink-d);}
+
+  /* crosshair */
+  #cross{ position:absolute; left:50%; top:50%; width:26px; height:26px; transform:translate(-50%,-50%); }
+  #cross div{ position:absolute; background:#fff; box-shadow:0 0 2px rgba(0,0,0,.6); border-radius:2px; }
+  #cross .h{ top:11px; height:3px; width:9px; } #cross .h.l{ left:0 } #cross .h.r{ right:0 }
+  #cross .v{ left:11px; width:3px; height:9px; } #cross .v.t{ top:0 } #cross .v.b{ bottom:0 }
+  #hitmark{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-weight:900; font-size:26px; opacity:0; text-shadow:0 0 3px #000; }
+
+  #dmgFlash{ position:absolute; inset:0; box-shadow:inset 0 0 120px rgba(255,60,90,.0); transition:box-shadow .1s; }
+
+  /* weapon slots */
+  #slots{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:10px; }
+  .slot{ pointer-events:auto; min-width:52px; height:44px; padding:0 10px; border-radius:12px; background:#efe7f2;
+    border:3px solid var(--ink); box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:15px; cursor:pointer; opacity:.72; }
+  .slot .em{ font-size:18px; margin-right:2px; }
+  .slot.active{ background:var(--butter); opacity:1; }
+
+  /* touch controls */
+  #joyZone{ position:absolute; left:0; bottom:0; width:44%; height:56%; pointer-events:auto; }
+  #joy{ position:absolute; width:120px; height:120px; border-radius:50%; border:3px solid var(--ink);
+    background:rgba(255,255,255,.35); display:none; }
+  #joyNub{ position:absolute; width:56px; height:56px; border-radius:50%; background:var(--butter); border:3px solid var(--ink); }
+  #lookZone{ position:absolute; right:0; top:0; width:56%; height:78%; pointer-events:auto; }
+
+  #actions{ position:absolute; right:14px; bottom:20px; pointer-events:none; }
+  .abtn{ pointer-events:auto; position:absolute; border-radius:50%; border:3px solid var(--ink); box-shadow:var(--shadow);
+    display:flex; align-items:center; justify-content:center; font-weight:900; cursor:pointer; }
+  .abtn:active{ transform:translateY(2px); }
+  #fireBtn{ width:104px; height:104px; right:0; bottom:0; background:var(--pink); font-size:20px; color:var(--ink); }
+  #jumpBtn{ width:66px; height:66px; right:112px; bottom:8px; background:var(--blue); font-size:24px; }
+  #reloadBtn{ width:66px; height:66px; right:34px; bottom:120px; background:var(--butter); font-size:22px; }
+  #nadeBtn{ width:56px; height:56px; right:118px; bottom:84px; background:var(--lilac); font-size:22px; }
+  #crouchBtn{ width:56px; height:56px; right:126px; bottom:150px; background:var(--mint); font-size:20px; }
+  #crouchBtn.on{ background:#6fd6a1; }
+  #useBtn{ width:70px; height:70px; right:120px; bottom:150px; background:#ffd36e; font-size:13px; display:none; text-align:center; line-height:1.05; }
+
+  /* center banners */
+  #banner{ position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); text-align:center; width:90%; }
+  #banner .big1{ font-size:52px; font-weight:900; color:#fff; text-shadow:0 4px 0 rgba(58,47,74,.35); letter-spacing:1px; }
+  #banner .sub{ font-size:16px; font-weight:800; margin-top:4px; }
+  #banner .cnt{ font-size:40px; font-weight:900; margin-top:8px; color:#fff; text-shadow:0 3px 0 rgba(58,47,74,.35); }
+
+  #bombRow{ position:absolute; left:50%; bottom:74px; transform:translateX(-50%); display:none; gap:8px; align-items:center; }
+  #bombBar{ width:200px; height:16px; border:3px solid var(--ink); border-radius:10px; background:#f0e9f5; overflow:hidden; }
+  #bombFill{ height:100%; width:0%; background:var(--pink-d); }
+  #bombTxt{ font-weight:900; font-size:13px; }
+
+  /* ---------- overlay menus ---------- */
+  .overlay{ position:fixed; inset:0; z-index:40; background:linear-gradient(160deg,#cdeafff2,#ffd9ecf2);
+    display:flex; align-items:center; justify-content:center; padding:18px; overflow:auto; }
+  .panel{ background:var(--card); border:4px solid var(--ink); border-radius:26px; box-shadow:0 10px 0 rgba(58,47,74,.18);
+    padding:20px; width:min(560px,94vw); max-height:92vh; overflow:auto; }
+  .panel h1{ margin:0 0 2px; font-size:34px; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(90deg,var(--pink-d),var(--blue-d)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .panel .tag{ font-size:13px; font-weight:800; opacity:.7; margin-bottom:14px; }
+  .btn{ display:block; width:100%; margin:8px 0; padding:14px; border-radius:16px; border:3px solid var(--ink);
+    box-shadow:var(--shadow); font-weight:900; font-size:17px; cursor:pointer; background:var(--butter); color:var(--ink); }
+  .btn.primary{ background:var(--pink); } .btn.blue{ background:var(--blue); } .btn.mint{ background:var(--mint); }
+  .btn:active{ transform:translateY(2px); box-shadow:0 3px 0 rgba(58,47,74,.18); }
+  .row{ display:flex; gap:8px; } .row .btn{ flex:1; }
+  .sideRow{ display:flex; gap:10px; margin:10px 0; }
+  .sidePick{ flex:1; border:3px solid var(--ink); border-radius:16px; padding:12px; text-align:center; font-weight:900; cursor:pointer; box-shadow:var(--shadow); }
+  .sidePick.t{ background:#ffd9e6; } .sidePick.ct{ background:#d6ecff; }
+  .sidePick.sel{ outline:4px solid var(--ink); outline-offset:2px; }
+  .foot{ text-align:center; font-size:12px; font-weight:800; opacity:.8; margin-top:14px; }
+  .foot a{ color:var(--pink-d); text-decoration:none; font-weight:900; }
+  .hidden{ display:none !important; }
+
+  /* buy menu */
+  #buyGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+  .buyItem{ border:3px solid var(--ink); border-radius:14px; padding:8px 10px; box-shadow:var(--shadow); cursor:pointer; background:#fff; }
+  .buyItem:active{ transform:translateY(2px); }
+  .buyItem.cant{ opacity:.45; }
+  .buyItem .bn{ font-weight:900; font-size:14px; display:flex; justify-content:space-between; gap:6px; }
+  .buyItem .bp{ color:#2e9e6b; font-weight:900; }
+  .buyItem .bs{ font-size:10px; opacity:.65; font-weight:700; margin-top:2px; }
+  .buyTabs{ display:flex; gap:6px; margin:6px 0 10px; flex-wrap:wrap; }
+  .buyTab{ padding:6px 12px; border:3px solid var(--ink); border-radius:12px; font-weight:900; font-size:13px; cursor:pointer; background:#efe7f2; }
+  .buyTab.on{ background:var(--butter); }
+  #buyHead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+
+  .changelog{ text-align:left; font-size:13px; font-weight:600; line-height:1.5; }
+  .changelog b{ font-weight:900; }
+  .scrim{ background:#fff; border:3px solid var(--ink); border-radius:14px; padding:12px; margin:8px 0; }
+
+  #loading{ position:fixed; inset:0; z-index:60; background:linear-gradient(160deg,#cdeaff,#ffd9ec);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; font-weight:900; }
+  #loading .l1{ font-size:40px; background:linear-gradient(90deg,var(--pink-d),var(--blue-d)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #loading .l2{ font-size:14px; opacity:.7; margin-top:8px; }
+
+  @media (max-width:520px){
+    #topLeft{ width:170px; } .big{ font-size:16px; } #ammoNum{ font-size:22px; }
+    #fireBtn{ width:90px; height:90px; } .panel h1{ font-size:28px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="loading"><div class="l1">SUGAR STRIKE</div><div class="l2">заряжаем жвачку…</div></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="dmgFlash"></div>
+  <div id="topLeft">
+    <div id="miniBtns">
+      <div class="circBtn" id="pauseBtn">II</div>
+      <div class="circBtn" id="menuBtn">☰</div>
+    </div>
+    <div class="pill" id="vitalityCard">
+      <div class="lbl">VITALITY</div>
+      <div id="vitBarWrap"><div id="vitBar"></div><div id="vitNum">100</div></div>
+    </div>
+    <div class="pill" id="ammoCard">
+      <div class="wname" id="wname">AK-47</div>
+      <div id="ammoNum"><span id="magNum">30</span><small>/<span id="resNum">90</span></small></div>
+      <div id="moneyRow">$ <span id="moneyNum">800</span></div>
+    </div>
+  </div>
+
+  <div id="topCenter">
+    <div class="pill"><div class="lbl">SUGAR • CT</div><div class="big" id="scoreCT">0</div></div>
+    <div class="pill"><div class="lbl">TIME</div><div class="big" id="timeNum">1:55</div></div>
+    <div class="pill"><div class="lbl">SOUR • T</div><div class="big" id="scoreT">0</div></div>
+  </div>
+
+  <div id="killFeed"></div>
+
+  <div id="cross"><div class="h l"></div><div class="h r"></div><div class="v t"></div><div class="v b"></div></div>
+  <div id="hitmark">✕</div>
+
+  <div id="bombRow"><div id="bombBar"><div id="bombFill"></div></div><div id="bombTxt"></div></div>
+
+  <div id="banner" class="hidden"><div class="big1" id="bTitle"></div><div class="sub" id="bSub"></div><div class="cnt" id="bCnt"></div></div>
+
+  <div id="slots"></div>
+
+  <!-- touch -->
+  <div id="joyZone"><div id="joy"><div id="joyNub"></div></div></div>
+  <div id="lookZone"></div>
+  <div id="actions">
+    <div class="abtn" id="fireBtn">FIRE</div>
+    <div class="abtn" id="jumpBtn">↑</div>
+    <div class="abtn" id="reloadBtn">↻</div>
+    <div class="abtn" id="nadeBtn">💣</div>
+    <div class="abtn" id="crouchBtn">⤓</div>
+    <div class="abtn" id="useBtn">PLANT</div>
+  </div>
+</div>
+
+<!-- MAIN MENU -->
+<div id="mainMenu" class="overlay">
+  <div class="panel">
+    <h1>SUGAR STRIKE</h1>
+    <div class="tag">Конфетный контр-страйк · карта de_mansion · бомба · боты</div>
+    <div class="sideRow">
+      <div class="sidePick ct sel" data-side="CT">🍬 SUGAR SQUAD<br><small>полиция (CT)</small></div>
+      <div class="sidePick t" data-side="T">🍭 SOUR CREW<br><small>террористы (T)</small></div>
+    </div>
+    <button class="btn primary" id="startBtn">В БОЙ</button>
+    <div class="row">
+      <button class="btn blue" id="howBtn">Как играть</button>
+      <button class="btn mint" id="newsBtn">Что нового</button>
+    </div>
+    <div class="foot">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+  </div>
+</div>
+
+<!-- HOW TO -->
+<div id="howMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>Как играть</h1>
+    <div class="tag">Режим: обезвредить/взорвать бомбу (defuse)</div>
+    <div class="changelog scrim">
+      <b>Цель.</b> SOUR (T) должны заложить бомбу на точке <b>A</b> или <b>B</b> и взорвать её.
+      SUGAR (CT) — не дать заложить или обезвредить бомбу. Или перестрелять всю команду.<br><br>
+      <b>Компьютер:</b> WASD — движение, мышь — обзор, ЛКМ — огонь, R — перезарядка,
+      1/2/3 — оружие, G — граната, Space — прыжок, Ctrl — присесть, Shift — тихий шаг,
+      E — заложить/обезвредить бомбу, B — магазин закупки.<br><br>
+      <b>Телефон:</b> левый джойстик — движение, правая часть экрана — обзор,
+      FIRE — огонь, ↻ — перезарядка, ↑ — прыжок, ⤓ — присесть, 💣 — граната,
+      кнопка PLANT/DEFUSE появляется на точке.<br><br>
+      <b>Экономика.</b> За убийства и раунды дают $. В начале раунда открывается закупка (кнопка $).
+      10+ стволов из CS 1.6 + броня и гранаты.
+    </div>
+    <button class="btn primary" id="howBack">Назад</button>
+    <div class="foot">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+  </div>
+</div>
+
+<!-- NEWS / Что нового -->
+<div id="newsMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>Что нового</h1>
+    <div class="tag" id="newsDate">Обновление —</div>
+    <div class="changelog scrim" id="newsBody"></div>
+    <button class="btn primary" id="newsBack">Назад</button>
+    <div class="foot">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div id="pauseMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>Пауза</h1>
+    <div class="tag" id="pauseScore">CT 0 : 0 T</div>
+    <button class="btn primary" id="resumeBtn">Продолжить</button>
+    <button class="btn blue" id="buyFromPause">Магазин закупки ($)</button>
+    <button class="btn mint" id="restartBtn">Новый матч</button>
+    <button class="btn" id="quitBtn">Выйти в меню</button>
+    <div class="foot">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+  </div>
+</div>
+
+<!-- BUY MENU -->
+<div id="buyMenu" class="overlay hidden">
+  <div class="panel">
+    <div id="buyHead"><h1 style="font-size:26px">Закупка</h1><div style="font-weight:900;color:#2e9e6b">$ <span id="buyMoney">800</span></div></div>
+    <div class="buyTabs" id="buyTabs"></div>
+    <div id="buyGrid"></div>
+    <button class="btn primary" id="buyClose" style="margin-top:12px">Готово / в бой</button>
+    <div class="foot">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+  </div>
+</div>
+
+<!-- END OF MATCH -->
+<div id="endMenu" class="overlay hidden">
+  <div class="panel">
+    <h1 id="endTitle">Матч окончен</h1>
+    <div class="tag" id="endScore"></div>
+    <div class="changelog scrim" id="endStats"></div>
+    <button class="btn primary" id="endAgain">Ещё раз</button>
+    <button class="btn" id="endQuit">В меню</button>
+    <div class="foot">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+  </div>
+</div>
+
+<script src="./vendor/three.min.js"></script>
+<script src="./game.js?v=1"></script>
+</body>
+</html>

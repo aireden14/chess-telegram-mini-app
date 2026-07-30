@@ -22,6 +22,7 @@ import { NebulaDriftScreen } from "./features/nebulaDrift/NebulaDriftScreen";
 import { BeatMakerScreen } from "./features/beatMaker/BeatMakerScreen";
 import { JediSurvivorsScreen } from "./features/jediSurvivors/JediSurvivorsScreen";
 import { NeonBladeScreen } from "./features/neonBlade/NeonBladeScreen";
+import { SugarStrikeScreen } from "./features/sugarStrike/SugarStrikeScreen";
 import { NeonRequiemScreen } from "./features/neonRequiem/NeonRequiemScreen";
 import { VoltRunnerScreen } from "./features/voltRunner/VoltRunnerScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
@@ -94,6 +95,7 @@ export function App() {
         <Route path="/beat-maker" element={<Protected><BeatMakerScreen /></Protected>} />
         <Route path="/jedi-survivors" element={<Protected><JediSurvivorsScreen /></Protected>} />
         <Route path="/neon-blade" element={<Protected><NeonBladeScreen /></Protected>} />
+        <Route path="/sugar-strike" element={<Protected><SugarStrikeScreen /></Protected>} />
         <Route path="/neon-requiem" element={<Protected><NeonRequiemScreen /></Protected>} />
         <Route path="/volt-runner" element={<Protected><VoltRunnerScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
