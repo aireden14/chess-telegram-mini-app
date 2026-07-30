@@ -34,6 +34,22 @@ model User {
   catanWon      CatanGame[]   @relation("CatanWinner")
 
   sudokuProfile SudokuProfile? @relation("SudokuProfile")
+
+  beatTracks    BeatTrack[]    @relation("BeatTracks")
+}
+
+model BeatTrack {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation("BeatTracks", fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  bpm       Int      @default(92)
+  scale     String   @default("minorPentatonic")
+  dataJson  String   // full normalized WAVE FORGE track as JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model SudokuProfile {

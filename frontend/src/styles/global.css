@@ -1435,6 +1435,13 @@ body {
   box-shadow: none;
 }
 
+/* WAVE FORGE (beat-maker) uses the default framed shell: a normal TopNav bar
+   above a full-height iframe that scrolls internally. Just theme the frame. */
+.beat-maker-screen .force-deflector-frame-shell {
+  background: #0a0713;
+  border-radius: 18px;
+}
+
 /* NEON REQUIEM keeps the GamePass exit between its two touch sticks. The
    standalone iframe owns the rest of the HUD and Telegram-safe spacing. */
 .neon-requiem-screen .topnav {

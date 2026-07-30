@@ -19,6 +19,7 @@ import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorSc
 import { NeurogridScreen } from "./features/neurogrid/NeurogridScreen";
 import { WebgridScreen } from "./features/webgrid/WebgridScreen";
 import { NebulaDriftScreen } from "./features/nebulaDrift/NebulaDriftScreen";
+import { BeatMakerScreen } from "./features/beatMaker/BeatMakerScreen";
 import { JediSurvivorsScreen } from "./features/jediSurvivors/JediSurvivorsScreen";
 import { NeonBladeScreen } from "./features/neonBlade/NeonBladeScreen";
 import { NeonRequiemScreen } from "./features/neonRequiem/NeonRequiemScreen";
@@ -90,6 +91,7 @@ export function App() {
         <Route path="/neurogrid" element={<Protected><NeurogridScreen /></Protected>} />
         <Route path="/webgrid" element={<Protected><WebgridScreen /></Protected>} />
         <Route path="/nebula-drift" element={<Protected><NebulaDriftScreen /></Protected>} />
+        <Route path="/beat-maker" element={<Protected><BeatMakerScreen /></Protected>} />
         <Route path="/jedi-survivors" element={<Protected><JediSurvivorsScreen /></Protected>} />
         <Route path="/neon-blade" element={<Protected><NeonBladeScreen /></Protected>} />
         <Route path="/neon-requiem" element={<Protected><NeonRequiemScreen /></Protected>} />

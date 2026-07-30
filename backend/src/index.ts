@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { gamesRouter } from "./routes/games";
 import { sudokuRouter } from "./routes/sudoku";
+import { beatsRouter } from "./routes/beats";
 import { catanRouter } from "./routes/catan";
 import { telegramWebhookRouter } from "./routes/telegramWebhook";
 import { prisma } from "./utils/prisma";
@@ -32,6 +33,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/games", gamesRouter);
 app.use("/api/sudoku", sudokuRouter);
+app.use("/api/beats", beatsRouter);
 app.use("/api/catan", catanRouter);
 app.use("/api/telegram", telegramWebhookRouter);
 
