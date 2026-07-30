@@ -363,6 +363,7 @@ save.selStage=save.selStage||'tatooine';
 save.hyper=!!save.hyper;
 save.hurry=!!save.hurry;
 save.inverse=!!save.inverse; // Инверсия: зеркальный усложнённый вариант этапа
+save.bossrush=!!save.bossrush; // Boss Rush: только боссы подряд
 save.sealed=Array.isArray(save.sealed)?save.sealed:[]; // Печати: перманентный бан-лист оружия/пассивок в выдаче уровней
 save.eggs=Object.assign({n:0,st:{}},save.eggs||{}); // золотые яйца: бесконечная мета-прокачка
 save.adv=save.adv||{}; // Приключения (Миссии): карта пройденных {missionId:true}
@@ -505,7 +506,7 @@ const ARC=id=>!!(G&&(G.arcana===id||G.arcana2===id||G.arcana3===id));
 const RUN_KEY='jediSurvRun1';
 function saveRun(){
   if(!G||G.state==='dead') return;
-  if(G.mission) return; // Приключения не сохраняются как забег — миссию проходят за один заход
+  if(G.mission||G.bossrush) return; // Приключения и Boss Rush проходят за один заход, не сохраняются
   try{
     const p=G.p;
     localStorage.setItem(RUN_KEY,JSON.stringify({
@@ -946,6 +947,7 @@ function newGame(){
     hyper:  !mission && save.hyper&&!!save.achs.win,                                // тумблеры выкл в миссиях —
     inverse:!mission && save.inverse&&!!save.achs.win, // Инверсия: зеркальный мир — куда злее, награды жирнее
     hurry:  !mission && save.hurry&&!!save.achs.surv20, // Hurry: игровое время ×2, забег вдвое короче
+    bossrush: !mission && save.bossrush&&!!save.achs.win, brIndex:0, brNext:8, brWon:false, // Boss Rush: только боссы подряд
     chestsRun:0, evosRun:0, bossKills:0, won:false, endless:false, goldCredited:0,
     freezeT:0, feverT:0, feverTick:0, achTick:0,
     // живой мир: реликвии, мираж, буря, пролёты, следы, декали, живность, фонари
@@ -1126,7 +1128,34 @@ function spawnRing(type,count){
     spawnEnemy(type, G.p.x+Math.cos(a)*R, G.p.y+Math.sin(a)*R);
   }
 }
+// Boss Rush: пять боссов подряд с эскалацией; между ними — миньоны для опыта и лута
+const BOSS_RUSH=['atst','maul','boba','inquis','vader'];
+function updateBossRush(dt){
+  const p=G.p;
+  const bossAlive=G.bossRef&&G.bossRef.hp>0;
+  if(!bossAlive){
+    G.brNext-=dt;
+    if(G.brNext<=0){
+      if(G.brIndex>=BOSS_RUSH.length){ G.brWon=true; G.won=true; G.goldRun+=1500; checkAchs(); endRun(true); return; }
+      const id=BOSS_RUSH[G.brIndex];
+      spawnEnemy(id); S.boom();
+      G.dmgTexts.push({x:p.x,y:p.y-60,v:'⚔️ БОСС '+(G.brIndex+1)+'/'+BOSS_RUSH.length+': '+(ENEMY_NAMES[id]||'').toUpperCase(),t:2.8,crit:true,str:true});
+      G.brIndex++;
+      G.brNext=3;
+    }
+  }
+  // миньоны для драйва, опыта и лута
+  G.spawnT-=dt;
+  if(G.spawnT<=0 && G.enemies.length<60){
+    G.spawnT=1.2*(G.spawnMul||1);
+    const minions=['trooper','dark','magna','deka'];
+    for(let i=0;i<3;i++) spawnEnemy(minions[rndi(0,minions.length-1)]);
+  }
+  G.crateT-=dt;
+  if(G.crateT<=0){ G.crateT=18; const a=rnd(0,TAU), R=Math.min(W,H)/(2*cameraZoom())*rnd(0.5,0.85); spawnEnemy('crate', p.x+Math.cos(a)*R, p.y+Math.sin(a)*R, 1); }
+}
 function updateSpawns(dt){
+  if(G.bossrush){ updateBossRush(dt); return; }
   const cfg=waveCfg(), mn=Math.floor(G.time/60);
   // Император на поле — как Смерть в VS: обычные волны прекращаются, остаётся только погоня
   if(mn>G.bossDone&&cfg.boss){ G.bossDone=mn; spawnEnemy(cfg.boss); S.boom();
@@ -3693,6 +3722,18 @@ function drawHUD(){
     cx.fillText(s, W/2, 111);
     cx.font='bold 22px Verdana';
   }
+  // Boss Rush: прогресс по боссам под таймером
+  if(G.bossrush){
+    const done=Math.min(G.brIndex,BOSS_RUSH.length);
+    const s='👹 BOSS RUSH — '+done+' / '+BOSS_RUSH.length;
+    cx.font='bold 12px Verdana';
+    const bw=cx.measureText(s).width+22;
+    cx.fillStyle='rgba(8,12,26,.72)';
+    cx.beginPath(); cx.roundRect(W/2-bw/2, 96, bw, 22, 8); cx.fill();
+    cx.fillStyle='#ff8d6b';
+    cx.fillText(s, W/2, 111);
+    cx.font='bold 22px Verdana';
+  }
   // иконки оружия слева сверху
   let wx=10;
   cx.textAlign='left'; cx.font='15px serif';
@@ -5042,10 +5083,13 @@ function endRun(win){
   save.stats.maxLvl=Math.max(save.stats.maxLvl,G.p.lvl);
   persist();
   const isMission=!!G.mission;
-  el('contBtn').classList.toggle('hidden', !win || isMission); // в миссиях нет бесконечного продолжения
+  el('contBtn').classList.toggle('hidden', !win || isMission || G.bossrush); // в миссиях и Boss Rush нет бесконечного продолжения
   if(G.reaperKilled){ // 🌟 секретная победа над Смертью
     el('endTitle').textContent='🌟 ТЫ ОДОЛЕЛ СМЕРТЬ!';
     el('endTitle').style.color='#c9a0ff';
+  } else if(G.brWon){ // 👹 пройден Boss Rush
+    el('endTitle').textContent='🏆 BOSS RUSH ПРОЙДЕН!';
+    el('endTitle').style.color='#ff8d6b';
   } else if(isMission){
     el('endTitle').textContent = win? '🏆 МИССИЯ ПРОЙДЕНА!' : '💀 МИССИЯ ПРОВАЛЕНА';
     el('endTitle').style.color = win? '#ffd76a' : '#ff5b5b';
@@ -5195,6 +5239,13 @@ function renderMenuMeta(){
     d.onclick=()=>{ save.hurry=!save.hurry; persist(); renderMenuMeta(); };
     sr.appendChild(d);
   }
+  if(save.achs.win){ // Boss Rush: пять боссов подряд
+    const d=document.createElement('div');
+    d.className='sel-card'+(save.bossrush?' on':'');
+    d.innerHTML='<span class="ic">👹</span><b>Boss Rush</b><br>'+(save.bossrush?'только боссы подряд':'выкл');
+    d.onclick=()=>{ save.bossrush=!save.bossrush; persist(); renderMenuMeta(); };
+    sr.appendChild(d);
+  }
 }
 function renderCollection(){
   const st=save.stats;
@@ -5213,6 +5264,9 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'28 июля 2026 (Алматы) — v22.8 «Boss Rush»',t:[
+    '👹 НОВЫЙ РЕЖИМ BOSS RUSH (тумблер в меню, за победу над осадой): никаких обычных волн — пять боссов подряд с эскалацией (AT-ST → Дарт Мол → Боба Фетт → Инквизитор → Вейдер). Между боссами набегают миньоны для опыта и лута.',
+    '🏆 Одолей всех пятерых — особый финал и +1500 золота. Сверху виден прогресс боссов. Совмещается с Гипером/Инверсией для хардкора.']},
   {d:'28 июля 2026 (Алматы) — v22.7 «Победи Смерть»',t:[
     '🌟 СЕКРЕТ: Императора-Смерть на 29-й минуте раньше нельзя было убить. Теперь ЗАВЕРШЁННЫЙ билд (3+ эволюции или юниона) делает Смерть уязвимой — успей сжечь её до 30:00 и одолей!',
     '🏆 За победу над Смертью — особый финал «🌟 ТЫ ОДОЛЕЛ СМЕРТЬ!», +3000 золота, а за ПЕРВУЮ победу — навсегда +8% урона. При появлении Смерти видно, уязвима она или нет.']},
