@@ -8,16 +8,6 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "3.23.0",
-    date: "29 июля 2026 (Алматы)",
-    title: "WAVE FORGE — генератор битов",
-    items: [
-      "🎛 Новая мини-апка WAVE FORGE: пошаговый бит-мейкер в вейв/8-бит стиле — барабаны + три синта, пиано-ролл с привязкой к ладу",
-      "🎲 Кнопка «Сгенерить» собирает готовый бит одним тапом; темп, свинг, октавы и биткрашер под рукой",
-      "💾 Треки сохраняются в аккаунт (и на устройство), экспорт в WAV и «Код агенту», чтобы ассистент достал трек позже",
-    ],
-  },
-  {
     version: "3.22.2",
     date: "28 июля 2026 (Алматы)",
     title: "Jedi Survivors: Победи Смерть",

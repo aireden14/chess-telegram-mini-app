@@ -694,11 +694,12 @@ const ETYPES={
   emperor:{hp:1e9, sp:150,dmg:400,r:22, xp:0, gold:0, draw:'emperor', boss:true, emperor:true, kb:0},
 };
 /* этапы: множитель сложности и наград */
-const STAGE_MUL={tatooine:1,hoth:1.25,endor:1.5,mustafar:1.75};
+const STAGE_MUL={tatooine:1,hoth:1.25,endor:1.5,mustafar:1.75,deathstar:2};
 function stageUnlocked(id){
   if(id==='hoth') return !!save.achs.surv15;
   if(id==='endor') return !!save.achs.win;
   if(id==='mustafar') return !!save.winEndor;
+  if(id==='deathstar') return !!save.reaperKilled; // секретный бонус-этап за победу над Смертью
   return true;
 }
 /* per-minute spawn director (VS-style waves, 30-minute run) */
@@ -3836,6 +3837,7 @@ const STAGE_PAL={
   hoth:    {base:'#dce7f2',rock:'#9fb3c8',crater:'70,95,130',bones:'#f8fcff',tuft:'140,160,195'},
   endor:   {base:'#6d8a52',rock:'#55703f',crater:'30,50,25',bones:'#cdd8bc',tuft:'70,130,50'},
   mustafar:{base:'#4a3134',rock:'#5f3a3c',crater:'150,50,20',bones:'#7a5252',tuft:'190,80,35'},
+  deathstar:{base:'#3a3f4a',rock:'#565d6b',crater:'20,25,35',bones:'#8a92a3',tuft:'150,60,60'},
 };
 function pal(){ return STAGE_PAL[(G&&G.stage)||'tatooine']; }
 function drawParallax(camX,camY,viewW,viewH){
@@ -5210,6 +5212,7 @@ function renderMenuMeta(){
     ['hoth','❄️','Хот','+25% сложность и награды','🔒 выживи 15 минут',!!save.achs.surv15],
     ['endor','🌲','Эндор','+50% сложность и награды','🔒 переживи осаду',!!save.achs.win],
     ['mustafar','🌋','Мустафар','+75% сложность и награды','🔒 победи на Эндоре',!!save.winEndor],
+    ['deathstar','🌑','Звезда Смерти','+100% сложность и награды','🔒 одолей Смерть',!!save.reaperKilled],
   ];
   for(const [id,ic,nm,ds,lock,unl] of stages){
     const d=document.createElement('div');
@@ -5264,6 +5267,9 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'30 июля 2026 (Алматы) — v22.9 «Звезда Смерти»',t:[
+    '🌑 СЕКРЕТНЫЙ БОНУС-ЭТАП «Звезда Смерти»: открывается, когда одолеешь Смерть-Императора. Металлические коридоры Империи — +100% сложности и +100% наград (лучший этап для фарма золота и ранга).',
+    '🏆 Пятый этап в игре, самый хардкорный. Совмещается с Гипером, Инверсией и Boss Rush для абсолютного вызова.']},
   {d:'28 июля 2026 (Алматы) — v22.8 «Boss Rush»',t:[
     '👹 НОВЫЙ РЕЖИМ BOSS RUSH (тумблер в меню, за победу над осадой): никаких обычных волн — пять боссов подряд с эскалацией (AT-ST → Дарт Мол → Боба Фетт → Инквизитор → Вейдер). Между боссами набегают миньоны для опыта и лута.',
     '🏆 Одолей всех пятерых — особый финал и +1500 золота. Сверху виден прогресс боссов. Совмещается с Гипером/Инверсией для хардкора.']},

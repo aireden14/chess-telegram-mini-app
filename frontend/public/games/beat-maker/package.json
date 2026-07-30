@@ -1,6 +1,0 @@
-{
-  "name": "wave-forge-beat-maker",
-  "private": true,
-  "type": "module",
-  "description": "WAVE FORGE standalone beat generator (GamePass mini-app). synth-core.js is shared by the browser app and render.mjs."
-}
