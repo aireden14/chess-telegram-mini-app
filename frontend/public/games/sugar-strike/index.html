@@ -84,9 +84,11 @@
   #jumpBtn{ width:66px; height:66px; right:112px; bottom:8px; background:var(--blue); font-size:24px; }
   #reloadBtn{ width:66px; height:66px; right:34px; bottom:120px; background:var(--butter); font-size:22px; }
   #nadeBtn{ width:56px; height:56px; right:118px; bottom:84px; background:var(--lilac); font-size:22px; }
-  #crouchBtn{ width:56px; height:56px; right:126px; bottom:150px; background:var(--mint); font-size:20px; }
+  #crouchBtn{ width:56px; height:56px; right:118px; bottom:150px; background:var(--mint); font-size:20px; }
   #crouchBtn.on{ background:#6fd6a1; }
-  #useBtn{ width:70px; height:70px; right:120px; bottom:150px; background:#ffd36e; font-size:13px; display:none; text-align:center; line-height:1.05; }
+  #scopeBtn{ width:56px; height:56px; right:118px; bottom:216px; background:#ffd6f0; font-size:22px; display:none; }
+  #scopeBtn.on{ background:#ff9fc4; }
+  #useBtn{ width:70px; height:70px; right:190px; bottom:120px; background:#ffd36e; font-size:13px; display:none; text-align:center; line-height:1.05; }
 
   /* center banners */
   #banner{ position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); text-align:center; width:90%; }
@@ -198,6 +200,7 @@
     <div class="abtn" id="reloadBtn">↻</div>
     <div class="abtn" id="nadeBtn">💣</div>
     <div class="abtn" id="crouchBtn">⤓</div>
+    <div class="abtn" id="scopeBtn">🔭</div>
     <div class="abtn" id="useBtn">PLANT</div>
   </div>
 </div>
@@ -290,6 +293,6 @@
 </div>
 
 <script src="./vendor/three.min.js"></script>
-<script src="./game.js?v=1"></script>
+<script src="./game.js?v=2"></script>
 </body>
 </html>

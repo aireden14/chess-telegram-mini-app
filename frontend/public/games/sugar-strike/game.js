@@ -640,6 +640,7 @@ function setupInput(){
   $("reloadBtn").onclick=()=>{ if(G.player.alive) startReload(G.player); };
   $("jumpBtn").onclick=()=>{ input.jump=true; };
   $("nadeBtn").onclick=()=>quickNade();
+  $("scopeBtn").onclick=()=>toggleZoom();
   bindPress($("crouchBtn"), ()=>{ G.player.crouch=!G.player.crouch; $("crouchBtn").classList.toggle("on",G.player.crouch); });
   bindHold($("useBtn"), v=>{ input.use=v; });
 }
@@ -662,7 +663,7 @@ function onKey(code,down){
   else if(code==="Space") input.jump=true;
 }
 let zoomState=false;
-function toggleZoom(){ const w=W[G.player.cur]; if(!w||!w.zoom)return; zoomState=!zoomState; G.player.zoomOn=zoomState; }
+function toggleZoom(){ const w=W[G.player.cur]; if(!w||!w.zoom)return; zoomState=!zoomState; G.player.zoomOn=zoomState; $("scopeBtn").classList.toggle("on",zoomState); }
 function switchTo(slot){ const p=G.player; let k=null;
   if(slot==="primary") k=p.loadout.primary; else if(slot==="pistol") k=p.loadout.pistol; else if(slot==="knife") k="knife";
   if(!k) return; if(p.cur===k) return; p.cur=k; p.deploy=0.25; p.zoomOn=false; zoomState=false; p.reloadT=0; hudAmmo(); hudSlots();
@@ -826,6 +827,7 @@ function findVisibleEnemy(a){
     if(losClear(a.x,a.y+a.eye,a.z,t.x,t.y+t.eye,t.z)){ if(d<bd){bd=d;best=t;} } }
   return best;
 }
+function aimClose(a,tx,tz){ return Math.abs(((Math.atan2(tx-a.x,-(tz-a.z))-a.yaw+Math.PI)%TAU)-Math.PI) < 0.5; }
 function faceToward(a,tx,tz,dt,rate){
   const want=Math.atan2(tx-a.x, -(tz-a.z));
   let d=((want-a.yaw+Math.PI)%TAU)-Math.PI;
@@ -846,6 +848,11 @@ function botCombat(a,dt){
   const spd=5.0*(W[a.cur]?W[a.cur].speed:1)*(a.blind>0?0.3:1);
   const wx=(sx*cosY + (-mvF)*sinY), wz=(-sx*sinY + (-mvF)*cosY);
   moveAgent(a, wx*spd*dt, wz*spd*dt);
+  // grenades: lob an HE at a target holding at medium range (uses bought nades)
+  a.nadeCd=(a.nadeCd||0)-dt;
+  if(a.loadout.nade && a.loadout.nade.length && a.nadeCd<=0 && dxz>7 && dxz<26 && aimClose(a,tx,tz) && Math.random()<0.5*dt){
+    const kind=W[a.loadout.nade[0]].cat; a.pitch=Math.max(a.pitch,0.28); throwNade(a,kind); a.loadout.nade.shift(); a.nadeCd=rand(7,12);
+  }
   // shoot
   const w=W[a.cur];
   const aimErr=Math.abs(((Math.atan2(tx-a.x,-(tz-a.z))-a.yaw+Math.PI)%TAU)-Math.PI);
@@ -928,6 +935,8 @@ function hudAmmo(){ const p=G.player; const w=W[p.cur]; $("wname").textContent=w
   $("ammoNum").classList.toggle("reload", p.reloadT>0);
   if(p.reloadT>0) $("wname").textContent=w.name.toUpperCase()+" · RELOAD";
   $("moneyNum").textContent=p.money|0;
+  // mobile scope button appears only for zoom-capable weapons (AUG/SG552/Scout/AWP)
+  if(IS_TOUCH){ const sb=$("scopeBtn"); sb.style.display = w.zoom ? "flex" : "none"; if(!w.zoom){ sb.classList.remove("on"); } }
 }
 function hudSlots(){ const p=G.player; const s=$("slots"); s.innerHTML="";
   const items=[["1","primary",p.loadout.primary],["2","pistol",p.loadout.pistol],["3","knife","knife"]];
