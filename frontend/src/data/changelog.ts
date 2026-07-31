@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.25.1",
+    date: "1 августа 2026 (Алматы)",
+    title: "WAVE FORGE 2.1 — треки на ~2 минуты",
+    items: [
+      "⏱ Готовые треки стали полноценными: ~1:35–2:00 целиком, а не 40 секунд",
+      "🎵 Добавлены новые полные композиции — Неоновый рассвет (синтвейв) и Данж-краул (чиптюн); «Скелет-битва» дособрана в эпик со всеми частями",
+      "➕ Композицию можно растянуть до 96 частей (≈3 мин)",
+    ],
+  },
+  {
     version: "3.25.0",
     date: "31 июля 2026, вечер (Алматы)",
     title: "WAVE FORGE 2.0 — длинные треки",

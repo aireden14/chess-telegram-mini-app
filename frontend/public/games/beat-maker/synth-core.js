@@ -6,7 +6,7 @@
 
 export const STEPS = 16;
 export const MAX_PARTS = 16; // pattern parts per track (А, Б, В, ...)
-export const MAX_SONG = 64; // arrangement length in parts (~4+ min of music)
+export const MAX_SONG = 96; // arrangement length in parts (~3 min of music)
 
 // ---- music theory -------------------------------------------------------
 export const SCALES = {
