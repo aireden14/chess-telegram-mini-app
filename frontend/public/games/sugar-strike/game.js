@@ -69,25 +69,38 @@ const G = {
 
 /* ============================ MAP: de_mansion (конфетная) ============================ */
 const COL = {
-  ground:0xd8ead0, road:0xcfd6ea, wallO:0xf3e2ea, mansion:0xffe9b0, mansionRoof:0xff9fb0,
-  garage:0xbfe3ff, wood:0xe7c9a0, crate:0xf6c9dd, crate2:0xbfeede, fence:0xfff6ee, plaster:0xf7edf6,
+  ground:0xb7dfa8, road:0xb4bfe4, wallO:0xe3c3d8, mansion:0xffd98a, mansionRoof:0xff8fa8,
+  garage:0x9fd4ff, wood:0xd9b184, crate:0xf2aacc, crate2:0x9fe2c8, fence:0xfff0e2, plaster:0xefdcee,
 };
+let EDGE_MAT=null;
+function edgeMat(){ if(!EDGE_MAT) EDGE_MAT=new THREE.LineBasicMaterial({color:0x3a2f4a, transparent:true, opacity:0.65}); return EDGE_MAT; }
 function addBox(cx, cy, cz, sx, sy, sz, color, opts) {
   opts = opts || {};
   const geo = new THREE.BoxGeometry(sx, sy, sz);
   const mat = new THREE.MeshLambertMaterial({ color: color, transparent: !!opts.op, opacity: opts.op || 1 });
   const m = new THREE.Mesh(geo, mat);
   m.position.set(cx, cy, cz);
+  // мультяшный контур — геометрия читается, а не сливается в «молоко»
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat()));
   G.scene.add(m);
   if (!opts.noClip) {
     G.boxes.push({ x0:cx-sx/2, x1:cx+sx/2, z0:cz-sz/2, z1:cz+sz/2, y0:cy-sy/2, y1:cy+sy/2, low:(cy+sy/2)<1.3 });
   }
   return m;
 }
+function groundTexture(){
+  // клетка на земле = ощущение собственного движения (без неё мир «плывёт»)
+  const c=document.createElement("canvas"); c.width=c.height=128; const x=c.getContext("2d");
+  x.fillStyle="#b7dfa8"; x.fillRect(0,0,128,128);
+  x.fillStyle="#a8d497"; x.fillRect(0,0,64,64); x.fillRect(64,64,64,64);
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(20,20); tex.magFilter=THREE.NearestFilter;
+  return tex;
+}
 function buildMap() {
   const S = G.scene;
   // ground
-  const g = new THREE.Mesh(new THREE.PlaneGeometry(80,80), new THREE.MeshLambertMaterial({ color: COL.ground }));
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(80,80), new THREE.MeshLambertMaterial({ map: groundTexture() }));
   g.rotation.x = -Math.PI/2; g.position.y = 0; S.add(g);
   // pathways (decorative)
   const road = (x,z,w,d) => { const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d), new THREE.MeshLambertMaterial({color:COL.road})); m.rotation.x=-Math.PI/2; m.position.set(x,0.01,z); S.add(m); };
@@ -173,7 +186,7 @@ function fenceLine(x0,z0,x1,z1,h){
 }
 function cloud(x,y,z){
   const g=new THREE.Group();
-  for(let i=0;i<4;i++){ const s=rand(1.6,3); const m=new THREE.Mesh(new THREE.SphereGeometry(s,7,6), new THREE.MeshLambertMaterial({color:0xffffff})); m.position.set(rand(-2.5,2.5),rand(-.6,.6),rand(-2,2)); g.add(m); }
+  for(let i=0;i<4;i++){ const s=rand(1.6,3); const m=new THREE.Mesh(new THREE.SphereGeometry(s,7,6), new THREE.MeshBasicMaterial({color:0xffffff})); m.position.set(rand(-2.5,2.5),rand(-.6,.6),rand(-2,2)); g.add(m); }
   g.position.set(x,y,z); G.scene.add(g);
 }
 
@@ -181,13 +194,16 @@ function cloud(x,y,z){
 const CANDY_NAMES = ["LILAC","SHERBET","BUTTER","TAFFY","SKY","BUBBLE","MINT","COCOA","BERRY","PEACH","GRAPE","VANILLA","CANDY","MOCHI","JELLY","SODA","CARAMEL","LEMON"];
 function makeAgentMesh(team){
   const g=new THREE.Group();
-  const bodyC = team==="T" ? 0xff8fb0 : 0x8fc7ff;
-  const legC = team==="T" ? 0xd45c86 : 0x4b90d0;
-  const body=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.9,0.45), new THREE.MeshLambertMaterial({color:bodyC})); body.position.y=1.15; g.add(body);
-  const legs=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.4), new THREE.MeshLambertMaterial({color:legC})); legs.position.y=0.5; g.add(legs);
-  const head=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.42,0.42), new THREE.MeshLambertMaterial({color:0xffe9d6})); head.position.y=1.8; g.add(head);
-  const hat=new THREE.Mesh(new THREE.BoxGeometry(0.48,0.18,0.48), new THREE.MeshLambertMaterial({color:bodyC})); hat.position.y=2.05; g.add(hat);
-  const gun=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.16,0.9), new THREE.MeshLambertMaterial({color:0x555a6a})); gun.position.set(0.28,1.2,0.3); g.add(gun);
+  const bodyC = team==="T" ? 0xff5c8a : 0x3f9bf0;
+  const legC = team==="T" ? 0xc23e6b : 0x2b6fb5;
+  const part=(gw,gh,gd,color,y,x,z)=>{ const geo=new THREE.BoxGeometry(gw,gh,gd);
+    const m=new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color}));
+    m.position.set(x||0,y,z||0); m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat())); g.add(m); return m; };
+  part(0.7,0.9,0.45, bodyC, 1.15);
+  part(0.6,0.7,0.4,  legC,  0.5);
+  part(0.42,0.42,0.42, 0xffe3c8, 1.8);
+  part(0.48,0.18,0.48, bodyC, 2.05);
+  part(0.15,0.16,0.9, 0x4a4f5e, 1.2, 0.28, 0.3);
   // team marker sprite
   const spr=makeMarker(team);
   spr.position.y=2.6; g.add(spr);
@@ -206,7 +222,7 @@ function makeMarker(team){
     _markerTex[key]=new THREE.CanvasTexture(c);
   }
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:_markerTex[key], depthTest:false, transparent:true}));
-  s.scale.set(0.7,0.7,0.7);
+  s.scale.set(1.0,1.0,1.0);
   return s;
 }
 function newAgent(team, isPlayer, name){
@@ -348,8 +364,7 @@ function fireWeapon(a){
   for(let p=0;p<pellets;p++){
     const yaw=a.yaw + rand(-spread,spread);
     const pit=a.pitch + rand(-spread,spread);
-    const dx=Math.sin(yaw)*Math.cos(pit), dy=Math.sin(pit), dz=Math.cos(yaw)*Math.cos(pit);
-    // for our coord: forward = (sin(yaw)*cos(pit), sin(pit), -cos(yaw)*cos(pit))? define consistent below
+    // forward convention (весь код): (sin(yaw)*cos(pit), sin(pit), -cos(yaw)*cos(pit)); камера рендерится с rotation.y=-yaw
     shootRay(a,w,ex,ey,ez,Math.sin(yaw)*Math.cos(pit),Math.sin(pit),-Math.cos(yaw)*Math.cos(pit));
   }
   if(a.isPlayer){ hudAmmo(); doRecoilKick(w); playShot(w); }
@@ -503,15 +518,26 @@ function defuseDone(a){
 }
 function explodeBomb(){
   const at=G.bomb.at; boom(at.x,0.6,at.z,0xffb0c8,10); playBoom();
-  for(const t of G.agents){ if(!t.alive)continue; const d=Math.hypot(t.x-at.x,t.z-at.z); if(d<9){ damageAgent(t, (1-d/9)*400, G.bomb.carrier||{team:"T",alive:false}, false, W.he); } }
+  for(const t of G.agents){ if(!t.alive)continue; const d=Math.hypot(t.x-at.x,t.z-at.z); if(d<9){ damageAgent(t, (1-d/9)*400, null, false, W.he); } }
   G.bomb.planted=false;
   endRound("T","Бомба взорвалась 💥");
 }
 function cleanupBomb(){ if(G.bomb.obj){G.scene.remove(G.bomb.obj);G.bomb.obj=null;} if(G.bomb.led){G.scene.remove(G.bomb.led);G.bomb.led=null;} G.bomb.planted=false; G.bomb.at=null; G.bomb.defusing=false; G.bomb.defuse=0; G.bomb.dropped=false; }
 
 /* ============================ ROUND FLOW ============================ */
+function disposeObj(o){ o.traverse&&o.traverse(c=>{ if(c.geometry)c.geometry.dispose(); if(c.material){ (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose&&m.dispose()); } }); if(o.geometry)o.geometry.dispose(); if(o.material&&o.material.dispose)o.material.dispose(); }
+function clearMatchObjects(){
+  // remove previous match's agent meshes + transient FX so restarts don't leak into the scene
+  for(const a of G.agents){ if(a.mesh){ G.scene.remove(a.mesh); disposeObj(a.mesh); a.mesh=null; } }
+  for(const t of G.tracers){ G.scene.remove(t.l); disposeObj(t.l); }  G.tracers.length=0;
+  for(const p of G.particles){ G.scene.remove(p.m); disposeObj(p.m); } G.particles.length=0;
+  for(const n of G.nades){ if(n.mesh){ G.scene.remove(n.mesh); disposeObj(n.mesh); } } G.nades.length=0;
+  for(const s of G.smokes){ if(s.mesh){ G.scene.remove(s.mesh); disposeObj(s.mesh); } } G.smokes.length=0;
+  cleanupBomb();
+}
 function startMatch(side){
-  G.playerSide=side; G.scoreCT=0; G.scoreT=0; G.round=0;
+  clearMatchObjects();
+  G.playerSide=side; G.scoreCT=0; G.scoreT=0; G.round=0; G.now=0;
   // build agents 5v5
   G.agents=[];
   G.player=newAgent(side, true, "YOU"); G.player.money=800; G.agents.push(G.player);
@@ -546,11 +572,14 @@ function startRound(){
   if(G.player.alive){ openBuy(); }
 }
 function spawnAgent(a, idx){
-  const spread=(i,base)=>({x:base.x+rand(-4,4), z:base.z+rand(-2,2)});
   let base;
   if(a.team==="T") base={x:0,z:29}; else base={x:0,z:-29};
-  // T spawns south (+Z) → look toward map (-Z, yaw 0); CT spawns north (-Z) → look +Z (yaw PI)
-  const p=spread(idx,base); a.x=p.x; a.z=p.z; a.y=0; a.yaw=a.team==="T"?0:Math.PI; a.pitch=0; a.vy=0;
+  // игрок — в первом ряду и сбоку от спавн-ящика (ящик на x=0); боты сзади и по бокам
+  const back = a.team==="T" ? 1 : -1; // «назад» = от центра карты
+  const side = Math.random()<0.5?-1:1;
+  a.x = base.x + (a.isPlayer ? 3 : side*rand(2.6,5.5));
+  a.z = base.z + (a.isPlayer ? -back*1.5 : back*rand(1,3));
+  a.y=0; a.yaw=a.team==="T"?0:Math.PI; a.pitch=0; a.vy=0;
   a.routeI=0;
 }
 function sideName(s){ return s==="CT"?"SUGAR (полиция)":"SOUR (террористы)"; }
@@ -636,7 +665,14 @@ function setupInput(){
   // buttons
   $("pauseBtn").onclick=()=>togglePause(true);
   $("menuBtn").onclick=()=>togglePause(true);
-  bindHold($("fireBtn"), v=>input.firing=v);
+  // FIRE: держишь — стреляешь, ведёшь пальцем — крутишь обзор (не нужно двух больших пальцев справа)
+  const fb=$("fireBtn"); let fireId=null, fireLast={x:0,y:0};
+  fb.addEventListener("touchstart",e=>{ e.preventDefault(); const t=e.changedTouches[0]; fireId=t.identifier; fireLast={x:t.clientX,y:t.clientY}; input.firing=true; },{passive:false});
+  fb.addEventListener("touchmove",e=>{ for(const t of e.changedTouches){ if(t.identifier===fireId){ input.look.dx+=(t.clientX-fireLast.x)*0.9; input.look.dy+=(t.clientY-fireLast.y)*0.9; fireLast={x:t.clientX,y:t.clientY}; } } e.preventDefault(); },{passive:false});
+  const fend=e=>{ for(const t of e.changedTouches){ if(t.identifier===fireId){ fireId=null; input.firing=false; } } };
+  fb.addEventListener("touchend",fend); fb.addEventListener("touchcancel",fend);
+  fb.addEventListener("mousedown",e=>{ e.preventDefault(); input.firing=true; });
+  fb.addEventListener("mouseup",()=>input.firing=false); fb.addEventListener("mouseleave",()=>input.firing=false);
   $("reloadBtn").onclick=()=>{ if(G.player.alive) startReload(G.player); };
   $("jumpBtn").onclick=()=>{ input.jump=true; };
   $("nadeBtn").onclick=()=>quickNade();
@@ -688,10 +724,31 @@ function setupTouch(){
 }
 
 /* ============================ PLAYER UPDATE ============================ */
+let AUTOFIRE = IS_TOUCH;
+try{ const v=localStorage.getItem("ss_autofire"); if(v!==null) AUTOFIRE=(v==="1"); }catch(e){}
+function setAutofire(v){ AUTOFIRE=!!v; try{ localStorage.setItem("ss_autofire", AUTOFIRE?"1":"0"); }catch(e){} }
+const normAng=a=>{ a=(a+Math.PI)%TAU; if(a<0)a+=TAU; return a-Math.PI; };
+function aimCandidate(p){
+  const w=W[p.cur]; if(!w||!p.alive) return null;
+  const ey=p.y+(p.crouch?1.05:p.eye);
+  let best=null;
+  for(const t of G.agents){
+    if(!t.alive||t.team===p.team) continue;
+    const dx=t.x-p.x, dz=t.z-p.z; const dxz=Math.hypot(dx,dz);
+    if(dxz>w.range||dxz<0.001) continue;
+    const ty=t.y+t.height*0.62;
+    if(!losClear(p.x,ey,p.z,t.x,ty,t.z)) continue;
+    const dyaw=normAng(Math.atan2(dx,-dz)-p.yaw);
+    const dpitch=Math.atan2(ty-ey,dxz)-p.pitch;
+    const err=Math.hypot(dyaw,dpitch);
+    if(!best||err<best.err) best={dyaw,dpitch,err,dxz};
+  }
+  return best;
+}
 function updatePlayer(dt){
   const p=G.player;
   // look
-  const sens = IS_TOUCH?0.0045:0.0022;
+  const sens = IS_TOUCH?0.007:0.0022;
   const zf = p.zoomOn?0.4:1;
   p.yaw += input.look.dx*sens*zf;
   p.pitch -= input.look.dy*sens*zf;
@@ -716,18 +773,32 @@ function updatePlayer(dt){
   p._moving = mag>0.08;
   if(mag>0.08){
     const nx=ix/mag, nz=iz/mag;
-    // forward = -Z in local; convert by yaw
+    // forward=(sin yaw,-cos yaw), right=(cos yaw,sin yaw); nz<0 = вперёд
     const sinY=Math.sin(p.yaw), cosY=Math.cos(p.yaw);
-    const wx=(nx*cosY + nz*sinY);
-    const wz=(-nx*sinY + nz*cosY);
+    const wx=(nx*cosY - nz*sinY);
+    const wz=(nx*sinY + nz*cosY);
     moveAgent(p, wx*speed*dt, wz*speed*dt);
   }
   // jump
   if(input.jump){ if(p.onGround){ p.vy=7.4; p.onGround=false; } input.jump=false; }
   applyGravity(p,dt);
+  // aim assist + автоогонь (казуальный мобильный режим, переключается в меню)
+  let assist=null;
+  if(AUTOFIRE && G.phase==="live"){
+    assist=aimCandidate(p);
+    if(assist && assist.err<0.35){
+      const pull=clamp(dt*3*(1-assist.err/0.35),0,0.5);
+      p.yaw+=assist.dyaw*pull;
+      p.pitch=clamp(p.pitch+assist.dpitch*pull*0.8,-1.3,1.3);
+    }
+  }
   // firing
   if(input.firing){ if(W[p.cur].cat==="melee"||W[p.cur].auto){ fireWeapon(p); } else { if(!p._firedOnce) { fireWeapon(p); p._firedOnce=true; } } }
   else p._firedOnce=false;
+  if(assist){
+    const th=clamp(0.55/Math.max(assist.dxz,1),0.045,0.14);
+    if(assist.err<th) fireWeapon(p);
+  }
   updateReload(p,dt);
   // bomb interactions
   handlePlayerUse(dt);
@@ -740,7 +811,8 @@ function setCam(p){
   G.cam.position.set(p.x, p.y+eh, p.z);
   const rec=p.recoil*0.01;
   G.cam.rotation.order="YXZ";
-  G.cam.rotation.y=p.yaw; G.cam.rotation.x=p.pitch+rec;
+  // yaw-конвенция игры: forward=(sin yaw, -cos yaw); у THREE R_y(θ) forward=(-sin θ, -cos θ) → камере нужен -yaw
+  G.cam.rotation.y=-p.yaw; G.cam.rotation.x=p.pitch+rec;
   const fovT = (W[p.cur]&&W[p.cur].zoom&&p.zoomOn)?35:75;
   if(Math.abs(G.cam.fov-fovT)>0.5){ G.cam.fov=lerp(G.cam.fov,fovT,0.4); G.cam.updateProjectionMatrix(); }
 }
@@ -846,7 +918,8 @@ function botCombat(a,dt){
   const sinY=Math.sin(a.yaw), cosY=Math.cos(a.yaw);
   const sx=a.strafe*0.7;
   const spd=5.0*(W[a.cur]?W[a.cur].speed:1)*(a.blind>0?0.3:1);
-  const wx=(sx*cosY + (-mvF)*sinY), wz=(-sx*sinY + (-mvF)*cosY);
+  // forward=(sinY,-cosY), right=(cosY,sinY)
+  const wx=(sx*cosY + mvF*sinY), wz=(sx*sinY - mvF*cosY);
   moveAgent(a, wx*spd*dt, wz*spd*dt);
   // grenades: lob an HE at a target holding at medium range (uses bought nades)
   a.nadeCd=(a.nadeCd||0)-dt;
@@ -917,13 +990,73 @@ function steerTo(a,tx,tz,dt,scale){
 }
 /* update mesh transforms for bots */
 function syncMeshes(){
+  const pulse=1+0.16*Math.sin(performance.now()*0.006);
   for(const a of G.agents){ if(!a.mesh)continue; if(!a.alive){ a.mesh.visible=false; continue; } a.mesh.visible=true;
     a.mesh.position.set(a.x, a.y, a.z); a.mesh.rotation.y=a.yaw;
-    // marker color: enemy vs ally relative to player side handled by team texture already
-    const m=a.mesh.userData.marker; if(m){ m.visible = (a.team!==G.playerSide); }
+    // метка врага: только когда замечен командой; растёт с расстоянием, чтобы не терялась
+    const m=a.mesh.userData.marker;
+    if(m){
+      const enemy = a.team!==G.playerSide;
+      m.visible = enemy && (a.spotT||0)>0;
+      if(m.visible){ const d=Math.hypot(G.cam.position.x-a.x, G.cam.position.z-a.z);
+        const s=clamp(1+d*0.045,1,3.4)*pulse; m.scale.set(s,s,1); }
+    }
   }
   // bomb led blink
   if(G.bomb.led){ G.bomb.led.visible = (Math.floor(performance.now()/300)%2===0); }
+}
+/* враг «замечен», если у кого-то из команды игрока есть на него прямая видимость (память 3с) */
+let spotRayT=0;
+function updateSpots(dt){
+  for(const a of G.agents){ if(a.spotT>0) a.spotT-=dt; }
+  spotRayT-=dt; if(spotRayT>0) return; spotRayT=0.15;
+  const allies=G.agents.filter(x=>x.alive&&x.team===G.playerSide);
+  for(const e of G.agents){
+    if(!e.alive||e.team===G.playerSide) continue;
+    for(const s of allies){
+      if(dist2(s.x,s.z,e.x,e.z)>48*48) continue;
+      if(losClear(s.x,s.y+s.eye,s.z,e.x,e.y+e.eye,e.z)){ e.spotT=3; break; }
+    }
+  }
+}
+
+/* ============================ MINIMAP ============================ */
+const MM={c:null,x:null,bg:null,S:1,t:0};
+function initMinimap(){
+  MM.c=$("minimap"); if(!MM.c) return; MM.x=MM.c.getContext("2d");
+  const n=MM.c.width; MM.S=n/74;
+  const bg=document.createElement("canvas"); bg.width=bg.height=n; const x=bg.getContext("2d");
+  x.fillStyle="#eef7ee"; x.fillRect(0,0,n,n);
+  const px=wx=>(wx+37)*MM.S, pz=wz=>(wz+37)*MM.S;
+  x.fillStyle="rgba(255,111,168,.28)";
+  x.beginPath(); x.arc(px(G.siteA.x),pz(G.siteA.z),G.siteA.r*MM.S,0,TAU); x.fill();
+  x.beginPath(); x.arc(px(G.siteB.x),pz(G.siteB.z),G.siteB.r*MM.S,0,TAU); x.fill();
+  for(const b of G.boxes){
+    const w=(b.x1-b.x0)*MM.S, h=(b.z1-b.z0)*MM.S;
+    x.fillStyle = b.y1>=2 ? "#9186ab" : "#d3b9d6";
+    x.fillRect(px(b.x0),pz(b.z0),Math.max(w,2),Math.max(h,2));
+  }
+  x.fillStyle="#c2588a"; x.font="900 26px sans-serif"; x.textAlign="center"; x.textBaseline="middle";
+  x.fillText("A",px(G.siteA.x),pz(G.siteA.z)); x.fillText("B",px(G.siteB.x),pz(G.siteB.z));
+  MM.bg=bg;
+}
+function drawMinimap(){
+  if(!MM.x||!MM.bg) return;
+  const x=MM.x, n=MM.c.width; x.clearRect(0,0,n,n); x.drawImage(MM.bg,0,0);
+  const px=wx=>(wx+37)*MM.S, pz=wz=>(wz+37)*MM.S;
+  if(G.bomb.planted&&G.bomb.at){ x.fillStyle="#ff2d55"; x.fillRect(px(G.bomb.at.x)-5,pz(G.bomb.at.z)-5,10,10); }
+  for(const a of G.agents){
+    if(!a.alive||a.isPlayer) continue;
+    const ally=a.team===G.playerSide;
+    if(!ally && !((a.spotT||0)>0)) continue;
+    x.fillStyle=ally?"#2f9df0":"#ff4f86";
+    x.beginPath(); x.arc(px(a.x),pz(a.z),5,0,TAU); x.fill();
+    x.lineWidth=2; x.strokeStyle="#fff"; x.stroke();
+  }
+  const p=G.player;
+  if(p&&p.alive){ x.save(); x.translate(px(p.x),pz(p.z)); x.rotate(p.yaw); x.fillStyle="#3a2f4a";
+    x.beginPath(); x.moveTo(0,-9); x.lineTo(6,7); x.lineTo(-6,7); x.closePath(); x.fill();
+    x.strokeStyle="#fff"; x.lineWidth=2; x.stroke(); x.restore(); }
 }
 
 /* ============================ HUD ============================ */
@@ -1013,8 +1146,10 @@ function loop(){
     updatePlayer(dt);
     updateNades(dt); updateSmokes(dt); updateFX(dt);
     ensureBombCarrier();
+    updateSpots(dt);
     syncMeshes();
     hudTime();
+    MM.t-=dt; if(MM.t<=0){ MM.t=0.12; drawMinimap(); }
     // flash decay
     if(G.flashAmt>0){ G.flashAmt=Math.max(0,G.flashAmt-dt*0.7); }
   }
@@ -1038,17 +1173,20 @@ function stepPhase(dt){
 function init(){
   const app=$("app");
   G.scene=new THREE.Scene();
-  G.scene.background=new THREE.Color(0xbfe3ff);
-  G.scene.fog=new THREE.Fog(0xdcefff, 34, 72);
+  G.scene.background=new THREE.Color(0xa8d8ff);
+  // туман только у горизонта — раньше с 34м всё тонуло в «молоке»
+  G.scene.fog=new THREE.Fog(0xa8d8ff, 90, 180);
   G.cam=new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 220);
   G.renderer=new THREE.WebGLRenderer({antialias:true});
   G.renderer.setSize(innerWidth,innerHeight); G.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   app.appendChild(G.renderer.domElement);
   // lights (soft candy)
-  G.scene.add(new THREE.HemisphereLight(0xffffff,0xffd6e6,0.95));
-  const sun=new THREE.DirectionalLight(0xfff2e0,0.55); sun.position.set(20,40,10); G.scene.add(sun);
-  G.scene.add(new THREE.AmbientLight(0xffffff,0.35));
+  // суммарная освещённость верхних граней ~1.0 — иначе Lambert выжигает все цвета в белый
+  G.scene.add(new THREE.HemisphereLight(0xffffff,0xbfd9c0,0.45));
+  const sun=new THREE.DirectionalLight(0xfff2e0,0.3); sun.position.set(20,40,10); G.scene.add(sun);
+  G.scene.add(new THREE.AmbientLight(0xffffff,0.38));
   buildMap();
+  initMinimap();
   G.clock=new THREE.Clock();
   setupInput();
   window.addEventListener("resize",()=>{ G.cam.aspect=innerWidth/innerHeight; G.cam.updateProjectionMatrix(); G.renderer.setSize(innerWidth,innerHeight); });
@@ -1073,6 +1211,10 @@ function wireMenus(){
   $("newsBack").onclick=()=>{ hide2("newsMenu"); show("mainMenu"); };
   $("resumeBtn").onclick=()=>togglePause(false);
   $("buyFromPause").onclick=()=>{ openBuy(); };
+  // autofire toggle (две кнопки: главное меню + пауза)
+  const afSync=()=>{ ["autofireBtn","autofireBtn2"].forEach(id=>{ const b=$(id); if(b) b.textContent="🎯 Автоприцел + автоогонь: "+(AUTOFIRE?"ВКЛ":"ВЫКЛ"); }); };
+  ["autofireBtn","autofireBtn2"].forEach(id=>{ const b=$(id); if(b) b.onclick=()=>{ setAutofire(!AUTOFIRE); afSync(); }; });
+  afSync();
   $("restartBtn").onclick=()=>{ hideOverlays(); G.paused=false; show2("hud"); startMatch(G.playerSide); };
   $("quitBtn").onclick=()=>{ backToMenu(); };
   $("buyClose").onclick=()=>closeBuy();
@@ -1082,10 +1224,16 @@ function wireMenus(){
 function show2(id){ $(id).classList.remove("hidden"); }
 function backToMenu(){ G.running=false; G.paused=false; G.phase="menu"; postRun(false); hideOverlays(); hide2("hud"); show("mainMenu"); }
 function fillNews(){
-  const d=new Date();
-  const pad=n=>(n<10?"0":"")+n;
-  $("newsDate").textContent="Обновление — "+pad(d.getDate())+"."+pad(d.getMonth()+1)+"."+d.getFullYear()+" "+pad(d.getHours())+":"+pad(d.getMinutes());
-  $("newsBody").innerHTML=`<b>v1.0 — премьера Sugar Strike 🍬🔫</b><br>
+  $("newsDate").textContent="Обновление — 31.07.2026 · v1.1";
+  $("newsBody").innerHTML=`<b>v1.1 — большой фикс играбельности 🍭🔧</b><br>
+   • <b>ИСПРАВЛЕНО: пули летели не туда, куда смотрит прицел</b> (зеркальный баг по горизонтали) — теперь стрельба точно по прицелу.<br>
+   • Карта стала контрастной: чёткие контуры на всех объектах, насыщенные цвета, клетчатая земля, убран «молочный» туман.<br>
+   • Враги теперь видны: метка над головой (когда замечены командой) увеличивается с расстоянием.<br>
+   • Мини-карта: стены, точки A/B, союзники, замеченные враги и бомба.<br>
+   • 🎯 Автоприцел + автоогонь на телефоне — включён по умолчанию, выключается в меню.<br>
+   • Обзор пальцем прямо с кнопки FIRE: держи и веди — стреляешь и целишься одним пальцем.<br>
+   • Чувствительность обзора на телефоне выше, прицел крупнее.<br><br>
+   <b>v1.0 — премьера Sugar Strike 🍬🔫</b><br>
    • 3D-шутер в стиле CS 1.6 на конфетной карте <b>de_mansion</b>.<br>
    • Режим с бомбой: SOUR (T) закладывают, SUGAR (CT) обезвреживают.<br>
    • Боты в обеих командах, экономика и магазин закупки ($).<br>

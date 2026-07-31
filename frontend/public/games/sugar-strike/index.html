@@ -53,13 +53,17 @@
   .kf .att{ font-weight:900; } .kf .ct{ color:var(--blue-d);} .kf .t{ color:var(--pink-d);}
 
   /* crosshair */
-  #cross{ position:absolute; left:50%; top:50%; width:26px; height:26px; transform:translate(-50%,-50%); }
-  #cross div{ position:absolute; background:#fff; box-shadow:0 0 2px rgba(0,0,0,.6); border-radius:2px; }
-  #cross .h{ top:11px; height:3px; width:9px; } #cross .h.l{ left:0 } #cross .h.r{ right:0 }
-  #cross .v{ left:11px; width:3px; height:9px; } #cross .v.t{ top:0 } #cross .v.b{ bottom:0 }
+  #cross{ position:absolute; left:50%; top:50%; width:36px; height:36px; transform:translate(-50%,-50%); }
+  #cross div{ position:absolute; background:#fff; box-shadow:0 0 0 1.5px rgba(58,47,74,.85); border-radius:2px; }
+  #cross .h{ top:16px; height:4px; width:11px; } #cross .h.l{ left:0 } #cross .h.r{ right:0 }
+  #cross .v{ left:16px; width:4px; height:11px; } #cross .v.t{ top:0 } #cross .v.b{ bottom:0 }
+  #cross .dot{ left:15px; top:15px; width:6px; height:6px; border-radius:50%; }
   #hitmark{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-weight:900; font-size:26px; opacity:0; text-shadow:0 0 3px #000; }
 
   #dmgFlash{ position:absolute; inset:0; box-shadow:inset 0 0 120px rgba(255,60,90,.0); transition:box-shadow .1s; }
+
+  #minimap{ width:112px; height:112px; border:3px solid var(--ink); border-radius:14px;
+    background:rgba(238,247,238,.85); box-shadow:var(--shadow); }
 
   /* weapon slots */
   #slots{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:10px; }
@@ -147,6 +151,10 @@
   @media (max-width:520px){
     #topLeft{ width:170px; } .big{ font-size:16px; } #ammoNum{ font-size:22px; }
     #fireBtn{ width:90px; height:90px; } .panel h1{ font-size:28px; }
+    #minimap{ width:92px; height:92px; }
+  }
+  @media (max-height:420px){
+    #minimap{ width:84px; height:84px; }
   }
 </style>
 </head>
@@ -172,6 +180,7 @@
       <div id="ammoNum"><span id="magNum">30</span><small>/<span id="resNum">90</span></small></div>
       <div id="moneyRow">$ <span id="moneyNum">800</span></div>
     </div>
+    <canvas id="minimap" width="224" height="224"></canvas>
   </div>
 
   <div id="topCenter">
@@ -182,7 +191,7 @@
 
   <div id="killFeed"></div>
 
-  <div id="cross"><div class="h l"></div><div class="h r"></div><div class="v t"></div><div class="v b"></div></div>
+  <div id="cross"><div class="h l"></div><div class="h r"></div><div class="v t"></div><div class="v b"></div><div class="dot"></div></div>
   <div id="hitmark">✕</div>
 
   <div id="bombRow"><div id="bombBar"><div id="bombFill"></div></div><div id="bombTxt"></div></div>
@@ -215,6 +224,7 @@
       <div class="sidePick t" data-side="T">🍭 SOUR CREW<br><small>террористы (T)</small></div>
     </div>
     <button class="btn primary" id="startBtn">В БОЙ</button>
+    <button class="btn" id="autofireBtn">🎯 Автоприцел + автоогонь: ВКЛ</button>
     <div class="row">
       <button class="btn blue" id="howBtn">Как играть</button>
       <button class="btn mint" id="newsBtn">Что нового</button>
@@ -235,8 +245,12 @@
       1/2/3 — оружие, G — граната, Space — прыжок, Ctrl — присесть, Shift — тихий шаг,
       E — заложить/обезвредить бомбу, B — магазин закупки.<br><br>
       <b>Телефон:</b> левый джойстик — движение, правая часть экрана — обзор,
-      FIRE — огонь, ↻ — перезарядка, ↑ — прыжок, ⤓ — присесть, 💣 — граната,
+      FIRE — огонь (держи и веди пальцем — будешь стрелять и целиться одновременно),
+      ↻ — перезарядка, ↑ — прыжок, ⤓ — присесть, 💣 — граната,
       кнопка PLANT/DEFUSE появляется на точке.<br><br>
+      <b>🎯 Автоприцел + автоогонь</b> включён по умолчанию на телефоне: наведись
+      примерно на врага — прицел довернётся и выстрелит сам. Отключается в главном меню и паузе.<br><br>
+      <b>Мини-карта</b> слева: точки A/B, синие — союзники, розовые — замеченные враги, красный квадрат — бомба.<br><br>
       <b>Экономика.</b> За убийства и раунды дают $. В начале раунда открывается закупка (кнопка $).
       10+ стволов из CS 1.6 + броня и гранаты.
     </div>
@@ -262,6 +276,7 @@
     <h1>Пауза</h1>
     <div class="tag" id="pauseScore">CT 0 : 0 T</div>
     <button class="btn primary" id="resumeBtn">Продолжить</button>
+    <button class="btn" id="autofireBtn2">🎯 Автоприцел + автоогонь: ВКЛ</button>
     <button class="btn blue" id="buyFromPause">Магазин закупки ($)</button>
     <button class="btn mint" id="restartBtn">Новый матч</button>
     <button class="btn" id="quitBtn">Выйти в меню</button>
@@ -293,6 +308,6 @@
 </div>
 
 <script src="./vendor/three.min.js"></script>
-<script src="./game.js?v=2"></script>
+<script src="./game.js?v=3"></script>
 </body>
 </html>
