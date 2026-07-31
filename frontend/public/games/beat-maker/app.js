@@ -1,6 +1,6 @@
 import {
-  STEPS, DRUM_IDS, SYNTH_IDS, WAVES, SCALES, ROOT_NAMES,
-  defaultTrack, normalizeTrack, scaleLadder,
+  STEPS, MAX_PARTS, MAX_SONG, DRUM_IDS, SYNTH_IDS, WAVES, SCALES, ROOT_NAMES,
+  defaultTrack, normalizeTrack, scaleLadder, emptyPart,
   renderLoop, encodeWav, encodeTrackCode, decodeTrackCode,
 } from "./synth-core.js";
 import { PRESETS, applyPreset } from "./presets.js";
@@ -33,8 +33,16 @@ const LS_CUR = "gamepass.beat-maker.current.v1";
 
 let track = normalizeTrack(loadCurrent() || defaultTrack());
 let activeSynth = "lead";
+let activePart = 0; // which part page the grid is editing
+let playMode = "song"; // "song" = вся композиция, "part" = зациклить текущую часть
 let playing = false;
-let currentStep = -1;
+let currentStep = -1; // global step across the whole playing arrangement
+let playSong = [0]; // arrangement snapshot the current loopBuffer was built from
+
+const PART_LETTERS = "АБВГДЕЖЗИКЛМНОПР";
+const curPart = () => track.parts[Math.min(activePart, track.parts.length - 1)];
+const songDurationSec = (entries) => entries * STEPS * (60 / track.bpm / 4);
+const fmtDur = (sec) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
 
 // backend bridge (filled by parent GamePass shell if present)
 let cloudTracks = null; // array from server, or null if not connected
@@ -60,7 +68,8 @@ function ensureAudio() {
 
 function buildLoopBuffer() {
   ensureAudio();
-  const { left, right, frames, sampleRate } = renderLoop(track, ac.sampleRate);
+  playSong = playMode === "part" ? [activePart] : track.song.slice();
+  const { left, right, frames, sampleRate } = renderLoop(track, ac.sampleRate, { song: playSong });
   const buf = ac.createBuffer(2, frames, sampleRate);
   buf.copyToChannel(left, 0);
   buf.copyToChannel(right, 1);
@@ -113,7 +122,8 @@ function tick() {
   if (!playing) return;
   const dur = loopBuffer.duration;
   const pos = ((ac.currentTime - loopStartTime) % dur) / dur;
-  const step = Math.floor(pos * STEPS) % STEPS;
+  const total = playSong.length * STEPS;
+  const step = Math.floor(pos * total) % total;
   if (step !== currentStep) {
     currentStep = step;
     paintPlayhead(step);
@@ -138,6 +148,7 @@ const el = (tag, cls, txt) => {
 function render() {
   renderPresets();
   renderTransport();
+  renderSongPanel();
   renderDrums();
   renderSynthTabs();
   renderPianoRoll();
@@ -145,20 +156,111 @@ function render() {
 }
 
 function renderPresets() {
-  const wrap = $("#presets");
-  if (!wrap || wrap.childElementCount) return; // presets are static — build once
+  const styleWrap = $("#presets");
+  const trackWrap = $("#presetTracks");
+  if (!styleWrap || styleWrap.childElementCount) return; // presets are static — build once
   for (const p of PRESETS) {
     const b = el("button", "preset-chip");
-    b.innerHTML = `<span class="preset-emoji">${p.emoji}</span>${p.label}`;
+    const em = el("span", "preset-emoji", p.emoji);
+    b.append(em, document.createTextNode(p.label));
     b.onclick = () => {
       applyPreset(track, p);
+      activePart = 0;
+      playMode = "song";
       persist();
       render();
       if (!playing) startPlayback(); else refreshLoop();
-      toast(`Стиль «${p.label}» загружен ${p.emoji}`);
+      toast(p.group === "track"
+        ? `Трек «${p.label}» загружен ${p.emoji} · ${fmtDur(songDurationSec(track.song.length))}`
+        : `Стиль «${p.label}» загружен ${p.emoji}`);
     };
-    wrap.append(b);
+    (p.group === "track" ? trackWrap : styleWrap).append(b);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Song panel — parts (А/Б/В…) + arrangement order + play mode
+// ---------------------------------------------------------------------------
+function renderSongPanel() {
+  const partBar = $("#partBar");
+  const songRow = $("#songRow");
+  const songCtl = $("#songCtl");
+  if (!partBar) return;
+  partBar.innerHTML = "";
+  songRow.innerHTML = "";
+  songCtl.innerHTML = "";
+
+  // part chips
+  track.parts.forEach((_, i) => {
+    const b = el("button", "part-chip" + (i === activePart ? " active" : ""), PART_LETTERS[i] || String(i + 1));
+    b.title = "Часть " + (PART_LETTERS[i] || i + 1);
+    b.onclick = () => {
+      activePart = i;
+      if (playMode === "part") refreshLoop();
+      render();
+    };
+    partBar.append(b);
+  });
+  if (track.parts.length < MAX_PARTS) {
+    const add = el("button", "part-chip ghost", "＋");
+    add.title = "Новая часть (копия текущей)";
+    add.onclick = () => {
+      const src = curPart();
+      track.parts.push({
+        drums: Object.fromEntries(DRUM_IDS.map((id) => [id, src.drums[id].slice()])),
+        notes: Object.fromEntries(SYNTH_IDS.map((id) => [id, src.notes[id].slice()])),
+      });
+      activePart = track.parts.length - 1;
+      persist(); render();
+      toast(`Часть ${PART_LETTERS[activePart]} создана (копия) — меняй её и добавляй в порядок`);
+    };
+    partBar.append(add);
+  }
+  if (track.parts.length > 1) {
+    const del = el("button", "part-chip ghost danger", "🗑");
+    del.title = "Удалить текущую часть";
+    del.onclick = () => {
+      track.parts.splice(activePart, 1);
+      track.song = track.song.filter((i) => i !== activePart).map((i) => (i > activePart ? i - 1 : i));
+      if (!track.song.length) track.song = [0];
+      activePart = Math.max(0, activePart - 1);
+      persist(); refreshLoop(); render();
+    };
+    partBar.append(del);
+  }
+
+  // arrangement row: tap a chip to remove it from the order
+  track.song.forEach((pi, idx) => {
+    const b = el("button", "song-chip", PART_LETTERS[pi] || String(pi + 1));
+    b.onclick = () => {
+      if (track.song.length <= 1) return;
+      track.song.splice(idx, 1);
+      persist(); refreshLoop(); renderSongPanel();
+    };
+    songRow.append(b);
+  });
+
+  // controls
+  const addBtn = el("button", "tbtn mini-add", `➕ ${PART_LETTERS[activePart] || activePart + 1} в конец`);
+  addBtn.onclick = () => {
+    if (track.song.length >= MAX_SONG) { toast("Композиция уже максимальной длины"); return; }
+    track.song.push(activePart);
+    persist(); refreshLoop(); renderSongPanel();
+  };
+  const dblBtn = el("button", "tbtn", "×2 длина");
+  dblBtn.onclick = () => {
+    if (track.song.length * 2 > MAX_SONG) { toast("Больше некуда — максимум " + MAX_SONG + " частей"); return; }
+    track.song = track.song.concat(track.song);
+    persist(); refreshLoop(); renderSongPanel();
+  };
+  const modeBtn = el("button", "tbtn mode" + (playMode === "part" ? " on" : ""), playMode === "part" ? "🔁 Часть" : "🎬 Весь трек");
+  modeBtn.title = "Что играет: вся композиция или только текущая часть";
+  modeBtn.onclick = () => {
+    playMode = playMode === "song" ? "part" : "song";
+    refreshLoop(); renderSongPanel();
+  };
+  const dur = el("span", "song-dur", "⏱ " + fmtDur(songDurationSec(track.song.length)));
+  songCtl.append(addBtn, dblBtn, modeBtn, dur);
 }
 
 function renderTransport() {
@@ -190,12 +292,13 @@ function renderDrums() {
     row.append(head);
 
     const cells = el("div", "cells");
+    const rows = curPart().drums;
     for (let i = 0; i < STEPS; i++) {
-      const c = el("button", "cell" + (track.drums[id][i] ? " on" : "") + (i % 4 === 0 ? " beat" : ""));
+      const c = el("button", "cell" + (rows[id][i] ? " on" : "") + (i % 4 === 0 ? " beat" : ""));
       c.dataset.step = i;
       c.onclick = () => {
-        track.drums[id][i] = track.drums[id][i] ? 0 : 1;
-        c.classList.toggle("on", !!track.drums[id][i]);
+        rows[id][i] = rows[id][i] ? 0 : 1;
+        c.classList.toggle("on", !!rows[id][i]);
         persist(); refreshLoop();
       };
       cells.append(c);
@@ -221,6 +324,7 @@ function renderSynthTabs() {
 
 function renderPianoRoll() {
   const s = track.synths[activeSynth];
+  const notes = curPart().notes[activeSynth];
   const meta = SYNTH_META[activeSynth];
   const roll = $("#pianoRoll");
   roll.innerHTML = "";
@@ -234,10 +338,10 @@ function renderPianoRoll() {
     rowEl.append(lab);
     const cells = el("div", "cells");
     for (let i = 0; i < STEPS; i++) {
-      const on = s.notes[i] === r;
+      const on = notes[i] === r;
       const c = el("button", "cell pr-cell" + (on ? " on" : "") + (i % 4 === 0 ? " beat" : ""));
       c.onclick = () => {
-        s.notes[i] = s.notes[i] === r ? -1 : r; // one note per column
+        notes[i] = notes[i] === r ? -1 : r; // one note per column
         persist(); refreshLoop(); renderPianoRoll();
       };
       cells.append(c);
@@ -296,16 +400,27 @@ function labeledRange(label, min, max, step, current, onChange) {
 // ---------------------------------------------------------------------------
 // Playhead paint
 // ---------------------------------------------------------------------------
-function paintPlayhead(step) {
+function paintPlayhead(globalStep) {
   clearPlayhead();
-  document.querySelectorAll(`.cells .cell:nth-child(${step + 1})`).forEach((c) => c.classList.add("playing"));
+  const songPos = Math.floor(globalStep / STEPS);
+  const step = globalStep % STEPS;
+  // grid cursor only when the part being played is the part on screen
+  if (playSong[songPos] === activePart) {
+    document.querySelectorAll(`.cells .cell:nth-child(${step + 1})`).forEach((c) => c.classList.add("playing"));
+  }
+  // arrangement cursor
+  if (playMode === "song") {
+    const chips = document.querySelectorAll("#songRow .song-chip");
+    if (chips[songPos]) chips[songPos].classList.add("now");
+  }
   const bars = document.querySelectorAll("#viz .viz-bar");
-  bars.forEach((b, i) => {
+  bars.forEach((b) => {
     b.style.transform = `scaleY(${0.2 + Math.random() * 0.9})`;
   });
 }
 function clearPlayhead() {
   document.querySelectorAll(".cell.playing").forEach((c) => c.classList.remove("playing"));
+  document.querySelectorAll("#songRow .song-chip.now").forEach((c) => c.classList.remove("now"));
 }
 
 // ---------------------------------------------------------------------------
@@ -386,11 +501,12 @@ function renderLibrary() {
     const card = el("div", "lib-card");
     const info = el("div", "lib-info");
     info.append(el("div", "lib-name", it.name || data.name));
-    info.append(el("div", "lib-meta", `${data.bpm} BPM · ${SCALE_LABELS[data.scale] || data.scale} · ${it.origin === "cloud" ? "☁ в аккаунте" : "📱 на устройстве"}`));
+    const durSec = data.song.length * STEPS * (60 / data.bpm / 4);
+    info.append(el("div", "lib-meta", `${data.bpm} BPM · ${fmtDur(durSec)} · ${SCALE_LABELS[data.scale] || data.scale} · ${it.origin === "cloud" ? "☁ в аккаунте" : "📱 на устройстве"}`));
     card.append(info);
     const acts = el("div", "lib-acts");
     const load = el("button", "mini", "Открыть");
-    load.onclick = () => { track = normalizeTrack(data); persist(); render(); if (playing) refreshLoop(); closeLibrary(); };
+    load.onclick = () => { track = normalizeTrack(data); activePart = 0; playMode = "song"; persist(); render(); if (playing) refreshLoop(); closeLibrary(); };
     const del = el("button", "mini danger", "🗑");
     del.onclick = () => {
       if (it.origin === "local") { saveLibrary(loadLibrary().filter((x) => x.id !== it.id)); }
@@ -429,36 +545,45 @@ async function copyCode() {
 // ---------------------------------------------------------------------------
 // Random / generate — the "прикольно и легко" button
 // ---------------------------------------------------------------------------
+function genPart(kind) {
+  const rnd = Math.random;
+  const p = emptyPart();
+  const { kick, snare, hat, clap } = p.drums;
+  for (let i = 0; i < STEPS; i++) {
+    if (kind !== "break") {
+      if (i % 4 === 0) kick[i] = 1;              // four-on-floor base
+      else if (rnd() < (kind === "b" ? 0.22 : 0.15)) kick[i] = 1;
+      if (i % 8 === 4) snare[i] = 1;             // backbeat
+    }
+    if (rnd() < (kind === "break" ? 0.4 : 0.7)) hat[i] = 1;
+    if (i === 12 && rnd() < 0.5 && kind !== "break") clap[i] = 1;
+  }
+  for (const id of SYNTH_IDS) {
+    const notes = p.notes[id];
+    if (id === "bass") {
+      if (kind !== "break") for (let i = 0; i < STEPS; i += 4) notes[i] = [0, 0, 3, 2][(i / 4) | 0] ?? 0;
+      else notes[0] = 0;
+    } else if (id === "lead") {
+      if (kind === "break") continue; // break = только арп и хэты
+      let last = 4;
+      for (let i = 0; i < STEPS; i++) {
+        if (rnd() < 0.35) { last = Math.max(0, Math.min(NOTE_ROWS - 1, last + (Math.round(rnd() * 4) - 2))); notes[i] = last; }
+      }
+    } else {
+      for (let i = 0; i < STEPS; i += 2) if (rnd() < (kind === "break" ? 0.85 : 0.6)) notes[i] = (i % 8 === 0) ? 4 : (rnd() < 0.5 ? 2 : 6);
+    }
+  }
+  return p;
+}
+
 function generate() {
   const rnd = Math.random;
   track.seed = (Math.random() * 1e6) | 0;
-  // drums
-  const kick = track.drums.kick.fill(0);
-  const snare = track.drums.snare.fill(0);
-  const hat = track.drums.hat.fill(0);
-  const clap = track.drums.clap.fill(0);
-  for (let i = 0; i < STEPS; i++) {
-    if (i % 4 === 0) kick[i] = 1;              // four-on-floor base
-    else if (rnd() < 0.15) kick[i] = 1;
-    if (i % 8 === 4) snare[i] = 1;             // backbeat
-    if (rnd() < 0.7) hat[i] = 1;               // busy hats
-    if (i === 12 && rnd() < 0.5) clap[i] = 1;
-  }
-  // melodic: pick a small motif on the ladder
-  for (const id of SYNTH_IDS) {
-    const s = track.synths[id];
-    s.notes = new Array(STEPS).fill(-1);
-    if (id === "bass") {
-      for (let i = 0; i < STEPS; i += 4) s.notes[i] = [0, 0, 3, 2][(i / 4) | 0] ?? 0;
-    } else if (id === "lead") {
-      let last = 4;
-      for (let i = 0; i < STEPS; i++) {
-        if (rnd() < 0.35) { last = Math.max(0, Math.min(NOTE_ROWS - 1, last + (Math.round(rnd() * 4) - 2))); s.notes[i] = last; }
-      }
-    } else {
-      for (let i = 0; i < STEPS; i += 2) if (rnd() < 0.6) s.notes[i] = (i % 8 === 0) ? 4 : (rnd() < 0.5 ? 2 : 6);
-    }
-  }
+  // a whole mini-arrangement: A (groove), B (variation), C (break)
+  track.parts = [genPart("a"), genPart("b"), genPart("break")];
+  track.song = [0, 0, 1, 1, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 0, 1];
+  activePart = 0;
+  playMode = "song";
   // occasionally reroll scale/root for variety
   if (rnd() < 0.5) {
     const scales = Object.keys(SCALES);
@@ -467,13 +592,15 @@ function generate() {
   persist();
   render();
   if (!playing) startPlayback(); else refreshLoop();
-  toast("Свежий бит готов 🎲");
+  toast(`Свежий трек готов 🎲 3 части · ${fmtDur(songDurationSec(track.song.length))}`);
 }
 
 function clearAll() {
-  for (const id of DRUM_IDS) track.drums[id].fill(0);
-  for (const id of SYNTH_IDS) track.synths[id].notes.fill(-1);
+  track.parts = [emptyPart()];
+  track.song = [0];
+  activePart = 0;
   persist(); render(); if (playing) refreshLoop();
+  toast("Чистый лист — одна пустая часть");
 }
 
 // ---------------------------------------------------------------------------
@@ -495,8 +622,8 @@ function wire() {
   $("#playBtn").onclick = () => { playing ? stopPlayback() : startPlayback(); };
   $("#diceBtn").onclick = generate;
   $("#clearBtn").onclick = clearAll;
-  $("#bpmDown").onclick = () => { track.bpm = Math.max(40, track.bpm - 2); persist(); renderTransport(); refreshLoop(); };
-  $("#bpmUp").onclick = () => { track.bpm = Math.min(220, track.bpm + 2); persist(); renderTransport(); refreshLoop(); };
+  $("#bpmDown").onclick = () => { track.bpm = Math.max(40, track.bpm - 2); persist(); renderTransport(); renderSongPanel(); refreshLoop(); };
+  $("#bpmUp").onclick = () => { track.bpm = Math.min(220, track.bpm + 2); persist(); renderTransport(); renderSongPanel(); refreshLoop(); };
   $("#swingDown").onclick = () => { track.swing = Math.max(0, +(track.swing - 0.04).toFixed(2)); persist(); renderTransport(); refreshLoop(); };
   $("#swingUp").onclick = () => { track.swing = Math.min(0.6, +(track.swing + 0.04).toFixed(2)); persist(); renderTransport(); refreshLoop(); };
 
@@ -526,7 +653,7 @@ function wire() {
 
   // block accidental selection / context menu on the play surface
   const stop = (e) => e.preventDefault();
-  document.querySelectorAll("#drums, #pianoRoll, #viz").forEach((n) => {
+  document.querySelectorAll("#drums, #pianoRoll, #viz, #partBar, #songRow").forEach((n) => {
     n.addEventListener("selectstart", stop);
     n.addEventListener("dragstart", stop);
     n.addEventListener("contextmenu", stop);

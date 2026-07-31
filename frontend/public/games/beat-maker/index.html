@@ -23,6 +23,8 @@
     <section class="panel">
       <p class="panel-title">Стиль · один тап</p>
       <div id="presets" class="presets"></div>
+      <p class="panel-title" style="margin-top:12px">Готовые треки · полные</p>
+      <div id="presetTracks" class="presets"></div>
     </section>
 
     <section class="panel">
@@ -41,6 +43,14 @@
         <button class="tbtn dice" id="diceBtn">🎲 Сгенерить</button>
         <button class="tbtn" id="clearBtn">🧹 Очистить</button>
       </div>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">Композиция · части и порядок</p>
+      <div id="partBar" class="partbar"></div>
+      <div id="songRow" class="songrow"></div>
+      <div id="songCtl" class="songctl"></div>
+      <p class="song-hint">Часть = экран секвенсора (16 шагов). Собирай трек: жми ➕, чтобы добавить часть в порядок; тап по букве в порядке — убрать её.</p>
     </section>
 
     <section class="panel">
@@ -90,6 +100,19 @@
       <div class="modal-head">
         <h2>✨ Что нового</h2>
         <button class="modal-close" id="newsClose">✕</button>
+      </div>
+      <div class="news-entry">
+        <div class="news-date">31 июля 2026 (Алматы)</div>
+        <div class="news-title">WAVE FORGE 2.0 — длинные треки и полные композиции</div>
+        <ul>
+          <li>🎬 Композиции: трек теперь состоит из частей (А, Б, В…) — собирай порядок и играй целиком, до 4+ минут</li>
+          <li>🕹 Готовые полные треки: Тетрис (Коробейники), Горный король (Григ), Ода к радости (Бетховен), Скелет-битва 💀 (в стиле Андертейл)</li>
+          <li>🎚 Стили тоже стали длиннее — у каждого несколько частей и аранжировка</li>
+          <li>🎲 «Сгенерить» теперь собирает целый мини-трек из 3 частей</li>
+          <li>⏱ Видна длительность трека; кнопка «×2 длина» удваивает композицию</li>
+          <li>🔁 Режимы: играть весь трек или зациклить одну часть для редактирования</li>
+          <li>⬇ WAV и «Код агенту» экспортируют всю композицию целиком</li>
+        </ul>
       </div>
       <div class="news-entry">
         <div class="news-date">30 июля 2026 (Алматы)</div>

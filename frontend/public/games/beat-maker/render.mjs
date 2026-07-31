@@ -16,8 +16,8 @@ import { renderLoop, encodeWav, decodeTrackCode, normalizeTrack } from "./synth-
 const SR = 44100;
 
 function loadTrack(arg) {
-  if (!arg) throw new Error("Передай код трека (WF1:...) или путь к JSON-файлу.");
-  if (arg.startsWith("WF1:")) return decodeTrackCode(arg);
+  if (!arg) throw new Error("Передай код трека (WF1:/WF2:...) или путь к JSON-файлу.");
+  if (arg.startsWith("WF1:") || arg.startsWith("WF2:")) return decodeTrackCode(arg);
   if (fs.existsSync(arg)) {
     const raw = JSON.parse(fs.readFileSync(arg, "utf8"));
     // support both a bare track and a library entry { data: {...} }

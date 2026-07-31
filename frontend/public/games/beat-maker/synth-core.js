@@ -5,6 +5,8 @@
 // render are byte-for-byte the same.
 
 export const STEPS = 16;
+export const MAX_PARTS = 16; // pattern parts per track (А, Б, В, ...)
+export const MAX_SONG = 64; // arrangement length in parts (~4+ min of music)
 
 // ---- music theory -------------------------------------------------------
 export const SCALES = {
@@ -60,9 +62,18 @@ export function emptyNoteRow(len = STEPS) {
   return new Array(len).fill(-1); // -1 = no note, else ladder row index
 }
 
+// One pattern part: a 16-step page of drums + per-synth notes. A track is a
+// list of parts plus a `song` — the order the parts play in.
+export function emptyPart() {
+  return {
+    drums: { kick: emptyRow(), snare: emptyRow(), hat: emptyRow(), clap: emptyRow() },
+    notes: { bass: emptyNoteRow(), lead: emptyNoteRow(), arp: emptyNoteRow() },
+  };
+}
+
 export function defaultTrack() {
   return {
-    version: 1,
+    version: 2,
     name: "Новый трек",
     bpm: 92,
     swing: 0.16,
@@ -70,19 +81,15 @@ export function defaultTrack() {
     seed: 1,
     root: 57, // A3
     scale: "minorPentatonic",
-    drums: {
-      kick: emptyRow(),
-      snare: emptyRow(),
-      hat: emptyRow(),
-      clap: emptyRow(),
-    },
     drumVol: { kick: 1, snare: 0.9, hat: 0.55, clap: 0.8 },
     drumMute: { kick: false, snare: false, hat: false, clap: false },
     synths: {
-      bass: { wave: "square", notes: emptyNoteRow(), vol: 0.85, octave: 0, crush: 0, mute: false },
-      lead: { wave: "pulse25", notes: emptyNoteRow(), vol: 0.6, octave: 1, crush: 0.35, mute: false },
-      arp: { wave: "triangle", notes: emptyNoteRow(), vol: 0.5, octave: 1, crush: 0, mute: false },
+      bass: { wave: "square", vol: 0.85, octave: 0, crush: 0, mute: false },
+      lead: { wave: "pulse25", vol: 0.6, octave: 1, crush: 0.35, mute: false },
+      arp: { wave: "triangle", vol: 0.5, octave: 1, crush: 0, mute: false },
     },
+    parts: [emptyPart()],
+    song: [0],
   };
 }
 
@@ -101,7 +108,6 @@ export function normalizeTrack(raw) {
   t.seed = Number.isFinite(raw.seed) ? raw.seed | 0 : t.seed;
   t.root = clampNum(raw.root, 24, 84, t.root) | 0;
   t.scale = SCALES[raw.scale] ? raw.scale : t.scale;
-  if (raw.drums) for (const id of DRUM_IDS) t.drums[id] = clampRow(raw.drums[id], 0);
   if (raw.drumVol) for (const id of DRUM_IDS) t.drumVol[id] = clampNum(raw.drumVol[id], 0, 1.5, t.drumVol[id]);
   if (raw.drumMute) for (const id of DRUM_IDS) t.drumMute[id] = !!raw.drumMute[id];
   if (raw.synths)
@@ -109,12 +115,32 @@ export function normalizeTrack(raw) {
       const s = raw.synths[id] || {};
       const d = t.synths[id];
       d.wave = WAVES.includes(s.wave) ? s.wave : d.wave;
-      d.notes = clampRow(s.notes, -1);
       d.vol = clampNum(s.vol, 0, 1.5, d.vol);
       d.octave = clampNum(s.octave, -2, 3, d.octave) | 0;
       d.crush = clampNum(s.crush, 0, 1, d.crush);
       d.mute = !!s.mute;
     }
+  // parts: v2 tracks carry raw.parts; v1 tracks kept a single pattern in
+  // raw.drums + raw.synths[id].notes — wrap that into one part.
+  let rawParts = Array.isArray(raw.parts) ? raw.parts : null;
+  if (!rawParts) {
+    const p = { drums: raw.drums || {}, notes: {} };
+    if (raw.synths) for (const id of SYNTH_IDS) p.notes[id] = raw.synths[id] && raw.synths[id].notes;
+    rawParts = [p];
+  }
+  t.parts = rawParts.slice(0, MAX_PARTS).map((rp) => {
+    const p = emptyPart();
+    if (rp && typeof rp === "object") {
+      if (rp.drums) for (const id of DRUM_IDS) p.drums[id] = clampRow(rp.drums[id], 0);
+      if (rp.notes) for (const id of SYNTH_IDS) p.notes[id] = clampRow(rp.notes[id], -1);
+    }
+    return p;
+  });
+  if (!t.parts.length) t.parts = [emptyPart()];
+  t.song = Array.isArray(raw.song)
+    ? raw.song.slice(0, MAX_SONG).map((i) => clampNum(i, 0, t.parts.length - 1, 0) | 0)
+    : [0];
+  if (!t.song.length) t.song = [0];
   return t;
 }
 
@@ -152,12 +178,18 @@ function osc(wave, phase) {
 }
 
 // ---- core render --------------------------------------------------------
-// Returns { left, right, frames } (Float32Array mono channels).
-export function renderLoop(rawTrack, sampleRate) {
+// Renders the whole arrangement (every entry in t.song, in order) into one
+// seamless loop. Pass opts.song to override the arrangement — e.g. [2] to
+// audition just part 2. Returns { left, right, frames } (Float32Array mono).
+export function renderLoop(rawTrack, sampleRate, opts) {
   const t = normalizeTrack(rawTrack);
+  const song = opts && Array.isArray(opts.song) && opts.song.length
+    ? opts.song.map((i) => Math.max(0, Math.min(t.parts.length - 1, i | 0)))
+    : t.song;
   const secPerBeat = 60 / t.bpm;
   const secPer16 = secPerBeat / 4;
-  const loopSec = secPer16 * STEPS;
+  const totalSteps = song.length * STEPS;
+  const loopSec = secPer16 * totalSteps;
   const frames = Math.ceil(loopSec * sampleRate);
   const left = new Float32Array(frames);
   const right = new Float32Array(frames);
@@ -189,42 +221,48 @@ export function renderLoop(rawTrack, sampleRate) {
     }
   };
 
-  // --- drums ---
   const drumPan = { kick: 0, snare: 0.05, hat: -0.25, clap: 0.2 };
-  for (const id of DRUM_IDS) {
-    if (t.drumMute[id]) continue;
-    const vol = t.drumVol[id];
-    const row = t.drums[id];
-    for (let i = 0; i < STEPS; i++) {
-      if (!row[i]) continue;
-      const start = Math.floor(stepTime(i) * sampleRate);
-      const buf = renderDrum(id, sampleRate, vol, rand);
-      place(start, buf, drumPan[id]);
-    }
-  }
-
-  // --- synths ---
   const ladder = scaleLadder(t.scale, t.root, 8);
   const synthPan = { bass: 0, lead: 0.28, arp: -0.3 };
-  for (const id of SYNTH_IDS) {
-    const s = t.synths[id];
-    if (s.mute) continue;
-    const notes = s.notes;
-    // note length: hold until next note (legato) for bass, else 1 step-ish
-    for (let i = 0; i < STEPS; i++) {
-      if (notes[i] < 0) continue;
-      let len = 1;
-      if (id === "bass") {
-        // sustain until the next note
-        let j = i + 1;
-        while (j < STEPS && notes[j] < 0) { len++; j++; }
+
+  for (let si = 0; si < song.length; si++) {
+    const part = t.parts[song[si]];
+    const off = si * STEPS;
+
+    // --- drums ---
+    for (const id of DRUM_IDS) {
+      if (t.drumMute[id]) continue;
+      const vol = t.drumVol[id];
+      const row = part.drums[id];
+      for (let i = 0; i < STEPS; i++) {
+        if (!row[i]) continue;
+        const start = Math.floor(stepTime(off + i) * sampleRate);
+        const buf = renderDrum(id, sampleRate, vol, rand);
+        place(start, buf, drumPan[id]);
       }
-      const rowIdx = Math.max(0, Math.min(ladder.length - 1, notes[i]));
-      const midi = ladder[rowIdx] + s.octave * 12;
-      const start = Math.floor(stepTime(i) * sampleRate);
-      const durSec = len * secPer16 * (id === "bass" ? 0.95 : id === "lead" ? 0.9 : 0.6);
-      const buf = renderVoice(id, s.wave, midiToFreq(midi), durSec, sampleRate, s.vol, s.crush);
-      place(start, buf, synthPan[id]);
+    }
+
+    // --- synths ---
+    for (const id of SYNTH_IDS) {
+      const s = t.synths[id];
+      if (s.mute) continue;
+      const notes = part.notes[id];
+      // note length: hold until next note (legato, within the part) for bass, else 1 step-ish
+      for (let i = 0; i < STEPS; i++) {
+        if (notes[i] < 0) continue;
+        let len = 1;
+        if (id === "bass") {
+          // sustain until the next note
+          let j = i + 1;
+          while (j < STEPS && notes[j] < 0) { len++; j++; }
+        }
+        const rowIdx = Math.max(0, Math.min(ladder.length - 1, notes[i]));
+        const midi = ladder[rowIdx] + s.octave * 12;
+        const start = Math.floor(stepTime(off + i) * sampleRate);
+        const durSec = len * secPer16 * (id === "bass" ? 0.95 : id === "lead" ? 0.9 : 0.6);
+        const buf = renderVoice(id, s.wave, midiToFreq(midi), durSec, sampleRate, s.vol, s.crush);
+        place(start, buf, synthPan[id]);
+      }
     }
   }
 
@@ -346,16 +384,17 @@ export function encodeWav(left, right, sampleRate) {
 
 // ---- track code (share/export) -----------------------------------------
 // Compact, URL-safe base64 of the JSON. Small enough to paste in chat.
+// WF2 = multi-part tracks; decode still accepts old WF1 codes.
 export function encodeTrackCode(track) {
   const json = JSON.stringify(normalizeTrack(track));
   const b64 = typeof btoa === "function"
     ? btoa(unescape(encodeURIComponent(json)))
     : Buffer.from(json, "utf8").toString("base64");
-  return "WF1:" + b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return "WF2:" + b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 export function decodeTrackCode(code) {
   let s = String(code || "").trim();
-  if (s.startsWith("WF1:")) s = s.slice(4);
+  if (s.startsWith("WF1:") || s.startsWith("WF2:")) s = s.slice(4);
   s = s.replace(/-/g, "+").replace(/_/g, "/");
   while (s.length % 4) s += "=";
   const json = typeof atob === "function"

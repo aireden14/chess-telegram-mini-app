@@ -158,6 +158,60 @@ body::before {
 .preset-chip:active { transform: scale(0.94); }
 .preset-emoji { font-size: 16px; }
 
+/* ---- song / parts ---- */
+.partbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.part-chip {
+  min-width: 38px; height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--txt);
+  font-size: 15px; font-weight: 800;
+  cursor: pointer;
+}
+.part-chip.active {
+  color: #0a0713;
+  background: linear-gradient(160deg, #7dffea, var(--cyan));
+  border-color: transparent;
+  box-shadow: 0 0 14px rgba(36, 224, 255, 0.45);
+}
+.part-chip.ghost { background: transparent; border-style: dashed; color: var(--dim); }
+.part-chip.danger { color: #ff6a8f; }
+.part-chip:active { transform: scale(0.92); }
+
+.songrow {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 7px;
+  min-height: 40px;
+  margin-bottom: 10px;
+}
+.song-chip {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--violet) 28%, transparent);
+  color: var(--txt);
+  font-size: 12px; font-weight: 800;
+  cursor: pointer;
+  padding: 0;
+}
+.song-chip.now {
+  background: linear-gradient(160deg, #ff9ccf, var(--pink));
+  color: #0a0713;
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(255, 45, 150, 0.6);
+}
+.song-chip:active { transform: scale(0.88); }
+
+.songctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.songctl .tbtn { padding: 8px 10px; font-size: 12px; }
+.songctl .mode.on { background: rgba(255, 45, 150, 0.2); border-color: var(--pink); }
+.song-dur { font-size: 13px; font-weight: 800; color: var(--cyan); margin-left: auto; }
+.song-hint { font-size: 11px; color: var(--dim); margin: 8px 0 0; line-height: 1.5; }
+
 /* ---- transport ---- */
 .transport { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .play-btn {
