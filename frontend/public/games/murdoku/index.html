@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f14">
+<title>МУРДОКУ · Детективная судоку</title>
+<style>
+  :root{
+    /* Telegram сам подставляет --tg-content-safe-area-inset-top; env() — запасной путь вне TG */
+    --safe-top:calc(env(safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px));
+    --bg:#0d0f14; --panel:#151922; --panel2:#1b2030; --ink:#e8e2d4;
+    --muted:#8a8676; --line:#2c3242; --thick:#5a6072;
+    --accent:#c9a24b; --accent2:#e0b95a; --danger:#c8483f; --ok:#4a9d6b;
+    --scene:#c8483f; --cell:#12151d; --cellsel:#2a3550;
+    --cellpeer:#181d29; --cellsame:#222c3e;
+    --photo:#cfc7b4; --photo2:#f0e6cf;
+    --mono:"Courier New",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 50% -10%,#1c212e 0%,transparent 60%),
+      radial-gradient(800px 500px at 90% 110%,#191420 0%,transparent 55%),
+      var(--bg);
+    color:var(--ink);font-family:var(--mono);letter-spacing:.3px;
+    overscroll-behavior:none;
+  }
+
+  /* ---------- topbar (ниже кнопок Telegram) ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:calc(var(--safe-top) + 10px) 12px 10px;
+    background:linear-gradient(180deg,rgba(13,15,20,.97),rgba(13,15,20,.72));
+    backdrop-filter:blur(6px);
+  }
+  .tb{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);padding:11px 12px;border-radius:9px;cursor:pointer;
+    font-size:12px;letter-spacing:1px;min-width:72px;min-height:42px;
+  }
+  .tb:active{background:var(--panel2)}
+  .brand{font-size:19px;font-weight:900;letter-spacing:5px;text-shadow:0 2px 0 #000}
+  .brand .x{color:var(--accent)}
+
+  .wrap{width:100%;max-width:520px;margin:0 auto;padding:0 12px 46px;
+    display:flex;flex-direction:column;gap:11px}
+
+  /* ---------- case file ---------- */
+  .case{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .case .stamp{
+    float:right;border:2px solid var(--danger);color:var(--danger);
+    font-size:9px;letter-spacing:2px;padding:3px 6px;border-radius:4px;
+    transform:rotate(6deg);opacity:.85;font-weight:bold;margin-left:8px;
+  }
+  .case h2{margin:0 0 2px;font-size:13px;letter-spacing:2px;color:var(--accent2)}
+  .case .meta{font-size:10px;color:var(--muted);margin-bottom:6px;letter-spacing:1px}
+  .case p{margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
+  /* по умолчанию сводка дела свёрнута — иначе на невысоком экране
+     кнопки действий уезжают ниже сгиба */
+  .case p.clamp{
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .case .more{
+    margin-top:6px;font-size:10px;letter-spacing:1px;color:var(--accent2);
+    cursor:pointer;display:inline-block;
+  }
+  .case .victim{color:var(--ink)}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);
+    border-radius:9px;overflow:hidden;flex:1;min-width:0}
+  .seg button{
+    background:transparent;border:0;color:var(--muted);font-family:var(--mono);
+    padding:12px 4px;font-size:10px;letter-spacing:.5px;cursor:pointer;flex:1;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:42px;
+  }
+  .seg button.on{background:var(--accent);color:#1a1408;font-weight:bold}
+  .stats{display:flex;gap:14px;justify-content:center;font-size:12px;
+    color:var(--muted);flex-wrap:wrap}
+  .stats b{color:var(--ink)}
+  .stats .mist b{color:var(--danger)}
+
+  /* ---------- board ---------- */
+  .boardwrap{position:relative;width:100%;aspect-ratio:1/1}
+  .board{
+    width:100%;height:100%;display:grid;
+    grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);
+    background:var(--thick);gap:1px;border:3px solid var(--thick);
+    border-radius:8px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.6);
+    touch-action:manipulation;
+  }
+  .cell{
+    position:relative;background:var(--cell);display:flex;
+    align-items:center;justify-content:center;cursor:pointer;
+    transition:background .08s;
+  }
+  .cell.br{border-right:2px solid var(--thick)}
+  .cell.bb{border-bottom:2px solid var(--thick)}
+  .cell.peer{background:var(--cellpeer)}
+  .cell.same{background:var(--cellsame)}
+  .cell.sel{background:var(--cellsel);box-shadow:inset 0 0 0 2px var(--accent)}
+  /* фигурка подозреваемого — «фотокарточка» на тёмной доске (читаемость эмодзи) */
+  .cell .g{
+    width:84%;height:84%;border-radius:5px;display:flex;
+    align-items:center;justify-content:center;line-height:1;
+    font-size:clamp(15px,5.4vw,26px);
+    background:var(--photo);box-shadow:0 1px 3px rgba(0,0,0,.5);
+  }
+  .cell.user .g{background:var(--photo2);box-shadow:0 0 0 1.5px var(--accent),0 1px 3px rgba(0,0,0,.5)}
+  .cell.bad .g{background:#e2a49c;box-shadow:0 0 0 1.5px var(--danger);animation:shake .28s}
+  .cell.hintflash .g{animation:pop .45s}
+  .cell.scene{box-shadow:inset 0 0 0 2px var(--scene)}
+  .cell.scene.sel{box-shadow:inset 0 0 0 2px var(--accent),inset 0 0 0 4px var(--scene)}
+  .cell.scene::after{
+    content:"⚑";position:absolute;top:0;left:2px;font-size:9px;
+    color:var(--danger);opacity:.9;pointer-events:none;
+  }
+  .notes{position:absolute;inset:0;display:grid;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    font-size:clamp(7px,2.4vw,11px);padding:2px;pointer-events:none;opacity:.75}
+  .notes span{display:flex;align-items:center;justify-content:center;line-height:1}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+  @keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+  /* ---------- win overlay ---------- */
+  .overlay{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    align-items:center;justify-content:center;background:rgba(8,9,13,.95);
+    border-radius:8px;z-index:5;text-align:center;padding:20px;animation:fade .4s;
+  }
+  .overlay.show{display:flex}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .overlay .big{font-size:52px;margin-bottom:4px;
+    background:var(--photo2);border-radius:12px;padding:6px 14px}
+  .overlay h3{margin:10px 0 0;color:var(--danger);letter-spacing:3px;font-size:18px}
+  .overlay .culprit{color:var(--accent2);font-size:20px;margin:6px 0 2px;
+    font-weight:bold;letter-spacing:1px}
+  .overlay .role{color:var(--muted);font-size:11px}
+  .overlay p{color:var(--muted);font-size:12px;line-height:1.6;max-width:340px;margin:10px 0 14px}
+  .btn{
+    background:var(--accent);border:0;color:#1a1408;font-family:var(--mono);
+    font-weight:bold;padding:11px 20px;border-radius:8px;letter-spacing:2px;
+    cursor:pointer;font-size:13px;
+  }
+  .btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line);font-weight:normal}
+
+  /* ---------- palette ---------- */
+  .palette{display:grid;grid-template-columns:repeat(9,1fr);gap:5px}
+  .sus{
+    background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    /* без aspect-ratio: вместе с min-height оно задавало плитке ширину 46px,
+       и девять штук переставали помещаться в строку на узком экране */
+    height:48px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;position:relative;transition:transform .06s,background .1s;
+  }
+  .sus:active{transform:scale(.92)}
+  .sus .ico{font-size:clamp(14px,4.8vw,22px);line-height:1;
+    background:var(--photo);border-radius:4px;padding:2px 3px}
+  .sus .cnt{position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--muted)}
+  .sus.done{opacity:.3}
+  .sus.hl{background:var(--accent);border-color:var(--accent2)}
+
+  /* ---------- actions ---------- */
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .actions button{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);padding:10px 4px;border-radius:9px;cursor:pointer;
+    font-size:10px;letter-spacing:.5px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;
+  }
+  .actions button:active{background:var(--panel2)}
+  .actions button .k{font-size:16px}
+  .actions button.on{background:var(--accent);color:#1a1408;border-color:var(--accent)}
+
+  .legend{font-size:10px;color:var(--muted);text-align:center;line-height:1.7}
+  .legend b{color:var(--accent2)}
+
+  footer{font-size:11px;color:var(--muted);text-align:center;letter-spacing:.5px;padding-top:4px}
+  footer a{color:var(--accent2);text-decoration:none;font-weight:bold}
+
+  /* ---------- modals ---------- */
+  .modal{
+    position:fixed;inset:0;z-index:60;display:none;
+    align-items:center;justify-content:center;padding:16px;
+    padding-top:calc(var(--safe-top) + 16px);
+    background:rgba(6,7,10,.86);animation:fade .2s;
+  }
+  .modal.show{display:flex}
+  .sheet{
+    width:min(460px,100%);max-height:84vh;overflow-y:auto;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:14px;padding:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);-webkit-overflow-scrolling:touch;
+  }
+  .sheet h3{margin:0 0 4px;color:var(--accent2);letter-spacing:2px;font-size:15px}
+  .sheet .sub{color:var(--muted);font-size:11px;margin-bottom:12px;letter-spacing:1px}
+  .sheet p{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 10px}
+  .sheet .row{display:flex;gap:8px;margin-top:12px}
+  .sheet .row .btn{flex:1;text-align:center}
+  .news{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    margin-bottom:10px;background:rgba(0,0,0,.2)}
+  .news b{color:var(--accent2);font-size:12px;letter-spacing:1px}
+  .news ul{margin:6px 0 0;padding-left:16px}
+  .news li{font-size:12px;line-height:1.55;color:var(--muted);margin-bottom:4px}
+  .dossier{display:flex;flex-direction:column;gap:7px;margin-bottom:6px}
+  .dos{display:flex;align-items:center;gap:10px;border:1px solid var(--line);
+    border-radius:9px;padding:7px 10px;background:rgba(0,0,0,.18)}
+  .dos .ic{font-size:22px;background:var(--photo);border-radius:5px;
+    padding:3px 5px;line-height:1}
+  .dos .nm{font-size:12px;color:var(--ink)}
+  .dos .rl{font-size:10px;color:var(--muted)}
+  .toggle{display:flex;align-items:center;justify-content:space-between;
+    border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+    margin-bottom:8px;background:rgba(0,0,0,.18);cursor:pointer}
+  .toggle .t{font-size:12px;color:var(--ink)}
+  .toggle .d{font-size:10px;color:var(--muted);margin-top:2px}
+  .toggle .sw{width:42px;height:24px;border-radius:12px;background:var(--line);
+    position:relative;flex:0 0 auto;transition:background .15s}
+  .toggle .sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+    border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+  .toggle.on .sw{background:var(--accent)}
+  .toggle.on .sw::after{transform:translateX(18px);background:#1a1408}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="tb" id="exitBtn">← Выход</button>
+  <div class="brand">МУР<span class="x">ДО</span>КУ</div>
+  <button class="tb" id="menuBtn">☰ Меню</button>
+</div>
+
+<div class="wrap">
+  <div class="case">
+    <div class="stamp">CONFIDENTIAL</div>
+    <h2>ДЕЛО №<span id="caseNo">000</span> · <span id="caseTitle">—</span></h2>
+    <div class="meta" id="caseMeta">—</div>
+    <p id="caseText" class="clamp">Загрузка материалов дела…</p>
+    <span class="more" id="caseMore">РАЗВЕРНУТЬ ▾</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="seg" id="diffSeg"></div>
+  </div>
+
+  <div class="stats">
+    <span>⏱ <b id="timer">00:00</b></span>
+    <span class="mist">✖ Промахов: <b id="mistakes">0</b></span>
+    <span>🔍 Улик: <b id="hintsUsed">0</b></span>
+  </div>
+
+  <div class="boardwrap">
+    <div class="board" id="board"></div>
+    <div class="overlay" id="overlay">
+      <div class="big" id="ovIco">🕵️</div>
+      <h3 id="ovTitle">ДЕЛО РАСКРЫТО</h3>
+      <div class="culprit" id="ovCulprit">—</div>
+      <div class="role" id="ovRole">—</div>
+      <p id="ovText"></p>
+      <button class="btn" id="ovBtn">СЛЕДУЮЩЕЕ ДЕЛО →</button>
+    </div>
+  </div>
+
+  <div class="palette" id="palette"></div>
+
+  <div class="actions">
+    <button id="notesBtn"><span class="k">✎</span>ЗАМЕТКИ</button>
+    <button id="eraseBtn"><span class="k">⌫</span>СТЕРЕТЬ</button>
+    <button id="hintBtn"><span class="k">🔍</span>УЛИКА</button>
+    <button id="checkBtn"><span class="k">✓</span>СВЕРКА</button>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+</div>
+
+<!-- ===== МЕНЮ ===== -->
+<div class="modal" id="menuModal">
+  <div class="sheet">
+    <h3>МЕНЮ СЛЕДСТВИЯ</h3>
+    <div class="sub">Дело №<span id="mCaseNo">000</span></div>
+    <div class="row" style="flex-direction:column;gap:8px;margin-top:0">
+      <button class="btn ghost" id="newCaseBtn">◆ НОВОЕ ДЕЛО</button>
+      <button class="btn ghost" id="dossierBtn">🗂 ДОСЬЕ ПОДОЗРЕВАЕМЫХ</button>
+      <button class="btn ghost" id="howBtn">❓ КАК ИГРАТЬ</button>
+      <button class="btn ghost" id="newsBtn">🆕 ЧТО НОВОГО</button>
+    </div>
+    <div class="toggle" id="assistTgl" style="margin-top:14px">
+      <div>
+        <div class="t">Помощь следствия</div>
+        <div class="d">Подсвечивать ошибочные улики красным</div>
+      </div>
+      <div class="sw"></div>
+    </div>
+    <div class="row">
+      <button class="btn" data-close="menuModal">ЗАКРЫТЬ</button>
+    </div>
+    <footer style="margin-top:12px">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+  </div>
+</div>
+
+<!-- ===== ЧТО НОВОГО ===== -->
+<div class="modal" id="newsModal">
+  <div class="sheet">
+    <h3>🆕 ЧТО НОВОГО</h3>
+    <div class="sub" id="newsDate">—</div>
+    <div id="newsBody"></div>
+    <div class="row">
+      <button class="btn" data-close="newsModal">НАЗАД</button>
+    </div>
+    <footer style="margin-top:12px">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+  </div>
+</div>
+
+<!-- ===== ДОСЬЕ ===== -->
+<div class="modal" id="dossierModal">
+  <div class="sheet">
+    <h3>🗂 ДОСЬЕ</h3>
+    <div class="sub">Девять гостей Тёмного Вяза</div>
+    <div class="dossier" id="dossierBody"></div>
+    <div class="row">
+      <button class="btn" data-close="dossierModal">НАЗАД</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== КАК ИГРАТЬ ===== -->
+<div class="modal" id="howModal">
+  <div class="sheet">
+    <h3>❓ КАК ИГРАТЬ</h3>
+    <div class="sub">Судоку для тех, кто ищет виновного</div>
+    <p><b style="color:var(--accent2)">Правило одно.</b> В каждой строке, каждом столбце и каждом квадрате 3×3 каждый из девяти подозреваемых встречается ровно один раз.</p>
+    <p><b style="color:var(--accent2)">Место преступления ⚑.</b> Одна клетка на доске помечена флажком. Тот подозреваемый, который окажется в ней при верном решении, и есть убийца. Пока сетка не сошлась — имя неизвестно.</p>
+    <p><b style="color:var(--accent2)">Как ставить.</b> Коснитесь клетки, затем — фотографии подозреваемого внизу. Повторное касание того же убирает его из клетки.</p>
+    <p><b style="color:var(--accent2)">✎ Заметки.</b> Режим карандаша: помечайте в клетке нескольких кандидатов сразу. При постановке улики пометки соседей чистятся сами.</p>
+    <p><b style="color:var(--accent2)">🔍 Улика.</b> Следствие подскажет одну верную клетку — но это попадёт в отчёт.</p>
+    <p><b style="color:var(--accent2)">✓ Сверка.</b> Проверяет уже расставленное на ошибки, ничего не подсказывая.</p>
+    <p style="color:#6b6f7d">С клавиатуры: 1–9 — подозреваемые, стрелки — перемещение, Del — стереть, N — заметки, H — улика.</p>
+    <div class="row">
+      <button class="btn" data-close="howModal">ПОНЯЛ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============ TELEGRAM BOOTSTRAP ============ */
+/* Игра живёт в iframe хаба, где window.Telegram не определён — SDK доступен
+   только через родителя. Без этого fallback весь бутстрап молча не срабатывал. */
+function tgApp(){
+  try{
+    if(window.Telegram && window.Telegram.WebApp) return window.Telegram.WebApp;
+    if(window.parent && window.parent !== window &&
+       window.parent.Telegram && window.parent.Telegram.WebApp) return window.parent.Telegram.WebApp;
+  }catch(e){}
+  return null;
+}
+(function(){
+  try{
+    var tg = tgApp();
+    if(!tg) return;
+    if(tg.ready) tg.ready();
+    if(tg.expand) tg.expand();
+    if(tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+    var st = tg.contentSafeAreaInset || tg.safeAreaInset;
+    if(st && typeof st.top === "number" && st.top > 0){
+      document.documentElement.style.setProperty("--safe-top",(st.top+8)+"px");
+    }
+  }catch(e){}
+})();
+
+function haptic(kind){
+  try{
+    var app = tgApp();
+    var h = app && app.HapticFeedback;
+    if(h){
+      if(kind==="success") h.notificationOccurred("success");
+      else if(kind==="error") h.notificationOccurred("error");
+      else h.impactOccurred(kind||"light");
+    } else if(navigator.vibrate){
+      navigator.vibrate(kind==="error"?[24,24,24]:10);
+    }
+  }catch(e){}
+}
+
+/* Игровая поверхность не должна вести себя как документ.
+   Настоящее DOM-событие называется selectstart (не selectionstart);
+   ссылки и поля ввода не трогаем. */
+["selectstart","dragstart","contextmenu"].forEach(function(ev){
+  document.addEventListener(ev,function(e){
+    var t = e.target;
+    if(t && (t.tagName==="A"||t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.tagName==="SELECT")) return;
+    e.preventDefault();
+  },{passive:false});
+});
+
+/* ============ ПОДОЗРЕВАЕМЫЕ ============ */
+var SUSPECTS = [
+  {ico:"🎩", name:"Полковник Блэк",    role:"хозяин усадьбы, отставной полковник"},
+  {ico:"🌹", name:"Вдова Морвен",      role:"безутешная вдова банкира"},
+  {ico:"🔑", name:"Дворецкий Гривз",   role:"дворецкий Тёмного Вяза"},
+  {ico:"🎻", name:"Маэстро Вентури",   role:"скрипач ночного оркестра"},
+  {ico:"🔮", name:"Мадам Вуаль",       role:"медиум и гадалка"},
+  {ico:"💎", name:"Мисс Вивиан Кросс", role:"наследница алмазной конторы"},
+  {ico:"🎲", name:"Джек Рэйвен",       role:"карточный шулер, должник"},
+  {ico:"💊", name:"Доктор Штерн",      role:"домашний врач и аптекарь"},
+  // ⚓ выглядел бледно-серым на светлой «фотокарточке» — заменён на контрастный силуэт
+  {ico:"🍷", name:"Сомелье Ланг",      role:"винный распорядитель дома"}
+];
+
+/* ============ 30 ДЕЛ ============ */
+var CASES = [
+  {title:"ТИШИНА В ЗЕЛЁНОЙ ГОСТИНОЙ", place:"Зелёная гостиная", victim:"антиквар синьор Крид",
+   text:"Гроза оборвала свет ровно в девять, а когда лампы снова загорелись, синьор Крид уже не поднялся из кресла у ломберного столика. Часы на камине спешат на четыре минуты — их кто-то переводил. Заполните сетку до конца: тот, кто встанет под флажком, и есть убийца."},
+  {title:"ЧЕРНИЛА И ДОЖДЬ", place:"Библиотека Тёмного Вяза", victim:"нотариус Барлоу",
+   text:"Нотариус приехал переписать завещание и не дожил до подписи — перо так и осталось лежать поперёк недописанной строки. Окно всю ночь было открыто, и дождь смыл всё, что могло остаться на подоконнике. Расставьте девятерых по клеткам: под флажком останется только один."},
+  {title:"ПАРТИЯ БЕЗ ПОСЛЕДНЕГО ШАРА", place:"Бильярдная", victim:"букмекер Слай",
+   text:"В два часа ночи в бильярдной ещё горела лампа, и кто-то доиграл партию за Слая — последний шар аккуратно уложен в лузу. Долговая расписка на сорок тысяч исчезла из его бумажника. Доведите расклад до конца — клетка с флажком назовёт имя."},
+  {title:"ЗАПАХ ЧЁРНОЙ ОРХИДЕИ", place:"Оранжерея", victim:"профессор ботаники Валдес",
+   text:"На рассвете садовник нашёл профессора среди пальм: стеклянный купол запотел, и в тёплом воздухе висел тяжёлый, чужой аромат. Редчайшая орхидея из его коллекции исчезла вместе с горшком. Соберите таблицу без ошибок, и убийца сам займёт место под знаком."},
+  {title:"УРОЖАЙ ОДИННАДЦАТОГО ГОДА", place:"Винный погреб", victim:"метрдотель Фраско",
+   text:"Фраско спустился за бутылкой к юбилейному ужину и не вернулся; свеча догорела до самого подсвечника. На пыльной полке остался чистый прямоугольник — кто-то забрал вино урожая одиннадцатого года. Проверьте каждую строку и каждый квадрат: правда проступит под флажком."},
+  {title:"ОКУРОК С АЛОЙ ПОМАДОЙ", place:"Курительная комната", victim:"коллекционер марок Лемм",
+   text:"Лемма нашли в кожаном кресле под утро, когда дым ещё не выветрился из-под потолка. В пепельнице — семь его сигар и один тонкий окурок со следом алой помады. Логика не лжёт: закончите сетку, и виновный окажется на отмеченной клетке."},
+  {title:"ОБОРВАННАЯ СТРУНА", place:"Музыкальный салон", victim:"дирижёр Аллегри",
+   text:"Рояль стоял с поднятой крышкой, а маэстро Аллегри — на банкетке, будто уснул на середине такта. Одна струна порвана, и её обрывок кто-то унёс с собой. Разложите всех по местам — флажок укажет на того, кто солгал."},
+  {title:"СТЕКЛЯННЫЕ ГЛАЗА ЧЕРДАКА", place:"Чердак с чучелами", victim:"таксидермист Вейн",
+   text:"Вейна нашли среди его же работ, под самой крышей, куда не поднимались годами. Все чучела смотрят в стену — все, кроме филина: его развернули к лестнице. Не оставляйте пустых клеток: последним под флажком встанет убийца."},
+  {title:"ПОЛНОЧЬ ПРОБИЛА ТРИНАДЦАТЬ", place:"Часовая башня усадьбы", victim:"часовщик Одо Прейн",
+   text:"В ту ночь башенные часы отбили тринадцать ударов, и лишь под утро поняли почему: старый Прейн так и не спустился с яруса механизма. В его кармане нашли шестерёнку, которой в этих часах никогда не было. Ни одна улика тут не поможет — только сетка: закончите её и взгляните под флажок."},
+  {title:"ТУМАН НАД ЧЁРНЫМ ПРУДОМ", place:"Лодочный сарай у пруда", victim:"садовник старик Тёрн",
+   text:"Туман лежал на воде так плотно, что лодку у мостков заметили только к полудню. Старик Тёрн знал в парке каждую тропу — и всё же кто-то подошёл к нему сзади по мокрой траве. Расставьте подозреваемых так, чтобы никто не повторился, — флажок сделает остальное."},
+  {title:"РОЗА, СРЕЗАННАЯ НА РАССВЕТЕ", place:"Розарий за домом", victim:"гувернантка мисс Тилли",
+   text:"Мисс Тилли выходила в розарий раньше всех — и в это утро осталась там навсегда, среди мокрых от росы кустов. Рядом лежала срезанная алая роза, хотя садовые ножницы висели в сарае нетронутыми. Соберите сетку: имя убийцы уже стоит под флажком, его нужно лишь проявить."},
+  {title:"МОТОР РАБОТАЛ ДО УТРА", place:"Каретный сарай", victim:"шофёр Кроули",
+   text:"Ворота сарая были закрыты, а мотор хозяйского «Даймлера» тарахтел до самого рассвета, пока не кончился бензин. В девять утра Кроули собирался кое-что рассказать инспектору — не успел. Дознание окончено, осталась арифметика: заполните доску и посмотрите на клетку с флажком."},
+  {title:"ПОСЛЕДНИЙ ВАЛЬС ЛОЛЫ ВЕРДЕ", place:"Бальный зал", victim:"певица Лола Верде",
+   text:"Оркестр доиграл вальс, гости разбрелись по гостиным, а Лола осталась у колонны с бокалом, к которому так и не притронулась. На хрустале — отпечаток чужой перчатки. Каждому своё место: найдите единственно верное расположение — и убийца окажется под флажком."},
+  {title:"УЖИН НА ДЕВЯТЬ ПЕРСОН", place:"Кухня для прислуги", victim:"повар Дювер",
+   text:"Дювер готовил ужин на девять персон и попробовал соус первым, как делал тридцать лет подряд. К столу блюдо так и не вынесли, а банка с сушёными грибами исчезла из кладовой. Заполните все девять квадратов: под флажком не останется места для сомнений."},
+  {title:"МОНОГРАММА НА МОКРОМ ПЛАТКЕ", place:"Прачечная в подвале", victim:"белошвейка Ада Ринг",
+   text:"В подвале было душно от пара, и крик Ады никто не услышал сквозь гудение котла. В барабане среди чужого белья нашли платок с монограммой, которую она точно не вышивала. Расставьте девять имён по правилам — тот, кто попадёт под флажок, поедет с вами в участок."},
+  {title:"ЗАПЕРТО СНАРУЖИ", place:"Ледник усадьбы", victim:"поставщик льда Свейн",
+   text:"Свейн привозил лёд по вторникам и всегда уезжал до обеда — в этот раз повозка так и осталась у чёрного хода. Дверь ледника была заперта снаружи на засов, а ключ висел на своём крючке в кухне. Сетка знает больше свидетелей: доведите её до конца и прочтите клетку с флажком."},
+  {title:"КАДР НОМЕР ДЕВЯТЬ", place:"Фотолаборатория в мансарде", victim:"фоторепортёр Лью Каннинг",
+   text:"Красный фонарь горел до утра, а в ванночке плавали засвеченные снимки — все, кроме девятого кадра, который кто-то вырезал ножницами. Каннинг обещал редакции «фотографию, после которой в этом доме не уснут». Никаких догадок — только строки и колонки: заполните их, и убийца встанет под знак."},
+  {title:"ПУСТОЙ КРЮК НА СТЕНЕ", place:"Трофейный зал", victim:"аукционист Мэлори",
+   text:"Мэлори приехал оценить коллекцию и остался ночевать в зале с охотничьими трофеями. Утром на стене нашли пустой крюк: старинный кремнёвый пистолет, украшавший её двадцать лет, пропал. Соберите доску целиком: клетка с флажком выдаст того, кто был здесь ночью."},
+  {title:"ГОЛУБЬ БЕЗ ПИСЬМА", place:"Голубятня на крыше", victim:"почтальон Данкирк",
+   text:"Данкирк поднялся на крышу с вечерней почтой и не спустился; ветер всю ночь трепал раскрытую дверцу голубятни. Один голубь вернулся под утро — с пустым футлярчиком на лапке. Осталось расставить всех по местам: под флажком окажется хозяин этой тайны."},
+  {title:"СТАКАН НА НОЧНОМ СТОЛИКЕ", place:"Гостевая спальня синего крыла", victim:"юрист по завещаниям Кроппер",
+   text:"Кроппер лёг в первом часу, попросив не будить его до девяти, — и просьбу исполнили слишком буквально. На столике остался стакан с осадком на дне и пузырёк снотворного без этикетки. Заполните сетку без единого повтора, и убийца сам подойдёт к флажку."},
+  {title:"ТРИНАДЦАТАЯ СТУПЕНЬ", place:"Парадная лестница", victim:"управляющий банком Хаверфорд",
+   text:"Хаверфорд уезжал последним, в третьем часу, и оступился на тринадцатой ступени парадной лестницы. Прут, державший ковёр, лежал в стороне — вынутый, а не выпавший. Разберите девять судеб по клеткам: под флажком останется одна."},
+  {title:"СЕЙФ ЗА ПОРТРЕТОМ", place:"Кабинет хозяина", victim:"частный сыщик Ривз",
+   text:"Ривза наняли следить за домом, и он нашёл больше, чем стоило: портрет отодвинут, сейф открыт, дневник раскрыт на столе. Из дневника вырвана одна-единственная страница — за прошлый четверг. Доведите расклад до последней клетки: флажок не ошибается."},
+  {title:"ОРГАН ИГРАЛ САМ", place:"Часовня в парке", victim:"органист брат Ансельм",
+   text:"Сторож клялся, что в три ночи из часовни доносился орган, хотя брат Ансельм давно ушёл спать. Утром его нашли на скамье у клавиш, а на мехах лежал слой нетронутой пыли. Расставьте всех девятерых — тот, кто окажется под флажком, ответит за эту ночь."},
+  {title:"ДОЖДЬ НАД «СИНИМ ФОНАРЁМ»", place:"Джаз-клуб «Синий фонарь»", victim:"бармен Дитч",
+   text:"Ливень загнал в клуб половину квартала, саксофон выл до трёх, и никто не заметил, как Дитч перестал протирать стаканы. Касса цела, а вот записная книжка с телефонами постоянных гостей исчезла. Заполните доску: под флажком проявится лицо, которое вы ищете."},
+  {title:"СТАТЬЯ, КОТОРАЯ НЕ ВЫШЛА", place:"Редакция «Вечернего клинка»", victim:"редактор Мэйсон",
+   text:"Мэйсон держал полосу до последнего — материал про Тёмный Вяз должен был выйти в утреннем выпуске. Наборная касса рассыпана по полу, а гранки исчезли вместе с копией. Сложите девять имён в правильном порядке — флажок покажет, кого арестовать."},
+  {title:"ПОРТСИГАР В ЗАКЛАД", place:"Ломбард на Гвоздильной улице", victim:"ростовщик Финч",
+   text:"Финч закрывал лавку в девять, но в этот вечер колокольчик над дверью звякнул позже. В залоговой книге последняя запись оборвана на середине: серебряный портсигар с гравировкой. Ни строки, ни колонки не терпят двойников: закончите сетку и загляните под флажок."},
+  {title:"ТРЕТИЙ ЗВОНОК ДЛЯ НОРЫ ФЛИНН", place:"Гримёрка театра «Орфей»", victim:"примадонна Нора Флинн",
+   text:"После третьего звонка Нора не вышла на сцену — занавес держали одиннадцать минут. В гримёрке горели все лампы вокруг зеркала, а на стекле осталась смазанная надпись гримом. Расставьте подозреваемых по местам, и отмеченная клетка назовёт убийцу."},
+  {title:"СТОП-КРАН В ТОННЕЛЕ", place:"Ночной экспресс, вагон седьмой", victim:"коммивояжёр Пибоди",
+   text:"Экспресс шёл через тоннель полторы минуты, и этого хватило: когда свет вернулся, Пибоди сидел в купе один, уронив голову на саквояж. Стоп-кран сорвали, но с поезда так никто и не сошёл. Заполните сетку до конца: под флажком останется тот, кто не вернулся на своё место."},
+  {title:"ПРИЛИВ У СЕДЬМОГО ПРИЧАЛА", place:"Порт, причал №7", victim:"таможенник Ласк",
+   text:"Туман с моря был такой густой, что фонари на причале казались жёлтыми пятнами в вате. Ласк собирался вскрыть ящик с чаем, пришедший без документов, — и не успел; к утру ящика на причале не было. Соберите расклад: флажок укажет на того, кто ждал у воды."},
+  {title:"НОМЕР ДЕВЯТЬ, НЕОН И ДОЖДЬ", place:"Гостиница «Меридиан», номер 9", victim:"скупщик краденого Пеппер",
+   text:"Вывеска отеля мигала в окно всю ночь, окрашивая номер то красным, то чёрным. Пеппер снял трубку, но так и не сказал ни слова: телефон остался лежать на ковре, а линия — открытой до утра. Осталось одно — заполнить доску. Кто встанет под флажком, того и уведут по мокрому асфальту."}
+];
+
+var VERDICTS = [
+  "Под флажком — {culprit}. Дело закрыто.",
+  "Сетка сошлась, и на отмеченной клетке осталось одно имя: {culprit}. Наручники, пожалуйста.",
+  "Все алиби рассыпались разом. Под флажком: {culprit}.",
+  "Инспектор поднял воротник и произнёс имя: {culprit}. Дождь наконец затих.",
+  "Девять имён, одна клетка — и в ней {culprit}. Вопросов больше нет.",
+  "Улики молчали, но логика заговорила: убийца — {culprit}.",
+  "Тёмный Вяз не умеет хранить тайны. Под флажком — {culprit}.",
+  "Папку можно подшивать в архив: {culprit}. И никаких сомнений."
+];
+
+var LEGEND_TEXT = 'Девять подозреваемых нужно расставить так, чтобы в каждой строке, каждом столбце и каждом квадрате 3×3 никто не повторялся.<br>Клетка с флажком <b>⚑</b> — место преступления: кто окажется в ней в верном решении, <b>тот и убийца</b>.';
+
+var DIFFS = [
+  {id:"easy",   name:"ЯСНОЕ ДЕЛО",  clues:40},
+  {id:"medium", name:"ТУМАН",       clues:32},
+  {id:"hard",   name:"ПЕРЕУЛОК",    clues:27},
+  {id:"evil",   name:"ВИСЯК",       clues:23}
+];
+
+/* ============ ЧТО НОВОГО ============ */
+var CHANGELOG = [
+  {d:"1 августа 2026, 02:06 (Алматы) — v1.0 «Тёмный Вяз»", t:[
+    "🕵️ Премьера «Мурдоку» в GamePass: детективная судоку, где девять подозреваемых расставляются по клеткам, а под флажком ⚑ проявляется убийца.",
+    "🗂 30 самостоятельных дел — от оранжереи и часовой башни до ночного экспресса и порта; дела не повторяются, пока не пройдёте все.",
+    "🎚 Четыре уровня сложности: «Ясное дело», «Туман», «Переулок» и «Висяк».",
+    "✎ Режим заметок с авточисткой соседей, кнопка «Улика», «Сверка» без спойлеров и досье на всех девятерых.",
+    "💾 Расследование сохраняется само: закрыли мини-апп — вернётесь на ту же клетку с тем же временем."
+  ]}
+];
+
+/* ============ ДВИЖОК СУДОКУ ============ */
+var N = 9;
+function emptyGrid(){ var g=[],r; for(r=0;r<9;r++) g.push([0,0,0,0,0,0,0,0,0]); return g; }
+function deepCopy(g){ return g.map(function(r){return r.slice();}); }
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+function popcount(x){ var n=0; while(x){ x&=x-1; n++; } return n; }
+
+function isSafe(g,r,c,v){
+  for(var i=0;i<9;i++){ if(g[r][i]===v||g[i][c]===v) return false; }
+  var br=r-r%3, bc=c-c%3;
+  for(var a=0;a<3;a++) for(var b=0;b<3;b++) if(g[br+a][bc+b]===v) return false;
+  return true;
+}
+function fillGrid(g){
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++){
+    if(g[r][c]===0){
+      var nums=shuffle([1,2,3,4,5,6,7,8,9]);
+      for(var i=0;i<9;i++){
+        var v=nums[i];
+        if(isSafe(g,r,c,v)){ g[r][c]=v; if(fillGrid(g)) return true; g[r][c]=0; }
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+/* Побитовый счётчик решений с выбором клетки минимальных кандидатов (MRV).
+   Останавливается, как только найдено `limit` решений. */
+function countSolutions(grid, limit){
+  var cells = deepCopy(grid);
+  var rows=[0,0,0,0,0,0,0,0,0], cols=rows.slice(), boxes=rows.slice();
+  rows=[0,0,0,0,0,0,0,0,0]; cols=[0,0,0,0,0,0,0,0,0]; boxes=[0,0,0,0,0,0,0,0,0];
+  var r,c,v,b;
+  for(r=0;r<9;r++) for(c=0;c<9;c++){
+    v=cells[r][c];
+    if(v){ b=((r/3)|0)*3+((c/3)|0); var m=1<<v; rows[r]|=m; cols[c]|=m; boxes[b]|=m; }
+  }
+  // противоречивая сетка (дубль в строке/столбце/квадрате) решений не имеет,
+  // но по маскам неотличима от корректной — иначе поиск ушёл бы в бесконечность
+  for(r=0;r<9;r++) for(c=0;c<9;c++){
+    v=cells[r][c];
+    if(!v) continue;
+    b=((r/3)|0)*3+((c/3)|0);
+    var bm=1<<v;
+    cells[r][c]=0; rows[r]^=bm; cols[c]^=bm; boxes[b]^=bm;
+    var clash=(rows[r]|cols[c]|boxes[b])&bm;
+    cells[r][c]=v; rows[r]|=bm; cols[c]|=bm; boxes[b]|=bm;
+    if(clash) return 0;
+  }
+  var count=0;
+  function rec(){
+    var bestR=-1,bestC=-1,bestMask=0,bestN=10;
+    for(var r2=0;r2<9;r2++) for(var c2=0;c2<9;c2++){
+      if(cells[r2][c2]) continue;
+      var b2=((r2/3)|0)*3+((c2/3)|0);
+      var avail = (~(rows[r2]|cols[c2]|boxes[b2])) & 0x3FE; // биты 1..9
+      var n = popcount(avail);
+      if(n===0) return;                       // тупик
+      if(n<bestN){ bestN=n; bestR=r2; bestC=c2; bestMask=avail; if(n===1){ r2=9; break; } }
+    }
+    if(bestR<0){ count++; return; }           // все клетки заполнены
+    var bb=((bestR/3)|0)*3+((bestC/3)|0);
+    var mask=bestMask;
+    while(mask){
+      var bit = mask & (-mask); mask ^= bit;
+      var val = 31 - Math.clz32(bit);
+      cells[bestR][bestC]=val; rows[bestR]|=bit; cols[bestC]|=bit; boxes[bb]|=bit;
+      rec();
+      cells[bestR][bestC]=0; rows[bestR]^=bit; cols[bestC]^=bit; boxes[bb]^=bit;
+      if(count>=limit) return;
+    }
+  }
+  rec();
+  return count;
+}
+
+function digOnce(cluesTarget){
+  var solved=emptyGrid(); fillGrid(solved);
+  var puzzle=deepCopy(solved);
+  var order=shuffle(Array.apply(null,{length:81}).map(function(_,i){return i;}));
+  var left=81, i, idx, r, c, backup;
+  for(i=0;i<order.length;i++){
+    if(left<=cluesTarget) break;
+    idx=order[i]; r=(idx/9)|0; c=idx%9;
+    backup=puzzle[r][c]; puzzle[r][c]=0;
+    if(countSolutions(puzzle,2)!==1) puzzle[r][c]=backup;
+    else left--;
+  }
+  return {solved:solved, puzzle:puzzle, clues:left};
+}
+/* Один проход копки застревает выше цели (на «висяке» — на 24-28 подсказках):
+   какая клетка снимется, зависит от порядка. Пробуем заново, храня лучший результат. */
+function generatePuzzle(cluesTarget){
+  var best=null;
+  for(var a=0;a<16;a++){
+    var g=digOnce(cluesTarget);
+    if(!best || g.clues<best.clues) best=g;
+    if(best.clues<=cluesTarget) break;
+  }
+  return best;
+}
+
+/* ============ СОСТОЯНИЕ ============ */
+var SAVE_KEY = "murdoku:v1";
+var solved, puzzle, given, cur, notes, sceneCell;
+var selected=null, notesMode=false, solvedFlag=false, busy=false;
+var mistakes=0, hintsUsed=0, elapsed=0, tickInt=null, lastTick=0;
+var caseIdx=0, caseBag=[], caseNo=0, curDiff="medium", assist=true;
+
+var boardEl=document.getElementById("board");
+var paletteEl=document.getElementById("palette");
+function el(id){ return document.getElementById(id); }
+function idx(r,c){ return r*9+c; }
+
+/* ---------- сохранение ---------- */
+function save(){
+  if(busy) return;
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      solved:solved, puzzle:puzzle, cur:cur, sceneCell:sceneCell,
+      notes:notes.map(function(s){ return Array.from(s); }),
+      mistakes:mistakes, hintsUsed:hintsUsed, elapsed:elapsed,
+      caseIdx:caseIdx, caseNo:caseNo, caseBag:caseBag,
+      diff:curDiff, assist:assist, solvedFlag:solvedFlag
+    }));
+  }catch(e){}
+}
+/* Сейв приходит из localStorage — данные внешние, поэтому проверяем форму и
+   диапазоны целиком: битый или подделанный сейв должен дать новую партию,
+   а не белый экран. */
+function isInt(v,min,max){
+  return typeof v==="number" && isFinite(v) && v%1===0 && v>=min && v<=max;
+}
+function num(v,def,min,max){ return isInt(v,min,max) ? v : def; }
+function validGrid(g,allowZero){
+  if(!Array.isArray(g)||g.length!==9) return false;
+  for(var r=0;r<9;r++){
+    if(!Array.isArray(g[r])||g[r].length!==9) return false;
+    for(var c=0;c<9;c++) if(!isInt(g[r][c],allowZero?0:1,9)) return false;
+  }
+  return true;
+}
+/* полностью заполненная сетка обязана быть корректной судоку */
+function isSolvedGrid(g){
+  for(var i=0;i<9;i++){
+    var row={}, col={}, box={};
+    for(var j=0;j<9;j++){
+      row[g[i][j]]=1;
+      col[g[j][i]]=1;
+      box[g[((i/3)|0)*3+((j/3)|0)][(i%3)*3+(j%3)]]=1;
+    }
+    if(Object.keys(row).length!==9) return false;
+    if(Object.keys(col).length!==9) return false;
+    if(Object.keys(box).length!==9) return false;
+  }
+  return true;
+}
+function load(){
+  try{
+    var raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    var s=JSON.parse(raw);
+    if(!s||typeof s!=="object") return false;
+    if(!validGrid(s.solved,false)||!validGrid(s.puzzle,true)||!validGrid(s.cur,true)) return false;
+    if(!isSolvedGrid(s.solved)) return false;
+    if(!Array.isArray(s.sceneCell)||!isInt(s.sceneCell[0],0,8)||!isInt(s.sceneCell[1],0,8)) return false;
+    // подсказки обязаны совпадать с решением, иначе доску нельзя будет закрыть
+    for(var vr=0;vr<9;vr++) for(var vc=0;vc<9;vc++)
+      if(s.puzzle[vr][vc] && s.puzzle[vr][vc]!==s.solved[vr][vc]) return false;
+
+    solved=s.solved; puzzle=s.puzzle; cur=s.cur;
+    sceneCell=[s.sceneCell[0], s.sceneCell[1]];
+    given=puzzle.map(function(row){ return row.map(function(v){ return v!==0; }); });
+
+    notes=[];
+    for(var i=0;i<81;i++){
+      var a=(Array.isArray(s.notes)&&Array.isArray(s.notes[i]))?s.notes[i]:[];
+      notes.push(new Set(a.filter(function(v){ return isInt(v,1,9); })));
+    }
+    mistakes=num(s.mistakes,0,0,1e6);
+    hintsUsed=num(s.hintsUsed,0,0,1e6);
+    elapsed=num(s.elapsed,0,0,1e9);
+    caseIdx=num(s.caseIdx,0,0,CASES.length-1);
+    caseNo=num(s.caseNo,1,1,1e6);
+    caseBag=Array.isArray(s.caseBag)
+      ? s.caseBag.filter(function(v){ return isInt(v,0,CASES.length-1); })
+      : [];
+    curDiff=DIFFS.some(function(d){ return d.id===s.diff; }) ? s.diff : "medium";
+    assist=(s.assist!==false);
+    solvedFlag=!!s.solvedFlag && isComplete();  // «раскрыто» только если доска правда сошлась
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- дела без повторов ---------- */
+function nextCase(){
+  if(!caseBag.length){
+    var last=caseIdx;
+    caseBag=shuffle(CASES.map(function(_,i){return i;}));
+    // не повторять дело на стыке двух перетасовок
+    if(caseBag.length>1 && caseBag[caseBag.length-1]===last){
+      var t=caseBag[0]; caseBag[0]=caseBag[caseBag.length-1]; caseBag[caseBag.length-1]=t;
+    }
+  }
+  caseIdx=caseBag.pop();
+}
+
+/* ============ НОВАЯ ПАРТИЯ ============ */
+function newGame(diff){
+  if(busy) return;
+  curDiff = diff || curDiff;
+  busy=true;
+  stopTimer();
+  el("caseText").textContent="Следствие подбирает материалы дела…";
+  el("overlay").classList.remove("show");
+  // генерация «висяка» ощутимо считает — отдаём кадр отрисовке
+  setTimeout(function(){
+    var clues=32, i;
+    for(i=0;i<DIFFS.length;i++) if(DIFFS[i].id===curDiff) clues=DIFFS[i].clues;
+    var gen=generatePuzzle(clues);
+    solved=gen.solved; puzzle=gen.puzzle;
+    cur=deepCopy(puzzle);
+    given=puzzle.map(function(row){ return row.map(function(v){ return v!==0; }); });
+    notes=[]; for(i=0;i<81;i++) notes.push(new Set());
+    // место преступления — среди изначально пустых клеток, чтобы его пришлось вывести
+    var empties=[];
+    for(var r=0;r<9;r++) for(var c=0;c<9;c++) if(!given[r][c]) empties.push([r,c]);
+    sceneCell=empties[Math.floor(Math.random()*empties.length)];
+    mistakes=0; hintsUsed=0; elapsed=0; selected=null; solvedFlag=false;
+    notesMode=false; el("notesBtn").classList.remove("on");
+    nextCase(); caseNo++;
+    busy=false;
+    renderAll();
+    startTimer();
+    save();
+  },30);
+}
+
+function renderAll(){
+  renderCase();
+  buildBoard();
+  buildPalette();
+  paint();
+  updateStats();
+  updateDiffSeg();
+}
+
+function renderCase(){
+  var cs=CASES[caseIdx]||CASES[0];
+  el("caseNo").textContent=String(caseNo).padStart(3,"0");
+  el("mCaseNo").textContent=String(caseNo).padStart(3,"0");
+  el("caseTitle").textContent=cs.title;
+  el("caseMeta").textContent=cs.place+" · жертва: "+cs.victim;
+  el("caseText").textContent=cs.text;
+  el("caseText").classList.add("clamp");
+  el("caseMore").textContent="РАЗВЕРНУТЬ ▾";
+}
+el("caseMore").addEventListener("click",function(){
+  var p=el("caseText"), folded=p.classList.toggle("clamp");
+  this.textContent = folded ? "РАЗВЕРНУТЬ ▾" : "СВЕРНУТЬ ▴";
+});
+
+function buildBoard(){
+  boardEl.innerHTML="";
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++){
+    var d=document.createElement("div");
+    d.className="cell";
+    d.setAttribute("role","gridcell");
+    d.setAttribute("aria-label","строка "+(r+1)+", столбец "+(c+1));
+    if(c%3===2&&c!==8) d.className+=" br";
+    if(r%3===2&&r!==8) d.className+=" bb";
+    if(sceneCell[0]===r&&sceneCell[1]===c){
+      d.className+=" scene";
+      d.setAttribute("aria-label","место преступления, строка "+(r+1)+", столбец "+(c+1));
+    }
+    (function(rr,cc){ d.addEventListener("click",function(){ selectCell(rr,cc); }); })(r,c);
+    boardEl.appendChild(d);
+  }
+}
+
+function buildPalette(){
+  paletteEl.innerHTML="";
+  SUSPECTS.forEach(function(s,i){
+    var v=i+1;
+    var e=document.createElement("div");
+    e.className="sus"; e.title=s.name+" — "+s.role;
+    e.setAttribute("role","button");
+    e.setAttribute("aria-label",s.name+", "+s.role);
+    e.innerHTML='<span class="ico">'+s.ico+'</span><span class="cnt"></span>';
+    e.addEventListener("click",function(){ inputValue(v); });
+    paletteEl.appendChild(e);
+  });
+}
+
+function updateDiffSeg(){
+  var seg=el("diffSeg");
+  if(!seg.children.length){
+    DIFFS.forEach(function(d){
+      var b=document.createElement("button");
+      b.textContent=d.name; b.setAttribute("data-d",d.id);
+      b.addEventListener("click",function(){
+        if(d.id===curDiff && !solvedFlag) return;
+        newGame(d.id);
+      });
+      seg.appendChild(b);
+    });
+  }
+  Array.prototype.forEach.call(seg.children,function(b){
+    b.classList.toggle("on", b.getAttribute("data-d")===curDiff);
+  });
+}
+
+function selectCell(r,c){ selected=[r,c]; paint(); }
+
+/* конфликт по правилам судоку (без подглядывания в решение) */
+function conflicts(r,c){
+  var v=cur[r][c];
+  if(!v) return false;
+  for(var i=0;i<9;i++){
+    if(i!==c && cur[r][i]===v) return true;
+    if(i!==r && cur[i][c]===v) return true;
+  }
+  var br=r-r%3, bc=c-c%3;
+  for(var a=0;a<3;a++) for(var b=0;b<3;b++){
+    var rr=br+a, cc=bc+b;
+    if((rr!==r||cc!==c) && cur[rr][cc]===v) return true;
+  }
+  return false;
+}
+
+function inputValue(v){
+  if(!selected||solvedFlag||busy) return;
+  var r=selected[0], c=selected[1];
+  if(given[r][c]) return;
+  if(notesMode){
+    if(cur[r][c]!==0) return;
+    var s=notes[idx(r,c)];
+    if(s.has(v)) s.delete(v); else s.add(v);
+    haptic("light"); paint(); save(); return;
+  }
+  if(cur[r][c]===v){ cur[r][c]=0; }
+  else{
+    cur[r][c]=v;
+    notes[idx(r,c)].clear();
+    if(v!==solved[r][c]){ mistakes++; haptic("error"); }
+    else haptic("light");
+    clearPeerNotes(r,c,v);
+  }
+  updateStats(); paint(); save(); checkWin();
+}
+
+function clearPeerNotes(r,c,v){
+  for(var i=0;i<9;i++){ notes[idx(r,i)].delete(v); notes[idx(i,c)].delete(v); }
+  var br=r-r%3, bc=c-c%3;
+  for(var a=0;a<3;a++) for(var b=0;b<3;b++) notes[idx(br+a,bc+b)].delete(v);
+}
+
+function erase(){
+  if(!selected||solvedFlag||busy) return;
+  var r=selected[0], c=selected[1];
+  if(given[r][c]) return;
+  cur[r][c]=0; notes[idx(r,c)].clear();
+  paint(); updateStats(); save();
+}
+
+function peersOf(r,c){
+  var set={}, i;
+  for(i=0;i<9;i++){ set[idx(r,i)]=1; set[idx(i,c)]=1; }
+  var br=r-r%3, bc=c-c%3;
+  for(var a=0;a<3;a++) for(var b=0;b<3;b++) set[idx(br+a,bc+b)]=1;
+  delete set[idx(r,c)];
+  return set;
+}
+
+function paint(){
+  var cells=boardEl.children;
+  var selV = selected ? cur[selected[0]][selected[1]] : 0;
+  var peers = selected ? peersOf(selected[0],selected[1]) : {};
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++){
+    var e=cells[idx(r,c)];
+    e.classList.remove("sel","peer","same","user","bad");
+    var v=cur[r][c];
+    if(v!==0){
+      e.innerHTML='<span class="g">'+SUSPECTS[v-1].ico+"</span>";
+      if(!given[r][c]) e.classList.add("user");
+      // без «помощи следствия» краснеет только явное нарушение правил судоку
+      var wrong = !given[r][c] && (assist ? v!==solved[r][c] : conflicts(r,c));
+      if(wrong) e.classList.add("bad");
+    } else {
+      var s=notes[idx(r,c)];
+      if(s.size){
+        var html='<div class="notes">';
+        for(var n=1;n<=9;n++) html+="<span>"+(s.has(n)?SUSPECTS[n-1].ico:"")+"</span>";
+        e.innerHTML=html+"</div>";
+      } else e.innerHTML="";
+    }
+    if(selected){
+      if(peers[idx(r,c)]) e.classList.add("peer");
+      if(selV!==0 && v===selV) e.classList.add("same");
+      if(selected[0]===r&&selected[1]===c) e.classList.add("sel");
+    }
+  }
+  var counts=[0,0,0,0,0,0,0,0,0,0];
+  for(var r2=0;r2<9;r2++) for(var c2=0;c2<9;c2++) if(cur[r2][c2]) counts[cur[r2][c2]]++;
+  Array.prototype.forEach.call(paletteEl.children,function(e,i){
+    var v2=i+1, left=9-counts[v2];
+    e.querySelector(".cnt").textContent = left>0 ? left : "";
+    e.classList.toggle("done", counts[v2]>=9);
+    e.classList.toggle("hl", selV===v2 && selV!==0);
+  });
+}
+
+function hint(){
+  if(solvedFlag||busy) return;
+  var pool=[];
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++)
+    if(!given[r][c] && cur[r][c]!==solved[r][c]) pool.push([r,c]);
+  if(!pool.length) return;
+  var p=pool[Math.floor(Math.random()*pool.length)], rr=p[0], cc=p[1];
+  cur[rr][cc]=solved[rr][cc];
+  notes[idx(rr,cc)].clear();
+  clearPeerNotes(rr,cc,solved[rr][cc]);
+  hintsUsed++; selected=[rr,cc];
+  updateStats(); paint(); haptic("medium");
+  var cell=boardEl.children[idx(rr,cc)];
+  cell.classList.add("hintflash");
+  setTimeout(function(){ cell.classList.remove("hintflash"); },460);
+  save(); checkWin();
+}
+
+/* «Сверка» проверяет только уже расставленное — решение не подсказывает */
+var CHECK_LABEL='<span class="k">✓</span>СВЕРКА';
+var checkTimer=null;
+function checkAll(){
+  if(busy) return;
+  var cells=boardEl.children, any=false;
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++){
+    if(!given[r][c] && cur[r][c]!==0 && cur[r][c]!==solved[r][c]){
+      var e=cells[idx(r,c)];
+      e.classList.remove("bad"); void e.offsetWidth; e.classList.add("bad");
+      any=true;
+    }
+  }
+  var btn=el("checkBtn");
+  // подпись восстанавливаем из константы: два быстрых нажатия иначе «залипали»
+  if(checkTimer) clearTimeout(checkTimer);
+  btn.innerHTML='<span class="k">'+(any?"✖":"✓")+"</span>"+(any?"ЕСТЬ ЛОЖЬ":"ЧИСТО");
+  haptic(any?"error":"success");
+  checkTimer=setTimeout(function(){ btn.innerHTML=CHECK_LABEL; checkTimer=null; },1000);
+}
+
+function isComplete(){
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++) if(cur[r][c]!==solved[r][c]) return false;
+  return true;
+}
+
+function checkWin(){
+  if(solvedFlag||!isComplete()) return;
+  solvedFlag=true; stopTimer();
+  var sr=sceneCell[0], sc=sceneCell[1];
+  var culprit=SUSPECTS[solved[sr][sc]-1];
+  var verdict=VERDICTS[Math.floor(Math.random()*VERDICTS.length)].replace("{culprit}",culprit.name);
+  el("ovIco").textContent=culprit.ico;
+  el("ovCulprit").textContent=culprit.name;
+  el("ovRole").textContent=culprit.role;
+  el("ovText").innerHTML=verdict+"<br><br>Время расследования: "+fmt(elapsed)+
+    " · промахов: "+mistakes+" · улик: "+hintsUsed+".";
+  haptic("success");
+  save();
+  setTimeout(function(){ el("overlay").classList.add("show"); },320);
+}
+
+/* ============ ТАЙМЕР ============ */
+function fmt(sec){
+  var m=String(Math.floor(sec/60)).padStart(2,"0");
+  var s=String(Math.floor(sec%60)).padStart(2,"0");
+  return m+":"+s;
+}
+function startTimer(){
+  stopTimer();
+  if(solvedFlag) return;
+  lastTick=Date.now();
+  tickInt=setInterval(function(){
+    var now=Date.now();
+    elapsed += (now-lastTick)/1000;   // догон по дельте: вкладка в фоне троттлится
+    lastTick=now;
+    el("timer").textContent=fmt(elapsed);
+  },500);
+}
+function stopTimer(){ if(tickInt){ clearInterval(tickInt); tickInt=null; } }
+function updateStats(){
+  el("mistakes").textContent=mistakes;
+  el("hintsUsed").textContent=hintsUsed;
+  el("timer").textContent=fmt(elapsed);
+}
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){ stopTimer(); save(); }
+  else if(!solvedFlag && !busy){ startTimer(); }
+});
+
+/* ============ МОДАЛКИ ============ */
+function openModal(id){ el(id).classList.add("show"); }
+function closeModal(id){ el(id).classList.remove("show"); }
+document.addEventListener("click",function(e){
+  var t=e.target.closest ? e.target.closest("[data-close]") : null;
+  if(t) closeModal(t.getAttribute("data-close"));
+});
+Array.prototype.forEach.call(document.querySelectorAll(".modal"),function(m){
+  m.addEventListener("click",function(e){ if(e.target===m) m.classList.remove("show"); });
+});
+
+el("menuBtn").addEventListener("click",function(){ openModal("menuModal"); });
+el("newCaseBtn").addEventListener("click",function(){ closeModal("menuModal"); newGame(curDiff); });
+el("howBtn").addEventListener("click",function(){ closeModal("menuModal"); openModal("howModal"); });
+el("dossierBtn").addEventListener("click",function(){ closeModal("menuModal"); openModal("dossierModal"); });
+el("newsBtn").addEventListener("click",function(){ closeModal("menuModal"); openModal("newsModal"); });
+el("ovBtn").addEventListener("click",function(){ newGame(curDiff); });
+
+el("assistTgl").addEventListener("click",function(){
+  assist=!assist;
+  this.classList.toggle("on",assist);
+  paint(); save();
+});
+
+el("exitBtn").addEventListener("click",function(){
+  save();
+  try{ parent.postMessage("hexland:exit","*"); }catch(e){}
+});
+
+el("notesBtn").addEventListener("click",function(){
+  notesMode=!notesMode;
+  el("notesBtn").classList.toggle("on",notesMode);
+  haptic("light");
+});
+el("eraseBtn").addEventListener("click",erase);
+el("hintBtn").addEventListener("click",hint);
+el("checkBtn").addEventListener("click",checkAll);
+
+document.addEventListener("keydown",function(e){
+  if(e.ctrlKey||e.metaKey||e.altKey) return;      // не перехватывать Cmd+H и т.п.
+  var open=document.querySelector(".modal.show");
+  if(open){                                        // за открытой шторкой доска неприкосновенна
+    if(e.key==="Escape") open.classList.remove("show");
+    return;
+  }
+  if(e.key>="1"&&e.key<="9"){ inputValue(parseInt(e.key,10)); }
+  else if(e.key==="Backspace"||e.key==="Delete"||e.key==="0"){ erase(); }
+  else if(e.key.toLowerCase()==="n"){ el("notesBtn").click(); }
+  else if(e.key.toLowerCase()==="h"){ hint(); }
+  else if(selected){
+    var r=selected[0], c=selected[1];
+    if(e.key==="ArrowUp") r=(r+8)%9;
+    else if(e.key==="ArrowDown") r=(r+1)%9;
+    else if(e.key==="ArrowLeft") c=(c+8)%9;
+    else if(e.key==="ArrowRight") c=(c+1)%9;
+    else return;
+    e.preventDefault(); selectCell(r,c);
+  }
+});
+
+window.addEventListener("pagehide",save);
+
+/* ============ СТАТИЧЕСКИЙ КОНТЕНТ ============ */
+el("legend").innerHTML=LEGEND_TEXT;
+// дата берётся из самой свежей записи журнала — чтобы её негде было рассинхронить
+el("newsDate").textContent="Обновление — "+CHANGELOG[0].d.split(" — ")[0];
+el("newsBody").innerHTML=CHANGELOG.map(function(c){
+  return '<div class="news"><b>'+c.d+"</b><ul>"+
+    c.t.map(function(x){ return "<li>"+x+"</li>"; }).join("")+"</ul></div>";
+}).join("");
+el("dossierBody").innerHTML=SUSPECTS.map(function(s){
+  return '<div class="dos"><span class="ic">'+s.ico+'</span><div><div class="nm">'+
+    s.name+'</div><div class="rl">'+s.role+"</div></div></div>";
+}).join("");
+
+/* ============ СТАРТ ============ */
+(function boot(){
+  var restored=false;
+  try{
+    if(load()){
+      el("assistTgl").classList.toggle("on",assist);
+      renderAll();
+      if(solvedFlag) checkWinReplay(); else startTimer();
+      restored=true;
+    }
+  }catch(e){
+    try{ localStorage.removeItem(SAVE_KEY); }catch(e2){}
+  }
+  if(!restored){
+    assist=true;
+    el("assistTgl").classList.add("on");
+    updateDiffSeg();
+    newGame("medium");
+  }
+})();
+
+function checkWinReplay(){
+  var culprit=SUSPECTS[solved[sceneCell[0]][sceneCell[1]]-1];
+  el("ovIco").textContent=culprit.ico;
+  el("ovCulprit").textContent=culprit.name;
+  el("ovRole").textContent=culprit.role;
+  el("ovText").innerHTML="Дело уже закрыто. Время расследования: "+fmt(elapsed)+
+    " · промахов: "+mistakes+" · улик: "+hintsUsed+".";
+  el("overlay").classList.add("show");
+}
+
+/* ============ SELFTEST (для агентов/QA) ============ */
+window.MURDOKU = {
+  state:function(){
+    if(busy||!cur) return {busy:true};
+    return {diff:curDiff, caseNo:caseNo, caseIdx:caseIdx, mistakes:mistakes,
+            hints:hintsUsed, solved:solvedFlag, assist:assist,
+            scene:sceneCell.slice(),
+            givens:given.reduce(function(a,row){return a+row.filter(Boolean).length;},0),
+            filled:cur.reduce(function(a,row){return a+row.filter(Boolean).length;},0)};
+  },
+  /* Прогоняет генератор на всех сложностях и проверяет инварианты:
+     решение валидно, головоломка — подсетка решения, решение единственно. */
+  selftest:function(rounds){
+    rounds=rounds||1;
+    var out=[], t0=Date.now();
+    for(var k=0;k<rounds;k++){
+      for(var d=0;d<DIFFS.length;d++){
+        var want=DIFFS[d].clues, g=generatePuzzle(want), errs=[];
+        var clues=0,r,c;
+        for(r=0;r<9;r++) for(c=0;c<9;c++){
+          if(g.puzzle[r][c]){
+            clues++;
+            if(g.puzzle[r][c]!==g.solved[r][c]) errs.push("подсказка не из решения "+r+","+c);
+          }
+        }
+        // валидность полного решения
+        for(r=0;r<9;r++){
+          var rowSet={}, colSet={};
+          for(c=0;c<9;c++){ rowSet[g.solved[r][c]]=1; colSet[g.solved[c][r]]=1; }
+          if(Object.keys(rowSet).length!==9) errs.push("строка "+r+" невалидна");
+          if(Object.keys(colSet).length!==9) errs.push("столбец "+r+" невалиден");
+        }
+        for(var br=0;br<9;br+=3) for(var bc=0;bc<9;bc+=3){
+          var box={};
+          for(var a=0;a<3;a++) for(var b=0;b<3;b++) box[g.solved[br+a][bc+b]]=1;
+          if(Object.keys(box).length!==9) errs.push("квадрат "+br+","+bc+" невалиден");
+        }
+        var sols=countSolutions(g.puzzle,2);
+        if(sols!==1) errs.push("решений не одно: "+sols);
+        // цель по подсказкам достигается не всегда точно — но промах больше 2 уже враньё в UI
+        if(clues>want+2) errs.push("подсказок "+clues+" при цели "+want);
+        out.push({diff:DIFFS[d].id, wantClues:want, gotClues:clues, unique:sols===1, errors:errs});
+      }
+    }
+    var bad=out.filter(function(o){ return o.errors.length; });
+    return {ok:bad.length===0, ms:Date.now()-t0, results:out, failures:bad};
+  },
+  /* Автоматически «решает» текущее дело — проверка экрана победы */
+  autosolve:function(){
+    for(var r=0;r<9;r++) for(var c=0;c<9;c++) if(!given[r][c]) cur[r][c]=solved[r][c];
+    paint(); checkWin();
+    return {solved:solvedFlag, culprit:SUSPECTS[solved[sceneCell[0]][sceneCell[1]]-1].name};
+  }
+};
+</script>
+</body>
+</html>
