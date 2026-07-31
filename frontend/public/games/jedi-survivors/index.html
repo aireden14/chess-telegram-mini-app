@@ -376,6 +376,7 @@ if(save.best>=420) save.achs.chests3=true;
 if(save.best>=1799) save.achs.win=true;
 if(save.stats.r2Found) save.chars=Object.assign(save.chars||{},{r2:true}); // ветераны: R2 уже найден
 if(save.stats.coffinFound) save.chars=Object.assign(save.chars||{},{mando:true}); // ветераны: гробница уже открыта
+if(save.bossRushWon) save.chars=Object.assign(save.chars||{},{starkiller:true}); // прошёл Boss Rush → Старкиллер
 
 const CHARS={
   obiwan:{ico:'🧙‍♂️',nm:'Оби-Ван',weapon:'saber',  bonus:'+2 брони, +10% урона',cost:0},
@@ -388,6 +389,7 @@ const CHARS={
   yoda:  {ico:'🐸',  nm:'Йода',   weapon:'push',   bonus:'+25% урона, +12% скорости, −30 HP',cost:4000,ach:'lvl50'},
   r2:    {ico:'🤖',  nm:'R2-D2',  weapon:'drones', bonus:'+1 снаряд, магнит ×1.5, −20 HP',cost:0,secret:true,hint:'кто-то ждёт в глуши…'},
   mando: {ico:'🪖',  nm:'Мандалорец',weapon:'rocket',bonus:'+15% урона, +2 брони, +30% золота',cost:0,secret:true,hint:'покоится в охраняемой гробнице…'},
+  starkiller:{ico:'⚡',nm:'Старкиллер',weapon:'lightning',bonus:'+20% урона, +10% области',cost:0,secret:true,hint:'сильнейший ученик ждёт за пятью боссами…'},
 };
 const ACHS=[
   {id:'surv5',    nm:'Продержаться 5 минут',      rw:'оружие 🛸 Дроиды-стражи', cond:g=>g.time>=300},
@@ -987,6 +989,7 @@ function newGame(){
     case 'yoda': p.might+=0.25; p.speed*=1.12; p.hpMax-=30; p.hp=Math.min(p.hp,p.hpMax); break;
     case 'r2': p.amount+=1; p.magnet*=1.5; p.hpMax-=20; p.hp=Math.min(p.hp,p.hpMax); break;
     case 'mando': p.might+=0.15; p.armor+=2; p.goldMul*=1.3; break;
+    case 'starkiller': p.might+=0.20; p.area+=0.10; break;
     default: p.armor+=2; p.might+=0.10; break;
   }
   // золотые яйца: крошечные постоянные бонусы (бесконечная мета после закрытия контента)
@@ -1137,7 +1140,10 @@ function updateBossRush(dt){
   if(!bossAlive){
     G.brNext-=dt;
     if(G.brNext<=0){
-      if(G.brIndex>=BOSS_RUSH.length){ G.brWon=true; G.won=true; G.goldRun+=1500; checkAchs(); endRun(true); return; }
+      if(G.brIndex>=BOSS_RUSH.length){ G.brWon=true; G.won=true; G.goldRun+=1500;
+        save.bossRushWon=true;
+        if(!save.chars.starkiller){ save.chars.starkiller=true; G.dmgTexts.push({x:p.x,y:p.y-52,v:'🔓 ОТКРЫТ ГЕРОЙ: ⚡ СТАРКИЛЛЕР!',t:3,crit:true,str:true}); }
+        checkAchs(); endRun(true); return; }
       const id=BOSS_RUSH[G.brIndex];
       spawnEnemy(id); S.boom();
       G.dmgTexts.push({x:p.x,y:p.y-60,v:'⚔️ БОСС '+(G.brIndex+1)+'/'+BOSS_RUSH.length+': '+(ENEMY_NAMES[id]||'').toUpperCase(),t:2.8,crit:true,str:true});
@@ -4100,6 +4106,7 @@ const SKINS={
   luke:  {sc:1,   robe:'#22242c',inner:'#17181e',legs:'#17181e',skin:'#ffdbb0',hair:'#d8b45a'},
   yoda:  {sc:0.82,robe:'#b9ac8e',inner:'#9b8f74',legs:'#6e6450',skin:'#8fbf5f',ears:true,wisps:'#e8e4da'},
   mando: {sc:1,   robe:'#6e5a44',inner:'#57493a',legs:'#3a3226',armor:'#96a3b4',armorD:'#6e7c8e',helmet:true},
+  starkiller:{sc:1,robe:'#2c2c34',inner:'#1c1c22',legs:'#161619',skin:'#e6d3bf',hair:'#241b14'},
 };
 function drawPlayer(){
   const p=G.p, t=p.walkT;
@@ -5267,6 +5274,9 @@ el('advBtn').onclick=()=>{ renderAdventures(); menuEl.classList.add('hidden'); e
 el('advBack').onclick=()=>{ el('adventures').classList.add('hidden'); menuEl.classList.remove('hidden'); };
 /* --- «Что нового»: обновляется при каждом деплое --- */
 const CHANGELOG=[
+  {d:'30 июля 2026 (Алматы) — v22.10 «Старкиллер»',t:[
+    '⚡ НОВЫЙ СЕКРЕТНЫЙ ГЕРОЙ — Старкиллер (сильнейший тёмный ученик): открывается за прохождение Boss Rush (одолей всех пятерых боссов). Стартует с Молнией Силы, +20% урона и +10% области.',
+    '🕵️ В меню он показан как «???», пока не откроешь — 11-й герой в ростере.']},
   {d:'30 июля 2026 (Алматы) — v22.9 «Звезда Смерти»',t:[
     '🌑 СЕКРЕТНЫЙ БОНУС-ЭТАП «Звезда Смерти»: открывается, когда одолеешь Смерть-Императора. Металлические коридоры Империи — +100% сложности и +100% наград (лучший этап для фарма золота и ранга).',
     '🏆 Пятый этап в игре, самый хардкорный. Совмещается с Гипером, Инверсией и Boss Rush для абсолютного вызова.']},
