@@ -25,6 +25,7 @@ import { NeonBladeScreen } from "./features/neonBlade/NeonBladeScreen";
 import { SugarStrikeScreen } from "./features/sugarStrike/SugarStrikeScreen";
 import { NeonRequiemScreen } from "./features/neonRequiem/NeonRequiemScreen";
 import { VoltRunnerScreen } from "./features/voltRunner/VoltRunnerScreen";
+import { HillDriveScreen } from "./features/hillDrive/HillDriveScreen";
 import { CatanScreen } from "./features/catan/CatanScreen";
 import { CatanFableScreen } from "./features/catanFable/CatanFableScreen";
 import { FableFactoryScreen } from "./features/fableFactory/FableFactoryScreen";
@@ -98,6 +99,7 @@ export function App() {
         <Route path="/sugar-strike" element={<Protected><SugarStrikeScreen /></Protected>} />
         <Route path="/neon-requiem" element={<Protected><NeonRequiemScreen /></Protected>} />
         <Route path="/volt-runner" element={<Protected><VoltRunnerScreen /></Protected>} />
+        <Route path="/hill-drive" element={<Protected><HillDriveScreen /></Protected>} />
         <Route path="/catan" element={<Protected><CatanScreen /></Protected>} />
         <Route path="/catan-fable" element={<Protected><CatanFableScreen /></Protected>} />
         <Route path="/fable-factory" element={<Protected><FableFactoryScreen /></Protected>} />

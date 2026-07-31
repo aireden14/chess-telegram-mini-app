@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Холм Драйв</title>
+<meta name="description" content="Холм Драйв — гонки по холмам с физикой, прокачкой машин и сменой биомов.">
+<meta name="theme-color" content="#6ec6f2">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Холм Драйв">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #6ec6f2;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  #game {
+    position: fixed;
+    inset: 0;
+    display: block;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* HUD */
+  .hud-btn {
+    position: fixed;
+    bottom: 26px;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: 4px solid rgba(255,255,255,.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: #fff;
+    z-index: 20;
+    box-shadow: 0 6px 18px rgba(0,0,0,.28), inset 0 3px 8px rgba(255,255,255,.35);
+    transition: transform .05s;
+    cursor: pointer;
+  }
+  .hud-btn:active, .hud-btn.pressed { transform: scale(.92); filter: brightness(1.12); }
+  #brake { left: 22px; background: radial-gradient(circle at 40% 30%, #ff8a80, #e53935); }
+  #gas   { right: 22px; background: radial-gradient(circle at 40% 30%, #b9f6ca, #2e9e3f); }
+
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 10px 14px; z-index: 15; pointer-events: none;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  }
+  .fuel-wrap {
+    width: 150px; height: 20px; background: rgba(0,0,0,.22);
+    border-radius: 12px; padding: 3px; box-shadow: inset 0 2px 4px rgba(0,0,0,.3);
+  }
+  #fuelBar {
+    height: 100%; width: 100%; border-radius: 9px;
+    background: linear-gradient(90deg,#7dd83f,#4caf50); transition: width .15s, background .3s;
+  }
+  .stat { text-align: center; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.4); }
+  .stat .big { font-size: 22px; font-weight: 800; line-height: 1; }
+  .stat .sub { font-size: 12px; opacity: .9; letter-spacing: .5px; }
+  .coins {
+    display: flex; align-items: center; gap: 5px; color: #fff; font-weight: 800;
+    font-size: 20px; text-shadow: 0 2px 4px rgba(0,0,0,.4);
+  }
+  .coin-ico { width: 22px; height: 22px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe680, #f5b301);
+    border: 2px solid #d99400; }
+
+  #pauseBtn {
+    position: fixed; top: calc(10px + env(safe-area-inset-top,0px)); right: 14px;
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(0,0,0,.28); color:#fff; z-index: 16; display:none;
+    align-items:center; justify-content:center; font-size:20px; cursor:pointer;
+    pointer-events:auto;
+  }
+  #soundBtn {
+    position: fixed; top: calc(10px + env(safe-area-inset-top,0px)); right: 62px;
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(0,0,0,.28); color:#fff; z-index: 16; display:none;
+    align-items:center; justify-content:center; font-size:20px; cursor:pointer;
+    pointer-events:auto;
+  }
+
+  /* Overlays */
+  .overlay {
+    position: fixed; inset: 0; z-index: 40;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(10,20,35,.72); backdrop-filter: blur(6px); color: #fff;
+    text-align: center; padding: 24px;
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+    border-radius: 22px; padding: 26px 28px; max-width: 380px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  .card h1 { font-size: 34px; margin-bottom: 6px; letter-spacing: .5px;
+    background: linear-gradient(90deg,#ffd54f,#ff8a65); -webkit-background-clip: text;
+    background-clip: text; color: transparent; }
+  .card h2 { font-size: 26px; margin-bottom: 14px; }
+  .card p { opacity: .85; font-size: 15px; line-height: 1.5; margin-bottom: 16px; }
+  .btn {
+    display: inline-block; padding: 14px 30px; border-radius: 14px; font-size: 18px;
+    font-weight: 800; color: #093; background: linear-gradient(180deg,#b9f6ca,#4caf50);
+    color: #063d14; border: none; cursor: pointer; box-shadow: 0 6px 16px rgba(46,158,63,.4);
+    margin: 6px; transition: transform .06s;
+  }
+  .btn:active { transform: scale(.95); }
+  .btn.alt { background: linear-gradient(180deg,#e0e0e0,#bdbdbd); color:#333;
+    box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+  .score-row { display:flex; justify-content:space-around; margin: 14px 0 6px; }
+  .score-row .cell .n { font-size: 30px; font-weight: 800; }
+  .score-row .cell .l { font-size: 12px; opacity:.75; text-transform: uppercase; letter-spacing:1px;}
+
+  .tabs { display:flex; gap:8px; justify-content:center; margin-bottom:16px; flex-wrap:wrap;}
+  .tab { padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,.1);
+    cursor: pointer; font-size: 14px; font-weight: 600; }
+  .tab.active { background: linear-gradient(90deg,#ffd54f,#ff8a65); color:#3a2400; }
+  .tabpane { display:none; text-align:left; }
+  .tabpane.active { display:block; }
+  .whatsnew { max-height: 200px; overflow-y: auto; }
+  .whatsnew .entry { margin-bottom: 12px; }
+  .whatsnew .date { font-size: 12px; color:#ffd54f; font-weight:700; margin-bottom:2px;}
+  .whatsnew ul { padding-left: 18px; font-size: 14px; opacity:.9; line-height:1.5;}
+
+  select {
+    background: rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25);
+    border-radius: 10px; padding: 8px 12px; font-size: 15px; margin: 4px;
+  }
+  .veh-row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:10px 0; }
+  .veh { padding:10px 14px; border-radius:14px; background:rgba(255,255,255,.08);
+    border:2px solid transparent; cursor:pointer; min-width:96px; }
+  .veh.sel { border-color:#ffd54f; background:rgba(255,213,79,.15); }
+  .veh { position:relative; }
+  .veh.locked { opacity:.72; }
+  .veh .emoji { font-size: 30px; }
+  .veh .nm { font-size:13px; font-weight:700; margin-top:2px; }
+  .veh .price { font-size:11px; color:#ffd54f; font-weight:700; margin-top:3px;
+    display:flex; align-items:center; gap:3px; justify-content:center; }
+  .veh .lock { position:absolute; top:6px; right:8px; font-size:14px; }
+
+  .bank { display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:19px; font-weight:800; color:#ffe680; margin-bottom:12px; }
+  .bank .coin-ico { width:20px; height:20px; }
+
+  .modeseg { display:flex; gap:6px; background:rgba(0,0,0,.22); border-radius:14px;
+    padding:5px; margin-bottom:14px; }
+  .modeseg .m { flex:1; text-align:center; padding:9px 6px; border-radius:10px; cursor:pointer;
+    font-weight:700; font-size:14px; color:#cfd8e3; transition:.15s; }
+  .modeseg .m .sub { font-size:10px; opacity:.7; font-weight:600; display:block; margin-top:2px; }
+  .modeseg .m.on { background:linear-gradient(180deg,#7fd0ff,#3a9be0); color:#04263c;
+    box-shadow:0 4px 12px rgba(58,155,224,.4); }
+
+  #questChip {
+    position: fixed; top: calc(58px + env(safe-area-inset-top,0px)); left: 50%;
+    transform: translateX(-50%); display:none; align-items:center; gap:7px;
+    background: rgba(20,30,45,.72); color:#fff; padding:7px 14px; border-radius: 20px;
+    font-size: 14px; font-weight:600; z-index: 15; max-width: 84vw;
+    border:1px solid rgba(255,255,255,.14); box-shadow:0 4px 14px rgba(0,0,0,.3);
+  }
+  #questChip .q-ico { font-size:16px; }
+  #questChip .q-txt b { color:#ffd54f; margin-left:4px; }
+
+  .shop { text-align:left; margin-top:8px; }
+  .shop-row { display:flex; align-items:center; gap:10px; margin:8px 0;
+    background:rgba(255,255,255,.06); border-radius:12px; padding:8px 10px; }
+  .shop-row .ico { font-size:20px; width:26px; text-align:center; }
+  .shop-row .info { flex:1; min-width:0; }
+  .shop-row .info .t { font-size:13px; font-weight:700; }
+  .lvlbar { display:flex; gap:3px; margin-top:4px; }
+  .lvlbar .seg { flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.15); }
+  .lvlbar .seg.on { background:linear-gradient(90deg,#7dd83f,#4caf50); }
+  .buy { padding:7px 11px; border-radius:10px; border:none; font-weight:800; font-size:12px;
+    background:linear-gradient(180deg,#ffd54f,#ffa000); color:#3a2400; cursor:pointer;
+    white-space:nowrap; display:flex; align-items:center; gap:3px; }
+  .buy:disabled { background:rgba(255,255,255,.12); color:rgba(255,255,255,.4); cursor:default; }
+  .buy .coin-ico { width:13px; height:13px; border-width:1px; }
+  .buy.max { background:rgba(125,216,63,.2); color:#7dd83f; }
+  .coin-ico.mini { width:15px; height:15px; border-width:1px; }
+
+  .credit {
+    position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: rgba(255,255,255,.85); z-index: 25; pointer-events: auto;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .credit a { color: #ffe680; text-decoration: none; font-weight: 700; pointer-events:auto;}
+  .toast {
+    position: fixed; top: 33%; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.6); color:#fff; padding:10px 20px; border-radius: 20px;
+    font-weight:700; font-size:18px; z-index:30; opacity:0; transition:opacity .3s;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="topbar" id="topbar" style="display:none">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="fuel-wrap"><div id="fuelBar"></div></div>
+    <div class="coins"><span class="coin-ico"></span><span id="coinCount">0</span></div>
+  </div>
+  <div class="stat"><div class="big"><span id="dist">0</span> м</div><div class="sub">РЕКОРД <span id="best">0</span> м</div><div class="sub" id="biomeLabel" style="margin-top:2px;color:#ffe680"></div></div>
+  <div style="width:150px"></div>
+</div>
+<div id="questChip"></div>
+<div id="soundBtn">🔊</div>
+<div id="pauseBtn">⏸</div>
+
+<div id="brake" class="hud-btn">◀</div>
+<div id="gas" class="hud-btn">▶</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- START / MENU -->
+<div class="overlay" id="menu">
+  <div class="card">
+    <h1>ХОЛМ ДРАЙВ</h1>
+    <div class="tabs">
+      <div class="tab active" data-tab="play">Играть</div>
+      <div class="tab" data-tab="how">Управление</div>
+      <div class="tab" data-tab="news">Что нового</div>
+    </div>
+
+    <div class="tabpane active" id="tab-play">
+      <div class="bank"><span class="coin-ico"></span><span id="bankCoins">0</span></div>
+      <div class="modeseg" id="modeSeg">
+        <div class="m on" data-mode="run">🏁 Заезд<span class="sub">на рекорд</span></div>
+        <div class="m" data-mode="endless">♾️ Бесконечный<span class="sub">квесты и события</span></div>
+      </div>
+      <div class="veh-row" id="vehRow"></div>
+      <div class="shop" id="shop"></div>
+      <button class="btn" id="startBtn">🚗 Старт</button>
+      <button class="btn alt" id="gamepassBtn" style="display:none">← В GamePass</button>
+    </div>
+
+    <div class="tabpane" id="tab-how">
+      <p style="text-align:left">
+        <b>▶ (справа)</b> — газ, ехать вперёд.<br>
+        <b>◀ (слева)</b> — тормоз / задний ход.<br>
+        На клавиатуре — <b>стрелки ←/→</b>.<br><br>
+        Наклоняй машину в воздухе газом/тормозом, чтобы приземлиться на колёса. Следи за топливом — жёлтые канистры пополняют бак.<br><br>
+        Крути <b>сальто</b> ради бонусных монет. Собранные монеты копятся в гараже — трать их на <b>прокачку</b> машины и разблокировку новых. Чем дальше едешь, тем сменяются <b>биомы</b>: луг, пустыня, снег.
+      </p>
+    </div>
+
+    <div class="tabpane" id="tab-news">
+      <div class="whatsnew" id="whatsnew"></div>
+    </div>
+  </div>
+  <div class="credit">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+</div>
+
+<!-- PAUSE -->
+<div class="overlay hidden" id="pause">
+  <div class="card">
+    <h2>Пауза</h2>
+    <button class="btn" id="resumeBtn">Продолжить</button>
+    <button class="btn alt" id="quitBtn">В меню</button>
+  </div>
+  <div class="credit">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+</div>
+
+<!-- GAME OVER -->
+<div class="overlay hidden" id="gameover">
+  <div class="card">
+    <h2 id="goTitle">Игра окончена</h2>
+    <div class="score-row">
+      <div class="cell"><div class="n" id="goDist">0</div><div class="l">метров</div></div>
+      <div class="cell"><div class="n" id="goCoins">0</div><div class="l">монет</div></div>
+      <div class="cell"><div class="n" id="goBest">0</div><div class="l">рекорд</div></div>
+    </div>
+    <button class="btn" id="retryBtn">🔄 Ещё раз</button>
+    <button class="btn alt" id="menuBtn">Меню</button>
+  </div>
+  <div class="credit">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></div>
+</div>
+
+<script>
+"use strict";
+// ============================================================
+//  ХОЛМ ДРАЙВ — hill climb style physics racer
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- Vehicles ----------
+const VEHICLES = {
+  jeep:  { name:'Джип',   emoji:'🚙', color:'#e14b2a', shape:'jeep',  engine:5200, mass:5.5, wheelBase:34, wheelR:20, chH:22, maxFuel:100, fuelBurn:1.0 },
+  buggy: { name:'Багги',  emoji:'🏎️', color:'#3fa9f5', shape:'buggy', engine:6400, mass:4.3, wheelBase:38, wheelR:18, chH:16, maxFuel:85,  fuelBurn:1.25 },
+  truck: { name:'Грузовик',emoji:'🚚', color:'#8bc34a', shape:'truck', engine:6000, mass:8.0, wheelBase:42, wheelR:24, chH:30, maxFuel:130, fuelBurn:0.85 },
+};
+const VEH_PRICE = { jeep:0, buggy:600, truck:1800 };
+const UPGRADES = [
+  { key:'engine', ico:'⚙️', name:'Двигатель', base:150 },
+  { key:'susp',   ico:'🛞', name:'Подвеска',  base:130 },
+  { key:'grip',   ico:'🧲', name:'Сцепление', base:130 },
+  { key:'fuel',   ico:'⛽', name:'Бак',        base:110 },
+];
+const MAX_LVL = 5;
+
+// ---------- Save / economy ----------
+const Save = (function(){
+  const def = { coins:0, unlocked:{jeep:true}, upg:{} };
+  let s;
+  try { s = JSON.parse(localStorage.getItem('hc_save')) || def; } catch(e){ s = def; }
+  s.coins = s.coins||0; s.unlocked = s.unlocked||{jeep:true}; s.unlocked.jeep = true; s.upg = s.upg||{};
+  for (const v of Object.keys(VEHICLES)){
+    s.upg[v] = s.upg[v] || {};
+    for (const u of UPGRADES) s.upg[v][u.key] = s.upg[v][u.key]||0;
+  }
+  function persist(){ localStorage.setItem('hc_save', JSON.stringify(s)); }
+  return {
+    data:s, persist,
+    addCoins(n){ s.coins+=n; persist(); },
+    lvl(v,k){ return s.upg[v][k]||0; },
+    upgCost(v,k){ const u=UPGRADES.find(x=>x.key===k); return Math.round(u.base*(1+this.lvl(v,k)*1.15)); },
+    canUpg(v,k){ return this.lvl(v,k)<MAX_LVL && s.coins>=this.upgCost(v,k); },
+    buyUpg(v,k){ if(!this.canUpg(v,k))return false; s.coins-=this.upgCost(v,k); s.upg[v][k]++; persist(); return true; },
+    unlock(v){ if(s.coins<VEH_PRICE[v])return false; s.coins-=VEH_PRICE[v]; s.unlocked[v]=true; persist(); return true; },
+    isUnlocked(v){ return !!s.unlocked[v]; },
+  };
+})();
+
+// effective vehicle cfg with upgrades applied
+function effectiveCfg(id){
+  const base = VEHICLES[id];
+  const u = Save.data.upg[id];
+  const cfg = Object.assign({}, base);
+  cfg.engine  = base.engine  * (1 + u.engine*0.09);          // +9%/lvl power
+  cfg.maxFuel = base.maxFuel * (1 + u.fuel*0.14);            // +14%/lvl tank
+  cfg.suspBonus = u.susp;   // handled in physics: stiffer/steadier suspension
+  cfg.gripBonus = u.grip;   // handled in physics: more traction
+  return cfg;
+}
+
+let selectedVehicle = localStorage.getItem('hc_vehicle') || 'jeep';
+if (!Save.isUnlocked(selectedVehicle)) selectedVehicle = 'jeep';
+
+// ---------- Terrain ----------
+const Terrain = {
+  seg: 24,            // horizontal spacing between control points (px)
+  pts: [],            // control point heights (screen y)
+  baseY: 0,
+  amp: 90,
+  mode:'run',
+  features:[],        // [{type, s, e, x0, x1}] injected structures (endless mode)
+  nextFeatIdx: 1e9,
+  reset(mode) {
+    this.mode = mode || 'run';
+    this.baseY = H * 0.62;
+    this.amp = Math.max(70, H * 0.14);
+    this.pts = [];
+    this.features = [];
+    // first feature only after a warm-up stretch (endless only)
+    this.nextFeatIdx = (this.mode==='endless') ? 46 : 1e9;
+    // flat start
+    for (let i = 0; i < 12; i++) this.pts.push(this.baseY);
+    for (let i = 12; i < 300; i++) this.pts.push(null);
+    this._fillFrom(12);
+  },
+  _fillFrom(startIdx) {
+    let phase = startIdx * 0.13;
+    for (let i = startIdx; i < this.pts.length; i++) {
+      const diff = (i - 12);
+      const rough = Math.min(1, diff / 60);            // difficulty ramps up
+      phase += 0.11 + Math.random()*0.05;
+      const wave = Math.sin(phase)*0.6 + Math.sin(phase*0.37+1.3)*0.4;
+      const target = this.baseY - wave * this.amp * (0.35 + rough) + (Math.random()-0.5)*20*rough;
+      this.pts[i] = target;
+    }
+    if (this.mode==='endless') this._injectFeatures(startIdx);
+  },
+  // difficulty grows with distance (index): features get closer & rougher
+  _injectFeatures(fromIdx) {
+    const len = this.pts.length;
+    while (this.nextFeatIdx < len - 20) {
+      const s = this.nextFeatIdx;
+      if (s < fromIdx) { this.nextFeatIdx = fromIdx; continue; }
+      const prog = Math.min(1, s / 900);               // 0..1 over first ~22km of index
+      const amp = this.amp * (0.6 + prog*0.7);
+      const base = this.pts[s-1] ?? this.baseY;
+      // choose feature type — more pits/ramps as it gets harder
+      const roll = Math.random();
+      let span;
+      if (roll < 0.30 + prog*0.15){                    // JUMP RAMP (перепрыгнуть)
+        span = 6;
+        this.pts[s]   = base - amp*0.35;
+        this.pts[s+1] = base - amp*0.85;
+        this.pts[s+2] = base - amp*1.25;               // lip
+        this.pts[s+3] = base + amp*0.55;               // drop after the lip
+        this.pts[s+4] = base + amp*0.35;
+        this.pts[s+5] = base + amp*0.10;
+        this.features.push({type:'ramp', s, e:s+6, x0:s*this.seg, x1:(s+6)*this.seg});
+      } else if (roll < 0.55 + prog*0.20){             // PIT / chasm (пропасть)
+        span = 4;
+        const depth = amp*(1.1 + prog*0.6);
+        this.pts[s]   = base - amp*0.15;               // small take-off lip
+        this.pts[s+1] = base + depth;
+        this.pts[s+2] = base + depth;
+        this.pts[s+3] = base;
+        this.features.push({type:'pit', s, e:s+4, x0:s*this.seg, x1:(s+4)*this.seg});
+      } else {                                         // MINE (шахта)
+        span = 18;
+        const dip = amp*1.15;
+        for (let k=0;k<span;k++){
+          let h;
+          if (k<3)       h = base + dip*(k/3);          // descend in
+          else if (k>=span-3) h = base + dip*((span-1-k)/3); // ascend out
+          else           h = base + dip + Math.sin(k*1.1)*amp*0.28; // rough corridor
+          this.pts[s+k] = h;
+        }
+        this.features.push({type:'mine', s, e:s+span, x0:s*this.seg, x1:(s+span)*this.seg});
+      }
+      // gap before next feature shrinks with progress
+      const gap = Math.max(11, Math.round(30 - prog*16)) + (Math.random()*8|0);
+      this.nextFeatIdx = s + span + gap;
+    }
+  },
+  featureAt(x){
+    for (const f of this.features){ if (x>=f.x0 && x<=f.x1) return f; }
+    return null;
+  },
+  ensure(xWorld) {
+    const idx = Math.floor(xWorld / this.seg) + 40;
+    while (idx + 20 >= this.pts.length) {
+      const from = this.pts.length;
+      for (let k = 0; k < 60; k++) this.pts.push(null);
+      this._fillFrom(from);
+    }
+  },
+  heightAt(x) {
+    const fi = x / this.seg;
+    let i = Math.floor(fi);
+    if (i < 0) i = 0;
+    if (i >= this.pts.length - 1) i = this.pts.length - 2;
+    const t = fi - i;
+    const a = this.pts[i] ?? this.baseY;
+    const b = this.pts[i+1] ?? this.baseY;
+    // smoothstep for rounded hills
+    const s = t*t*(3-2*t);
+    return a + (b - a) * s;
+  },
+  slopeAt(x) {
+    const d = 3;
+    return (this.heightAt(x+d) - this.heightAt(x-d)) / (2*d);
+  }
+};
+
+// ---------- Collectibles ----------
+let coins = [];    // {x,y,taken}
+let fuels = [];    // {x,y,taken}
+let nextItemX = 0;
+function genItems(uptoX) {
+  const fuelChance = Game.mode==='endless' ? 0.24 : 0.16;   // more fuel to keep the endless drive going
+  while (nextItemX < uptoX) {
+    nextItemX += 120 + Math.random()*160;
+    const gy = Terrain.heightAt(nextItemX);
+    const r = Math.random();
+    if (r < fuelChance) {
+      fuels.push({ x: nextItemX, y: gy - 34, taken:false });
+    } else {
+      // arc of coins
+      const n = 3 + (Math.random()*3|0);
+      for (let k=0;k<n;k++){
+        const cx = nextItemX + k*26;
+        Terrain.ensure(cx);
+        coins.push({ x: cx, y: Terrain.heightAt(cx) - 40 - Math.sin(k/(n-1)*Math.PI)*26, taken:false });
+      }
+      nextItemX += n*26;
+    }
+  }
+}
+
+// ---------- Audio (synthesized, no assets) ----------
+const Audio2 = {
+  ctx:null, master:null, eng:null, engGain:null, engFilt:null, sub:null, subGain:null,
+  muted: localStorage.getItem('hc_muted')==='1',
+  ready:false,
+  init(){
+    if (this.ctx || this.muted) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.9;
+    this.master.connect(this.ctx.destination);
+    // engine: sawtooth through lowpass + a sub sine
+    this.eng = this.ctx.createOscillator(); this.eng.type='sawtooth';
+    this.engFilt = this.ctx.createBiquadFilter(); this.engFilt.type='lowpass'; this.engFilt.frequency.value=700;
+    this.engGain = this.ctx.createGain(); this.engGain.gain.value=0;
+    this.eng.connect(this.engFilt); this.engFilt.connect(this.engGain); this.engGain.connect(this.master);
+    this.eng.frequency.value=70; this.eng.start();
+    this.sub = this.ctx.createOscillator(); this.sub.type='sine';
+    this.subGain = this.ctx.createGain(); this.subGain.gain.value=0;
+    this.sub.connect(this.subGain); this.subGain.connect(this.master);
+    this.sub.frequency.value=45; this.sub.start();
+    this.ready=true;
+  },
+  resume(){ if(this.ctx && this.ctx.state==='suspended') this.ctx.resume(); },
+  engine(speed, throttle){
+    if(!this.ready||this.muted) return;
+    const t = this.ctx.currentTime;
+    const f = 60 + Math.min(speed,1400)*0.11 + Math.abs(throttle)*40;
+    this.eng.frequency.setTargetAtTime(f, t, 0.05);
+    this.sub.frequency.setTargetAtTime(f*0.5, t, 0.05);
+    const g = throttle!==0 ? 0.06 : 0.02;
+    this.engGain.gain.setTargetAtTime(g, t, 0.08);
+    this.subGain.gain.setTargetAtTime(throttle!==0?0.05:0.02, t, 0.1);
+    this.engFilt.frequency.setTargetAtTime(500+Math.min(speed,1200)*0.8, t, 0.1);
+  },
+  engineOff(){ if(!this.ready) return; const t=this.ctx.currentTime;
+    this.engGain.gain.setTargetAtTime(0,t,0.1); this.subGain.gain.setTargetAtTime(0,t,0.1); },
+  blip(freq, dur, type, vol){
+    if(!this.ready||this.muted) return;
+    const t=this.ctx.currentTime;
+    const o=this.ctx.createOscillator(); o.type=type||'sine';
+    const g=this.ctx.createGain();
+    o.connect(g); g.connect(this.master);
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||0.25, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.start(t); o.stop(t+dur+0.02);
+    return o;
+  },
+  coin(){ const o=this.blip(880,0.12,'square',0.18); if(o){o.frequency.setTargetAtTime(1320,this.ctx.currentTime+0.04,0.02);} },
+  fuel(){ this.blip(520,0.1,'triangle',0.2); setTimeout(()=>this.blip(780,0.16,'triangle',0.2),90); },
+  bonus(){ this.blip(660,0.1,'square',0.2); setTimeout(()=>this.blip(990,0.1,'square',0.2),80);
+           setTimeout(()=>this.blip(1320,0.16,'square',0.2),160); },
+  crash(){
+    if(!this.ready||this.muted) return;
+    const t=this.ctx.currentTime;
+    // noise burst
+    const buf=this.ctx.createBuffer(1, this.ctx.sampleRate*0.3, this.ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+    const src=this.ctx.createBufferSource(); src.buffer=buf;
+    const f=this.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=400;
+    const g=this.ctx.createGain(); g.gain.value=0.4;
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t);
+    this.blip(120,0.3,'sawtooth',0.3);
+  },
+  setMuted(m){
+    this.muted=m; localStorage.setItem('hc_muted', m?'1':'0');
+    if(m && this.ready){ this.engineOff(); }
+  }
+};
+
+// ---------- Car physics ----------
+const Car = {
+  x:0, y:0, vx:0, vy:0, angle:0, angVel:0,
+  wheels:[],   // {lx,ly, x,y, spin, onGround}
+  cfg:null,
+  spawn() {
+    this.cfg = effectiveCfg(selectedVehicle);
+    const c = this.cfg;
+    this.x = 200;
+    this.y = Terrain.heightAt(this.x) - c.wheelR - c.chH/2 - 6;
+    this.vx = 0; this.vy = 0; this.angle = 0; this.angVel = 0;
+    this.wheels = [
+      { lx:-c.wheelBase, ly:c.chH/2, x:0,y:0, spin:0, onGround:false },
+      { lx: c.wheelBase, ly:c.chH/2, x:0,y:0, spin:0, onGround:false },
+    ];
+    this.I = c.mass * (c.wheelBase*c.wheelBase*2 + c.chH*c.chH) / 6; // moment of inertia
+    this.airborneTime = 0;
+    this.flipTimer = 0;
+    this.airRotation = 0;
+    this.justLanded = false;
+    this.pendingFlips = 0;
+    this.lastAirTime = 0;
+  },
+  update(dt, throttle) {
+    const c = this.cfg;
+    const g = 1400;                 // gravity px/s^2
+    let fx = 0, fy = g * c.mass;     // gravity force
+    let torque = 0;
+    const cos = Math.cos(this.angle), sin = Math.sin(this.angle);
+    let anyGround = false;
+
+    for (const w of this.wheels) {
+      // world position of wheel
+      w.x = this.x + w.lx*cos - w.ly*sin;
+      w.y = this.y + w.lx*sin + w.ly*cos;
+      Terrain.ensure(w.x);
+      const gy = Terrain.heightAt(w.x);
+      const pen = (w.y + c.wheelR) - gy;   // >0 means wheel below surface
+      w.onGround = false;
+      if (pen > 0) {
+        anyGround = true;
+        w.onGround = true;
+        const m = Terrain.slopeAt(w.x);
+        // normal (points up/out of ground)
+        let nx = m, ny = -1;
+        const nl = Math.hypot(nx, ny); nx/=nl; ny/=nl;
+        // tangent along +x
+        let tx = 1, ty = m;
+        const tl = Math.hypot(tx,ty); tx/=tl; ty/=tl;
+
+        // wheel velocity (chassis vel + rotational)
+        const rx = w.x - this.x, ry = w.y - this.y;
+        const wvx = this.vx - this.angVel*ry;
+        const wvy = this.vy + this.angVel*rx;
+        const vn = wvx*nx + wvy*ny;          // normal velocity
+
+        // suspension spring + damping (upgraded suspension = stiffer & better damped)
+        const k = (90 + (c.suspBonus||0)*10) * c.mass;
+        const damp = (9 + (c.suspBonus||0)*1.6) * c.mass;
+        let Fn = pen * k - vn * damp;
+        if (Fn < 0) Fn = 0;
+        let Nfx = nx*Fn, Nfy = ny*Fn;
+
+        // engine drive along tangent
+        const drive = throttle * c.engine;
+        Nfx += tx * drive;
+        Nfy += ty * drive;
+
+        // rolling/brake friction along tangent (kills sliding when braking or coasting)
+        const vt = wvx*tx + wvy*ty;
+        let fric = -vt * (throttle < 0 ? 6 : (throttle>0?0.4:1.6)) * c.mass;
+        const maxF = Math.abs(Fn)*(1.4 + (c.gripBonus||0)*0.22);   // upgraded grip = more traction
+        if (fric > maxF) fric = maxF; if (fric < -maxF) fric = -maxF;
+        Nfx += tx*fric; Nfy += ty*fric;
+
+        fx += Nfx; fy += Nfy;
+        torque += rx*Nfy - ry*Nfx;
+
+        // wheel spin visual
+        w.spin += (vt/c.wheelR) * dt + throttle*4*dt;
+      } else {
+        w.spin += this.vx/c.wheelR * dt;
+      }
+    }
+
+    // air control: throttle tilts the car; track rotation + air distance
+    if (!anyGround) {
+      if (this.airborneTime === 0) this.airStartX = this.x;   // just left the ground
+      this.airborneTime += dt;
+      this.airRotation += this.angVel * dt;
+      torque += throttle * c.mass * 175;
+    } else {
+      if (this.airborneTime > 0.35) {   // just landed after real air-time
+        this.lastAirTime = this.airborneTime;
+        this.lastAirDist = Math.abs(this.x - (this.airStartX||this.x)) / 22;   // metres
+        this.pendingFlips = Math.floor(Math.abs(this.airRotation) / (Math.PI*2) + 0.2);
+        this.justLanded = true;
+      }
+      this.airborneTime = 0;
+      this.airRotation = 0;
+    }
+
+    // integrate
+    this.vx += fx/c.mass * dt;
+    this.vy += fy/c.mass * dt;
+    this.angVel += torque/this.I * dt;
+
+    // quadratic air drag on forward speed (keeps top speed sane)
+    this.vx -= Math.sign(this.vx) * this.vx*this.vx * 0.00028 * dt;
+
+    // damping — stronger angular damping in the air for controllable flips
+    this.vx *= 0.999;
+    this.angVel *= anyGround ? 0.995 : 0.985;
+
+    this.x += this.vx*dt;
+    this.y += this.vy*dt;
+    this.angle += this.angVel*dt;
+
+    // prevent tunneling far below
+    return anyGround;
+  }
+};
+
+// ---------- Game state ----------
+const Game = {
+  state:'menu',      // menu, play, pause, over
+  mode:'run',        // 'run' (заезд) | 'endless' (бесконечный + квесты + события)
+  camX:0, camY:0,
+  fuel:100,
+  coinsCollected:0,
+  distance:0,
+  best: +(localStorage.getItem('hc_best')||0),
+  bestEndless: +(localStorage.getItem('hc_best_endless')||0),
+  throttle:0,
+  time:0,
+};
+
+function startGame() {
+  Terrain.reset(Game.mode);
+  Car.spawn();
+  coins = []; fuels = []; nextItemX = 350;
+  genItems(3000);
+  Game.state = 'play';
+  Game.fuel = Car.cfg.maxFuel;
+  Game.coinsCollected = 0;
+  Game.distance = 0;
+  Game.throttle = 0;
+  Game.camX = Car.x - W*0.35;
+  Game.camY = Car.y - H*0.5;
+  Game._lastMine = null; Game._pendingJumpPit = null;
+  if (Game.mode==='endless') Quest.reset(); else Quest.clear();
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('gameover').classList.add('hidden');
+  document.getElementById('pause').classList.add('hidden');
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('pauseBtn').style.display = 'flex';
+  document.getElementById('soundBtn').style.display = 'flex';
+  updateBest();
+}
+
+// ---------- Quests (endless mode) ----------
+const QUEST_TYPES = [
+  { id:'coins', ico:'🪙', gen:p=>({target: 8 + Math.round(p*22)}),  label:t=>`Собери ${t} монет`,           reward:p=>60+Math.round(p*70) },
+  { id:'flip',  ico:'🔄', gen:p=>({target: 1 + Math.round(p*2)}),   label:t=>`Сделай ${t} сальто`,           reward:p=>80+Math.round(p*80) },
+  { id:'air',   ico:'🪂', gen:p=>({target: 20 + Math.round(p*40)}), label:t=>`Пролети ${t} м за один прыжок`, reward:p=>90+Math.round(p*80) },
+  { id:'dist',  ico:'📏', gen:p=>({target: 200 + Math.round(p*400)}),label:t=>`Проедь ${t} м`,                reward:p=>70+Math.round(p*80) },
+  { id:'mine',  ico:'⛏️', gen:p=>({target: 1}),                      label:()=>`Заедь в шахту`,               reward:p=>90+Math.round(p*60) },
+  { id:'jump',  ico:'🕳️', gen:p=>({target: 1 + Math.round(p*1.5)}), label:t=>t>1?`Перепрыгни ${t} пропасти`:`Перепрыгни пропасть`, reward:p=>100+Math.round(p*70) },
+];
+const Quest = {
+  active:null, progress:0, startDist:0, done:0,
+  reset(){ this.done=0; this.pick(); },
+  clear(){ this.active=null; this._render(); },
+  pick(){
+    const p = Math.min(1, Game.distance/2500);
+    let t; do { t = QUEST_TYPES[Math.random()*QUEST_TYPES.length|0]; } while (this.active && t.id===this.active.id && QUEST_TYPES.length>1);
+    const g = t.gen(p);
+    this.active = { id:t.id, ico:t.ico, target:g.target, reward:t.reward(p), label:t.label(g.target) };
+    this.progress = 0; this.startDist = Game.distance;
+    this._render();
+  },
+  add(id, n){ if(this.active && this.active.id===id){ this.progress += n; this._check(); } },
+  tickDistance(){ if(this.active && this.active.id==='dist'){ this.progress = Math.floor(Game.distance - this.startDist); this._render(); this._check(true); } },
+  air(distM){ if(this.active && this.active.id==='air' && distM>=this.active.target){ this.progress=this.active.target; this._check(); } },
+  _check(silent){
+    if(!this.active) return;
+    if(this.progress >= this.active.target){
+      const r = this.active.reward;
+      Game.coinsCollected += r; this.done++;
+      toast(`✅ Задание: +${r}`); Audio2.bonus();
+      this.pick();
+    } else if(!silent){ this._render(); }
+  },
+  _render(){
+    const el = document.getElementById('questChip');
+    if(!el) return;
+    if(!this.active || Game.mode!=='endless'){ el.style.display='none'; return; }
+    el.style.display='flex';
+    const a=this.active;
+    const showProg = (a.id!=='mine');
+    el.innerHTML = `<span class="q-ico">${a.ico}</span><span class="q-txt">${a.label}${showProg?` <b>${Math.min(this.progress,a.target)}/${a.target}</b>`:''}</span>`;
+  }
+};
+
+function endGame(reason) {
+  if (Game.state === 'over') return;
+  Game.state = 'over';
+  const d = Math.floor(Game.distance);
+  if (Game.mode==='endless'){ if (d>Game.bestEndless){ Game.bestEndless=d; localStorage.setItem('hc_best_endless', d); } }
+  else if (d > Game.best) { Game.best = d; localStorage.setItem('hc_best', d); }
+  // bank the coins earned this run
+  Save.addCoins(Game.coinsCollected);
+  document.getElementById('goTitle').textContent = reason;
+  document.getElementById('goDist').textContent = d;
+  document.getElementById('goCoins').textContent = Game.coinsCollected;
+  document.getElementById('goBest').textContent = Game.mode==='endless' ? Game.bestEndless : Game.best;
+  document.getElementById('gameover').classList.remove('hidden');
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'none';
+  document.getElementById('soundBtn').style.display = 'none';
+  document.getElementById('questChip').style.display = 'none';
+  Audio2.engineOff();
+  if (reason === 'Разбился!') Audio2.crash();
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.style.opacity='0', 900);
+}
+
+// ---------- Input ----------
+function setThrottle(v){ Game.throttle = v; }
+const gasBtn = document.getElementById('gas');
+const brakeBtn = document.getElementById('brake');
+function bindHold(el, val){
+  const down = e => { e.preventDefault(); Game.throttle = val; el.classList.add('pressed'); };
+  const up   = e => { e.preventDefault(); if (Game.throttle===val) Game.throttle = 0; el.classList.remove('pressed'); };
+  el.addEventListener('touchstart', down, {passive:false});
+  el.addEventListener('touchend', up, {passive:false});
+  el.addEventListener('touchcancel', up, {passive:false});
+  el.addEventListener('mousedown', down);
+  el.addEventListener('mouseup', up);
+  el.addEventListener('mouseleave', up);
+}
+bindHold(gasBtn, 1);
+bindHold(brakeBtn, -1);
+
+const keys = {};
+window.addEventListener('keydown', e=>{
+  if (e.repeat) return;
+  if (e.key==='ArrowRight'||e.key==='d'){ keys.r=1; Game.throttle=1; gasBtn.classList.add('pressed'); }
+  if (e.key==='ArrowLeft'||e.key==='a'){ keys.l=1; Game.throttle=-1; brakeBtn.classList.add('pressed'); }
+  if (e.key===' '){ if(Game.state==='play') pauseGame(); else if(Game.state==='pause') resumeGame(); }
+});
+window.addEventListener('keyup', e=>{
+  if (e.key==='ArrowRight'||e.key==='d'){ keys.r=0; if(Game.throttle===1)Game.throttle=0; gasBtn.classList.remove('pressed'); }
+  if (e.key==='ArrowLeft'||e.key==='a'){ keys.l=0; if(Game.throttle===-1)Game.throttle=0; brakeBtn.classList.remove('pressed'); }
+});
+
+// ---------- Menu / tabs / vehicles / shop ----------
+const COIN = '<span class="coin-ico mini"></span>';
+function refreshBank(){ document.getElementById('bankCoins').textContent = Save.data.coins; }
+
+// mode selector (Заезд / Бесконечный)
+Game.mode = localStorage.getItem('hc_mode') || 'run';
+function refreshModeSeg(){
+  document.querySelectorAll('#modeSeg .m').forEach(m=>{
+    m.classList.toggle('on', m.dataset.mode===Game.mode);
+  });
+  updateBest();
+}
+document.querySelectorAll('#modeSeg .m').forEach(m=>{
+  m.onclick = ()=>{ Game.mode = m.dataset.mode; localStorage.setItem('hc_mode', Game.mode); refreshModeSeg(); };
+});
+refreshModeSeg();
+
+function buildVehiclePicker() {
+  const row = document.getElementById('vehRow');
+  row.innerHTML = '';
+  for (const [id, v] of Object.entries(VEHICLES)) {
+    const unlocked = Save.isUnlocked(id);
+    const d = document.createElement('div');
+    d.className = 'veh' + (id===selectedVehicle?' sel':'') + (unlocked?'':' locked');
+    let html = `<div class="emoji">${v.emoji}</div><div class="nm">${v.name}</div>`;
+    if (!unlocked) html += `<div class="lock">🔒</div><div class="price">${COIN}${VEH_PRICE[id]}</div>`;
+    d.innerHTML = html;
+    d.onclick = ()=>{
+      if (Save.isUnlocked(id)){
+        selectedVehicle=id; localStorage.setItem('hc_vehicle',id);
+      } else {
+        if (Save.unlock(id)){ selectedVehicle=id; localStorage.setItem('hc_vehicle',id); toast('🔓 '+v.name+' куплен!'); Audio2.bonus(); }
+        else { toast('Не хватает монет'); }
+      }
+      rebuildMenu();
+    };
+    row.appendChild(d);
+  }
+}
+
+function buildShop() {
+  const shop = document.getElementById('shop');
+  shop.innerHTML = '';
+  const v = selectedVehicle;
+  for (const u of UPGRADES){
+    const lvl = Save.lvl(v,u.key);
+    const maxed = lvl>=MAX_LVL;
+    const cost = Save.upgCost(v,u.key);
+    const segs = Array.from({length:MAX_LVL},(_,i)=>`<div class="seg ${i<lvl?'on':''}"></div>`).join('');
+    const row = document.createElement('div');
+    row.className='shop-row';
+    row.innerHTML = `<div class="ico">${u.ico}</div>
+      <div class="info"><div class="t">${u.name}</div><div class="lvlbar">${segs}</div></div>
+      <button class="buy ${maxed?'max':''}" ${(maxed||Save.data.coins<cost)?'disabled':''}>
+        ${maxed?'МАКС':COIN+cost}</button>`;
+    const btn = row.querySelector('.buy');
+    if(!maxed) btn.onclick = ()=>{ if(Save.buyUpg(v,u.key)){ Audio2.coin(); rebuildMenu(); } };
+    shop.appendChild(row);
+  }
+}
+
+function rebuildMenu(){ buildVehiclePicker(); buildShop(); refreshBank(); }
+rebuildMenu();
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+  };
+});
+
+// What's new
+const CHANGELOG = [
+  { date:'31.07.2026, 20:07', items:[
+    '♾️ Новый режим «Бесконечный»: карта генерится без конца, сложность плавно растёт.',
+    '🎯 Квесты по пути: собери монеты, сделай сальто, заедь в шахту, перепрыгни пропасть.',
+    '⛏️ События на трассе: шахты с самоцветами, трамплины и пропасти.',
+  ]},
+  { date:'31.07.2026, 18:10', items:[
+    '🚗 У каждой машины свой силуэт: внедорожник, багги с каркасом, грузовик с кузовом.',
+    '🌦️ Погода под биом: снегопад в снегах, песчаные порывы в пустыне, пыльца на лугу.',
+    '📱 Теперь ставится на телефон как приложение (иконка, полный экран, оффлайн).',
+  ]},
+  { date:'31.07.2026, 12:40', items:[
+    '💰 Гараж: монеты копятся между заездами. Прокачивай двигатель, подвеску, сцепление и бак.',
+    '🔓 Разблокировка машин за монеты (Багги, Грузовик).',
+    '🏜️ Биомы трассы сменяются по дистанции: Луг → Пустыня → Снег.',
+  ]},
+  { date:'30.07.2026, 16:20', items:[
+    '🔊 Звук: рёв двигателя (меняется от скорости), звон монет, сигнал топлива, грохот аварии. Кнопка 🔇 для отключения.',
+    '🎯 Бонусы за трюки: сальто в воздухе (+25 и больше) и время в полёте дают доп. монеты.',
+    '🌳 Деревья и кусты вдоль трассы, пыль из-под колёс.',
+  ]},
+  { date:'28.07.2026, 14:30', items:[
+    'Первый релиз «Холм Драйв».',
+    'Физика подвески, 3 машины: Джип, Багги, Грузовик.',
+    'Топливо, монеты, бесконечная процедурная трасса, рекорд.',
+  ]},
+];
+(function renderNews(){
+  const el = document.getElementById('whatsnew');
+  el.innerHTML = CHANGELOG.map(c=>`
+    <div class="entry"><div class="date">🕒 ${c.date}</div>
+    <ul>${c.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+})();
+
+document.getElementById('startBtn').onclick = startGame;
+document.getElementById('retryBtn').onclick = startGame;
+document.getElementById('menuBtn').onclick = ()=>{ Game.state='menu';
+  document.getElementById('gameover').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden'); rebuildMenu(); };
+document.getElementById('quitBtn').onclick = ()=>{ Game.state='menu';
+  document.getElementById('pause').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+  document.getElementById('topbar').style.display='none';
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('soundBtn').style.display='none';
+  document.getElementById('questChip').style.display='none'; rebuildMenu(); };
+function pauseGame(){ if(Game.state!=='play')return; Game.state='pause'; Audio2.engineOff();
+  document.getElementById('pause').classList.remove('hidden'); }
+function resumeGame(){ if(Game.state!=='pause')return; Game.state='play'; lastT=performance.now();
+  document.getElementById('pause').classList.add('hidden'); }
+document.getElementById('pauseBtn').onclick = pauseGame;
+document.getElementById('resumeBtn').onclick = resumeGame;
+
+// GamePass iframe integration: keep standalone/PWA unchanged, expose a safe exit in the hub.
+const gamepassBtn = document.getElementById('gamepassBtn');
+if (window.parent !== window) {
+  gamepassBtn.style.display = 'inline-block';
+  gamepassBtn.onclick = ()=> window.parent.postMessage('hexland:exit', window.location.origin);
+}
+
+// ---------- Sound toggle + audio unlock on first gesture ----------
+const soundBtn = document.getElementById('soundBtn');
+function refreshSoundIcon(){ soundBtn.textContent = Audio2.muted ? '🔇' : '🔊'; }
+refreshSoundIcon();
+soundBtn.onclick = (e)=>{ e.stopPropagation(); Audio2.setMuted(!Audio2.muted);
+  if(!Audio2.muted){ Audio2.init(); Audio2.resume(); } refreshSoundIcon(); };
+// browsers require a user gesture to start audio
+function unlockAudio(){ if(!Audio2.muted){ Audio2.init(); Audio2.resume(); } }
+window.addEventListener('pointerdown', unlockAudio, {once:false});
+window.addEventListener('keydown', unlockAudio, {once:false});
+
+function updateBest(){ document.getElementById('best').textContent = Game.mode==='endless' ? Game.bestEndless : Game.best; }
+
+// ---------- Update loop ----------
+let lastT = performance.now();
+function frame(now) {
+  let dt = (now - lastT)/1000; lastT = now;
+  if (dt > 0.05) dt = 0.05;   // clamp
+
+  if (Game.state === 'play') {
+    // sub-step physics for stability
+    const steps = 3;
+    const sdt = dt/steps;
+    Car.justLanded = false;
+    for (let s=0;s<steps;s++){
+      Car.update(sdt, Game.throttle);
+      if (Car.justLanded) break;
+    }
+
+    // flip / air-time bonus
+    if (Car.justLanded){
+      let bonus = 0, msg = '';
+      if (Car.pendingFlips >= 1){ bonus += Car.pendingFlips*25; msg = Car.pendingFlips>1?`Двойное сальто! +${bonus}`:`Сальто! +${bonus}`; }
+      else if (Car.lastAirTime > 0.85){ bonus += 8; msg = `В воздухе! +8`; }
+      if (bonus>0){ Game.coinsCollected += bonus; toast('🎯 '+msg); Audio2.bonus(); }
+      // quests: flips, air distance, gap jumps
+      if (Game.mode==='endless'){
+        if (Car.pendingFlips>=1) Quest.add('flip', Car.pendingFlips);
+        Quest.air(Car.lastAirDist||0);
+        if (Game._pendingJumpPit && Car.x > Game._pendingJumpPit.x1){ Quest.add('jump',1); Game._pendingJumpPit=null; }
+      }
+    }
+
+    // engine sound
+    Audio2.engine(Math.abs(Car.vx), Game.throttle);
+
+    // fuel
+    if (Game.throttle !== 0) Game.fuel -= Car.cfg.fuelBurn * Math.abs(Game.throttle) * dt * 3.0;
+    if (Game.fuel <= 0){ Game.fuel = 0; endGame('Кончилось топливо!'); }
+
+    // distance
+    Game.distance = Math.max(Game.distance, (Car.x - 200)/22);
+
+    // camera (snappier vertical follow so the car stays centred while climbing)
+    const targetCamX = Car.x - W*0.35;
+    const targetCamY = Car.y - H*0.5;
+    Game.camX += (targetCamX - Game.camX)*Math.min(1,dt*7);
+    Game.camY += (targetCamY - Game.camY)*Math.min(1,dt*7);
+
+    // collectibles
+    genItems(Car.x + 2500);
+    for (const c of coins){
+      if(!c.taken && Math.hypot(c.x-Car.x, c.y-Car.y) < 46){ c.taken=true; Game.coinsCollected++; Audio2.coin();
+        if(Game.mode==='endless') Quest.add('coins',1); }
+    }
+    for (const f of fuels){
+      if(!f.taken && Math.hypot(f.x-Car.x, f.y-Car.y) < 52){ f.taken=true;
+        Game.fuel = Math.min(Car.cfg.maxFuel, Game.fuel+35); toast('+Топливо'); Audio2.fuel(); }
+    }
+
+    // endless-mode events & quests: mine entry, pit jump setup, distance quest
+    if (Game.mode==='endless'){
+      Quest.tickDistance();
+      const feat = Terrain.featureAt(Car.x);
+      if (feat){
+        if (feat.type==='mine' && Game._lastMine!==feat){ Game._lastMine=feat; Quest.add('mine',1); toast('⛏️ Шахта'); }
+        // arm a pit-jump: airborne near the take-off lip
+        if (feat.type==='pit' && Car.airborneTime>0 && Car.x < feat.x0+40) Game._pendingJumpPit = feat;
+      }
+    }
+
+    // head hit ground => game over (flip)
+    checkCrash();
+
+    // HUD
+    if (Game.mode==='endless') Quest._render();
+    document.getElementById('biomeLabel').textContent = biomeAt(Game.distance).name;
+    document.getElementById('dist').textContent = Math.floor(Game.distance);
+    document.getElementById('coinCount').textContent = Game.coinsCollected;
+    const fb = document.getElementById('fuelBar');
+    const pct = Game.fuel/Car.cfg.maxFuel*100;
+    fb.style.width = pct+'%';
+    fb.style.background = pct<20 ? 'linear-gradient(90deg,#ff5252,#ff1744)'
+      : pct<45 ? 'linear-gradient(90deg,#ffca28,#ffa000)'
+      : 'linear-gradient(90deg,#7dd83f,#4caf50)';
+  }
+
+  render();
+  requestAnimationFrame(frame);
+}
+
+function checkCrash() {
+  const c = Car.cfg;
+  // driver head position (top of chassis)
+  const cos=Math.cos(Car.angle), sin=Math.sin(Car.angle);
+  const hx = Car.x + (-c.wheelBase*0.15)*cos - (-c.chH*0.9)*sin;
+  const hy = Car.y + (-c.wheelBase*0.15)*sin + (-c.chH*0.9)*cos;
+  Terrain.ensure(hx);
+  if (hy > Terrain.heightAt(hx) - 2) {
+    // only crash if actually upside-ish and head buried
+    endGame('Разбился!');
+  }
+}
+
+// ---------- Render ----------
+// ---------- Biomes (change with distance: луг → пустыня → снег) ----------
+const BIOMES = [
+  { name:'Луг',     sky:['#4ea6e8','#8fd0f2','#c9ecfb'], dirt:['#8a5a2b','#5e3c18'],
+    grass:['#5fa832','#7bc94a'], para:['#bfe3a8','#a4d67f'], tree:['#4e9e35','#5cb03a'], bush:'#5cb03a', sun:'#fff6c0' },
+  { name:'Пустыня', sky:['#f0a94e','#f7d98f','#fdeecb'], dirt:['#c79a5b','#966d34'],
+    grass:['#d9a94a','#e6c06a'], para:['#e6cd97','#d3b06e'], tree:['#3f8f4a','#4fa055'], bush:'#c9a24a', sun:'#fff3d0' },
+  { name:'Снег',    sky:['#8fb7d6','#bcd8ec','#eaf5fc'], dirt:['#7c8a99','#59636e'],
+    grass:['#e2eef7','#ffffff'], para:['#d7e6ef','#c2d6e3'], tree:['#3f7a4a','#4a8a55'], bush:'#e6eff6', sun:'#ffffff' },
+];
+const ZONE = 520;  // metres per biome
+function hexLerp(a,b,t){
+  const pa=parseInt(a.slice(1),16), pb=parseInt(b.slice(1),16);
+  const ar=pa>>16,ag=(pa>>8)&255,ab=pa&255, br=pb>>16,bg=(pb>>8)&255,bb=pb&255;
+  const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), bl=Math.round(ab+(bb-ab)*t);
+  return `rgb(${r},${g},${bl})`;
+}
+function biomeAt(dist){
+  const idx = Math.floor(dist/ZONE), from = BIOMES[((idx%3)+3)%3], to = BIOMES[(((idx+1)%3)+3)%3];
+  const t = dist - idx*ZONE;
+  const f = t > ZONE-70 ? (t-(ZONE-70))/70 : 0;   // blend over last 70m
+  if (f<=0) return from;
+  const mixArr=(x,y)=>x.map((c,i)=>hexLerp(c,y[i],f));
+  return { name: f>0.5?to.name:from.name, sky:mixArr(from.sky,to.sky), dirt:mixArr(from.dirt,to.dirt),
+    grass:mixArr(from.grass,to.grass), para:mixArr(from.para,to.para), tree:mixArr(from.tree,to.tree),
+    bush:hexLerp(from.bush,to.bush,f), sun:hexLerp(from.sun,to.sun,f) };
+}
+let CB = BIOMES[0];  // current biome for the frame
+
+function render() {
+  CB = biomeAt(Game.distance);
+  // sky gradient
+  const sky = ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,CB.sky[0]); sky.addColorStop(0.6,CB.sky[1]); sky.addColorStop(1,CB.sky[2]);
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
+
+  // sun
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = CB.sun;
+  ctx.beginPath(); ctx.arc(70, 80, 34, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha=0.25; ctx.beginPath(); ctx.arc(70,80,50,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // parallax hills (background)
+  drawParallax(0.25, CB.para[0], H*0.55);
+  drawParallax(0.45, CB.para[1], H*0.62);
+
+  // clouds
+  drawClouds();
+
+  ctx.save();
+  ctx.translate(-Game.camX, -Game.camY);
+
+  // terrain
+  drawTerrain();
+
+  // endless-mode structures (mines, ramps, pits)
+  if (Terrain.mode==='endless') drawFeatures();
+
+  // trees & bushes on the ground
+  drawDecorations();
+
+  // collectibles
+  drawItems();
+
+  // car
+  if (Game.state!=='menu') drawCar();
+
+  ctx.restore();
+
+  // weather ambience (screen space, on top of the world)
+  drawWeather();
+}
+
+// ---------- Endless-mode structures ----------
+function drawFeatures(){
+  const left = Game.camX - 60, right = Game.camX + W + 60;
+  for (const f of Terrain.features){
+    if (f.x1 < left || f.x0 > right) continue;
+    if (f.type==='mine') drawMine(f);
+    else if (f.type==='ramp') drawRamp(f);
+    else if (f.type==='pit') drawPit(f);
+  }
+}
+function drawMine(f){
+  const gy0 = Terrain.heightAt(f.x0), gy1 = Terrain.heightAt(f.x1);
+  // entrance / exit portals (wooden frames)
+  const drawPortal = (x, gy)=>{
+    ctx.fillStyle='#6b4a25';
+    ctx.fillRect(x-6, gy-96, 12, 100);
+    ctx.fillStyle='#4a3117'; ctx.fillRect(x-26, gy-96, 52, 14);
+  };
+  drawPortal(f.x0, gy0); drawPortal(f.x1, gy1);
+  // support beams along the corridor + a mine-cart rail
+  ctx.strokeStyle='#5a3b1c'; ctx.lineWidth=5;
+  for (let x=f.x0+40; x<f.x1-20; x+=64){
+    const gy = Terrain.heightAt(x);
+    ctx.fillStyle='#6b4a25';
+    ctx.fillRect(x-4, gy-70, 8, 74);
+    ctx.fillRect(x+52-4, gy-70, 8, 74);
+    ctx.fillRect(x-8, gy-74, 68, 9);        // cross beam
+  }
+  // rail
+  ctx.strokeStyle='#8a8a8a'; ctx.lineWidth=3;
+  ctx.beginPath(); let first=true;
+  for (let x=f.x0+10; x<=f.x1-10; x+=8){ const y=Terrain.heightAt(x)-3; if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y);} ctx.stroke();
+  // dark ambiance inside the mine + glowing gems
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(f.x0, Terrain.heightAt(f.x0));
+  for(let x=f.x0;x<=f.x1;x+=8){ Terrain.ensure(x); ctx.lineTo(x, Terrain.heightAt(x)); }
+  ctx.lineTo(f.x1, Terrain.heightAt(f.x1)+260); ctx.lineTo(f.x0, Terrain.heightAt(f.x0)+260); ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(f.x0,-2000,f.x1-f.x0,4000);
+  for (let x=f.x0+50; x<f.x1-30; x+=90){
+    const gy=Terrain.heightAt(x); const gx=x+30;
+    ctx.fillStyle='#4fd0ff'; ctx.globalAlpha=0.9;
+    ctx.beginPath(); ctx.moveTo(gx,gy-8); ctx.lineTo(gx+5,gy-2); ctx.lineTo(gx,gy+6); ctx.lineTo(gx-5,gy-2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha=0.25; ctx.beginPath(); ctx.arc(gx,gy-1,11,0,7); ctx.fill(); ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+function drawRamp(f){
+  // wooden launch ramp on the up-slope (first 3 segments)
+  const x0=f.x0, x2=f.x0+3*Terrain.seg;
+  const y0=Terrain.heightAt(x0), y2=Terrain.heightAt(x2);
+  ctx.fillStyle='#8a5a2b';
+  ctx.beginPath();
+  ctx.moveTo(x0, y0+6); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2+14); ctx.lineTo(x0, y0+20); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#b5793b';
+  for(let x=x0; x<x2; x+=18){ const t=(x-x0)/(x2-x0); const y=y0+(y2-y0)*t; ctx.fillRect(x, y-2, 3, 8); }
+  // little "jump!" arrow chevrons above the lip
+  ctx.fillStyle='rgba(255,213,79,0.9)';
+  ctx.beginPath(); ctx.moveTo(x2-6,y2-30); ctx.lineTo(x2+6,y2-22); ctx.lineTo(x2-6,y2-14); ctx.closePath(); ctx.fill();
+}
+function drawPit(f){
+  // darker rocky walls to read the chasm
+  ctx.strokeStyle='rgba(40,28,18,0.5)'; ctx.lineWidth=6;
+  ctx.beginPath(); let first=true;
+  for(let x=f.x0; x<=f.x1; x+=6){ const y=Terrain.heightAt(x); if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y);} ctx.stroke();
+  // warning sign at the near lip
+  const sx=f.x0-10, sy=Terrain.heightAt(f.x0-10);
+  ctx.fillStyle='#e6b800'; ctx.beginPath();
+  ctx.moveTo(sx, sy-40); ctx.lineTo(sx+13, sy-16); ctx.lineTo(sx-13, sy-16); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#3a2a00'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('!', sx, sy-24);
+}
+
+// ---------- Weather particles per biome ----------
+let flakes=[];
+function drawWeather(){
+  const idx = Game.state==='play' ? (((Math.floor(Game.distance/ZONE)%3)+3)%3) : 0;
+  while (flakes.length < 95) flakes.push({x:Math.random()*W, y:Math.random()*H,
+    r:1+Math.random()*2.6, ph:Math.random()*7, sp:0.4+Math.random()*0.9});
+  if (idx===2){                 // snow
+    ctx.fillStyle='rgba(255,255,255,.9)';
+    for(const f of flakes){
+      f.y += f.sp*2.3; f.x += Math.sin((f.y+f.ph*40)*0.02)*0.7;
+      if(f.y>H){ f.y=-4; f.x=Math.random()*W; }
+      if(f.x>W) f.x-=W; if(f.x<0) f.x+=W;
+      ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,7); ctx.fill();
+    }
+  } else if (idx===1){          // desert — blowing sand streaks
+    ctx.strokeStyle='rgba(224,196,140,.28)'; ctx.lineWidth=2; ctx.lineCap='round';
+    for(const f of flakes){
+      f.x += f.sp*7+4;
+      if(f.x>W+20){ f.x=-20; f.y=Math.random()*H; }
+      ctx.beginPath(); ctx.moveTo(f.x,f.y); ctx.lineTo(f.x-15,f.y+2); ctx.stroke();
+    }
+  } else {                      // meadow — gentle drifting pollen
+    ctx.fillStyle='rgba(255,250,180,.45)';
+    for(let i=0;i<flakes.length;i+=3){
+      const f=flakes[i];
+      f.y += Math.sin(f.ph+f.x*0.01)*0.25+0.25; f.x += 0.45;
+      if(f.y>H) f.y=0; if(f.x>W) f.x=0;
+      ctx.beginPath(); ctx.arc(f.x,f.y,1.6,0,7); ctx.fill();
+    }
+  }
+}
+
+function drawParallax(factor, color, baseline){
+  const off = Game.camX*factor;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0,H);
+  const step=60;
+  for(let sx=-step; sx<=W+step; sx+=step){
+    const wx=(sx+off);
+    const y=baseline + Math.sin(wx*0.004)*30 + Math.sin(wx*0.011+2)*16;
+    ctx.lineTo(sx, y);
+  }
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+}
+
+// deterministic pseudo-random from an integer (stable per position, no flicker)
+function hash(n){ let x = Math.sin(n*127.1)*43758.5453; return x - Math.floor(x); }
+function drawDecorations(){
+  const spacing = 150;
+  const left = Game.camX - 60, right = Game.camX + W + 60;
+  const startI = Math.floor(left/spacing), endI = Math.ceil(right/spacing);
+  for (let i = startI; i <= endI; i++){
+    const r = hash(i);
+    if (r < 0.42){                       // tree
+      const dx = i*spacing + (hash(i+0.7)-0.5)*90;
+      Terrain.ensure(dx);
+      const gy = Terrain.heightAt(dx);
+      const s = 0.8 + hash(i+3.3)*0.6;
+      // trunk
+      ctx.fillStyle = '#7a4a22';
+      ctx.fillRect(dx-4*s, gy-30*s, 8*s, 32*s);
+      // canopy
+      ctx.fillStyle = i%2 ? CB.tree[0] : CB.tree[1];
+      ctx.beginPath();
+      ctx.arc(dx, gy-40*s, 22*s, 0, 7);
+      ctx.arc(dx-16*s, gy-30*s, 15*s, 0, 7);
+      ctx.arc(dx+16*s, gy-30*s, 15*s, 0, 7);
+      ctx.fill();
+    } else if (r < 0.7){                 // bush
+      const dx = i*spacing + (hash(i+0.7)-0.5)*90;
+      Terrain.ensure(dx);
+      const gy = Terrain.heightAt(dx);
+      const s = 0.7 + hash(i+5.1)*0.5;
+      ctx.fillStyle = CB.bush;
+      ctx.beginPath();
+      ctx.arc(dx-10*s, gy-6*s, 11*s, 0, 7);
+      ctx.arc(dx+10*s, gy-6*s, 11*s, 0, 7);
+      ctx.arc(dx, gy-12*s, 14*s, 0, 7);
+      ctx.fill();
+    }
+  }
+}
+
+let cloudList = [{x:0.2,y:0.18,s:1},{x:0.5,y:0.28,s:0.8},{x:0.8,y:0.15,s:1.1},{x:1.15,y:0.3,s:0.7}];
+function drawClouds(){
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  for(const c of cloudList){
+    let px = (c.x*W - Game.camX*0.15) % (W+300);
+    if (px < -150) px += (W+300);
+    const py = c.y*H;
+    puff(px,py,c.s);
+  }
+}
+function puff(x,y,s){
+  ctx.beginPath();
+  ctx.arc(x,y,26*s,0,7); ctx.arc(x+30*s,y+6*s,20*s,0,7);
+  ctx.arc(x-28*s,y+8*s,18*s,0,7); ctx.arc(x+6*s,y-12*s,20*s,0,7);
+  ctx.fill();
+}
+
+function drawTerrain(){
+  const left = Game.camX - 40;
+  const right = Game.camX + W + 40;
+  ctx.beginPath();
+  ctx.moveTo(left, H + Game.camY + 200);
+  const step = 8;
+  ctx.lineTo(left, Terrain.heightAt(left));
+  for (let x = left; x <= right; x += step){
+    Terrain.ensure(x);
+    ctx.lineTo(x, Terrain.heightAt(x));
+  }
+  ctx.lineTo(right, H + Game.camY + 200);
+  ctx.closePath();
+  // dirt body
+  const grad = ctx.createLinearGradient(0, Terrain.baseY-100, 0, Terrain.baseY+260);
+  grad.addColorStop(0,CB.dirt[0]); grad.addColorStop(1,CB.dirt[1]);
+  ctx.fillStyle = grad; ctx.fill();
+
+  // grass top stripe
+  ctx.lineWidth = 14; ctx.strokeStyle = CB.grass[0];
+  ctx.beginPath();
+  let first=true;
+  for (let x = left; x <= right; x += step){
+    const y = Terrain.heightAt(x);
+    if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 5; ctx.strokeStyle = CB.grass[1];
+  ctx.beginPath(); first=true;
+  for (let x = left; x <= right; x += step){
+    const y = Terrain.heightAt(x)-4;
+    if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+function drawItems(){
+  // coins
+  for (const c of coins){
+    if (c.taken) continue;
+    if (c.x < Game.camX-40 || c.x > Game.camX+W+40) continue;
+    ctx.save();
+    ctx.translate(c.x,c.y);
+    const w = Math.abs(Math.cos(Game.time*4 + c.x));
+    ctx.scale(0.4+w*0.6,1);
+    ctx.fillStyle='#f5b301'; ctx.beginPath(); ctx.arc(0,0,11,0,7); ctx.fill();
+    ctx.fillStyle='#ffe680'; ctx.beginPath(); ctx.arc(0,0,7,0,7); ctx.fill();
+    ctx.restore();
+  }
+  // fuel cans
+  for (const f of fuels){
+    if (f.taken) continue;
+    if (f.x < Game.camX-40 || f.x > Game.camX+W+40) continue;
+    ctx.save(); ctx.translate(f.x,f.y);
+    const bob = Math.sin(Game.time*3+f.x)*3; ctx.translate(0,bob);
+    ctx.fillStyle='#e33'; roundRect(-11,-14,22,26,4); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('⛽',0,0);
+    ctx.restore();
+  }
+}
+
+function drawCar(){
+  const c = Car.cfg;
+  // exhaust smoke when gassing
+  ctx.save();
+  ctx.translate(Car.x, Car.y);
+  ctx.rotate(Car.angle);
+
+  // wheels
+  for (const w of Car.wheels){
+    ctx.save();
+    ctx.translate(w.lx, w.ly);
+    // tire
+    ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(0,0,c.wheelR,0,7); ctx.fill();
+    ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(0,0,c.wheelR,0,7);
+    // hub with spin
+    ctx.rotate(w.spin);
+    ctx.fillStyle='#ccc'; ctx.beginPath(); ctx.arc(0,0,c.wheelR*0.45,0,7); ctx.fill();
+    ctx.strokeStyle='#888'; ctx.lineWidth=3;
+    for(let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(i/5*7)*c.wheelR*0.42, Math.sin(i/5*7)*c.wheelR*0.42); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // chassis body — distinct silhouette per vehicle
+  drawBody(c);
+  ctx.restore();
+
+  // exhaust smoke (world space, behind car)
+  if (Game.throttle>0 && Math.random()<0.6){
+    smoke.push({x:Car.x - Math.cos(Car.angle)*c.wheelBase*1.3,
+                y:Car.y - Math.sin(Car.angle)*c.wheelBase*1.3 + 2,
+                r:6, life:1});
+  }
+  // wheel dust kicked up when driving fast on the ground
+  if (Math.abs(Car.vx) > 220 && Game.throttle!==0){
+    for (const w of Car.wheels){
+      if (w.onGround && Math.random()<0.5){
+        dust.push({x:w.x - Math.sign(Car.vx)*c.wheelR*0.6, y:w.y+c.wheelR*0.7,
+                   r:3+Math.random()*3, life:1, vx:-Math.sign(Car.vx)*(1+Math.random()*2)});
+      }
+    }
+  }
+  drawSmoke();
+  drawDust();
+}
+
+function drawHead(x, y, r, capColor){
+  ctx.fillStyle='#f4c8a0'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.fillStyle=capColor; ctx.beginPath(); ctx.arc(x, y-r*0.25, r*1.05, Math.PI, 0); ctx.fill();
+}
+function drawBody(c){
+  const bw = c.wheelBase*2+16, bh = c.chH;
+  if (c.shape === 'buggy'){
+    // low open-frame buggy with roll cage + spoiler
+    ctx.fillStyle = c.color;
+    roundRect(-bw*0.46, -bh*0.5, bw*0.92, bh, 6); ctx.fill();
+    // seat / floor
+    ctx.fillStyle = shade(c.color,-25);
+    roundRect(-bw*0.30, -bh*0.9, bw*0.42, bh*0.7, 4); ctx.fill();
+    // roll cage
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 4; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(bw*0.14, -bh*0.4); ctx.lineTo(bw*0.02, -bh*1.7);
+    ctx.lineTo(-bw*0.34, -bh*1.7); ctx.lineTo(-bw*0.30, -bh*0.4);
+    ctx.moveTo(-bw*0.34, -bh*1.7); ctx.lineTo(-bw*0.46, -bh*0.3);
+    ctx.stroke();
+    drawHead(-bh*0.05, -bh*1.05, bh*0.42, '#1e88e5');
+    // rear spoiler
+    ctx.fillStyle = '#333';
+    roundRect(-bw*0.56, -bh*0.9, bw*0.16, bh*0.22, 3); ctx.fill();
+    ctx.fillRect(-bw*0.50, -bh*0.9, 4, bh*0.5);
+  } else if (c.shape === 'truck'){
+    // flatbed cargo truck: cab in front, long bed behind
+    ctx.fillStyle = shade(c.color,-8);
+    roundRect(-bw*0.5, -bh*0.35, bw, bh*0.85, 6); ctx.fill();      // chassis / bed floor
+    // cargo box (rear)
+    ctx.fillStyle = c.color;
+    roundRect(-bw*0.5, -bh*1.15, bw*0.62, bh*0.9, 5); ctx.fill();
+    ctx.fillStyle = shade(c.color,-22);
+    for(let i=0;i<3;i++){ ctx.fillRect(-bw*0.42+i*bw*0.19, -bh*1.1, 3, bh*0.8); } // slats
+    // cab (front)
+    ctx.fillStyle = shade(c.color,15);
+    roundRect(bw*0.16, -bh*1.1, bw*0.34, bh*0.85, 5); ctx.fill();
+    ctx.fillStyle = '#bfeaff';
+    roundRect(bw*0.22, -bh*0.98, bw*0.22, bh*0.5, 3); ctx.fill();
+    drawHead(bw*0.30, -bh*0.72, bh*0.2, '#e33');
+  } else {
+    // jeep / SUV (default)
+    ctx.fillStyle = c.color;
+    roundRect(-bw/2, -bh/2, bw, bh, 8); ctx.fill();
+    ctx.fillStyle = shade(c.color, -20);
+    roundRect(-bw*0.18, -bh*1.4, bw*0.5, bh*0.95, 6); ctx.fill();
+    ctx.fillStyle = '#bfeaff';
+    roundRect(-bw*0.10, -bh*1.25, bw*0.34, bh*0.62, 4); ctx.fill();
+    drawHead(-bw*0.02, -bh*1.05, bh*0.28, '#e33');
+  }
+}
+
+let smoke=[];
+function drawSmoke(){
+  for(let i=smoke.length-1;i>=0;i--){
+    const p=smoke[i]; p.life-=0.03; p.r+=0.9; p.x-=1.2; p.y-=0.5;
+    if(p.life<=0){ smoke.splice(i,1); continue; }
+    ctx.fillStyle=`rgba(120,120,120,${p.life*0.4})`;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+  }
+}
+let dust=[];
+function drawDust(){
+  for(let i=dust.length-1;i>=0;i--){
+    const p=dust[i]; p.life-=0.045; p.r+=0.6; p.x+=p.vx; p.y-=0.6;
+    if(p.life<=0){ dust.splice(i,1); continue; }
+    ctx.fillStyle=`rgba(150,110,70,${p.life*0.5})`;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+  }
+}
+
+// helpers
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function shade(hex, amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)+amt, g=((n>>8)&255)+amt, b=(n&255)+amt;
+  r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+  return `rgb(${r},${g},${b})`;
+}
+
+// time ticker
+setInterval(()=>{Game.time+=0.05;},50);
+
+// prevent context menu / drag on gameplay
+document.addEventListener('contextmenu', e=>{ if(e.target===canvas) e.preventDefault(); });
+document.addEventListener('selectionstart', e=>{ if(e.target===canvas) e.preventDefault(); });
+document.addEventListener('dragstart', e=>e.preventDefault());
+document.addEventListener('gesturestart', e=>e.preventDefault());
+
+updateBest();
+requestAnimationFrame(frame);
+
+// PWA: register service worker for offline play (secure contexts: https + localhost; ignored on file://)
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

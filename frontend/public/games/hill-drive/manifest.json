@@ -1,0 +1,14 @@
+{
+  "name": "Холм Драйв",
+  "short_name": "Холм Драйв",
+  "description": "Гонки по холмам с физикой, прокачкой машин и сменой биомов.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#6ec6f2",
+  "theme_color": "#6ec6f2",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
