@@ -53,7 +53,19 @@ function mulberry32(seed) {
 export const DRUM_IDS = ["kick", "snare", "hat", "clap"];
 export const SYNTH_IDS = ["bass", "lead", "arp"];
 
-export const WAVES = ["square", "pulse25", "triangle", "saw"];
+export const WAVES = ["square", "pulse25", "triangle", "saw", "sine"];
+export const WOB_SHAPES = ["sine", "square", "saw", "tri"];
+// wobble rates as cycles-per-beat (0 = off). Labels shown in UI.
+export const WOB_RATES = [
+  { v: 0, label: "выкл" },
+  { v: 0.5, label: "1/2" },
+  { v: 1, label: "1/4" },
+  { v: 2, label: "1/8" },
+  { v: 3, label: "1/8T" },
+  { v: 4, label: "1/16" },
+  { v: 6, label: "1/16T" },
+  { v: 8, label: "1/32" },
+];
 
 export function emptyRow(len = STEPS) {
   return new Array(len).fill(0);
@@ -84,9 +96,9 @@ export function defaultTrack() {
     drumVol: { kick: 1, snare: 0.9, hat: 0.55, clap: 0.8 },
     drumMute: { kick: false, snare: false, hat: false, clap: false },
     synths: {
-      bass: { wave: "square", vol: 0.85, octave: 0, crush: 0, mute: false },
-      lead: { wave: "pulse25", vol: 0.6, octave: 1, crush: 0.35, mute: false },
-      arp: { wave: "triangle", vol: 0.5, octave: 1, crush: 0, mute: false },
+      bass: { wave: "square", vol: 0.85, octave: 0, crush: 0, mute: false, cutoff: 0.28, reso: 0, wob: 0, wobDepth: 0.7, wobShape: "sine", drive: 0, detune: 0, sub: 0.4 },
+      lead: { wave: "pulse25", vol: 0.6, octave: 1, crush: 0.35, mute: false, cutoff: 0.45, reso: 0, wob: 0, wobDepth: 0.7, wobShape: "sine", drive: 0, detune: 0, sub: 0 },
+      arp: { wave: "triangle", vol: 0.5, octave: 1, crush: 0, mute: false, cutoff: 0.6, reso: 0, wob: 0, wobDepth: 0.7, wobShape: "sine", drive: 0, detune: 0, sub: 0 },
     },
     parts: [emptyPart()],
     song: [0],
@@ -119,6 +131,14 @@ export function normalizeTrack(raw) {
       d.octave = clampNum(s.octave, -2, 3, d.octave) | 0;
       d.crush = clampNum(s.crush, 0, 1, d.crush);
       d.mute = !!s.mute;
+      d.cutoff = clampNum(s.cutoff, 0, 1, d.cutoff);
+      d.reso = clampNum(s.reso, 0, 1, d.reso);
+      d.wob = clampNum(s.wob, 0, 16, d.wob);
+      d.wobDepth = clampNum(s.wobDepth, 0, 1, d.wobDepth);
+      d.wobShape = WOB_SHAPES.includes(s.wobShape) ? s.wobShape : d.wobShape;
+      d.drive = clampNum(s.drive, 0, 1, d.drive);
+      d.detune = clampNum(s.detune, 0, 1, d.detune);
+      d.sub = clampNum(s.sub, 0, 1, d.sub);
     }
   // parts: v2 tracks carry raw.parts; v1 tracks kept a single pattern in
   // raw.drums + raw.synths[id].notes — wrap that into one part.
@@ -260,7 +280,7 @@ export function renderLoop(rawTrack, sampleRate, opts) {
         const midi = ladder[rowIdx] + s.octave * 12;
         const start = Math.floor(stepTime(off + i) * sampleRate);
         const durSec = len * secPer16 * (id === "bass" ? 0.95 : id === "lead" ? 0.9 : 0.6);
-        const buf = renderVoice(id, s.wave, midiToFreq(midi), durSec, sampleRate, s.vol, s.crush);
+        const buf = renderVoice(id, s, midiToFreq(midi), durSec, sampleRate, start / sampleRate, t.bpm);
         place(start, buf, synthPan[id]);
       }
     }
@@ -306,38 +326,101 @@ function renderDrum(id, sr, vol, rand) {
   return buf;
 }
 
-function renderVoice(id, wave, freq, durSec, sr, vol, crush) {
+// LFO shape → -1..1 for a phase measured in cycles.
+function lfoVal(shape, cyclePhase) {
+  const f = cyclePhase - Math.floor(cyclePhase);
+  switch (shape) {
+    case "square": return f < 0.5 ? 1 : -1;
+    case "saw": return 1 - 2 * f;                 // ramp down — classic wobble
+    case "tri": return 4 * Math.abs(f - 0.5) - 1;
+    default: return Math.sin(2 * Math.PI * f);    // sine
+  }
+}
+
+// Render one note. cfg is the synth config (wave/vol/crush + filter/wobble/
+// detune/drive/sub). t0 is the note's absolute start time (seconds) so the
+// wobble LFO stays phase-locked to the beat grid across notes.
+function renderVoice(id, cfg, freq, durSec, sr, t0, bpm) {
+  const wave = cfg.wave;
+  const vol = cfg.vol;
+  const crush = cfg.crush || 0;
   const rel = id === "bass" ? 0.04 : 0.08;
   const total = Math.floor((durSec + rel) * sr);
   const buf = new Float32Array(total);
-  // envelope shape per instrument
   const a = id === "bass" ? 0.006 : 0.004;
   const d = id === "lead" ? 0.12 : id === "arp" ? 0.05 : 0.05;
   const sus = id === "bass" ? 0.85 : id === "lead" ? 0.55 : 0.35;
-  let phase = 0;
-  const inc = freq / sr;
-  // vibrato for lead
   const vibRate = 5.5, vibDepth = id === "lead" ? 0.004 : 0;
+
+  // unison / detune (supersaw growl)
+  const detuneCents = (cfg.detune || 0) * 22;
+  const offs = detuneCents > 0.3 ? [-1, 0, 1] : [0];
+  const detF = offs.map((o) => Math.pow(2, (o * detuneCents) / 1200));
+  const ph = offs.map(() => 0);
+  const inc = freq / sr;
+
+  const subAmt = cfg.sub || 0;
+  const subInc = (freq * 0.5) / sr;
+  let subPh = 0;
+
   // bitcrush
   const bits = crush > 0 ? Math.max(3, Math.round(8 - crush * 5)) : 0;
   const levels = bits ? Math.pow(2, bits) : 0;
   const hold = crush > 0 ? Math.max(1, Math.round(1 + crush * 6)) : 1;
   let held = 0, sampleHold = 0;
-  // one-pole lowpass for warmth
-  const cutoff = id === "bass" ? 0.28 : id === "lead" ? 0.45 : 0.6;
-  let lp = 0;
+
+  const drive = cfg.drive || 0;
+  const driveAmt = 1 + drive * 9;
+
+  // filter: one-pole warmth by default; resonant state-variable LP with a
+  // tempo-synced LFO (wobble) when reso or wob is engaged.
+  const baseCut = cfg.cutoff != null ? cfg.cutoff : 0.5;
+  const reso = cfg.reso || 0;
+  const wob = cfg.wob || 0;
+  const useSVF = wob > 0 || reso > 0;
+  const wobHz = wob > 0 ? (bpm / 60) * wob : 0;
+  const wobDepth = cfg.wobDepth != null ? cfg.wobDepth : 0.7;
+  const wobShape = cfg.wobShape || "sine";
+  const qd = Math.max(0.06, 1 - reso * 0.94); // SVF damping (lower = more resonant)
+  let lp = 0;               // one-pole state
+  let sLow = 0, sBand = 0;  // SVF state
+
   for (let i = 0; i < total; i++) {
     const t = i / sr;
     const vib = vibDepth ? 1 + Math.sin(2 * Math.PI * vibRate * t) * vibDepth : 1;
-    phase += inc * vib;
-    if (phase >= 1) phase -= 1;
-    let s = osc(wave, phase);
-    // sub-osc for bass body
-    if (id === "bass") s = s * 0.8 + osc("triangle", (phase * 0.5) % 1) * 0.4;
-    // lowpass
-    lp += (s - lp) * cutoff;
-    s = lp;
-    // bitcrush
+    let s = 0;
+    for (let vi = 0; vi < offs.length; vi++) {
+      ph[vi] += inc * detF[vi] * vib;
+      if (ph[vi] >= 1) ph[vi] -= 1;
+      s += osc(wave, ph[vi]);
+    }
+    s /= offs.length;
+    if (subAmt > 0) {
+      subPh += subInc; if (subPh >= 1) subPh -= 1;
+      s = s * (1 - subAmt * 0.5) + osc("triangle", subPh) * subAmt;
+    }
+    if (drive > 0) s = Math.tanh(s * driveAmt) * 0.85;
+
+    if (useSVF) {
+      let cut = baseCut;
+      if (wobHz > 0) {
+        const l01 = (lfoVal(wobShape, (t0 + t) * wobHz) + 1) * 0.5; // 0..1
+        cut = baseCut + l01 * wobDepth * (1 - baseCut);
+      }
+      let fc = 60 * Math.pow(180, Math.max(0.02, Math.min(0.99, cut))); // ~66Hz..10.8kHz
+      if (fc > sr * 0.16) fc = sr * 0.16; // keep the SVF stable
+      const f = 2 * Math.sin(Math.PI * fc / sr);
+      sLow += f * sBand;
+      const high = s - sLow - qd * sBand;
+      sBand += f * high;
+      if (sLow > 3) sLow = 3; else if (sLow < -3) sLow = -3;   // resonance safety
+      if (sBand > 3) sBand = 3; else if (sBand < -3) sBand = -3;
+      s = sLow;
+    } else {
+      lp += (s - lp) * baseCut;
+      s = lp;
+    }
+
     if (levels) {
       if (held <= 0) { sampleHold = Math.round(((s + 1) / 2) * levels) / levels * 2 - 1; held = hold; }
       held--;

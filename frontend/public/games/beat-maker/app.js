@@ -1,5 +1,5 @@
 import {
-  STEPS, MAX_PARTS, MAX_SONG, DRUM_IDS, SYNTH_IDS, WAVES, SCALES, ROOT_NAMES,
+  STEPS, MAX_PARTS, MAX_SONG, DRUM_IDS, SYNTH_IDS, WAVES, WOB_RATES, WOB_SHAPES, SCALES, ROOT_NAMES,
   defaultTrack, normalizeTrack, scaleLadder, emptyPart,
   renderLoop, encodeWav, encodeTrackCode, decodeTrackCode,
 } from "./synth-core.js";
@@ -358,6 +358,19 @@ function renderPianoRoll() {
   const muteBtn = el("button", "ctl-btn" + (s.mute ? " on" : ""), s.mute ? "🔇 Выкл" : "🔊 Вкл");
   muteBtn.onclick = () => { s.mute = !s.mute; persist(); refreshLoop(); render(); };
   $("#synthCtl").append(waveSel, octSel, crush, vol, muteBtn);
+
+  // --- filter / wobble section (the dubstep controls) ---
+  const ctl2 = $("#synthCtl2");
+  ctl2.innerHTML = "";
+  const cutoff = labeledRange("Срез", 0, 1, 0.02, s.cutoff, (v) => { s.cutoff = v; persist(); refreshLoop(); });
+  const reso = labeledRange("Резонанс", 0, 1, 0.02, s.reso, (v) => { s.reso = v; persist(); refreshLoop(); });
+  const wobSel = labeledSelectVals("Вобл", WOB_RATES.map((r) => ({ value: String(r.v), label: r.label })), String(s.wob), (v) => { s.wob = parseFloat(v); persist(); refreshLoop(); });
+  const wobDepth = labeledRange("Глубина", 0, 1, 0.05, s.wobDepth, (v) => { s.wobDepth = v; persist(); refreshLoop(); });
+  const wobShape = labeledSelect("Форма", WOB_SHAPES, s.wobShape, (v) => { s.wobShape = v; persist(); refreshLoop(); });
+  const drive = labeledRange("Драйв", 0, 1, 0.05, s.drive, (v) => { s.drive = v; persist(); refreshLoop(); });
+  const detune = labeledRange("Детюн", 0, 1, 0.05, s.detune, (v) => { s.detune = v; persist(); refreshLoop(); });
+  const sub = labeledRange("Саб", 0, 1, 0.05, s.sub, (v) => { s.sub = v; persist(); refreshLoop(); });
+  ctl2.append(cutoff, reso, wobSel, wobDepth, wobShape, drive, detune, sub);
 }
 
 function renderScaleBar() {
@@ -382,6 +395,21 @@ function labeledSelect(label, values, current, onChange, fmt) {
     o.value = v;
     if (v === current) o.selected = true;
     sel.append(o);
+  }
+  sel.onchange = () => onChange(sel.value);
+  wrap.append(sel);
+  return wrap;
+}
+// like labeledSelect but options carry separate value/label pairs
+function labeledSelectVals(label, options, current, onChange) {
+  const wrap = el("label", "ctl");
+  wrap.append(el("span", "ctl-lab", label));
+  const sel = el("select");
+  for (const o of options) {
+    const opt = el("option", null, o.label);
+    opt.value = o.value;
+    if (o.value === current) opt.selected = true;
+    sel.append(opt);
   }
   sel.onchange = () => onChange(sel.value);
   wrap.append(sel);

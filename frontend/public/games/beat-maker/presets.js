@@ -23,6 +23,15 @@ const OFFHAT = "..x...x...x...x.";
 const rep = (arr, n) => { const o = []; for (let i = 0; i < n; i++) o.push(...arr); return o; };
 const seq = (...blocks) => blocks.flat();
 
+// per-instrument synth defaults — applyPreset resets to these first so filter/
+// wobble settings never leak from one preset to the next.
+const SYN_DEFAULTS = {
+  bass: { cutoff: 0.28, reso: 0, wob: 0, wobDepth: 0.7, wobShape: "sine", drive: 0, detune: 0, sub: 0.4 },
+  lead: { cutoff: 0.45, reso: 0, wob: 0, wobDepth: 0.7, wobShape: "sine", drive: 0, detune: 0, sub: 0 },
+  arp: { cutoff: 0.6, reso: 0, wob: 0, wobDepth: 0.7, wobShape: "sine", drive: 0, detune: 0, sub: 0 },
+};
+const FILTER_KEYS = ["cutoff", "reso", "wob", "wobDepth", "wobShape", "drive", "detune", "sub"];
+
 export const PRESETS = [
   // ======================= СТИЛИ (короткие заготовки → теперь мини-треки) ==
   {
@@ -99,6 +108,23 @@ export const PRESETS = [
       P({ k: FOUR, s: BACK, h: HAT8, b: "0...4...0...4...", l: "0.2.4.7.7.7.....", a: "0.2.4.7.0.2.4.7." }),
     ],
     song: [0, 0, 1, 1, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 1, 2],
+  },
+
+  {
+    id: "dubstep", label: "Дабстеп", emoji: "🔊", group: "style",
+    bpm: 140, swing: 0, scale: "minor", root: 45,
+    synths: {
+      bass: { wave: "saw", octave: -1, crush: 0, vol: 1.0, cutoff: 0.14, reso: 0.75, wob: 2, wobDepth: 0.9, wobShape: "sine", drive: 0.45, detune: 0.12, sub: 0.5 },
+      lead: { wave: "square", octave: 1, crush: 0.3, vol: 0.5, cutoff: 0.5, reso: 0.25 },
+      arp: { wave: "square", octave: 2, crush: 0.4, vol: 0.3 },
+    },
+    parts: [
+      P({ h: OFFHAT, b: "0..............." }),                                                          // 0: интро — вобл-бас
+      P({ k: "x.........x.....", s: "........x.......", h: "..x...x...x...x.", c: "........x.......", b: "0...5...3...2..." }), // 1: дроп
+      P({ k: "x.....x.x.......", s: "........x.......", h: HAT8, c: "........x.......", b: "0.0.3.3.2.2.5.5." }), // 2: дроп 2
+      P({ k: FOUR, s: "....x...x.x.xxxx", h: HAT16, a: "0.1.2.3.4.5.6.7." }),                          // 3: разгон (снейр-ролл)
+    ],
+    song: [0, 0, 1, 1, 2, 2, 1, 1, 3, 2, 2, 1, 1, 2, 2, 2],
   },
 
   // ======================= ПОЛНЫЕ ТРЕКИ ====================================
@@ -234,6 +260,26 @@ export const PRESETS = [
     // ~1:40
     song: seq([0, 0], rep([1, 2], 3), [3, 3], rep([1, 2], 3), [4, 4], rep([1, 2], 3), [3, 3], [5, 5], rep([1, 2], 3), [3, 3], rep([1, 2], 3), [4, 4], rep([1, 2], 2), [3, 3], [5, 5], [0, 0]),
   },
+  {
+    // Оригинальный дабстеп-дроп — наша собственная тема. Вобл-бас, half-time.
+    id: "dubdrop", label: "Дабстеп дроп", emoji: "🔊", group: "track",
+    bpm: 140, swing: 0, scale: "minor", root: 45,
+    synths: {
+      bass: { wave: "saw", octave: -1, crush: 0, vol: 1.0, cutoff: 0.13, reso: 0.72, wob: 2, wobDepth: 0.92, wobShape: "sine", drive: 0.5, detune: 0.14, sub: 0.5 },
+      lead: { wave: "square", octave: 1, crush: 0.3, vol: 0.5, cutoff: 0.55, reso: 0.3 },
+      arp: { wave: "square", octave: 2, crush: 0.4, vol: 0.32 },
+    },
+    parts: [
+      P({ h: OFFHAT, b: "0..............." }),                                                          // 0: интро (вобл-бас)
+      P({ k: FOUR, s: "....x.......x.x.", h: HAT16, b: "0...............", a: "0.1.2.3.4.5.6.7." }),    // 1: разгон
+      P({ k: "x.........x.....", s: "........x.......", h: "..x...x...x...x.", c: "........x.......", b: "0...5...3...2..." }), // 2: дроп A
+      P({ k: "x.....x.x.......", s: "........x.......", h: HAT8, c: "........x.......", b: "0.0.3.3.2.2.5.5." }), // 3: дроп B
+      P({ h: OFFHAT, b: "5.......5.......", l: "7...5...4...5..." }),                                   // 4: брейк (мелодия)
+      P({ k: "x.......x.......", h: "x.......x.......", b: "0..............." }),                        // 5: аутро
+    ],
+    // ~1:35
+    song: seq([0, 0], rep([1], 4), rep([2, 3], 5), [4, 4], rep([1], 2), rep([2, 3], 5), [4, 4], rep([2, 3], 5), [1, 1], rep([2, 3], 4), [5, 5], [0, 0]),
+  },
 ];
 
 // Merge a preset onto a track object in place (keeps name; overwrites musical
@@ -250,11 +296,14 @@ export function applyPreset(track, preset) {
   for (const id of ["bass", "lead", "arp"]) {
     const p = preset.synths?.[id];
     const s = track.synths[id];
+    // reset filter/wobble to defaults so nothing leaks between presets
+    for (const k of FILTER_KEYS) s[k] = SYN_DEFAULTS[id][k];
     if (p) {
       if (p.wave) s.wave = p.wave;
       if (p.octave != null) s.octave = p.octave;
       if (p.crush != null) s.crush = p.crush;
       if (p.vol != null) s.vol = p.vol;
+      for (const k of FILTER_KEYS) if (p[k] != null) s[k] = p[k];
     }
     s.mute = false;
   }
