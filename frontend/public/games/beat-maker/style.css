@@ -318,6 +318,8 @@ body::before {
   color: var(--cyan);
 }
 .ctl-subhead span { color: var(--dim); font-weight: 600; }
+.ctl.part-wob .ctl-lab { color: var(--pink); }
+.ctl.part-wob select { border-color: rgba(255, 45, 150, 0.4); }
 .ctl { display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: var(--dim); }
 .ctl-lab { letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }
 .ctl select, .ctl input[type="range"] {

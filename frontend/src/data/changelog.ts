@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.29.0",
+    date: "1 августа 2026, ночь (Алматы)",
+    title: "WAVE FORGE 3.1 — бростеп (авто-вобл + сайдчейн)",
+    items: [
+      "🎛 «Вобл части»: у каждой части свой темп вобла — можно собрать гроул-секвенцию 1/4→1/8→1/16 как в бростепе",
+      "🫀 Сайдчейн: синты «дышат» под кик (пампинг) — качовый EDM-грув",
+      "🤖 Новый оригинальный трек «Бростеп» с гроул-дропом и пампингом",
+    ],
+  },
+  {
     version: "3.28.0",
     date: "1 августа 2026 (Алматы)",
     title: "Мурдоку 1.1 — по правилам классики",

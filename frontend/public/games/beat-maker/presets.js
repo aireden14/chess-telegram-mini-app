@@ -8,10 +8,14 @@
 const K = (s) => { const r = new Array(16).fill(0); for (let i = 0; i < 16 && i < s.length; i++) if (s[i] === "x") r[i] = 1; return r; };
 const N = (s) => { const r = new Array(16).fill(-1); for (let i = 0; i < 16 && i < s.length; i++) if (s[i] !== ".") r[i] = parseInt(s[i], 36); return r; };
 // one part from compact strings: drums kick/snare/hat/clap + notes bass/lead/arp
-const P = ({ k = "", s = "", h = "", c = "", b = "", l = "", a = "" }) => ({
-  drums: { kick: K(k), snare: K(s), hat: K(h), clap: K(c) },
-  notes: { bass: N(b), lead: N(l), arp: N(a) },
-});
+const P = ({ k = "", s = "", h = "", c = "", b = "", l = "", a = "", fx } = {}) => {
+  const part = {
+    drums: { kick: K(k), snare: K(s), hat: K(h), clap: K(c) },
+    notes: { bass: N(b), lead: N(l), arp: N(a) },
+  };
+  if (fx) part.fx = fx; // per-part synth overrides (wob/cutoff/…)
+  return part;
+};
 
 const FOUR = "x...x...x...x...";
 const BACK = "....x.......x...";
@@ -280,6 +284,29 @@ export const PRESETS = [
     // ~1:35
     song: seq([0, 0], rep([1], 4), rep([2, 3], 5), [4, 4], rep([1], 2), rep([2, 3], 5), [4, 4], rep([2, 3], 5), [1, 1], rep([2, 3], 4), [5, 5], [0, 0]),
   },
+  {
+    // Оригинальный бростеп-дроп — наша собственная тема. Каждая часть дропа
+    // воблит на своей скорости (авто-вобл по частям) + сайдчейн под кик.
+    id: "brostep", label: "Бростеп", emoji: "🤖", group: "track",
+    bpm: 150, swing: 0, scale: "minor", root: 45, sidechain: 0.4,
+    synths: {
+      bass: { wave: "saw", octave: -1, crush: 0, vol: 1.0, cutoff: 0.14, reso: 0.78, wob: 4, wobDepth: 0.92, wobShape: "sine", drive: 0.6, detune: 0.16, sub: 0.5 },
+      lead: { wave: "square", octave: 1, crush: 0.35, vol: 0.5, cutoff: 0.55, reso: 0.35 },
+      arp: { wave: "square", octave: 2, crush: 0.45, vol: 0.32 },
+    },
+    parts: [
+      P({ h: OFFHAT, b: "0...............", fx: { bass: { wob: 1 } } }),                                // 0: интро
+      P({ k: FOUR, s: "....x.......x.x.", h: HAT16, b: "0...............", a: "0.1.2.3.4.5.6.7.", fx: { bass: { wob: 0 } } }), // 1: разгон
+      P({ k: "x.........x.....", s: "........x.......", h: "..x...x...x...x.", c: "........x.......", b: "0...............", fx: { bass: { wob: 1 } } }),  // 2: гроул 1/4 (waaah)
+      P({ k: "x.........x.....", s: "........x.......", h: "..x...x...x...x.", c: "........x.......", b: "3...............", fx: { bass: { wob: 2 } } }),  // 3: гроул 1/8
+      P({ k: "x.....x.x.......", s: "........x.......", h: HAT8, c: "........x.......", b: "0...............", fx: { bass: { wob: 4 } } }),                 // 4: гроул 1/16 (wobwob)
+      P({ k: "x.........x.....", s: "........x.......", h: "..x...x...x...x.", c: "........x.......", b: "2...5...........", fx: { bass: { wob: 3 } } }),  // 5: гроул 1/8T
+      P({ h: OFFHAT, b: "5.......5.......", l: "7...5...4...5...", fx: { bass: { wob: 2 } } }),          // 6: брейк-мелодия
+      P({ k: "x.......x.......", h: "x.......x.......", b: "0...............", fx: { bass: { wob: 1 } } }), // 7: аутро
+    ],
+    // ~1:35 — гроул-секвенция дропа: 1/4 → 1/8 → 1/16 → триоль
+    song: seq([0, 0], rep([1], 4), [2, 2, 3, 3, 4, 4, 5, 4], [6, 6], rep([1], 2), [2, 3, 4, 5, 4, 4, 2, 3], [6, 6], [2, 2, 3, 3, 4, 4, 4, 4], [4, 4, 5, 5, 4, 4, 4, 4], [6, 6], [2, 3, 4, 5, 4, 3, 2, 4], [7, 7]),
+  },
 ];
 
 // Merge a preset onto a track object in place (keeps name; overwrites musical
@@ -308,13 +335,18 @@ export function applyPreset(track, preset) {
     s.mute = false;
   }
   // deep-copy parts so edits never mutate the preset itself
-  track.parts = preset.parts.map((pt) => ({
-    drums: {
-      kick: pt.drums.kick.slice(), snare: pt.drums.snare.slice(),
-      hat: pt.drums.hat.slice(), clap: pt.drums.clap.slice(),
-    },
-    notes: { bass: pt.notes.bass.slice(), lead: pt.notes.lead.slice(), arp: pt.notes.arp.slice() },
-  }));
+  track.parts = preset.parts.map((pt) => {
+    const np = {
+      drums: {
+        kick: pt.drums.kick.slice(), snare: pt.drums.snare.slice(),
+        hat: pt.drums.hat.slice(), clap: pt.drums.clap.slice(),
+      },
+      notes: { bass: pt.notes.bass.slice(), lead: pt.notes.lead.slice(), arp: pt.notes.arp.slice() },
+    };
+    if (pt.fx) np.fx = JSON.parse(JSON.stringify(pt.fx));
+    return np;
+  });
   track.song = preset.song.slice();
+  track.sidechain = preset.sidechain != null ? preset.sidechain : 0; // reset unless preset sets it
   return track;
 }

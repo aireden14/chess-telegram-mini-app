@@ -93,6 +93,7 @@ export function defaultTrack() {
     seed: 1,
     root: 57, // A3
     scale: "minorPentatonic",
+    sidechain: 0, // 0..1 — synths duck under each kick (pump)
     drumVol: { kick: 1, snare: 0.9, hat: 0.55, clap: 0.8 },
     drumMute: { kick: false, snare: false, hat: false, clap: false },
     synths: {
@@ -120,6 +121,7 @@ export function normalizeTrack(raw) {
   t.seed = Number.isFinite(raw.seed) ? raw.seed | 0 : t.seed;
   t.root = clampNum(raw.root, 24, 84, t.root) | 0;
   t.scale = SCALES[raw.scale] ? raw.scale : t.scale;
+  t.sidechain = clampNum(raw.sidechain, 0, 1, t.sidechain != null ? t.sidechain : 0);
   if (raw.drumVol) for (const id of DRUM_IDS) t.drumVol[id] = clampNum(raw.drumVol[id], 0, 1.5, t.drumVol[id]);
   if (raw.drumMute) for (const id of DRUM_IDS) t.drumMute[id] = !!raw.drumMute[id];
   if (raw.synths)
@@ -153,6 +155,23 @@ export function normalizeTrack(raw) {
     if (rp && typeof rp === "object") {
       if (rp.drums) for (const id of DRUM_IDS) p.drums[id] = clampRow(rp.drums[id], 0);
       if (rp.notes) for (const id of SYNTH_IDS) p.notes[id] = clampRow(rp.notes[id], -1);
+      // optional per-part synth overrides (wob/cutoff/drive/wave) — the brostep
+      // "growl sequence": each section can wobble at a different rate.
+      if (rp.fx && typeof rp.fx === "object") {
+        const fx = {};
+        for (const id of SYNTH_IDS) {
+          const f = rp.fx[id];
+          if (!f || typeof f !== "object") continue;
+          const o = {};
+          if (f.wob != null) o.wob = clampNum(f.wob, 0, 16, 0);
+          if (f.cutoff != null) o.cutoff = clampNum(f.cutoff, 0, 1, 0.5);
+          if (f.drive != null) o.drive = clampNum(f.drive, 0, 1, 0);
+          if (f.reso != null) o.reso = clampNum(f.reso, 0, 1, 0);
+          if (WAVES.includes(f.wave)) o.wave = f.wave;
+          if (Object.keys(o).length) fx[id] = o;
+        }
+        if (Object.keys(fx).length) p.fx = fx;
+      }
     }
     return p;
   });
@@ -228,18 +247,37 @@ export function renderLoop(rawTrack, sampleRate, opts) {
       dst[idx] += buf[i];
     }
   };
-  const place = (start, buf, pan) => {
-    const lg = Math.min(1, 1 - pan) * 0.5 + 0.5; // pan -1 → left 1
-    const rg = Math.min(1, 1 + pan) * 0.5 + 0.5;
-    // simpler equal-ish law:
-    const l = (1 - Math.max(0, pan)) ;
+  const place = (start, buf, pan, duckArr) => {
+    const l = (1 - Math.max(0, pan));
     const r = (1 + Math.min(0, pan));
     for (let i = 0; i < buf.length; i++) {
       const idx = (start + i) % frames;
-      left[idx] += buf[i] * l;
-      right[idx] += buf[i] * r;
+      const d = duckArr ? duckArr[idx] : 1;
+      left[idx] += buf[i] * l * d;
+      right[idx] += buf[i] * r * d;
     }
   };
+
+  // sidechain: build a duck envelope from kick hits so synths pump under the kick
+  let duckEnv = null;
+  if (t.sidechain > 0 && !t.drumMute.kick) {
+    duckEnv = new Float32Array(frames).fill(1);
+    const amount = t.sidechain;
+    const dipLen = Math.max(1, Math.floor(secPer16 * 2 * sampleRate)); // ~1/8-note recovery
+    for (let si = 0; si < song.length; si++) {
+      const krow = t.parts[song[si]].drums.kick;
+      const off = si * STEPS;
+      for (let i = 0; i < STEPS; i++) {
+        if (!krow[i]) continue;
+        const kt = Math.floor(stepTime(off + i) * sampleRate);
+        for (let j = 0; j < dipLen; j++) {
+          const idx = (kt + j) % frames;
+          const f = (1 - amount) + amount * (j / dipLen); // dip to (1-amount), recover
+          if (f < duckEnv[idx]) duckEnv[idx] = f;
+        }
+      }
+    }
+  }
 
   const drumPan = { kick: 0, snare: 0.05, hat: -0.25, clap: 0.2 };
   const ladder = scaleLadder(t.scale, t.root, 8);
@@ -280,8 +318,10 @@ export function renderLoop(rawTrack, sampleRate, opts) {
         const midi = ladder[rowIdx] + s.octave * 12;
         const start = Math.floor(stepTime(off + i) * sampleRate);
         const durSec = len * secPer16 * (id === "bass" ? 0.95 : id === "lead" ? 0.9 : 0.6);
-        const buf = renderVoice(id, s, midiToFreq(midi), durSec, sampleRate, start / sampleRate, t.bpm);
-        place(start, buf, synthPan[id]);
+        // per-part FX override (wob/cutoff/drive/reso/wave) merged over the synth
+        const eff = part.fx && part.fx[id] ? Object.assign({}, s, part.fx[id]) : s;
+        const buf = renderVoice(id, eff, midiToFreq(midi), durSec, sampleRate, start / sampleRate, t.bpm);
+        place(start, buf, synthPan[id], duckEnv);
       }
     }
   }

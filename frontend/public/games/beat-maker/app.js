@@ -260,7 +260,9 @@ function renderSongPanel() {
     refreshLoop(); renderSongPanel();
   };
   const dur = el("span", "song-dur", "⏱ " + fmtDur(songDurationSec(track.song.length)));
-  songCtl.append(addBtn, dblBtn, modeBtn, dur);
+  const sc = labeledRange("Сайдчейн", 0, 1, 0.05, track.sidechain || 0, (v) => { track.sidechain = v; persist(); refreshLoop(); });
+  sc.title = "Синты «дышат» под кик (пампинг)";
+  songCtl.append(addBtn, dblBtn, modeBtn, dur, sc);
 }
 
 function renderTransport() {
@@ -371,6 +373,33 @@ function renderPianoRoll() {
   const detune = labeledRange("Детюн", 0, 1, 0.05, s.detune, (v) => { s.detune = v; persist(); refreshLoop(); });
   const sub = labeledRange("Саб", 0, 1, 0.05, s.sub, (v) => { s.sub = v; persist(); refreshLoop(); });
   ctl2.append(cutoff, reso, wobSel, wobDepth, wobShape, drive, detune, sub);
+
+  // per-part wob override — the brostep "growl sequence": each part can wobble
+  // at its own rate independent of the synth's base wob.
+  const pf = curPart().fx && curPart().fx[activeSynth];
+  const partWob = pf && pf.wob != null ? String(pf.wob) : "";
+  const partWobSel = labeledSelectVals(
+    "Вобл части " + (PART_LETTERS[activePart] || activePart + 1),
+    [{ value: "", label: "— как синт —" }].concat(WOB_RATES.map((r) => ({ value: String(r.v), label: r.label }))),
+    partWob,
+    (v) => {
+      const part = curPart();
+      if (v === "") {
+        if (part.fx && part.fx[activeSynth]) {
+          delete part.fx[activeSynth].wob;
+          if (!Object.keys(part.fx[activeSynth]).length) delete part.fx[activeSynth];
+          if (!Object.keys(part.fx).length) delete part.fx;
+        }
+      } else {
+        part.fx = part.fx || {};
+        part.fx[activeSynth] = part.fx[activeSynth] || {};
+        part.fx[activeSynth].wob = parseFloat(v);
+      }
+      persist(); refreshLoop();
+    }
+  );
+  partWobSel.classList.add("part-wob");
+  ctl2.append(partWobSel);
 }
 
 function renderScaleBar() {
