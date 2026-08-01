@@ -87,6 +87,8 @@
   .stats{display:flex;gap:14px;justify-content:center;font-size:12px;
     color:var(--muted);flex-wrap:wrap}
   .stats b{color:var(--ink)}
+  .stats .clock{cursor:pointer}
+  .stats .clock:active{opacity:.6}
   .stats .mist b{color:var(--danger)}
 
   /* ---------- board ---------- */
@@ -138,6 +140,14 @@
     border-radius:8px;z-index:5;text-align:center;padding:20px;animation:fade .4s;
   }
   .overlay.show{display:flex}
+  .pausecover{
+    position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:14px;background:var(--bg);border-radius:8px;z-index:6;
+    border:3px solid var(--thick);
+  }
+  .pausecover.show{display:flex}
+  .pausecover .z{font-size:44px}
+  .pausecover .t{color:var(--muted);font-size:12px;letter-spacing:2px}
   @keyframes fade{from{opacity:0}to{opacity:1}}
   .overlay .big{font-size:52px;margin-bottom:4px;
     background:var(--photo2);border-radius:12px;padding:6px 14px}
@@ -166,17 +176,20 @@
   .sus .ico{font-size:clamp(14px,4.8vw,22px);line-height:1;
     background:var(--photo);border-radius:4px;padding:2px 3px}
   .sus .cnt{position:absolute;bottom:1px;right:3px;font-size:9px;color:var(--muted)}
+  .sus .kb{position:absolute;top:1px;left:3px;font-size:8px;color:#5b5f6b}
+  .sus.pen{background:var(--accent);border-color:var(--accent2);box-shadow:0 0 0 2px var(--accent2)}
   .sus.done{opacity:.3}
   .sus.hl{background:var(--accent);border-color:var(--accent2)}
 
   /* ---------- actions ---------- */
-  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .actions{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
   .actions button{
     background:var(--panel);border:1px solid var(--line);color:var(--ink);
     font-family:var(--mono);padding:10px 4px;border-radius:9px;cursor:pointer;
-    font-size:10px;letter-spacing:.5px;display:flex;flex-direction:column;
-    align-items:center;gap:3px;
+    font-size:9px;letter-spacing:.3px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;min-height:52px;justify-content:center;
   }
+  .actions button:disabled{opacity:.3}
   .actions button:active{background:var(--panel2)}
   .actions button .k{font-size:16px}
   .actions button.on{background:var(--accent);color:#1a1408;border-color:var(--accent)}
@@ -218,6 +231,15 @@
     padding:3px 5px;line-height:1}
   .dos .nm{font-size:12px;color:var(--ink)}
   .dos .rl{font-size:10px;color:var(--muted)}
+  .rec{display:flex;justify-content:space-between;align-items:center;
+    border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:7px;
+    background:rgba(0,0,0,.18);font-size:12px}
+  .rec .rn{color:var(--accent2);letter-spacing:1px}
+  .rec .rv{color:var(--muted);font-size:11px;text-align:right;line-height:1.5}
+  .seg2{display:flex;gap:6px;margin-bottom:10px}
+  .seg2 button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    font-family:var(--mono);font-size:11px;padding:9px 4px;border-radius:8px;cursor:pointer}
+  .seg2 button.on{background:var(--accent);color:#1a1408;font-weight:bold}
   .toggle{display:flex;align-items:center;justify-content:space-between;
     border:1px solid var(--line);border-radius:9px;padding:10px 12px;
     margin-bottom:8px;background:rgba(0,0,0,.18);cursor:pointer}
@@ -253,8 +275,8 @@
   </div>
 
   <div class="stats">
-    <span>⏱ <b id="timer">00:00</b></span>
-    <span class="mist">✖ Промахов: <b id="mistakes">0</b></span>
+    <span class="clock" id="clockBtn" title="Пауза">⏱ <b id="timer">00:00</b></span>
+    <span class="mist">✖ Промахи: <b id="mistakes">0</b></span>
     <span>🔍 Улик: <b id="hintsUsed">0</b></span>
   </div>
 
@@ -267,12 +289,19 @@
       <div class="role" id="ovRole">—</div>
       <p id="ovText"></p>
       <button class="btn" id="ovBtn">СЛЕДУЮЩЕЕ ДЕЛО →</button>
+      <button class="btn ghost" id="ovBtn2" style="margin-top:8px;display:none">↺ ЗАНОВО ЭТО ДЕЛО</button>
+    </div>
+    <div class="pausecover" id="pauseCover">
+      <div class="z">🚬</div>
+      <div class="t">ПЕРЕРЫВ НА СИГАРЕТУ</div>
+      <button class="btn" id="resumeBtn">ПРОДОЛЖИТЬ</button>
     </div>
   </div>
 
   <div class="palette" id="palette"></div>
 
   <div class="actions">
+    <button id="undoBtn"><span class="k">↶</span>ОТМЕНА</button>
     <button id="notesBtn"><span class="k">✎</span>ЗАМЕТКИ</button>
     <button id="eraseBtn"><span class="k">⌫</span>СТЕРЕТЬ</button>
     <button id="hintBtn"><span class="k">🔍</span>УЛИКА</button>
@@ -291,16 +320,35 @@
     <div class="sub">Дело №<span id="mCaseNo">000</span></div>
     <div class="row" style="flex-direction:column;gap:8px;margin-top:0">
       <button class="btn ghost" id="newCaseBtn">◆ НОВОЕ ДЕЛО</button>
+      <button class="btn ghost" id="restartBtn">↺ НАЧАТЬ ЭТО ДЕЛО ЗАНОВО</button>
+      <button class="btn ghost" id="fillNotesBtn">✎ РАССТАВИТЬ ВСЕ ПОМЕТКИ</button>
+      <button class="btn ghost" id="recordsBtn">🏅 РЕКОРДЫ</button>
       <button class="btn ghost" id="dossierBtn">🗂 ДОСЬЕ ПОДОЗРЕВАЕМЫХ</button>
       <button class="btn ghost" id="howBtn">❓ КАК ИГРАТЬ</button>
       <button class="btn ghost" id="newsBtn">🆕 Что нового</button>
     </div>
-    <div class="toggle" id="assistTgl" style="margin-top:14px">
+
+    <div class="sub" style="margin:16px 0 8px">НАСТРОЙКИ СЛЕДСТВИЯ</div>
+    <div class="toggle" id="assistTgl">
       <div>
-        <div class="t">Помощь следствия</div>
-        <div class="d">Подсвечивать ошибочные улики красным</div>
+        <div class="t">Автопроверка ошибок</div>
+        <div class="d">Сразу краснит улику, если она не та. Выключишь — краснеют только двойники в строке, столбце и секторе, а промахи не считаются</div>
       </div>
       <div class="sw"></div>
+    </div>
+    <div class="toggle" id="penTgl">
+      <div>
+        <div class="t">Сначала подозреваемый</div>
+        <div class="d">Выбрать фигуру и расставлять её по клеткам подряд</div>
+      </div>
+      <div class="sw"></div>
+    </div>
+    <div style="margin:10px 0 4px;font-size:11px;color:var(--muted);letter-spacing:1px">
+      ЛИМИТ ПРОМАХОВ <span style="color:#5b5f6b">— на третьем дело закроют без тебя</span>
+    </div>
+    <div class="seg2" id="limitSeg">
+      <button data-l="3">3</button><button data-l="5">5</button>
+      <button data-l="10">10</button><button data-l="0">∞</button>
     </div>
     <div class="row">
       <button class="btn" data-close="menuModal">ЗАКРЫТЬ</button>
@@ -322,6 +370,18 @@
   </div>
 </div>
 
+<!-- ===== РЕКОРДЫ ===== -->
+<div class="modal" id="recordsModal">
+  <div class="sheet">
+    <h3>🏅 Рекорды</h3>
+    <div class="sub">Раскрытые дела по уровням</div>
+    <div id="recordsBody"></div>
+    <div class="row">
+      <button class="btn" data-close="recordsModal">НАЗАД</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== ДОСЬЕ ===== -->
 <div class="modal" id="dossierModal">
   <div class="sheet">
@@ -340,12 +400,17 @@
     <h3>❓ КАК ИГРАТЬ</h3>
     <div class="sub">Судоку для тех, кто ищет виновного</div>
     <p><b style="color:var(--accent2)">Правило одно.</b> В каждой строке, каждом столбце и каждом квадрате 3×3 каждый из девяти подозреваемых встречается ровно один раз.</p>
-    <p><b style="color:var(--accent2)">Место преступления ⚑.</b> Одна клетка на доске помечена флажком. Тот подозреваемый, который окажется в ней при верном решении, и есть убийца. Пока сетка не сошлась — имя неизвестно.</p>
+    <p><b style="color:var(--accent2)">Место преступления ⚑.</b> Одна клетка на доске помечена флажком. Тот подозреваемый, который окажется в ней при верном решении, и есть убийца. Клетка опечатана: следствие ничего о ней не подскажет, пока сетка не сойдётся целиком — подобрать имя перебором не выйдет.</p>
     <p><b style="color:var(--accent2)">Как ставить.</b> Коснитесь клетки, затем — фотографии подозреваемого внизу. Повторное касание того же убирает его из клетки.</p>
     <p><b style="color:var(--accent2)">✎ Заметки.</b> Режим карандаша: помечайте в клетке нескольких кандидатов сразу. При постановке улики пометки соседей чистятся сами.</p>
     <p><b style="color:var(--accent2)">🔍 Улика.</b> Следствие подскажет одну верную клетку — но это попадёт в отчёт.</p>
     <p><b style="color:var(--accent2)">✓ Сверка.</b> Проверяет уже расставленное на ошибки, ничего не подсказывая.</p>
-    <p style="color:#6b6f7d">С клавиатуры: 1–9 — подозреваемые, стрелки — перемещение, Del — стереть, N — заметки, H — улика.</p>
+    <p><b style="color:var(--accent2)">↶ Отмена.</b> Возвращает и улику, и стёртые пометки. Промах она не отменяет — за ошибку всё равно придётся отвечать.</p>
+    <p><b style="color:var(--accent2)">Промахи.</b> Улика, не совпавшая с истиной, идёт в счёт: на третьей дело передадут другому следователю (лимит меняется в меню, вплоть до «без лимита»). Расклад при этом сохраняется — можно взяться за то же дело заново.</p>
+    <p><b style="color:var(--accent2)">Двойники.</b> Если один и тот же подозреваемый оказался дважды в строке, столбце или секторе — обе клетки краснеют всегда. Это вы могли заметить и сами. А вот сверку с истиной («Автопроверка ошибок») можно отключить в меню и вести дело вчистую.</p>
+    <p><b style="color:var(--accent2)">Перерыв.</b> Нажмите на таймер — часы встанут, доска скроется.</p>
+    <p><b style="color:var(--accent2)">Каждое дело решаемо.</b> Расклад строится так, что до истины всегда можно дойти рассуждением. Угадывать не требуется никогда.</p>
+    <p style="color:#6b6f7d">С клавиатуры: 1–9 — подозреваемые (номер виден на карточке), стрелки — перемещение, Del — стереть, N — заметки, H — улика, Z — отмена, Y — вернуть, P — пауза.</p>
     <div class="row">
       <button class="btn" data-close="howModal">ПОНЯЛ</button>
     </div>
@@ -496,15 +561,30 @@ var VERDICTS = [
 
 var LEGEND_TEXT = 'Девять подозреваемых нужно расставить так, чтобы в каждой строке, каждом столбце и каждом квадрате 3×3 никто не повторялся.<br>Клетка с флажком <b>⚑</b> — место преступления: кто окажется в ней в верном решении, <b>тот и убийца</b>.';
 
+/* adv=false — хватает одиночек; adv=true — нужны пары/pointing.
+   floor — до скольких подсказок копаем (0 = так глубоко, как позволяет логика). */
 var DIFFS = [
-  {id:"easy",   name:"ЯСНОЕ ДЕЛО",  clues:40},
-  {id:"medium", name:"ТУМАН",       clues:32},
-  {id:"hard",   name:"ПЕРЕУЛОК",    clues:27},
-  {id:"evil",   name:"ВИСЯК",       clues:23}
+  {id:"easy",   name:"ЯСНОЕ ДЕЛО",  adv:false, floor:40},
+  {id:"medium", name:"ТУМАН",       adv:false, floor:34},
+  {id:"hard",   name:"ПЕРЕУЛОК",    adv:true,  floor:27},
+  {id:"evil",   name:"ВИСЯК",       adv:true,  floor:0}
 ];
+function diffById(id){
+  for(var i=0;i<DIFFS.length;i++) if(DIFFS[i].id===id) return DIFFS[i];
+  return DIFFS[1];
+}
 
 /* ============ ЧТО НОВОГО ============ */
 var CHANGELOG = [
+  {d:"1 августа 2026, 09:30 (Алматы) — v1.1 «По правилам классики»", t:[
+    "🧠 Главное: генератор теперь проверяет, что дело раскрывается ЛОГИКОЙ. Раньше больше половины «Висяков» невозможно было пройти без угадывания — теперь таких нет ни одного.",
+    "↶ Появилась отмена хода: возвращает и улики, и пометки. Промахи она не отменяет — иначе ответ можно было бы выпытать перебором.",
+    "✖ Лимит промахов (3 по умолчанию, можно 5, 10 или без лимита): на последнем дело передадут другому следователю. Расклад сохраняется — можно взяться заново.",
+    "⚑ Место преступления опечатано: там не считается промах и не работает автопроверка, так что убийцу больше нельзя вычислить перебором девяти фигур.",
+    "🔴 Двойники в строке, столбце и секторе краснеют всегда — это игрок мог заметить и сам; сверку с решением можно выключить и играть вчистую.",
+    "🚬 Пауза по нажатию на таймер (доска прячется), рекорды по уровням с отметкой «вчистую», «начать это дело заново», расстановка всех пометок одной кнопкой.",
+    "🎯 Режим «сначала подозреваемый»: выбрал фигуру — расставляешь её по клеткам подряд."
+  ]},
   {d:"1 августа 2026, 02:06 (Алматы) — v1.0 «Тёмный Вяз»", t:[
     "🕵️ Премьера «Мурдоку» в GamePass: детективная судоку, где девять подозреваемых расставляются по клеткам, а под флажком ⚑ проявляется убийца.",
     "🗂 30 самостоятельных дел — от оранжереи и часовой башни до ночного экспресса и порта; дела не повторяются, пока не пройдёте все.",
@@ -594,28 +674,138 @@ function countSolutions(grid, limit){
   return count;
 }
 
-function digOnce(cluesTarget){
+/* ---- зоны, соседи ---- */
+var UNITS=(function(){
+  var u=[],r,c,i,j,a;
+  for(r=0;r<9;r++){a=[];for(c=0;c<9;c++)a.push(r*9+c);u.push(a);}
+  for(c=0;c<9;c++){a=[];for(r=0;r<9;r++)a.push(r*9+c);u.push(a);}
+  for(var br=0;br<9;br+=3)for(var bc=0;bc<9;bc+=3){
+    a=[];for(i=0;i<3;i++)for(j=0;j<3;j++)a.push((br+i)*9+bc+j);u.push(a);
+  }
+  return u;
+})();
+var IN_UNIT=(function(){                       // быстрая проверка «клетка в зоне»
+  var m=[];
+  for(var ui=0;ui<27;ui++){ var f=new Uint8Array(81); UNITS[ui].forEach(function(i){f[i]=1;}); m.push(f); }
+  return m;
+})();
+var PEERS=(function(){
+  var p=[],i,ui;
+  for(i=0;i<81;i++){
+    var seen=new Uint8Array(81), list=[];
+    for(ui=0;ui<27;ui++) if(IN_UNIT[ui][i]) UNITS[ui].forEach(function(j){
+      if(j!==i && !seen[j]){ seen[j]=1; list.push(j); }
+    });
+    p.push(list);
+  }
+  return p;
+})();
+
+/* Решатель ЧЕЛОВЕЧЕСКОЙ логикой: одиночки, скрытые одиночки и — если разрешено —
+   pointing-пары и голые пары. Головоломка, которую он проходит, гарантированно
+   решается без угадывания (и заодно единственна). Возвращает {ok, hardest}. */
+function logicSolve(grid, advanced){
+  var val=new Array(81), cand=new Array(81), i, j, k, v, m, empty=0;
+  for(i=0;i<81;i++){ val[i]=grid[(i/9)|0][i%9]; if(!val[i]) empty++; }
+  for(i=0;i<81;i++) cand[i]= val[i] ? 0 : 0x3FE;
+  for(i=0;i<81;i++) if(val[i]){
+    m=1<<val[i];
+    for(k=0;k<PEERS[i].length;k++){
+      j=PEERS[i][k];
+      if(val[j]===val[i]) return {ok:false, hardest:9};
+      cand[j]&=~m;
+    }
+  }
+  function assign(idx,value){
+    val[idx]=value; cand[idx]=0; empty--;
+    var mm=1<<value, q;
+    for(q=0;q<PEERS[idx].length;q++) cand[PEERS[idx][q]]&=~mm;
+  }
+  var hardest=0, guard=0;
+  while(empty>0 && guard++<400){
+    var moved=false, u, ui;
+    for(i=0;i<81;i++){
+      if(val[i]) continue;
+      if(cand[i]===0) return {ok:false, hardest:9};
+      if(popcount(cand[i])===1){ assign(i,31-Math.clz32(cand[i])); moved=true; hardest=Math.max(hardest,1); }
+    }
+    if(moved) continue;
+    for(ui=0; ui<27 && !moved; ui++){          // скрытые одиночки
+      u=UNITS[ui];
+      for(v=1;v<=9;v++){
+        m=1<<v; var spot=-1, cnt=0, placed=false;
+        for(k=0;k<9;k++){
+          if(val[u[k]]===v){ placed=true; break; }
+          if(cand[u[k]]&m){ cnt++; spot=u[k]; }
+        }
+        if(placed) continue;
+        if(cnt===0) return {ok:false, hardest:9};
+        if(cnt===1){ assign(spot,v); moved=true; hardest=Math.max(hardest,1); break; }
+      }
+    }
+    if(moved) continue;
+    if(!advanced) break;
+    for(ui=18; ui<27 && !moved; ui++){          // pointing: блок → линия
+      u=UNITS[ui];
+      for(v=1;v<=9;v++){
+        m=1<<v; var rr=-1, cc=-1, oneRow=true, oneCol=true, any=false;
+        for(k=0;k<9;k++){
+          if(!(cand[u[k]]&m)) continue;
+          any=true;
+          var pr=(u[k]/9)|0, pcx=u[k]%9;
+          if(rr<0) rr=pr; else if(rr!==pr) oneRow=false;
+          if(cc<0) cc=pcx; else if(cc!==pcx) oneCol=false;
+        }
+        if(!any) continue;
+        if(oneRow) for(k=0;k<9;k++){ j=rr*9+k; if(!IN_UNIT[ui][j] && (cand[j]&m)){ cand[j]&=~m; moved=true; } }
+        if(oneCol) for(k=0;k<9;k++){ j=k*9+cc; if(!IN_UNIT[ui][j] && (cand[j]&m)){ cand[j]&=~m; moved=true; } }
+        if(moved){ hardest=Math.max(hardest,2); break; }
+      }
+    }
+    if(moved) continue;
+    for(ui=0; ui<27 && !moved; ui++){           // голые пары
+      u=UNITS[ui];
+      for(var a=0;a<9 && !moved;a++) for(var b=a+1;b<9;b++){
+        var ia=u[a], ib=u[b];
+        if(val[ia]||val[ib]) continue;
+        if(cand[ia]!==cand[ib] || popcount(cand[ia])!==2) continue;
+        for(k=0;k<9;k++){
+          j=u[k];
+          if(j===ia||j===ib||val[j]) continue;
+          if(cand[j]&cand[ia]){ cand[j]&=~cand[ia]; moved=true; }
+        }
+        if(moved){ hardest=Math.max(hardest,2); break; }
+      }
+    }
+    if(!moved) break;
+  }
+  return {ok:empty===0, hardest:hardest};
+}
+
+/* Копаем клетки, пока головоломка остаётся решаемой логикой.
+   Раньше критерием была лишь единственность решения — и больше половины
+   «висяков» невозможно было пройти без угадывания. */
+function digOnce(diff){
   var solved=emptyGrid(); fillGrid(solved);
   var puzzle=deepCopy(solved);
   var order=shuffle(Array.apply(null,{length:81}).map(function(_,i){return i;}));
-  var left=81, i, idx, r, c, backup;
+  var left=81, i, idx, r, c, backup, res, hardest=0;
   for(i=0;i<order.length;i++){
-    if(left<=cluesTarget) break;
+    if(left<=diff.floor) break;
     idx=order[i]; r=(idx/9)|0; c=idx%9;
     backup=puzzle[r][c]; puzzle[r][c]=0;
-    if(countSolutions(puzzle,2)!==1) puzzle[r][c]=backup;
-    else left--;
+    res=logicSolve(puzzle, diff.adv);
+    if(!res.ok) puzzle[r][c]=backup;
+    else { left--; hardest=res.hardest; }
   }
-  return {solved:solved, puzzle:puzzle, clues:left};
+  return {solved:solved, puzzle:puzzle, clues:left, hardest:hardest};
 }
-/* Один проход копки застревает выше цели (на «висяке» — на 24-28 подсказках):
-   какая клетка снимется, зависит от порядка. Пробуем заново, храня лучший результат. */
-function generatePuzzle(cluesTarget){
+function generatePuzzle(diff){
   var best=null;
-  for(var a=0;a<16;a++){
-    var g=digOnce(cluesTarget);
+  for(var a=0;a<10;a++){
+    var g=digOnce(diff);
     if(!best || g.clues<best.clues) best=g;
-    if(best.clues<=cluesTarget) break;
+    if(best.clues<=diff.floor) break;
   }
   return best;
 }
@@ -625,7 +815,15 @@ var SAVE_KEY = "murdoku:v1";
 var solved, puzzle, given, cur, notes, sceneCell;
 var selected=null, notesMode=false, solvedFlag=false, busy=false;
 var mistakes=0, hintsUsed=0, elapsed=0, tickInt=null, lastTick=0;
-var caseIdx=0, caseBag=[], caseNo=0, curDiff="medium", assist=true;
+var caseIdx=0, caseBag=[], caseNo=0, curDiff="medium";
+var autoCheck=true;          // краснить улику, не совпавшую с решением
+var mistakeLimit=3;          // 0 = без лимита
+var lost=false, paused=false;
+var inputMode="cell";        // "cell" — клетка, потом фигура; "digit" — наоборот
+var penValue=0;              // выбранная фигура в режиме «сначала подозреваемый»
+var undoStack=[], redoStack=[];   // стеки отмены/возврата
+var records={};              // рекорды по уровням, живут отдельно от партии
+var REC_KEY="murdoku:records:v1";
 
 var boardEl=document.getElementById("board");
 var paletteEl=document.getElementById("palette");
@@ -641,7 +839,8 @@ function save(){
       notes:notes.map(function(s){ return Array.from(s); }),
       mistakes:mistakes, hintsUsed:hintsUsed, elapsed:elapsed,
       caseIdx:caseIdx, caseNo:caseNo, caseBag:caseBag,
-      diff:curDiff, assist:assist, solvedFlag:solvedFlag
+      diff:curDiff, autoCheck:autoCheck, limit:mistakeLimit,
+      inputMode:inputMode, lost:lost, solvedFlag:solvedFlag
     }));
   }catch(e){}
 }
@@ -706,10 +905,53 @@ function load(){
       ? s.caseBag.filter(function(v){ return isInt(v,0,CASES.length-1); })
       : [];
     curDiff=DIFFS.some(function(d){ return d.id===s.diff; }) ? s.diff : "medium";
-    assist=(s.assist!==false);
+    autoCheck=(s.autoCheck!==false);
+    mistakeLimit=[0,3,5,10].indexOf(s.limit)>=0 ? s.limit : 3;
+    inputMode=(s.inputMode==="digit") ? "digit" : "cell";
     solvedFlag=!!s.solvedFlag && isComplete();  // «раскрыто» только если доска правда сошлась
+    lost=!solvedFlag && !!s.lost && autoCheck && mistakeLimit>0 && mistakes>=mistakeLimit;
+    undoStack=[]; redoStack=[];
     return true;
   }catch(e){ return false; }
+}
+
+/* ---------- отмена хода ----------
+   Снимок хранит только доску и пометки. Счётчик промахов НЕ откатывается —
+   иначе отменой можно было бы бесплатно перебирать фигуры и читать ответ. */
+function snapshot(){
+  return {
+    cur: cur.map(function(r){ return r.slice(); }),
+    notes: notes.map(function(n){ return Array.from(n); })
+  };
+}
+function applySnapshot(sn){
+  cur = sn.cur.map(function(r){ return r.slice(); });
+  notes = sn.notes.map(function(a){ return new Set(a); });
+}
+function pushHistory(){
+  undoStack.push(snapshot());
+  if(undoStack.length>250) undoStack.shift();
+  redoStack.length=0;
+}
+function undo(){
+  if(busy||paused||!undoStack.length) return;
+  redoStack.push(snapshot());
+  applySnapshot(undoStack.pop());
+  if(lost && mistakeLimit>0 && mistakes<mistakeLimit){ lost=false; startTimer(); }
+  el("overlay").classList.remove("show");
+  paint(); updateStats(); save(); haptic("light");
+}
+function redo(){
+  if(busy||paused||!redoStack.length) return;
+  undoStack.push(snapshot());
+  applySnapshot(redoStack.pop());
+  paint(); updateStats(); save(); checkWin();
+}
+function updateActions(){
+  el("undoBtn").disabled = !undoStack.length || solvedFlag || paused;
+  el("hintBtn").disabled = solvedFlag || lost || paused;
+  el("checkBtn").disabled = paused;
+  el("eraseBtn").disabled = solvedFlag || paused;
 }
 
 /* ---------- дела без повторов ---------- */
@@ -726,6 +968,17 @@ function nextCase(){
 }
 
 /* ============ НОВАЯ ПАРТИЯ ============ */
+function inProgress(){
+  if(!cur||solvedFlag||lost) return false;
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++)
+    if(!given[r][c] && cur[r][c]) return true;
+  return false;
+}
+function requestNewGame(diff){
+  if(inProgress() && !confirm("Бросить текущее дело? Прогресс не сохранится.")) return;
+  newGame(diff);
+}
+
 function newGame(diff){
   if(busy) return;
   curDiff = diff || curDiff;
@@ -735,9 +988,7 @@ function newGame(diff){
   el("overlay").classList.remove("show");
   // генерация «висяка» ощутимо считает — отдаём кадр отрисовке
   setTimeout(function(){
-    var clues=32, i;
-    for(i=0;i<DIFFS.length;i++) if(DIFFS[i].id===curDiff) clues=DIFFS[i].clues;
-    var gen=generatePuzzle(clues);
+    var i, gen=generatePuzzle(diffById(curDiff));
     solved=gen.solved; puzzle=gen.puzzle;
     cur=deepCopy(puzzle);
     given=puzzle.map(function(row){ return row.map(function(v){ return v!==0; }); });
@@ -747,10 +998,15 @@ function newGame(diff){
     for(var r=0;r<9;r++) for(var c=0;c<9;c++) if(!given[r][c]) empties.push([r,c]);
     sceneCell=empties[Math.floor(Math.random()*empties.length)];
     mistakes=0; hintsUsed=0; elapsed=0; selected=null; solvedFlag=false;
+    lost=false; paused=false; penValue=0; undoStack=[]; redoStack=[];
+    el("pauseCover").classList.remove("show");
+    el("ovBtn").textContent="СЛЕДУЮЩЕЕ ДЕЛО →";
+    el("ovBtn2").style.display="none";
     notesMode=false; el("notesBtn").classList.remove("on");
     nextCase(); caseNo++;
     busy=false;
     renderAll();
+    updateActions();
     startTimer();
     save();
   },30);
@@ -806,8 +1062,9 @@ function buildPalette(){
     e.className="sus"; e.title=s.name+" — "+s.role;
     e.setAttribute("role","button");
     e.setAttribute("aria-label",s.name+", "+s.role);
-    e.innerHTML='<span class="ico">'+s.ico+'</span><span class="cnt"></span>';
-    e.addEventListener("click",function(){ inputValue(v); });
+    e.innerHTML='<span class="kb">'+v+'</span><span class="ico">'+s.ico+
+                '</span><span class="cnt"></span>';
+    e.addEventListener("click",function(){ paletteTap(v); });
     paletteEl.appendChild(e);
   });
 }
@@ -819,8 +1076,8 @@ function updateDiffSeg(){
       var b=document.createElement("button");
       b.textContent=d.name; b.setAttribute("data-d",d.id);
       b.addEventListener("click",function(){
-        if(d.id===curDiff && !solvedFlag) return;
-        newGame(d.id);
+        if(d.id===curDiff && !solvedFlag && !lost) return;
+        requestNewGame(d.id);
       });
       seg.appendChild(b);
     });
@@ -830,7 +1087,20 @@ function updateDiffSeg(){
   });
 }
 
-function selectCell(r,c){ selected=[r,c]; paint(); }
+function paletteTap(v){
+  if(paused) return;
+  if(inputMode==="digit"){                 // копим фигуру и раскладываем её по клеткам
+    penValue = (penValue===v ? 0 : v);
+    paint(); haptic("light"); return;
+  }
+  inputValue(v);
+}
+function selectCell(r,c){
+  if(paused) return;
+  selected=[r,c];
+  if(inputMode==="digit" && penValue && !given[r][c]) inputValue(penValue);
+  else paint();
+}
 
 /* конфликт по правилам судоку (без подглядывания в решение) */
 function conflicts(r,c){
@@ -848,25 +1118,35 @@ function conflicts(r,c){
   return false;
 }
 
+function isScene(r,c){ return sceneCell[0]===r && sceneCell[1]===c; }
+
 function inputValue(v){
-  if(!selected||solvedFlag||busy) return;
+  if(!selected||solvedFlag||busy||lost||paused) return;
   var r=selected[0], c=selected[1];
   if(given[r][c]) return;
   if(notesMode){
     if(cur[r][c]!==0) return;
+    pushHistory();
     var s=notes[idx(r,c)];
     if(s.has(v)) s.delete(v); else s.add(v);
-    haptic("light"); paint(); save(); return;
+    haptic("light"); paint(); updateActions(); save(); return;
   }
+  pushHistory();
   if(cur[r][c]===v){ cur[r][c]=0; }
   else{
     cur[r][c]=v;
     notes[idx(r,c)].clear();
-    if(v!==solved[r][c]){ mistakes++; haptic("error"); }
-    else haptic("light");
+    // место преступления опечатано: там не считаем промах и не подсвечиваем,
+    // иначе убийцу можно было бы вычислить перебором девяти фигур
+    if(autoCheck && !isScene(r,c) && v!==solved[r][c]){
+      mistakes++; haptic("error");
+      if(mistakeLimit>0 && mistakes>=mistakeLimit){
+        updateStats(); paint(); save(); lose(); return;
+      }
+    } else haptic("light");
     clearPeerNotes(r,c,v);
   }
-  updateStats(); paint(); save(); checkWin();
+  updateStats(); paint(); updateActions(); save(); checkWin();
 }
 
 function clearPeerNotes(r,c,v){
@@ -876,11 +1156,13 @@ function clearPeerNotes(r,c,v){
 }
 
 function erase(){
-  if(!selected||solvedFlag||busy) return;
+  if(!selected||solvedFlag||busy||paused) return;
   var r=selected[0], c=selected[1];
   if(given[r][c]) return;
+  if(cur[r][c]===0 && notes[idx(r,c)].size===0) return;
+  pushHistory();
   cur[r][c]=0; notes[idx(r,c)].clear();
-  paint(); updateStats(); save();
+  paint(); updateStats(); updateActions(); save();
 }
 
 function peersOf(r,c){
@@ -904,7 +1186,10 @@ function paint(){
       e.innerHTML='<span class="g">'+SUSPECTS[v-1].ico+"</span>";
       if(!given[r][c]) e.classList.add("user");
       // без «помощи следствия» краснеет только явное нарушение правил судоку
-      var wrong = !given[r][c] && (assist ? v!==solved[r][c] : conflicts(r,c));
+      // двойник в строке/столбце/секторе виден всегда — это игрок мог заметить сам;
+      // сверка с решением — только при включённой автопроверке и не на месте преступления
+      var wrong = !given[r][c] && !isScene(r,c) &&
+                  (conflicts(r,c) || (autoCheck && v!==solved[r][c]));
       if(wrong) e.classList.add("bad");
     } else {
       var s=notes[idx(r,c)];
@@ -920,23 +1205,31 @@ function paint(){
       if(selected[0]===r&&selected[1]===c) e.classList.add("sel");
     }
   }
+  if(inputMode==="digit" && penValue) selV=penValue;
   var counts=[0,0,0,0,0,0,0,0,0,0];
   for(var r2=0;r2<9;r2++) for(var c2=0;c2<9;c2++) if(cur[r2][c2]) counts[cur[r2][c2]]++;
   Array.prototype.forEach.call(paletteEl.children,function(e,i){
     var v2=i+1, left=9-counts[v2];
     e.querySelector(".cnt").textContent = left>0 ? left : "";
     e.classList.toggle("done", counts[v2]>=9);
-    e.classList.toggle("hl", selV===v2 && selV!==0);
+    e.classList.toggle("hl", selV===v2 && selV!==0 && !(inputMode==="digit"&&penValue===v2));
+    e.classList.toggle("pen", inputMode==="digit" && penValue===v2);
   });
 }
 
 function hint(){
-  if(solvedFlag||busy) return;
+  if(solvedFlag||busy||lost||paused) return;
   var pool=[];
   for(var r=0;r<9;r++) for(var c=0;c<9;c++)
     if(!given[r][c] && cur[r][c]!==solved[r][c]) pool.push([r,c]);
   if(!pool.length) return;
-  var p=pool[Math.floor(Math.random()*pool.length)], rr=p[0], cc=p[1];
+  // если игрок стоит на неразгаданной клетке — подсказываем именно её
+  var p=null;
+  if(selected && !given[selected[0]][selected[1]] &&
+     cur[selected[0]][selected[1]]!==solved[selected[0]][selected[1]]) p=selected;
+  if(!p) p=pool[Math.floor(Math.random()*pool.length)];
+  pushHistory();
+  var rr=p[0], cc=p[1];
   cur[rr][cc]=solved[rr][cc];
   notes[idx(rr,cc)].clear();
   clearPeerNotes(rr,cc,solved[rr][cc]);
@@ -955,7 +1248,7 @@ function checkAll(){
   if(busy) return;
   var cells=boardEl.children, any=false;
   for(var r=0;r<9;r++) for(var c=0;c<9;c++){
-    if(!given[r][c] && cur[r][c]!==0 && cur[r][c]!==solved[r][c]){
+    if(!given[r][c] && !isScene(r,c) && cur[r][c]!==0 && cur[r][c]!==solved[r][c]){
       var e=cells[idx(r,c)];
       e.classList.remove("bad"); void e.offsetWidth; e.classList.add("bad");
       any=true;
@@ -969,14 +1262,99 @@ function checkAll(){
   checkTimer=setTimeout(function(){ btn.innerHTML=CHECK_LABEL; checkTimer=null; },1000);
 }
 
+function lose(){
+  lost=true; stopTimer();
+  el("ovIco").textContent="🚬";
+  el("ovTitle").textContent="ДЕЛО ЗАБРАЛИ";
+  el("ovCulprit").textContent="Слишком много ложных улик";
+  el("ovRole").textContent="";
+  el("ovText").innerHTML="Начальство передало расследование другому следователю: "+
+    mistakes+" ошибочных улик из "+mistakeLimit+".<br>Можно взяться за это же дело заново — расклад тот же.";
+  el("ovBtn").textContent="◆ НОВОЕ ДЕЛО";
+  el("ovBtn2").style.display="";
+  haptic("error"); save(); updateActions();
+  setTimeout(function(){ el("overlay").classList.add("show"); },300);
+}
+
+function restartCase(){
+  if(busy||!puzzle) return;
+  cur=deepCopy(puzzle);
+  notes=[]; for(var i=0;i<81;i++) notes.push(new Set());
+  undoStack=[]; redoStack=[];
+  mistakes=0; hintsUsed=0; elapsed=0;
+  solvedFlag=false; lost=false; paused=false; selected=null; penValue=0;
+  el("overlay").classList.remove("show");
+  el("pauseCover").classList.remove("show");
+  paint(); updateStats(); updateActions(); startTimer(); save();
+}
+
+function setPaused(on){
+  if(solvedFlag||lost||busy) return;
+  paused=!!on;
+  el("pauseCover").classList.toggle("show",paused);
+  if(paused) stopTimer(); else startTimer();
+  updateActions(); save();
+}
+
+/* кандидат допустим по правилам судоку (по видимой доске, не по решению) */
+function candidateOk(r,c,v){
+  for(var i=0;i<9;i++){ if(cur[r][i]===v||cur[i][c]===v) return false; }
+  var br=r-r%3, bc=c-c%3;
+  for(var a=0;a<3;a++) for(var b=0;b<3;b++) if(cur[br+a][bc+b]===v) return false;
+  return true;
+}
+function fillAllNotes(){
+  if(busy||solvedFlag||lost||paused) return;
+  pushHistory();
+  for(var r=0;r<9;r++) for(var c=0;c<9;c++){
+    if(given[r][c]||cur[r][c]) continue;
+    var st=notes[idx(r,c)]; st.clear();
+    for(var v=1;v<=9;v++) if(candidateOk(r,c,v)) st.add(v);
+  }
+  paint(); updateActions(); save(); haptic("medium");
+}
+
+/* ---------- рекорды (живут отдельно от партии) ---------- */
+function loadRecords(){
+  try{
+    var raw=localStorage.getItem(REC_KEY);
+    if(!raw) return;
+    var r=JSON.parse(raw);
+    if(r && typeof r==="object") records=r;
+  }catch(e){}
+}
+function saveRecords(){
+  try{ localStorage.setItem(REC_KEY,JSON.stringify(records)); }catch(e){}
+}
+function noteWin(){
+  var rec=records[curDiff]||{best:0,wins:0,perfect:0};
+  rec.wins=(rec.wins||0)+1;
+  if(!rec.best||elapsed<rec.best) rec.best=Math.round(elapsed);
+  if(mistakes===0 && hintsUsed===0) rec.perfect=(rec.perfect||0)+1;
+  records[curDiff]=rec; saveRecords();
+}
+function renderRecords(){
+  el("recordsBody").innerHTML=DIFFS.map(function(d){
+    var r=records[d.id]||{};
+    var v = r.wins
+      ? ("раскрыто дел: "+r.wins+"<br>лучшее время: "+fmt(r.best)+
+         "<br>вчистую (без промахов и улик): "+(r.perfect||0))
+      : "ещё ни одного дела";
+    return '<div class="rec"><span class="rn">'+d.name+'</span><span class="rv">'+v+"</span></div>";
+  }).join("");
+}
+
 function isComplete(){
   for(var r=0;r<9;r++) for(var c=0;c<9;c++) if(cur[r][c]!==solved[r][c]) return false;
   return true;
 }
 
 function checkWin(){
-  if(solvedFlag||!isComplete()) return;
-  solvedFlag=true; stopTimer();
+  if(solvedFlag||lost||!isComplete()) return;
+  solvedFlag=true; stopTimer(); noteWin();
+  el("ovTitle").textContent="ДЕЛО РАСКРЫТО";
+  el("ovBtn").textContent="СЛЕДУЮЩЕЕ ДЕЛО →";
+  el("ovBtn2").style.display="none";
   var sr=sceneCell[0], sc=sceneCell[1];
   var culprit=SUSPECTS[solved[sr][sc]-1];
   var verdict=VERDICTS[Math.floor(Math.random()*VERDICTS.length)].replace("{culprit}",culprit.name);
@@ -986,7 +1364,7 @@ function checkWin(){
   el("ovText").innerHTML=verdict+"<br><br>Время расследования: "+fmt(elapsed)+
     " · промахов: "+mistakes+" · улик: "+hintsUsed+".";
   haptic("success");
-  save();
+  save(); updateActions();
   setTimeout(function(){ el("overlay").classList.add("show"); },320);
 }
 
@@ -1009,7 +1387,8 @@ function startTimer(){
 }
 function stopTimer(){ if(tickInt){ clearInterval(tickInt); tickInt=null; } }
 function updateStats(){
-  el("mistakes").textContent=mistakes;
+  el("mistakes").textContent = !autoCheck ? "—"
+    : (mistakeLimit>0 ? (mistakes+"/"+mistakeLimit) : String(mistakes));
   el("hintsUsed").textContent=hintsUsed;
   el("timer").textContent=fmt(elapsed);
 }
@@ -1030,17 +1409,46 @@ Array.prototype.forEach.call(document.querySelectorAll(".modal"),function(m){
 });
 
 el("menuBtn").addEventListener("click",function(){ openModal("menuModal"); });
-el("newCaseBtn").addEventListener("click",function(){ closeModal("menuModal"); newGame(curDiff); });
+el("newCaseBtn").addEventListener("click",function(){ closeModal("menuModal"); requestNewGame(curDiff); });
+el("restartBtn").addEventListener("click",function(){
+  closeModal("menuModal");
+  if(inProgress() && !confirm("Начать это дело заново? Расставленные улики сотрутся.")) return;
+  restartCase();
+});
+el("fillNotesBtn").addEventListener("click",function(){ closeModal("menuModal"); fillAllNotes(); });
+el("recordsBtn").addEventListener("click",function(){ closeModal("menuModal"); renderRecords(); openModal("recordsModal"); });
 el("howBtn").addEventListener("click",function(){ closeModal("menuModal"); openModal("howModal"); });
 el("dossierBtn").addEventListener("click",function(){ closeModal("menuModal"); openModal("dossierModal"); });
 el("newsBtn").addEventListener("click",function(){ closeModal("menuModal"); openModal("newsModal"); });
-el("ovBtn").addEventListener("click",function(){ newGame(curDiff); });
+el("ovBtn").addEventListener("click",function(){ requestNewGame(curDiff); });
+el("ovBtn2").addEventListener("click",restartCase);
+el("undoBtn").addEventListener("click",undo);
+el("clockBtn").addEventListener("click",function(){ setPaused(!paused); });
+el("resumeBtn").addEventListener("click",function(){ setPaused(false); });
 
 el("assistTgl").addEventListener("click",function(){
-  assist=!assist;
-  this.classList.toggle("on",assist);
+  autoCheck=!autoCheck;
+  this.classList.toggle("on",autoCheck);
+  paint(); updateStats(); save();
+});
+el("penTgl").addEventListener("click",function(){
+  inputMode = (inputMode==="digit") ? "cell" : "digit";
+  penValue=0;
+  this.classList.toggle("on",inputMode==="digit");
   paint(); save();
 });
+el("limitSeg").addEventListener("click",function(e){
+  var b=e.target.closest("button"); if(!b) return;
+  mistakeLimit=parseInt(b.getAttribute("data-l"),10);
+  syncSettingsUI(); updateStats(); save();
+});
+function syncSettingsUI(){
+  el("assistTgl").classList.toggle("on",autoCheck);
+  el("penTgl").classList.toggle("on",inputMode==="digit");
+  Array.prototype.forEach.call(el("limitSeg").children,function(b){
+    b.classList.toggle("on", parseInt(b.getAttribute("data-l"),10)===mistakeLimit);
+  });
+}
 
 el("exitBtn").addEventListener("click",function(){
   save();
@@ -1067,6 +1475,9 @@ document.addEventListener("keydown",function(e){
   else if(e.key==="Backspace"||e.key==="Delete"||e.key==="0"){ erase(); }
   else if(e.key.toLowerCase()==="n"){ el("notesBtn").click(); }
   else if(e.key.toLowerCase()==="h"){ hint(); }
+  else if(e.key.toLowerCase()==="z"){ undo(); }
+  else if(e.key.toLowerCase()==="y"){ redo(); }
+  else if(e.key.toLowerCase()==="p"){ setPaused(!paused); }
   else if(selected){
     var r=selected[0], c=selected[1];
     if(e.key==="ArrowUp") r=(r+8)%9;
@@ -1095,20 +1506,24 @@ el("dossierBody").innerHTML=SUSPECTS.map(function(s){
 
 /* ============ СТАРТ ============ */
 (function boot(){
+  loadRecords();
   var restored=false;
   try{
     if(load()){
-      el("assistTgl").classList.toggle("on",assist);
+      syncSettingsUI();
       renderAll();
-      if(solvedFlag) checkWinReplay(); else startTimer();
+      updateActions();
+      if(solvedFlag) checkWinReplay();
+      else if(lost) lose();
+      else startTimer();
       restored=true;
     }
   }catch(e){
     try{ localStorage.removeItem(SAVE_KEY); }catch(e2){}
   }
   if(!restored){
-    assist=true;
-    el("assistTgl").classList.add("on");
+    autoCheck=true; mistakeLimit=3; inputMode="cell";
+    syncSettingsUI();
     updateDiffSeg();
     newGame("medium");
   }
@@ -1129,7 +1544,9 @@ window.MURDOKU = {
   state:function(){
     if(busy||!cur) return {busy:true};
     return {diff:curDiff, caseNo:caseNo, caseIdx:caseIdx, mistakes:mistakes,
-            hints:hintsUsed, solved:solvedFlag, assist:assist,
+            hints:hintsUsed, solved:solvedFlag, autoCheck:autoCheck,
+            limit:mistakeLimit, lost:lost, paused:paused, mode:inputMode,
+            undo:undoStack.length, redo:redoStack.length,
             scene:sceneCell.slice(),
             givens:given.reduce(function(a,row){return a+row.filter(Boolean).length;},0),
             filled:cur.reduce(function(a,row){return a+row.filter(Boolean).length;},0)};
@@ -1141,7 +1558,7 @@ window.MURDOKU = {
     var out=[], t0=Date.now();
     for(var k=0;k<rounds;k++){
       for(var d=0;d<DIFFS.length;d++){
-        var want=DIFFS[d].clues, g=generatePuzzle(want), errs=[];
+        var dd=DIFFS[d], g=generatePuzzle(dd), errs=[];
         var clues=0,r,c;
         for(r=0;r<9;r++) for(c=0;c<9;c++){
           if(g.puzzle[r][c]){
@@ -1163,9 +1580,11 @@ window.MURDOKU = {
         }
         var sols=countSolutions(g.puzzle,2);
         if(sols!==1) errs.push("решений не одно: "+sols);
-        // цель по подсказкам достигается не всегда точно — но промах больше 2 уже враньё в UI
-        if(clues>want+2) errs.push("подсказок "+clues+" при цели "+want);
-        out.push({diff:DIFFS[d].id, wantClues:want, gotClues:clues, unique:sols===1, errors:errs});
+        // главный инвариант: головоломку обязано быть возможно решить логикой
+        if(!logicSolve(g.puzzle,dd.adv).ok) errs.push("не решается без угадывания");
+        if(dd.floor && clues>dd.floor) errs.push("подсказок "+clues+" при пороге "+dd.floor);
+        out.push({diff:dd.id, floor:dd.floor, gotClues:clues, hardest:g.hardest,
+                  unique:sols===1, logic:true, errors:errs});
       }
     }
     var bad=out.filter(function(o){ return o.errors.length; });
