@@ -58,8 +58,26 @@
     cursor: pointer;
   }
   .hud-btn:active, .hud-btn.pressed { transform: scale(.92); filter: brightness(1.12); }
+  /* pulses the pedal that would level the car right now */
+  .hud-btn.hint { animation: pedalHint .5s ease-in-out infinite alternate; }
+  @keyframes pedalHint {
+    from { box-shadow: 0 6px 18px rgba(0,0,0,.28), inset 0 3px 8px rgba(255,255,255,.35), 0 0 0 0 rgba(255,255,255,.9); }
+    to   { box-shadow: 0 6px 18px rgba(0,0,0,.28), inset 0 3px 8px rgba(255,255,255,.35), 0 0 0 13px rgba(255,255,255,0); }
+  }
+  #goTip { font-size: 13px; opacity: .8; margin: -6px 0 10px; line-height: 1.4; display: none; }
   #brake { left: 22px; background: radial-gradient(circle at 40% 30%, #ff8a80, #e53935); }
   #gas   { right: 22px; background: radial-gradient(circle at 40% 30%, #b9f6ca, #2e9e3f); }
+  .hud-btn.mini { width: 62px; height: 62px; font-size: 26px; bottom: 132px; border-width: 3px; }
+  #horn { left: 37px; display: none;
+    background: radial-gradient(circle at 40% 30%, #ffe6ad, #ef9f18); }
+  #radioBtn {
+    position: fixed; top: calc(10px + env(safe-area-inset-top,0px)); right: 110px;
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(0,0,0,.28); color:#fff; z-index: 16; display:none;
+    align-items:center; justify-content:center; font-size:19px; cursor:pointer;
+    pointer-events:auto;
+  }
+  #radioBtn.off { opacity: .42; }
 
   .topbar {
     position: fixed; top: 0; left: 0; right: 0;
@@ -163,13 +181,16 @@
     font-size:19px; font-weight:800; color:#ffe680; margin-bottom:12px; }
   .bank .coin-ico { width:20px; height:20px; }
 
-  .modeseg { display:flex; gap:6px; background:rgba(0,0,0,.22); border-radius:14px;
+  .modeseg { display:flex; flex-wrap:wrap; gap:6px; background:rgba(0,0,0,.22); border-radius:14px;
     padding:5px; margin-bottom:14px; }
-  .modeseg .m { flex:1; text-align:center; padding:9px 6px; border-radius:10px; cursor:pointer;
-    font-weight:700; font-size:14px; color:#cfd8e3; transition:.15s; }
+  .modeseg .m { flex:1; min-width:0; text-align:center; padding:9px 6px; border-radius:10px; cursor:pointer;
+    font-weight:700; font-size:13px; color:#cfd8e3; transition:.15s; }
+  .modeseg .m.wide { flex-basis:100%; }
   .modeseg .m .sub { font-size:10px; opacity:.7; font-weight:600; display:block; margin-top:2px; }
   .modeseg .m.on { background:linear-gradient(180deg,#7fd0ff,#3a9be0); color:#04263c;
     box-shadow:0 4px 12px rgba(58,155,224,.4); }
+  .modeseg .m.wide.on { background:linear-gradient(180deg,#8de0b4,#2fa36b); color:#04301e;
+    box-shadow:0 4px 12px rgba(47,163,107,.4); }
 
   #questChip {
     position: fixed; top: calc(58px + env(safe-area-inset-top,0px)); left: 50%;
@@ -220,14 +241,16 @@
     <div class="fuel-wrap"><div id="fuelBar"></div></div>
     <div class="coins"><span class="coin-ico"></span><span id="coinCount">0</span></div>
   </div>
-  <div class="stat"><div class="big"><span id="dist">0</span> м</div><div class="sub">РЕКОРД <span id="best">0</span> м</div><div class="sub" id="biomeLabel" style="margin-top:2px;color:#ffe680"></div></div>
+  <div class="stat"><div class="big"><span id="dist">0</span> м</div><div class="sub"><span id="bestLabel">РЕКОРД</span> <span id="best">0</span> <span id="bestUnit">м</span></div><div class="sub" id="biomeLabel" style="margin-top:2px;color:#ffe680"></div></div>
   <div style="width:150px"></div>
 </div>
 <div id="questChip"></div>
+<div id="radioBtn">🎵</div>
 <div id="soundBtn">🔊</div>
 <div id="pauseBtn">⏸</div>
 
 <div id="brake" class="hud-btn">◀</div>
+<div id="horn" class="hud-btn mini">📢</div>
 <div id="gas" class="hud-btn">▶</div>
 
 <div class="toast" id="toast"></div>
@@ -247,6 +270,7 @@
       <div class="modeseg" id="modeSeg">
         <div class="m on" data-mode="run">🏁 Заезд<span class="sub">на рекорд</span></div>
         <div class="m" data-mode="endless">♾️ Бесконечный<span class="sub">квесты и события</span></div>
+        <div class="m wide" data-mode="vibe">🌴 Вайбовая езда<span class="sub">день и ночь, деревни, поручения — без аварий</span></div>
       </div>
       <div class="veh-row" id="vehRow"></div>
       <div class="shop" id="shop"></div>
@@ -257,9 +281,11 @@
     <div class="tabpane" id="tab-how">
       <p style="text-align:left">
         <b>▶ (справа)</b> — газ, ехать вперёд.<br>
-        <b>◀ (слева)</b> — тормоз / задний ход.<br>
+        <b>◀ (слева)</b> — тормоз, а когда машина почти встала — <b>задний ход</b>.<br>
         На клавиатуре — <b>стрелки ←/→</b>.<br><br>
-        Наклоняй машину в воздухе газом/тормозом, чтобы приземлиться на колёса. Следи за топливом — жёлтые канистры пополняют бак.<br><br>
+        <b>Как только колесо оторвалось от земли</b> (в прыжке, на гребне, на вилли) педали начинают рулить наклоном: газ поднимает нос вверх, тормоз опускает вниз. Клюёшь носом — дай газ; заваливаешься назад — придержи тормоз. Отпусти обе педали, и вращение само успокоится.<br><br>
+        Застрял носом вверх на подъёме — придержи <b>◀</b>, скатись назад и возьми разгон. Следи за топливом — жёлтые канистры пополняют бак.<br><br>
+        <b>🌴 В вайбовой езде:</b> кнопка <b>📢</b> (или клавиша <b>H</b>) — клаксон: прохожие машут в ответ, собаки бегут рядом, овцы разбегаются. Кнопка <b>🎵</b> сверху включает и выключает радио. Время суток идёт само — ночью зажигаются фары и окна в домах.<br><br>
         Крути <b>сальто</b> ради бонусных монет. Собранные монеты копятся в гараже — трать их на <b>прокачку</b> машины и разблокировку новых. Чем дальше едешь, тем сменяются <b>биомы</b>: луг, пустыня, снег.
       </p>
     </div>
@@ -285,6 +311,7 @@
 <div class="overlay hidden" id="gameover">
   <div class="card">
     <h2 id="goTitle">Игра окончена</h2>
+    <div id="goTip"></div>
     <div class="score-row">
       <div class="cell"><div class="n" id="goDist">0</div><div class="l">метров</div></div>
       <div class="cell"><div class="n" id="goCoins">0</div><div class="l">монет</div></div>
@@ -369,6 +396,8 @@ let selectedVehicle = localStorage.getItem('hc_vehicle') || 'jeep';
 if (!Save.isUnlocked(selectedVehicle)) selectedVehicle = 'jeep';
 
 // ---------- Terrain ----------
+const WORLD_AMP = 78;        // hill amplitude in world px — fixed, never device-dependent
+const VIEW_TARGET_W = 900;   // world px we try to keep on screen, so phones can see ahead too
 const Terrain = {
   seg: 24,            // horizontal spacing between control points (px)
   pts: [],            // control point heights (screen y)
@@ -377,29 +406,41 @@ const Terrain = {
   mode:'run',
   features:[],        // [{type, s, e, x0, x1}] injected structures (endless mode)
   nextFeatIdx: 1e9,
+  phase: 0,           // running wave phase, carried across chunks (see _fillFrom)
   reset(mode) {
     this.mode = mode || 'run';
-    this.baseY = H * 0.62;
-    this.amp = Math.max(70, H * 0.14);
+    this.baseY = H * 0.62;      // just where the world sits vertically; the camera follows the car
+    // Hill size must NOT depend on the device. This used to be H*0.14, so a tall phone
+    // screen got ~35% steeper hills than a laptop — the same game was gentle on desktop
+    // and unplayable in the Telegram webview (median run 3100 m vs 174 m).
+    this.amp = WORLD_AMP;
     this.pts = [];
     this.features = [];
-    // first feature only after a warm-up stretch (endless only)
-    this.nextFeatIdx = (this.mode==='endless') ? 46 : 1e9;
+    this.phase = 12 * 0.13;
+    // first feature only after a long warm-up stretch (endless only) — you need room to get up to speed
+    this.nextFeatIdx = (this.mode==='endless') ? 130 : 1e9;
     // flat start
     for (let i = 0; i < 12; i++) this.pts.push(this.baseY);
     for (let i = 12; i < 300; i++) this.pts.push(null);
     this._fillFrom(12);
   },
   _fillFrom(startIdx) {
-    let phase = startIdx * 0.13;
+    const chill = this.mode === 'vibe';               // vibe: long soft rollers, never gets harder
+    // Carry the wave phase across chunk boundaries. Recomputing it from the index
+    // (as this used to) left the phase out of step with what the previous chunk
+    // actually accumulated, putting a hard step in the ground at every seam — the
+    // first one landed at ~318 m and killed most runs there.
+    let phase = this.phase;
     for (let i = startIdx; i < this.pts.length; i++) {
       const diff = (i - 12);
-      const rough = Math.min(1, diff / 60);            // difficulty ramps up
-      phase += 0.11 + Math.random()*0.05;
+      const rough = chill ? 0.12 : Math.min(1, diff / 60);   // difficulty ramps up (not in vibe)
+      phase += chill ? 0.062 : 0.11 + Math.random()*0.05;
       const wave = Math.sin(phase)*0.6 + Math.sin(phase*0.37+1.3)*0.4;
-      const target = this.baseY - wave * this.amp * (0.35 + rough) + (Math.random()-0.5)*20*rough;
+      const amp = chill ? this.amp*0.4 : this.amp;
+      const target = this.baseY - wave * amp * (0.35 + rough) + (chill ? 0 : (Math.random()-0.5)*20*rough);
       this.pts[i] = target;
     }
+    this.phase = phase;                               // next chunk picks up right here
     if (this.mode==='endless') this._injectFeatures(startIdx);
   },
   // difficulty grows with distance (index): features get closer & rougher
@@ -415,36 +456,41 @@ const Terrain = {
       const roll = Math.random();
       let span;
       if (roll < 0.30 + prog*0.15){                    // JUMP RAMP (перепрыгнуть)
-        span = 6;
-        this.pts[s]   = base - amp*0.35;
-        this.pts[s+1] = base - amp*0.85;
-        this.pts[s+2] = base - amp*1.25;               // lip
-        this.pts[s+3] = base + amp*0.55;               // drop after the lip
-        this.pts[s+4] = base + amp*0.35;
-        this.pts[s+5] = base + amp*0.10;
-        this.features.push({type:'ramp', s, e:s+6, x0:s*this.seg, x1:(s+6)*this.seg});
+        // Run-up, lip, then a LANDING SLOPE. This used to drop 1.8 amp in a single
+        // segment right after the lip — a sheer cliff that flipped the car every time.
+        span = 8;
+        this.pts[s]   = base - amp*0.20;
+        this.pts[s+1] = base - amp*0.55;
+        this.pts[s+2] = base - amp*0.95;
+        this.pts[s+3] = base - amp*1.15;               // lip
+        this.pts[s+4] = base - amp*0.60;               // land here, not in a hole
+        this.pts[s+5] = base - amp*0.15;
+        this.pts[s+6] = base + amp*0.12;
+        this.pts[s+7] = base + amp*0.04;
+        this.features.push({type:'ramp', s, e:s+8, x0:s*this.seg, x1:(s+8)*this.seg});
       } else if (roll < 0.55 + prog*0.20){             // PIT / chasm (пропасть)
         span = 4;
-        const depth = amp*(1.1 + prog*0.6);
-        this.pts[s]   = base - amp*0.15;               // small take-off lip
+        const depth = amp*(0.75 + prog*0.9);           // early pits are shallow, they deepen with progress
+        this.pts[s]   = base - amp*0.28;               // take-off lip you can actually launch off
         this.pts[s+1] = base + depth;
         this.pts[s+2] = base + depth;
         this.pts[s+3] = base;
         this.features.push({type:'pit', s, e:s+4, x0:s*this.seg, x1:(s+4)*this.seg});
       } else {                                         // MINE (шахта)
-        span = 18;
-        const dip = amp*1.15;
+        span = 20;
+        const dip = amp*1.0;
+        const ramp = 5;                                 // smoothstep lips — a sharp edge just launched you nose-first
         for (let k=0;k<span;k++){
           let h;
-          if (k<3)       h = base + dip*(k/3);          // descend in
-          else if (k>=span-3) h = base + dip*((span-1-k)/3); // ascend out
-          else           h = base + dip + Math.sin(k*1.1)*amp*0.28; // rough corridor
+          if (k < ramp){ const u = k/ramp;             h = base + dip*(u*u*(3-2*u)); }        // descend in
+          else if (k >= span-ramp){ const u = (span-1-k)/ramp; h = base + dip*(u*u*(3-2*u)); } // ascend out
+          else           h = base + dip + Math.sin(k*0.9)*amp*0.18; // gently rough corridor
           this.pts[s+k] = h;
         }
         this.features.push({type:'mine', s, e:s+span, x0:s*this.seg, x1:(s+span)*this.seg});
       }
-      // gap before next feature shrinks with progress
-      const gap = Math.max(11, Math.round(30 - prog*16)) + (Math.random()*8|0);
+      // gap before next feature shrinks with progress, but never gets claustrophobic
+      const gap = Math.max(17, Math.round(38 - prog*18)) + (Math.random()*8|0);
       this.nextFeatIdx = s + span + gap;
     }
   },
@@ -483,7 +529,8 @@ let coins = [];    // {x,y,taken}
 let fuels = [];    // {x,y,taken}
 let nextItemX = 0;
 function genItems(uptoX) {
-  const fuelChance = Game.mode==='endless' ? 0.24 : 0.16;   // more fuel to keep the endless drive going
+  // vibe mode never burns fuel, so canisters would just be litter on the road
+  const fuelChance = Game.mode==='vibe' ? 0 : (Game.mode==='endless' ? 0.24 : 0.16);
   while (nextItemX < uptoX) {
     nextItemX += 120 + Math.random()*160;
     const gy = Terrain.heightAt(nextItemX);
@@ -526,6 +573,10 @@ const Audio2 = {
     this.subGain = this.ctx.createGain(); this.subGain.gain.value=0;
     this.sub.connect(this.subGain); this.subGain.connect(this.master);
     this.sub.frequency.value=45; this.sub.start();
+    // a quieter bus for the vibe-mode radio so music sits under the engine
+    this.musicBus = this.ctx.createGain();
+    this.musicBus.gain.value = 0.42;
+    this.musicBus.connect(this.master);
     this.ready=true;
   },
   resume(){ if(this.ctx && this.ctx.state==='suspended') this.ctx.resume(); },
@@ -555,6 +606,34 @@ const Audio2 = {
     o.start(t); o.stop(t+dur+0.02);
     return o;
   },
+  // two-tone car horn
+  honk(){
+    if(!this.ready||this.muted) return;
+    const t=this.ctx.currentTime;
+    for (const f of [330, 262]){
+      const o=this.ctx.createOscillator(), g=this.ctx.createGain(), flt=this.ctx.createBiquadFilter();
+      o.type='sawtooth'; o.frequency.value=f;
+      flt.type='lowpass'; flt.frequency.value=1500;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.13,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.32);
+      o.connect(flt); flt.connect(g); g.connect(this.master);
+      o.start(t); o.stop(t+0.34);
+    }
+  },
+  // soft sustained note on the music bus (used by the radio)
+  tone(freq, when, dur, type, vol, cutoff){
+    if(!this.ready||this.muted) return;
+    const t=this.ctx.currentTime + when;
+    const o=this.ctx.createOscillator(), g=this.ctx.createGain(), f=this.ctx.createBiquadFilter();
+    o.type=type||'triangle'; o.frequency.value=freq;
+    f.type='lowpass'; f.frequency.value=cutoff||1100;
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol, t+dur*0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(f); f.connect(g); g.connect(this.musicBus||this.master);
+    o.start(t); o.stop(t+dur+0.05);
+  },
   coin(){ const o=this.blip(880,0.12,'square',0.18); if(o){o.frequency.setTargetAtTime(1320,this.ctx.currentTime+0.04,0.02);} },
   fuel(){ this.blip(520,0.1,'triangle',0.2); setTimeout(()=>this.blip(780,0.16,'triangle',0.2),90); },
   bonus(){ this.blip(660,0.1,'square',0.2); setTimeout(()=>this.blip(990,0.1,'square',0.2),80);
@@ -578,7 +657,60 @@ const Audio2 = {
   }
 };
 
+// ---------- Chill radio (vibe mode only, synthesized) ----------
+// Slow Am–F–C–G loop: a soft pad plus sparse pentatonic notes over the top.
+const Radio = {
+  on: localStorage.getItem('hc_radio') !== '0',
+  timer: null, bar: 0,
+  ROOTS: [220, 174.61, 261.63, 196],          // A3, F3, C4, G3
+  PENTA: [0, 3, 5, 7, 10],                     // minor pentatonic steps (semitones)
+  BAR: 4.2,                                    // seconds per chord
+
+  wanted(){ return this.on && Game.mode==='vibe' && Game.state==='play' && !Audio2.muted && Audio2.ready; },
+  sync(){ this.wanted() ? this.start() : this.stop(); },
+  start(){
+    if (this.timer) return;
+    this.bar = 0; this._bar();
+    this.timer = setInterval(()=> this._bar(), this.BAR*1000);
+  },
+  stop(){ if (this.timer){ clearInterval(this.timer); this.timer = null; } },
+
+  _bar(){
+    if (!this.wanted()){ this.stop(); return; }
+    const root = this.ROOTS[this.bar % this.ROOTS.length];
+    const semi = n => root * Math.pow(2, n/12);
+    // pad: root + fifth, slightly detuned for warmth
+    Audio2.tone(root,        0, this.BAR*0.98, 'triangle', 0.075, 700);
+    Audio2.tone(semi(7)*0.5, 0, this.BAR*0.98, 'sine',     0.065, 500);
+    Audio2.tone(root*1.005,  0, this.BAR*0.98, 'triangle', 0.045, 620);
+    // a few gentle melody notes, never on every beat
+    for (let i=0;i<4;i++){
+      if (Math.random() < 0.45) continue;
+      const step = this.PENTA[Math.random()*this.PENTA.length|0] + (Math.random()<0.3 ? 12 : 0);
+      Audio2.tone(semi(step)*2, i*(this.BAR/4) + Math.random()*0.08, 1.5, 'sine', 0.05, 2200);
+    }
+    this.bar++;
+  }
+};
+
 // ---------- Car physics ----------
+// handling tuning
+const AIR_TORQUE   = 2000;  // pitch authority (gas = nose up, brake = nose down)
+const REVERSE_VT   = 45;    // px/s of forward roll above which the left pedal is a brake, not reverse
+const REVERSE_POWER= 0.6;   // reverse gear is weaker than forward
+const ONE_WHEEL_AUTHORITY = 0.75;  // pitch authority left when only one wheel is still down
+const TAKEOFF_SPIN_CAP = 2.2;      // rad/s max spin a crest may fling the car into
+const CRASH_ANGLE  = 1.35;  // rad (~77°) — below this a head scrape is survivable, not a crash
+const VIBE_TOP     = 440;   // px/s soft top speed in vibe mode — cruising, not racing
+
+// normalize any angle to (-PI, PI]
+function normAngle(a){
+  a = a % (Math.PI*2);
+  if (a > Math.PI) a -= Math.PI*2;
+  if (a <= -Math.PI) a += Math.PI*2;
+  return a;
+}
+
 const Car = {
   x:0, y:0, vx:0, vy:0, angle:0, angVel:0,
   wheels:[],   // {lx,ly, x,y, spin, onGround}
@@ -641,14 +773,30 @@ const Car = {
         if (Fn < 0) Fn = 0;
         let Nfx = nx*Fn, Nfy = ny*Fn;
 
-        // engine drive along tangent
-        const drive = throttle * c.engine;
+        // tangential velocity of the contact patch (needed before we decide brake vs reverse)
+        const vt = wvx*tx + wvy*ty;
+
+        // gearbox: gas = forward; left pedal = brake while rolling forward,
+        // then engages REVERSE once the car is nearly stopped or already rolling back
+        let drive = 0, fricK;
+        if (throttle > 0){
+          drive = throttle * c.engine;
+          fricK = 0.4;
+        } else if (throttle < 0){
+          if (vt > REVERSE_VT){          // still rolling forward → brake, no reverse torque yet
+            fricK = 6;
+          } else {                        // stopped / rolling back → real reverse gear
+            drive = throttle * c.engine * REVERSE_POWER;
+            fricK = 0.5;
+          }
+        } else {
+          fricK = 1.6;
+        }
         Nfx += tx * drive;
         Nfy += ty * drive;
 
         // rolling/brake friction along tangent (kills sliding when braking or coasting)
-        const vt = wvx*tx + wvy*ty;
-        let fric = -vt * (throttle < 0 ? 6 : (throttle>0?0.4:1.6)) * c.mass;
+        let fric = -vt * fricK * c.mass;
         const maxF = Math.abs(Fn)*(1.4 + (c.gripBonus||0)*0.22);   // upgraded grip = more traction
         if (fric > maxF) fric = maxF; if (fric < -maxF) fric = -maxF;
         Nfx += tx*fric; Nfy += ty*fric;
@@ -656,19 +804,33 @@ const Car = {
         fx += Nfx; fy += Nfy;
         torque += rx*Nfy - ry*Nfx;
 
-        // wheel spin visual
-        w.spin += (vt/c.wheelR) * dt + throttle*4*dt;
+        // wheel spin visual (drive slip only when the engine is actually pushing)
+        w.spin += (vt/c.wheelR) * dt + Math.sign(drive)*4*dt;
       } else {
         w.spin += this.vx/c.wheelR * dt;
       }
     }
 
-    // air control: throttle tilts the car; track rotation + air distance
+    // Pitch control: gas lifts the NOSE, brake drops it — the same direction the wheelie
+    // goes on the ground, so the pedals never feel inverted.
+    // Authority scales with how many wheels are off the ground. This used to be all-or-
+    // nothing (airborne only), which left the car uncontrollable in the one-wheel state —
+    // and that is exactly where every single crash happened.
+    const wheelsUp = this.wheels.length - (this.wheels[0].onGround?1:0) - (this.wheels[1].onGround?1:0);
+    if (wheelsUp > 0){
+      const authority = wheelsUp >= 2 ? 1 : ONE_WHEEL_AUTHORITY;
+      torque -= throttle * c.mass * AIR_TORQUE * authority;
+    }
+
     if (!anyGround) {
-      if (this.airborneTime === 0) this.airStartX = this.x;   // just left the ground
+      if (this.airborneTime === 0) {
+        this.airStartX = this.x;   // just left the ground
+        // a crest can fling the car into a spin faster than the pedals can ever undo
+        if (this.angVel >  TAKEOFF_SPIN_CAP) this.angVel =  TAKEOFF_SPIN_CAP;
+        if (this.angVel < -TAKEOFF_SPIN_CAP) this.angVel = -TAKEOFF_SPIN_CAP;
+      }
       this.airborneTime += dt;
       this.airRotation += this.angVel * dt;
-      torque += throttle * c.mass * 175;
     } else {
       if (this.airborneTime > 0.35) {   // just landed after real air-time
         this.lastAirTime = this.airborneTime;
@@ -688,9 +850,18 @@ const Car = {
     // quadratic air drag on forward speed (keeps top speed sane)
     this.vx -= Math.sign(this.vx) * this.vx*this.vx * 0.00028 * dt;
 
-    // damping — stronger angular damping in the air for controllable flips
+    // vibe mode is a cruise, not a race — capped speed keeps it calm and the errands reachable
+    if (Game.mode === 'vibe'){
+      if (this.vx >  VIBE_TOP) this.vx =  VIBE_TOP;
+      if (this.vx < -VIBE_TOP*0.7) this.vx = -VIBE_TOP*0.7;
+    }
+
+    // damping — expressed per second so the feel doesn't depend on the sub-step count.
+    // Holding a pedal in the air keeps the car responsive; letting go settles the spin
+    // quickly so you can line up a landing.
     this.vx *= 0.999;
-    this.angVel *= anyGround ? 0.995 : 0.985;
+    const angDamp = wheelsUp === 0 ? 0.9 : (throttle === 0 ? 3.5 : 0.8);
+    this.angVel *= Math.exp(-angDamp * dt);
 
     this.x += this.vx*dt;
     this.y += this.vy*dt;
@@ -725,17 +896,28 @@ function startGame() {
   Game.coinsCollected = 0;
   Game.distance = 0;
   Game.throttle = 0;
+  ZOOM = 1;
   Game.camX = Car.x - W*0.35;
   Game.camY = Car.y - H*0.5;
   Game._lastMine = null; Game._pendingJumpPit = null;
   if (Game.mode==='endless') Quest.reset(); else Quest.clear();
+  if (Game.mode==='vibe') Vibe.reset(); else Vibe.clear();
+  Sky.reset();
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('gameover').classList.add('hidden');
   document.getElementById('pause').classList.add('hidden');
   document.getElementById('topbar').style.display = 'flex';
   document.getElementById('pauseBtn').style.display = 'flex';
   document.getElementById('soundBtn').style.display = 'flex';
+  showVibeControls(Game.mode==='vibe');
+  Radio.sync();
   updateBest();
+}
+
+// horn + radio buttons only make sense on the chill drive
+function showVibeControls(on){
+  document.getElementById('horn').style.display = on ? 'flex' : 'none';
+  document.getElementById('radioBtn').style.display = on ? 'flex' : 'none';
 }
 
 // ---------- Quests (endless mode) ----------
@@ -782,8 +964,247 @@ const Quest = {
   }
 };
 
-function endGame(reason) {
+// ---------- Vibe mode: chill drive, minimal difficulty, small friendly errands ----------
+const VIBE_TASKS = [
+  { id:'taxi',   ico:'🚕', label:()=>'Подвези пассажира',                     reward:45 },
+  { id:'nohit',  ico:'🚸', gen:()=>120+ (Math.random()*100|0), label:t=>`Проедь ${t} м, никого не сбив`, reward:35 },
+  { id:'coins',  ico:'🪙', gen:()=>6 + (Math.random()*6|0),    label:t=>`Собери ${t} монет`,             reward:30 },
+  { id:'stop',   ico:'🛑', label:()=>'Притормози у знака',                    reward:35 },
+  { id:'view',   ico:'🏞️', label:()=>'Доедь до смотровой площадки',           reward:40 },
+  { id:'honk',   ico:'📢', gen:()=>3 + (Math.random()*3|0),    label:t=>`Поздоровайся с ${t} прохожими`, reward:35 },
+  { id:'parcel', ico:'📦', label:()=>'Довези посылку к дому',                 reward:50 },
+  { id:'sheep',  ico:'🐑', label:()=>'Тихо проедь мимо стада',                reward:45 },
+];
+const Vibe = {
+  peds:[], animals:[], marker:null, riding:false, task:null, progress:0, mark:0, done:0,
+  nextPedX:0, nextAnimalX:0, last:null, honkCd:0, honkRipple:0,
+
+  reset(){
+    this.peds = []; this.animals = []; this.marker = null; this.riding = false;
+    this.done = 0; this.last = null; this.honkCd = 0; this.honkRipple = 0;
+    this.nextPedX = Car.x + 420;
+    this.nextAnimalX = Car.x + 900;
+    this.pick();
+  },
+  clear(){ this.task = null; this.peds = []; this.animals = []; this.marker = null; this._render(); },
+
+  pick(){
+    let t;
+    do { t = VIBE_TASKS[Math.random()*VIBE_TASKS.length|0]; }
+    while (this.last && t.id === this.last && VIBE_TASKS.length > 1);
+    this.last = t.id;
+    const target = t.gen ? t.gen() : 1;
+    this.task = { id:t.id, ico:t.ico, target, reward:t.reward, label:t.label(target) };
+    this.progress = 0; this.mark = Game.distance; this.riding = false;
+    this.animals = this.animals.filter(a => a.tag !== 'task');   // drop last errand's flock
+    for (const p of this.peds) p.greeted = false;
+    const ahead = Car.x + 420 + Math.random()*260;
+    if (t.id==='taxi')        this.marker = { type:'passenger', x:ahead };
+    else if (t.id==='stop')   this.marker = { type:'stop', x:ahead };
+    else if (t.id==='view')   this.marker = { type:'view', x:Car.x + 620 + Math.random()*400 };
+    else if (t.id==='parcel') this.marker = this._houseMarker(Car.x);
+    else if (t.id==='sheep')  this.marker = this._flock(Car.x + 520 + Math.random()*280);
+    else                      this.marker = null;
+    this._render();
+  },
+
+  _houseMarker(fromX){
+    const h = nextHouse(fromX + 200);
+    // cottages are sparse; if none is near, fall back to a plain drop-off flag
+    return h ? { type:'house', x:h.x, hs:h.s } : { type:'drop', x: fromX + 500 + Math.random()*300 };
+  },
+  _flock(fx){
+    for (let k=0;k<3;k++){
+      this.animals.push({ type:'sheep', tag:'task', x: fx + (k-1)*48 + Math.random()*18,
+                          y:0, ph:Math.random()*7, spook:0, vx:0 });
+    }
+    return { type:'flock', x:fx, spooked:false };
+  },
+
+  // the horn: greet people, spook sheep, get the dogs running
+  honk(){
+    if (Game.mode!=='vibe' || Game.state!=='play' || this.honkCd > 0) return;
+    this.honkCd = 0.45; this.honkRipple = 1;
+    Audio2.honk();
+    for (const p of this.peds){
+      if (p.hit || Math.abs(p.x - Car.x) > 270) continue;
+      p.wave = 2.2;
+      if (!p.greeted){ p.greeted = true; if (this.task && this.task.id==='honk'){ this.progress++; this._check(); } }
+    }
+    for (const a of this.animals){
+      if (Math.abs(a.x - Car.x) > 320) continue;
+      if (a.type==='sheep'){ a.spook = 1.6; a.vx = Math.sign(a.x - Car.x || 1) * (70 + Math.random()*50); }
+      else { a.run = 3.2; a.bark = 0.5; }
+    }
+  },
+
+  complete(){
+    const r = this.task.reward;
+    Game.coinsCollected += r; this.done++;
+    Save.data.vibeTasks = (Save.data.vibeTasks||0) + 1; Save.persist();
+    toast(`✅ ${this.task.label} — +${r}`);
+    Audio2.bonus();
+    this.marker = null;
+    updateBest();
+    this.pick();
+  },
+
+  // never a game over here — just set the car back on its wheels
+  recover(msg){
+    Terrain.ensure(Car.x);
+    Car.y = Terrain.heightAt(Car.x) - Car.cfg.wheelR - Car.cfg.chH/2 - 6;
+    Car.angle = 0; Car.angVel = 0; Car.vx *= 0.2; Car.vy = 0;
+    Car.upsideTime = 0; Car.airborneTime = 0; Car.airRotation = 0;
+    if (msg) toast(msg);
+  },
+
+  addCoin(){ if (this.task && this.task.id==='coins'){ this.progress++; this._check(); } },
+
+  update(dt){
+    if (this.honkCd > 0) this.honkCd -= dt;
+    if (this.honkRipple > 0) this.honkRipple -= dt*1.6;
+
+    // populate the roadside with people to be careful around
+    while (this.nextPedX < Car.x + 1800){
+      Terrain.ensure(this.nextPedX);
+      this.peds.push({ x:this.nextPedX, y:Terrain.heightAt(this.nextPedX), wave:0, hit:0, seen:false,
+                       greeted:false, cap: PED_CAPS[Math.random()*PED_CAPS.length|0] });
+      this.nextPedX += 300 + Math.random()*420;
+    }
+    if (this.peds.length > 40) this.peds.splice(0, this.peds.length-40);
+
+    // …and with livestock: small flocks of sheep, the odd village dog
+    while (this.nextAnimalX < Car.x + 1800){
+      if (Math.random() < 0.72){
+        const n = 2 + (Math.random()*3|0);
+        for (let k=0;k<n;k++)
+          this.animals.push({ type:'sheep', x:this.nextAnimalX + k*44 + Math.random()*18,
+                              y:0, ph:Math.random()*7, spook:0, vx:0 });
+      } else {
+        this.animals.push({ type:'dog', x:this.nextAnimalX, y:0, ph:Math.random()*7, run:0, bark:0, vx:0 });
+      }
+      this.nextAnimalX += 700 + Math.random()*900;
+    }
+    if (this.animals.length > 46){
+      const keep = this.animals.filter(a => a.tag==='task' || a.x > Car.x - 900);
+      this.animals = keep.slice(-46);
+    }
+
+    const spd = Math.abs(Car.vx);
+    for (const p of this.peds){
+      if (p.wave > 0) p.wave -= dt;
+      if (p.hit) p.hit = Math.min(1, p.hit + dt*4);
+      const near = Math.hypot(p.x - Car.x, (p.y - 22) - Car.y);
+      if (!p.hit && near < 36){
+        if (spd > PED_SAFE_SPEED){                        // ran someone over
+          p.hit = 0.01;
+          toast('🚸 Ой! Аккуратнее с людьми');
+          Audio2.blip(180, 0.18, 'square', 0.18);
+          if (this.task && this.task.id==='nohit'){ this.mark = Game.distance; this.progress = 0; }
+        } else if (!p.seen){                              // rolled past politely — they wave
+          p.seen = true; p.wave = 1.6;
+        }
+      }
+    }
+
+    // animals: sheep graze and bolt when startled, dogs escort the car for a while
+    for (const a of this.animals){
+      const gap = a.x - Car.x;
+      if (a.type==='sheep'){
+        if (!a.spook && Math.abs(gap) < 105 && spd > 190){    // roared past too fast
+          a.spook = 1.6; a.vx = Math.sign(gap || 1) * (70 + Math.random()*50);
+        }
+        if (a.spook > 0){
+          a.spook -= dt; a.x += a.vx*dt; a.vx *= 0.94;
+          if (a.spook <= 0){ a.spook = 0; a.vx = 0; }
+        }
+      } else {                                              // dog
+        if (a.bark > 0) a.bark -= dt;
+        if (a.run > 0){
+          a.run -= dt;
+          const want = Car.x - 70;                          // trot alongside, just behind the car
+          a.x += Math.max(-320, Math.min(320, (want - a.x)*2.4)) * dt;
+        }
+      }
+      Terrain.ensure(a.x); a.y = Terrain.heightAt(a.x);
+    }
+
+    // task progress
+    const t = this.task;
+    if (!t) return;
+    if (t.id==='nohit'){ this.progress = Math.max(0, Math.floor(Game.distance - this.mark)); this._check(true); }
+
+    const m = this.marker;
+    if (m){
+      Terrain.ensure(m.x);
+      m.y = Terrain.heightAt(m.x);
+
+      if (m.type==='flock'){
+        // startle any of the tagged sheep and the quiet pass is blown
+        if (!m.spooked && this.animals.some(a => a.tag==='task' && a.spook > 0)){
+          m.spooked = true;
+          toast('🐑 Овцы разбежались — попробуй тише');
+        }
+        if (Car.x > m.x + 220){
+          if (m.spooked){                                  // set up a fresh flock further along
+            this.animals = this.animals.filter(a => a.tag !== 'task');
+            this.marker = this._flock(Car.x + 520 + Math.random()*280);
+          } else this.complete();
+        }
+        this._render();
+        return;
+      }
+
+      // drove straight past it? move it back ahead so an errand can never dead-end
+      if (Car.x - m.x > 700){
+        this.marker = (m.type==='house') ? this._houseMarker(Car.x)
+                                         : { ...m, x: Car.x + 420 + Math.random()*260 };
+        toast('↪️ Проехал мимо — ищи впереди');
+        return;
+      }
+      const d = Math.abs(Car.x - m.x);
+      if (m.type==='passenger' && d < 48 && spd < 260){
+        this.riding = true;
+        this.marker = { type:'drop', x: m.x + 260 + Math.random()*220 };
+        toast('🚕 Пассажир сел — вези до флажка');
+      } else if (m.type==='drop' && d < 48 && spd < 130){
+        this.riding = false; this.complete();
+      } else if (m.type==='stop' && d < 62 && spd < 45){
+        this.complete();
+      } else if (m.type==='view' && d < 60){
+        this.complete();
+      } else if (m.type==='house' && d < 70 && spd < 90){
+        this.complete();
+      }
+    }
+    this._render();
+  },
+
+  _check(silent){
+    if (this.task && this.progress >= this.task.target) this.complete();
+    else if (!silent) this._render();
+  },
+
+  _render(){
+    const el = document.getElementById('questChip');
+    if (!el) return;
+    if (!this.task || Game.mode!=='vibe'){ el.style.display='none'; return; }
+    el.style.display = 'flex';
+    const t = this.task;
+    const prog = (t.id==='nohit'||t.id==='coins'||t.id==='honk')
+      ? ` <b>${Math.min(this.progress,t.target)}/${t.target}</b>` : '';
+    const ride = this.riding ? ' <b>👤</b>' : '';
+    el.innerHTML = `<span class="q-ico">${t.ico}</span><span class="q-txt">${t.label}${prog}${ride}</span>`;
+  }
+};
+const PED_CAPS = ['#e57373','#64b5f6','#ffd54f','#a1887f','#81c784','#ba68c8'];
+// pass people below this and it counts as driving carefully (about half of cruising speed)
+const PED_SAFE_SPEED = 215;
+
+function endGame(reason, tip) {
   if (Game.state === 'over') return;
+  const tipEl = document.getElementById('goTip');
+  if (tipEl){ tipEl.textContent = tip || ''; tipEl.style.display = tip ? 'block' : 'none'; }
   Game.state = 'over';
   const d = Math.floor(Game.distance);
   if (Game.mode==='endless'){ if (d>Game.bestEndless){ Game.bestEndless=d; localStorage.setItem('hc_best_endless', d); } }
@@ -799,6 +1220,9 @@ function endGame(reason) {
   document.getElementById('pauseBtn').style.display = 'none';
   document.getElementById('soundBtn').style.display = 'none';
   document.getElementById('questChip').style.display = 'none';
+  showVibeControls(false);
+  gasBtn.classList.remove('hint'); brakeBtn.classList.remove('hint');
+  Radio.stop();
   Audio2.engineOff();
   if (reason === 'Разбился!') Audio2.crash();
 }
@@ -828,12 +1252,20 @@ function bindHold(el, val){
 bindHold(gasBtn, 1);
 bindHold(brakeBtn, -1);
 
+// horn (vibe mode)
+const hornBtn = document.getElementById('horn');
+const doHonk = e => { e.preventDefault(); e.stopPropagation(); Vibe.honk();
+  hornBtn.classList.add('pressed'); setTimeout(()=>hornBtn.classList.remove('pressed'), 120); };
+hornBtn.addEventListener('touchstart', doHonk, {passive:false});
+hornBtn.addEventListener('mousedown', doHonk);
+
 const keys = {};
 window.addEventListener('keydown', e=>{
   if (e.repeat) return;
   if (e.key==='ArrowRight'||e.key==='d'){ keys.r=1; Game.throttle=1; gasBtn.classList.add('pressed'); }
   if (e.key==='ArrowLeft'||e.key==='a'){ keys.l=1; Game.throttle=-1; brakeBtn.classList.add('pressed'); }
   if (e.key===' '){ if(Game.state==='play') pauseGame(); else if(Game.state==='pause') resumeGame(); }
+  if (e.key==='h' || e.key==='H' || e.key==='р' || e.key==='Р') Vibe.honk();   // 'h' on both layouts
 });
 window.addEventListener('keyup', e=>{
   if (e.key==='ArrowRight'||e.key==='d'){ keys.r=0; if(Game.throttle===1)Game.throttle=0; gasBtn.classList.remove('pressed'); }
@@ -915,6 +1347,33 @@ document.querySelectorAll('.tab').forEach(t=>{
 
 // What's new
 const CHANGELOG = [
+  { date:'02.08.2026, 15:20', items:[
+    '🧱 Убрана невидимая стена: в рельефе на 318 м была ступенька в 73 пикселя (генератор рвал трассу на стыке кусков). Именно в неё разбивалось большинство заездов.',
+    '🎮 Педали наконец работают, когда одно колесо оторвалось от земли. Раньше в этом положении управление отключалось полностью — а там происходили ВСЕ аварии.',
+    '⬆️ Клевок носом теперь вытягивается газом, опрокидывание назад — тормозом. Сила управления поднята.',
+    '🛫 Трамплин перестал быть обрывом: за гребнем сделан нормальный склон для приземления.',
+    '🌀 Гребень больше не закручивает машину сильнее, чем можно отыграть педалями.',
+    '📈 Итог: в «Заезде» средняя дистанция 317 → 3100 м, в «Бесконечном» 214 → 405 м.',
+    '💡 Игра теперь подсказывает: как только колесо отрывается и машину кренит, нужная педаль начинает пульсировать. А на экране аварии написано, куда перевернулся и чем это было спасти.',
+    '📱 ГЛАВНОЕ для телефона: крутизна холмов больше не зависит от экрана. Раньше она считалась от его высоты, и на вертикальном телефоне трасса выходила на треть круче, чем на ноутбуке — в Телеграме игра была заметно злее. Теперь везде одинаково, и холмы стали мягче.',
+    '🔭 На узком экране камера отъезжает — видно, что впереди, а не только капот.',
+  ]},
+  { date:'01.08.2026, 19:45', items:[
+    '🌇 Вайбовая езда: настоящая смена дня и ночи — рассвет, день, закат, звёздная ночь. Солнце и луна идут по небу.',
+    '💡 Ночью сами включаются фары, а в домах вдоль дороги загорается тёплый свет в окнах.',
+    '🏡 Дорога ожила: деревенские домики с дымом из труб, стада овец, деревенские собаки и птицы в небе.',
+    '📢 Клаксон (кнопка или клавиша H): прохожие машут в ответ, собаки бегут рядом, овцы разбегаются.',
+    '🎵 Чил-радио — спокойная музыка на фоне, включается кнопкой 🎵.',
+    '📦 Новые поручения: довези посылку к дому, поздоровайся с прохожими, тихо проедь мимо стада.',
+    '🧑‍🤝‍🧑 Пассажир теперь виден в машине, пока везёшь его до флажка.',
+  ]},
+  { date:'01.08.2026, 14:30', items:[
+    '🎮 Починили управление: в воздухе газ теперь поднимает нос вверх, а тормоз опускает — раньше было наоборот, поэтому машину кидало мордой в землю.',
+    '⏪ Заработал настоящий задний ход: ◀ сначала тормозит, а когда машина почти встала — едет назад.',
+    '🛟 Меньше глупых аварий: чиркнуть каркасом по склону больше не смертельно, и без педалей вращение в воздухе само успокаивается.',
+    '🎥 Камера отъезжает на скорости и в прыжке — видно, куда приземляешься.',
+    '🌴 Новый режим «Вайбовая езда»: пологая трасса, бесконечное топливо, аварий нет, а по пути — простые задания: подвезти пассажира, никого не сбить, притормозить у знака, доехать до смотровой.',
+  ]},
   { date:'31.07.2026, 20:07', items:[
     '♾️ Новый режим «Бесконечный»: карта генерится без конца, сложность плавно растёт.',
     '🎯 Квесты по пути: собери монеты, сделай сальто, заедь в шахту, перепрыгни пропасть.',
@@ -954,15 +1413,21 @@ document.getElementById('menuBtn').onclick = ()=>{ Game.state='menu';
   document.getElementById('gameover').classList.add('hidden');
   document.getElementById('menu').classList.remove('hidden'); rebuildMenu(); };
 document.getElementById('quitBtn').onclick = ()=>{ Game.state='menu';
+  // bank whatever was earned this run instead of dropping it on the floor
+  if (Game.coinsCollected){ Save.addCoins(Game.coinsCollected); Game.coinsCollected = 0; }
+  Audio2.engineOff();
   document.getElementById('pause').classList.add('hidden');
   document.getElementById('menu').classList.remove('hidden');
   document.getElementById('topbar').style.display='none';
   document.getElementById('pauseBtn').style.display='none';
   document.getElementById('soundBtn').style.display='none';
-  document.getElementById('questChip').style.display='none'; rebuildMenu(); };
+  document.getElementById('questChip').style.display='none';
+  showVibeControls(false); Radio.stop(); rebuildMenu(); };
 function pauseGame(){ if(Game.state!=='play')return; Game.state='pause'; Audio2.engineOff();
+  Radio.stop();
   document.getElementById('pause').classList.remove('hidden'); }
 function resumeGame(){ if(Game.state!=='pause')return; Game.state='play'; lastT=performance.now();
+  Radio.sync();
   document.getElementById('pause').classList.add('hidden'); }
 document.getElementById('pauseBtn').onclick = pauseGame;
 document.getElementById('resumeBtn').onclick = resumeGame;
@@ -979,18 +1444,38 @@ const soundBtn = document.getElementById('soundBtn');
 function refreshSoundIcon(){ soundBtn.textContent = Audio2.muted ? '🔇' : '🔊'; }
 refreshSoundIcon();
 soundBtn.onclick = (e)=>{ e.stopPropagation(); Audio2.setMuted(!Audio2.muted);
-  if(!Audio2.muted){ Audio2.init(); Audio2.resume(); } refreshSoundIcon(); };
+  if(!Audio2.muted){ Audio2.init(); Audio2.resume(); } refreshSoundIcon(); Radio.sync(); };
+// chill radio toggle (vibe mode)
+const radioBtn = document.getElementById('radioBtn');
+function refreshRadioIcon(){ radioBtn.classList.toggle('off', !Radio.on); }
+refreshRadioIcon();
+radioBtn.onclick = (e)=>{ e.stopPropagation();
+  Radio.on = !Radio.on; localStorage.setItem('hc_radio', Radio.on ? '1' : '0');
+  if (Radio.on){ Audio2.init(); Audio2.resume(); }
+  refreshRadioIcon(); Radio.sync(); };
+
 // browsers require a user gesture to start audio
-function unlockAudio(){ if(!Audio2.muted){ Audio2.init(); Audio2.resume(); } }
+function unlockAudio(){ if(!Audio2.muted){ Audio2.init(); Audio2.resume(); Radio.sync(); } }
 window.addEventListener('pointerdown', unlockAudio, {once:false});
 window.addEventListener('keydown', unlockAudio, {once:false});
 
-function updateBest(){ document.getElementById('best').textContent = Game.mode==='endless' ? Game.bestEndless : Game.best; }
+function updateBest(){
+  const lbl = document.getElementById('bestLabel'), unit = document.getElementById('bestUnit');
+  if (Game.mode==='vibe'){
+    // no records in vibe mode — count the little errands you've done instead
+    document.getElementById('best').textContent = Save.data.vibeTasks || 0;
+    if (lbl) lbl.textContent = 'ЗАДАНИЙ'; if (unit) unit.textContent = '';
+  } else {
+    document.getElementById('best').textContent = Game.mode==='endless' ? Game.bestEndless : Game.best;
+    if (lbl) lbl.textContent = 'РЕКОРД'; if (unit) unit.textContent = 'м';
+  }
+}
 
 // ---------- Update loop ----------
 let lastT = performance.now();
 function frame(now) {
   let dt = (now - lastT)/1000; lastT = now;
+  if (!(dt > 0)) dt = 0;      // guard against a non-monotonic clock
   if (dt > 0.05) dt = 0.05;   // clamp
 
   if (Game.state === 'play') {
@@ -1020,24 +1505,35 @@ function frame(now) {
     // engine sound
     Audio2.engine(Math.abs(Car.vx), Game.throttle);
 
-    // fuel
-    if (Game.throttle !== 0) Game.fuel -= Car.cfg.fuelBurn * Math.abs(Game.throttle) * dt * 3.0;
-    if (Game.fuel <= 0){ Game.fuel = 0; endGame('Кончилось топливо!'); }
+    // fuel (vibe mode never runs dry — that's the whole point of it)
+    if (Game.mode !== 'vibe'){
+      if (Game.throttle !== 0) Game.fuel -= Car.cfg.fuelBurn * Math.abs(Game.throttle) * dt * 3.0;
+      if (Game.fuel <= 0){ Game.fuel = 0; endGame('Кончилось топливо!'); }
+    }
 
     // distance
     Game.distance = Math.max(Game.distance, (Car.x - 200)/22);
 
-    // camera (snappier vertical follow so the car stays centred while climbing)
-    const targetCamX = Car.x - W*0.35;
-    const targetCamY = Car.y - H*0.5;
+    // camera: pulls back with speed and in mid-air so you can see the landing coming.
+    // The base zoom also keeps a usable field of view on a narrow phone, where a 1:1
+    // zoom showed barely 400 world px ahead and left no time to react.
+    const baseZoom = Math.min(1, Math.max(0.55, W / VIEW_TARGET_W));
+    const tz = baseZoom * (1 - Math.min(0.2, Math.abs(Car.vx)/3200) - (Car.airborneTime > 0.3 ? 0.07 : 0));
+    ZOOM += (tz - ZOOM) * Math.min(1, dt*2.5);
+    const targetCamX = Car.x - (W/ZOOM)*0.35;
+    const targetCamY = Car.y - (H/ZOOM)*0.5;
     Game.camX += (targetCamX - Game.camX)*Math.min(1,dt*7);
     Game.camY += (targetCamY - Game.camY)*Math.min(1,dt*7);
 
-    // collectibles
+    // collectibles — prune what's well behind us so a long chill session doesn't
+    // grow the arrays (and the per-frame collision scan) without bound
+    if (coins.length > 500) coins = coins.filter(c => !c.taken && c.x > Car.x - 1200);
+    if (fuels.length > 120) fuels = fuels.filter(f => !f.taken && f.x > Car.x - 1200);
     genItems(Car.x + 2500);
     for (const c of coins){
       if(!c.taken && Math.hypot(c.x-Car.x, c.y-Car.y) < 46){ c.taken=true; Game.coinsCollected++; Audio2.coin();
-        if(Game.mode==='endless') Quest.add('coins',1); }
+        if(Game.mode==='endless') Quest.add('coins',1);
+        if(Game.mode==='vibe') Vibe.addCoin(); }
     }
     for (const f of fuels){
       if(!f.taken && Math.hypot(f.x-Car.x, f.y-Car.y) < 52){ f.taken=true;
@@ -1055,36 +1551,78 @@ function frame(now) {
       }
     }
 
-    // head hit ground => game over (flip)
-    checkCrash();
+    // teach the pedals: while a wheel is off the ground and the car is tilting,
+    // pulse the pedal that would bring it back level
+    updatePedalHint();
+
+    // vibe mode: people on the roadside + gentle errands
+    if (Game.mode==='vibe') Vibe.update(dt);
+
+    // head hit ground => game over (flip); in vibe mode it just rights the car
+    checkCrash(dt);
 
     // HUD
     if (Game.mode==='endless') Quest._render();
-    document.getElementById('biomeLabel').textContent = biomeAt(Game.distance).name;
+    document.getElementById('biomeLabel').textContent = Game.mode==='vibe'
+      ? `${biomeAt(Game.distance).name} · ${Sky.sunUp?'☀️':'🌙'} ${Sky.name}`
+      : biomeAt(Game.distance).name;
     document.getElementById('dist').textContent = Math.floor(Game.distance);
     document.getElementById('coinCount').textContent = Game.coinsCollected;
     const fb = document.getElementById('fuelBar');
     const pct = Game.fuel/Car.cfg.maxFuel*100;
     fb.style.width = pct+'%';
-    fb.style.background = pct<20 ? 'linear-gradient(90deg,#ff5252,#ff1744)'
+    fb.style.background = Game.mode==='vibe' ? 'linear-gradient(90deg,#7fd0ff,#3a9be0)'
+      : pct<20 ? 'linear-gradient(90deg,#ff5252,#ff1744)'
       : pct<45 ? 'linear-gradient(90deg,#ffca28,#ffa000)'
       : 'linear-gradient(90deg,#7dd83f,#4caf50)';
   }
 
-  render();
+  render(dt);
   requestAnimationFrame(frame);
 }
 
-function checkCrash() {
+// Pulse whichever pedal would level the car out. Positive angle = nose down, and
+// gas lifts the nose — so nose-down asks for ▶, tipping backwards asks for ◀.
+function updatePedalHint(){
+  let gasHint = false, brakeHint = false;
+  if (Game.state === 'play'){
+    const up = (Car.wheels[0].onGround?0:1) + (Car.wheels[1].onGround?0:1);
+    if (up > 0){
+      const a = normAngle(Car.angle) + Car.angVel*0.25;   // where it's heading, not just where it is
+      if (a >  0.5) gasHint = true;
+      else if (a < -0.5) brakeHint = true;
+    }
+  }
+  gasBtn.classList.toggle('hint', gasHint);
+  brakeBtn.classList.toggle('hint', brakeHint);
+}
+
+function checkCrash(dt) {
   const c = Car.cfg;
   // driver head position (top of chassis)
   const cos=Math.cos(Car.angle), sin=Math.sin(Car.angle);
   const hx = Car.x + (-c.wheelBase*0.15)*cos - (-c.chH*0.9)*sin;
   const hy = Car.y + (-c.wheelBase*0.15)*sin + (-c.chH*0.9)*cos;
   Terrain.ensure(hx);
-  if (hy > Terrain.heightAt(hx) - 2) {
-    // only crash if actually upside-ish and head buried
-    endGame('Разбился!');
+  const tilt = Math.abs(normAngle(Car.angle));
+  const headDown = hy > Terrain.heightAt(hx) - 2;
+
+  // scraping the roll cage on a steep wall is survivable; only a real flip kills you
+  if (headDown && tilt > CRASH_ANGLE) {
+    if (Game.mode === 'vibe') Vibe.recover('Перевернулся — поставили обратно 🙂');
+    else {
+      // say which way it went over and which pedal would have saved it
+      const back = normAngle(Car.angle) < 0;
+      endGame(back ? 'Опрокинулся назад!' : 'Клюнул носом!',
+              back ? 'Как только колесо в воздухе — придержи ◀, он опускает нос.'
+                   : 'Как только колесо в воздухе — дай ▶, он поднимает нос.');
+    }
+    return;
+  }
+  // vibe mode: also un-stick a car resting on its roof, no game over ever
+  if (Game.mode === 'vibe'){
+    Car.upsideTime = (tilt > 2.0) ? (Car.upsideTime||0) + dt : 0;
+    if (Car.upsideTime > 1.2) Vibe.recover('Поставили на колёса 🙂');
   }
 }
 
@@ -1099,11 +1637,14 @@ const BIOMES = [
     grass:['#e2eef7','#ffffff'], para:['#d7e6ef','#c2d6e3'], tree:['#3f7a4a','#4a8a55'], bush:'#e6eff6', sun:'#ffffff' },
 ];
 const ZONE = 520;  // metres per biome
+// colour helpers — accept both '#rrggbb' and already-blended 'rgb(r,g,b)'
+function parseCol(c){
+  if (c[0] === '#'){ const n = parseInt(c.slice(1),16); return [n>>16, (n>>8)&255, n&255]; }
+  const m = c.match(/-?\d+/g); return [+m[0], +m[1], +m[2]];
+}
 function hexLerp(a,b,t){
-  const pa=parseInt(a.slice(1),16), pb=parseInt(b.slice(1),16);
-  const ar=pa>>16,ag=(pa>>8)&255,ab=pa&255, br=pb>>16,bg=(pb>>8)&255,bb=pb&255;
-  const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), bl=Math.round(ab+(bb-ab)*t);
-  return `rgb(${r},${g},${bl})`;
+  const A = parseCol(a), B = parseCol(b);
+  return `rgb(${Math.round(A[0]+(B[0]-A[0])*t)},${Math.round(A[1]+(B[1]-A[1])*t)},${Math.round(A[2]+(B[2]-A[2])*t)})`;
 }
 function biomeAt(dist){
   const idx = Math.floor(dist/ZONE), from = BIOMES[((idx%3)+3)%3], to = BIOMES[(((idx+1)%3)+3)%3];
@@ -1116,30 +1657,91 @@ function biomeAt(dist){
     bush:hexLerp(from.bush,to.bush,f), sun:hexLerp(from.sun,to.sun,f) };
 }
 let CB = BIOMES[0];  // current biome for the frame
+let ZOOM = 1;        // camera zoom (1 = default, <1 = pulled back)
+let VL = 0, VR = 0;  // world-space left/right edges of the visible area (for culling)
 
-function render() {
+// ---------- Time of day (vibe mode only: the sun actually crosses the sky) ----------
+// t: 0 = dawn, 0.25 = noon, 0.5 = dusk, 0.75 = midnight. `sky:null` means "use the biome sky".
+const TOD_KEYS = [
+  { t:0.00, sky:['#20305a','#5b5b90','#d09070'], dark:0.50, name:'Рассвет' },
+  { t:0.09, sky:['#5b8fd0','#f0b07a','#ffd9a8'], dark:0.14, name:'Утро'    },
+  { t:0.22, sky:null,                            dark:0.00, name:'День'    },
+  { t:0.40, sky:null,                            dark:0.00, name:'День'    },
+  { t:0.48, sky:['#6b9fd8','#ffbe86','#ffe2b4'], dark:0.12, name:'Вечер'   },
+  { t:0.56, sky:['#40417e','#cc6478','#f2a06a'], dark:0.40, name:'Закат'   },
+  { t:0.66, sky:['#0e1636','#1e2a55','#3a3f72'], dark:0.74, name:'Ночь'    },
+  { t:0.86, sky:['#0a1130','#161f46','#29315e'], dark:0.80, name:'Ночь'    },
+  { t:0.97, sky:['#20305a','#5b5b90','#d09070'], dark:0.50, name:'Рассвет' },
+  { t:1.00, sky:['#20305a','#5b5b90','#d09070'], dark:0.50, name:'Рассвет' },
+];
+const TOD_CYCLE = 260;      // seconds for one full day/night loop in vibe mode
+const Sky = {
+  t: 0.16, sky:null, dark:0, name:'День', starAlpha:0, sunX:0, sunY:0, sunUp:true,
+
+  reset(){ this.t = 0.10; this.step(0); },     // vibe runs start just after sunrise
+
+  step(dt){
+    if (Game.mode === 'vibe' && Game.state === 'play') this.t = (this.t + dt/TOD_CYCLE) % 1;
+    else if (Game.mode !== 'vibe') this.t = 0.28;   // other modes stay in plain daylight
+    // interpolate the keyframes
+    let i = 0;
+    while (i < TOD_KEYS.length-2 && TOD_KEYS[i+1].t <= this.t) i++;
+    const a = TOD_KEYS[i], b = TOD_KEYS[i+1];
+    const f = Math.min(1, Math.max(0, (this.t - a.t) / ((b.t - a.t) || 1)));
+    const ska = a.sky || CB.sky, skb = b.sky || CB.sky;
+    this.sky  = ska.map((c,k)=> hexLerp(c, skb[k], f));
+    this.dark = a.dark + (b.dark - a.dark)*f;
+    this.name = f < 0.5 ? a.name : b.name;
+    this.starAlpha = Math.max(0, (this.dark - 0.30) / 0.5);
+    // sun rides the sky for the first half of the cycle, the moon for the second
+    this.sunUp = this.t < 0.5;
+    const u = this.sunUp ? this.t/0.5 : (this.t-0.5)/0.5;
+    this.sunX = W*(0.08 + 0.84*u);
+    this.sunY = H*0.72 - Math.sin(u*Math.PI)*H*0.60;
+  },
+
+  // is it dark enough for headlights / lit windows?
+  get lit(){ return this.dark > 0.28; }
+};
+
+function render(dt) {
   CB = biomeAt(Game.distance);
-  // sky gradient
+  VL = Game.camX; VR = Game.camX + W/ZOOM;
+  Sky.step(dt || 0);        // after CB, so the "use the biome sky" keyframes see the right colours
+  const S = Sky;
+  // sky gradient (biome colours, tinted by the time of day)
   const sky = ctx.createLinearGradient(0,0,0,H);
-  sky.addColorStop(0,CB.sky[0]); sky.addColorStop(0.6,CB.sky[1]); sky.addColorStop(1,CB.sky[2]);
+  sky.addColorStop(0,S.sky[0]); sky.addColorStop(0.6,S.sky[1]); sky.addColorStop(1,S.sky[2]);
   ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
 
-  // sun
+  // stars (night only)
+  if (S.starAlpha > 0.01) drawStars(S.starAlpha);
+
+  // sun by day, moon by night — both ride an arc across the sky
   ctx.save();
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = CB.sun;
-  ctx.beginPath(); ctx.arc(70, 80, 34, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha=0.25; ctx.beginPath(); ctx.arc(70,80,50,0,Math.PI*2); ctx.fill();
+  const lum = S.sunUp ? CB.sun : '#eef2ff';
+  ctx.globalAlpha = 0.9 * (S.sunUp ? 1 : 0.95);
+  ctx.fillStyle = lum;
+  ctx.beginPath(); ctx.arc(S.sunX, S.sunY, S.sunUp?34:24, 0, Math.PI*2); ctx.fill();
+  if (!S.sunUp){                                  // bite a crescent out of the moon
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(S.sunX+11, S.sunY-7, 21, 0, Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.globalAlpha = 0.22; ctx.fillStyle = lum;
+  ctx.beginPath(); ctx.arc(S.sunX, S.sunY, S.sunUp?52:38, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
   // parallax hills (background)
   drawParallax(0.25, CB.para[0], H*0.55);
   drawParallax(0.45, CB.para[1], H*0.62);
 
-  // clouds
+  // clouds & birds
   drawClouds();
+  if (Game.mode==='vibe' && S.dark < 0.35) drawBirds();
 
   ctx.save();
+  ctx.scale(ZOOM, ZOOM);
   ctx.translate(-Game.camX, -Game.camY);
 
   // terrain
@@ -1148,24 +1750,91 @@ function render() {
   // endless-mode structures (mines, ramps, pits)
   if (Terrain.mode==='endless') drawFeatures();
 
+  // roadside cottages (vibe only) sit behind the trees
+  if (Game.mode==='vibe') drawHouses();
+
   // trees & bushes on the ground
   drawDecorations();
 
   // collectibles
   drawItems();
 
+  // vibe-mode people, animals & errand markers
+  if (Game.mode==='vibe') drawVibe();
+
   // car
   if (Game.state!=='menu') drawCar();
 
   ctx.restore();
 
+  // nightfall: darken the world, then add the lights back on top
+  if (S.dark > 0.01){
+    ctx.fillStyle = `rgba(10,16,42,${S.dark*0.78})`;
+    ctx.fillRect(0,0,W,H);
+    if (S.lit){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.scale(ZOOM, ZOOM);
+      ctx.translate(-Game.camX, -Game.camY);
+      if (Game.mode==='vibe') drawWindowGlow();
+      if (Game.state!=='menu') drawHeadlights();
+      ctx.restore();
+    }
+  }
+
   // weather ambience (screen space, on top of the world)
   drawWeather();
 }
 
+// deterministic starfield, drifting very slightly with the camera
+function drawStars(a){
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  for (let i=0;i<70;i++){
+    const sx = ((hash(i*1.7)*W*1.4 - Game.camX*0.04) % (W+40) + W+40) % (W+40) - 20;
+    const sy = hash(i*4.3)*H*0.62;
+    const tw = 0.55 + Math.sin(Game.time*1.6 + i)*0.45;
+    ctx.globalAlpha = a * tw * (0.4 + hash(i*8.1)*0.6);
+    ctx.beginPath(); ctx.arc(sx, sy, 0.8 + hash(i*2.9)*1.3, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// how strongly the lights read — barely on at dusk, full at midnight
+function lightK(){ return Math.max(0, Math.min(1, (Sky.dark - 0.28)/0.42)); }
+
+// headlight cone + tail lamp, drawn in the additive light pass
+function drawHeadlights(){
+  const k = lightK();
+  if (k <= 0) return;
+  const c = Car.cfg, cos = Math.cos(Car.angle), sin = Math.sin(Car.angle);
+  const fx = Car.x + (c.wheelBase*0.95)*cos - (-c.chH*0.15)*sin;
+  const fy = Car.y + (c.wheelBase*0.95)*sin + (-c.chH*0.15)*cos;
+  // soft directional pool: a radial gradient squashed along the car's axis.
+  // (An actual wedge reads as a hard triangle, and ctx.filter blur is too costly on phones.)
+  const reach = 320;
+  ctx.save();
+  ctx.translate(fx, fy);
+  ctx.rotate(Car.angle);
+  ctx.scale(1, 0.40);
+  const g = ctx.createRadialGradient(reach*0.34, 0, 8, reach*0.34, 0, reach*0.62);
+  g.addColorStop(0,   `rgba(255,242,196,${0.40*k})`);
+  g.addColorStop(0.45,`rgba(255,232,160,${0.16*k})`);
+  g.addColorStop(1,   'rgba(255,228,150,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(reach*0.34, 0, reach*0.62, 0, 7); ctx.fill();
+  ctx.restore();
+  // lamp itself + red tail (crisp)
+  ctx.fillStyle = `rgba(255,245,205,${0.8*k})`;
+  ctx.beginPath(); ctx.arc(fx, fy, 5, 0, 7); ctx.fill();
+  const rx = Car.x - (c.wheelBase*0.95)*cos, ry = Car.y - (c.wheelBase*0.95)*sin;
+  ctx.fillStyle = `rgba(255,70,50,${0.5*k})`;
+  ctx.beginPath(); ctx.arc(rx, ry, 4, 0, 7); ctx.fill();
+}
+
 // ---------- Endless-mode structures ----------
 function drawFeatures(){
-  const left = Game.camX - 60, right = Game.camX + W + 60;
+  const left = VL - 60, right = VR + 60;
   for (const f of Terrain.features){
     if (f.x1 < left || f.x0 > right) continue;
     if (f.type==='mine') drawMine(f);
@@ -1236,6 +1905,253 @@ function drawPit(f){
   ctx.fillText('!', sx, sy-24);
 }
 
+// ---------- Vibe mode: roadside people & errand markers ----------
+function drawPerson(x, y, cap, opts){
+  const o = opts||{};
+  ctx.save();
+  ctx.translate(x, y);
+  if (o.fallen) ctx.rotate(Math.PI/2 * o.fallen);   // knocked over
+  ctx.lineCap = 'round';
+  // legs
+  ctx.strokeStyle = '#37474f'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-1,-13); ctx.lineTo(-5,0); ctx.moveTo(1,-13); ctx.lineTo(5,0); ctx.stroke();
+  // torso
+  ctx.fillStyle = cap; roundRect(-6,-27,12,16,4); ctx.fill();
+  // waving arm
+  ctx.strokeStyle = cap; ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(-5,-24);
+  if (o.wave){ const a = Math.sin(Game.time*9)*0.5; ctx.lineTo(-11 - Math.cos(a)*3, -31 - Math.sin(a)*4); }
+  else ctx.lineTo(-10,-16);
+  ctx.moveTo(5,-24); ctx.lineTo(9,-16); ctx.stroke();
+  // head
+  ctx.fillStyle = '#f4c8a0'; ctx.beginPath(); ctx.arc(0,-33,6.5,0,7); ctx.fill();
+  ctx.fillStyle = cap; ctx.beginPath(); ctx.arc(0,-34.5,7,Math.PI,0); ctx.fill();
+  ctx.restore();
+  // "pick me up" bubble
+  if (o.hail){
+    ctx.save();
+    ctx.globalAlpha = 0.9 + Math.sin(Game.time*4)*0.1;
+    ctx.fillStyle = '#fff'; roundRect(x+6, y-62, 26, 20, 7); ctx.fill();
+    ctx.fillStyle = '#e65100'; ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🚕', x+19, y-52);
+    ctx.restore();
+  }
+}
+// sheep graze and bolt; dogs sit until you honk, then trot alongside
+function drawSheep(a){
+  const bob = a.spook > 0 ? Math.abs(Math.sin(Game.time*14))*5 : Math.sin(Game.time*1.4 + a.ph)*1.2;
+  const x = a.x, y = a.y - bob;
+  ctx.save();
+  ctx.strokeStyle = '#8d7f70'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x-7,y-9); ctx.lineTo(x-8,y); ctx.moveTo(x+7,y-9); ctx.lineTo(x+8,y); ctx.stroke();
+  ctx.fillStyle = '#f4f1ea';                       // woolly body
+  ctx.beginPath();
+  ctx.arc(x-6, y-16, 9, 0, 7); ctx.arc(x+4, y-17, 10, 0, 7); ctx.arc(x+11, y-12, 7, 0, 7);
+  ctx.fill();
+  const hx = x + (a.spook>0 ? 16 * Math.sign(a.vx || 1) : 15);
+  ctx.fillStyle = '#4e433c';                        // head
+  ctx.beginPath(); ctx.ellipse(hx, y - (a.spook>0 ? 20 : 17), 5.5, 4.5, 0, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawDog(a){
+  const x = a.x, y = a.y, trot = a.run > 0 ? Math.sin(Game.time*16)*2.5 : 0;
+  ctx.save();
+  ctx.strokeStyle = '#7a5b3a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x-6,y-9); ctx.lineTo(x-7+trot,y); ctx.moveTo(x+6,y-9); ctx.lineTo(x+7-trot,y); ctx.stroke();
+  ctx.fillStyle = '#8d6239';
+  roundRect(x-9, y-19, 19, 11, 5); ctx.fill();                      // body
+  ctx.beginPath(); ctx.arc(x+13, y-22, 6, 0, 7); ctx.fill();        // head
+  ctx.fillStyle = '#6b4726';
+  ctx.beginPath(); ctx.moveTo(x+10,y-27); ctx.lineTo(x+14,y-31); ctx.lineTo(x+16,y-25); ctx.fill();  // ear
+  ctx.strokeStyle = '#8d6239'; ctx.lineWidth = 3;                   // wagging tail
+  ctx.beginPath(); ctx.moveTo(x-9,y-18);
+  ctx.lineTo(x-16, y-24 + Math.sin(Game.time*12)*4); ctx.stroke();
+  ctx.restore();
+  if (a.bark > 0){
+    ctx.save(); ctx.globalAlpha = Math.min(1, a.bark*2);
+    ctx.fillStyle = '#fff'; roundRect(x+16, y-52, 30, 19, 7); ctx.fill();
+    ctx.fillStyle = '#5d4037'; ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Гав!', x+31, y-43);
+    ctx.restore();
+  }
+}
+function drawVibe(){
+  for (const a of Vibe.animals){
+    if (a.x < VL-60 || a.x > VR+60) continue;
+    if (a.type==='sheep') drawSheep(a); else drawDog(a);
+  }
+  for (const p of Vibe.peds){
+    if (p.x < VL-60 || p.x > VR+60) continue;
+    drawPerson(p.x, p.y, p.cap, { wave: p.wave>0, fallen: p.hit });
+  }
+  // expanding ring when the horn goes off
+  if (Vibe.honkRipple > 0){
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,255,255,${Vibe.honkRipple*0.5})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(Car.x, Car.y-14, (1-Vibe.honkRipple)*230 + 20, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+  const m = Vibe.marker;
+  if (!m || m.x < VL-140 || m.x > VR+140) return;
+  const gy = m.y != null ? m.y : Terrain.heightAt(m.x);
+  if (m.type==='passenger'){
+    drawPerson(m.x, gy, '#ff8a65', { wave:true, hail:true });
+  } else if (m.type==='drop'){
+    // destination flag
+    ctx.strokeStyle='#546e7a'; ctx.lineWidth=4; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(m.x, gy); ctx.lineTo(m.x, gy-52); ctx.stroke();
+    ctx.fillStyle='#43a047';
+    ctx.beginPath(); ctx.moveTo(m.x+2, gy-52); ctx.lineTo(m.x+30, gy-44); ctx.lineTo(m.x+2, gy-36); ctx.fill();
+    ctx.fillStyle='rgba(67,160,71,.2)';
+    ctx.beginPath(); ctx.ellipse(m.x, gy, 44, 10, 0, 0, 7); ctx.fill();
+  } else if (m.type==='stop'){
+    ctx.strokeStyle='#90a4ae'; ctx.lineWidth=5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(m.x, gy); ctx.lineTo(m.x, gy-56); ctx.stroke();
+    ctx.fillStyle='#e53935'; ctx.beginPath();
+    for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+Math.PI/8; const px=m.x+Math.cos(a)*19, py=gy-72+Math.sin(a)*19;
+      i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('STOP', m.x, gy-71);
+    ctx.fillStyle='rgba(229,57,53,.18)';
+    ctx.beginPath(); ctx.ellipse(m.x, gy, 58, 11, 0, 0, 7); ctx.fill();
+  } else if (m.type==='view'){
+    // scenic viewpoint: bench + sign
+    ctx.fillStyle='#8d6e63'; roundRect(m.x-24, gy-22, 48, 6, 2); ctx.fill();
+    ctx.fillRect(m.x-20, gy-16, 5, 16); ctx.fillRect(m.x+15, gy-16, 5, 16);
+    ctx.fillStyle='#5d4037'; roundRect(m.x-26, gy-34, 52, 5, 2); ctx.fill();
+    ctx.strokeStyle='#6d4c41'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(m.x+40, gy); ctx.lineTo(m.x+40, gy-54); ctx.stroke();
+    ctx.fillStyle='#ffb74d'; roundRect(m.x+28, gy-72, 30, 24, 6); ctx.fill();
+    ctx.font='15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🏞️', m.x+43, gy-60);
+    ctx.fillStyle='rgba(255,183,77,.2)';
+    ctx.beginPath(); ctx.ellipse(m.x, gy, 56, 11, 0, 0, 7); ctx.fill();
+  } else if (m.type==='house'){
+    // parcel drop: a mailbox by the gate + a bobbing package hint
+    const s = m.hs || 1;
+    ctx.strokeStyle='#7b5e3b'; ctx.lineWidth=4; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(m.x-60*s, gy); ctx.lineTo(m.x-60*s, gy-38); ctx.stroke();
+    ctx.fillStyle='#4e7fa8'; roundRect(m.x-74*s, gy-56, 28, 19, 5); ctx.fill();
+    ctx.fillStyle='#d7e6ef'; ctx.fillRect(m.x-70*s, gy-51, 8, 3);
+    const bob = Math.sin(Game.time*3)*4;
+    ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('📦', m.x, gy-96+bob);
+    ctx.fillStyle='rgba(120,180,90,.22)';
+    ctx.beginPath(); ctx.ellipse(m.x, gy, 68, 12, 0, 0, 7); ctx.fill();
+  } else if (m.type==='flock'){
+    // quiet-zone marker around the errand's flock
+    ctx.fillStyle = m.spooked ? 'rgba(229,115,115,.16)' : 'rgba(129,199,132,.18)';
+    ctx.beginPath(); ctx.ellipse(m.x, gy, 130, 18, 0, 0, 7); ctx.fill();
+    ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(m.spooked ? '🐑' : '🤫', m.x, gy-92 + Math.sin(Game.time*2.5)*3);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ---------- Roadside cottages (vibe mode) ----------
+const HOUSE_SPACING = 1150;
+const HOUSE_WALLS = ['#e8d5b7','#dfc9a8','#efdcc4','#d8c4a2'];
+const HOUSE_ROOFS = ['#a44b3c','#8d5b45','#7a4b52','#a05c3a'];
+// deterministic: the same slot always yields the same cottage (or none)
+function houseAt(i){
+  if (hash(i*7.3 + 1.1) > 0.6) return null;
+  return { i, x: i*HOUSE_SPACING + (hash(i*3.1)-0.5)*380, s: 0.9 + hash(i*5.7)*0.45 };
+}
+function nextHouse(fromX){
+  const i0 = Math.floor(fromX/HOUSE_SPACING);
+  for (let i=i0; i<i0+16; i++){ const h = houseAt(i); if (h && h.x > fromX + 340) return h; }
+  return null;
+}
+function houseGeom(h){
+  Terrain.ensure(h.x);
+  const gy = Terrain.heightAt(h.x), w = 96*h.s, hh = 64*h.s;
+  const x0 = h.x - w/2, y0 = gy - hh;
+  return { gy, w, hh, x0, y0, roofY: y0 - 34*h.s,
+    win: [ {x:x0+w*0.13, y:y0+hh*0.20, w:w*0.25, h:hh*0.30},
+           {x:x0+w*0.62, y:y0+hh*0.20, w:w*0.25, h:hh*0.30} ] };
+}
+function eachVisibleHouse(fn){
+  const i0 = Math.floor((VL-400)/HOUSE_SPACING), i1 = Math.ceil((VR+400)/HOUSE_SPACING);
+  for (let i=i0;i<=i1;i++){ const h = houseAt(i); if (h && h.x > VL-300 && h.x < VR+300) fn(h); }
+}
+function drawHouses(){
+  eachVisibleHouse(h => {
+    const g = houseGeom(h), k = h.i & 3;
+    // walls
+    ctx.fillStyle = HOUSE_WALLS[k];
+    ctx.fillRect(g.x0, g.y0, g.w, g.hh);
+    // roof
+    ctx.fillStyle = HOUSE_ROOFS[k];
+    ctx.beginPath();
+    ctx.moveTo(g.x0 - 8*h.s, g.y0); ctx.lineTo(h.x, g.roofY); ctx.lineTo(g.x0 + g.w + 8*h.s, g.y0);
+    ctx.closePath(); ctx.fill();
+    // chimney
+    const cx = g.x0 + g.w*0.70, ctop = g.y0 - 26*h.s;
+    ctx.fillRect(cx - 5*h.s, ctop, 10*h.s, 20*h.s);
+    // door
+    ctx.fillStyle = '#6d4c34';
+    roundRect(h.x - 9*h.s, g.y0 + g.hh - 26*h.s, 18*h.s, 26*h.s, 3); ctx.fill();
+    // windows (dark by day, the glow pass lights them at night)
+    ctx.fillStyle = Sky.lit ? '#4a3a22' : '#9fd4ea';
+    for (const w of g.win) ctx.fillRect(w.x, w.y, w.w, w.h);
+    ctx.strokeStyle = 'rgba(60,40,25,.5)'; ctx.lineWidth = 1.5;
+    for (const w of g.win){ ctx.beginPath();
+      ctx.moveTo(w.x+w.w/2, w.y); ctx.lineTo(w.x+w.w/2, w.y+w.h);
+      ctx.moveTo(w.x, w.y+w.h/2); ctx.lineTo(w.x+w.w, w.y+w.h/2); ctx.stroke(); }
+    // chimney smoke — animated from the clock, no per-house state needed
+    ctx.save(); ctx.fillStyle = '#cfd6dd';
+    for (let p=0;p<3;p++){
+      const tt = ((Game.time*0.3 + p/3 + hash(h.i*2.7)) % 1);
+      ctx.globalAlpha = (1-tt)*0.32;
+      ctx.beginPath();
+      ctx.arc(cx + Math.sin(tt*5 + h.i)*8*h.s, ctop - tt*52*h.s, (3.5 + tt*9)*h.s, 0, 7);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+// additive pass: warm light spilling out of the windows after dark
+function drawWindowGlow(){
+  const k = lightK();
+  if (k <= 0) return;
+  eachVisibleHouse(h => {
+    const g = houseGeom(h);
+    for (const w of g.win){
+      const cx = w.x + w.w/2, cy = w.y + w.h/2, R = 34*h.s;
+      const rg = ctx.createRadialGradient(cx, cy, 2, cx, cy, R);
+      rg.addColorStop(0,  `rgba(255,206,120,${0.30*k})`);
+      rg.addColorStop(0.35,`rgba(255,190,100,${0.13*k})`);
+      rg.addColorStop(1,  'rgba(255,180,90,0)');
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgba(255,214,140,${0.62*k})`;
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+    }
+  });
+}
+
+// birds drifting across the daytime sky (screen space)
+function drawBirds(){
+  ctx.save();
+  ctx.strokeStyle = 'rgba(55,65,88,0.45)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i=0;i<5;i++){
+    const spd = 11 + hash(i*3.7)*15;
+    const bx = (W+140) - ((Game.time*spd + hash(i*5.3)*1200 + Game.camX*0.05) % (W+280));
+    const by = H*(0.09 + hash(i*7.9)*0.24);
+    const s = 5 + hash(i*2.1)*4, flap = Math.sin(Game.time*5 + i*2)*4;
+    ctx.beginPath();
+    ctx.moveTo(bx-s, by+flap); ctx.lineTo(bx, by); ctx.lineTo(bx+s, by+flap);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // ---------- Weather particles per biome ----------
 let flakes=[];
 function drawWeather(){
@@ -1286,7 +2202,7 @@ function drawParallax(factor, color, baseline){
 function hash(n){ let x = Math.sin(n*127.1)*43758.5453; return x - Math.floor(x); }
 function drawDecorations(){
   const spacing = 150;
-  const left = Game.camX - 60, right = Game.camX + W + 60;
+  const left = VL - 60, right = VR + 60;
   const startI = Math.floor(left/spacing), endI = Math.ceil(right/spacing);
   for (let i = startI; i <= endI; i++){
     const r = hash(i);
@@ -1338,17 +2254,18 @@ function puff(x,y,s){
 }
 
 function drawTerrain(){
-  const left = Game.camX - 40;
-  const right = Game.camX + W + 40;
+  const left = VL - 40;
+  const right = VR + 40;
   ctx.beginPath();
-  ctx.moveTo(left, H + Game.camY + 200);
+  const floor = Game.camY + H/ZOOM + 200;
+  ctx.moveTo(left, floor);
   const step = 8;
   ctx.lineTo(left, Terrain.heightAt(left));
   for (let x = left; x <= right; x += step){
     Terrain.ensure(x);
     ctx.lineTo(x, Terrain.heightAt(x));
   }
-  ctx.lineTo(right, H + Game.camY + 200);
+  ctx.lineTo(right, floor);
   ctx.closePath();
   // dirt body
   const grad = ctx.createLinearGradient(0, Terrain.baseY-100, 0, Terrain.baseY+260);
@@ -1377,7 +2294,7 @@ function drawItems(){
   // coins
   for (const c of coins){
     if (c.taken) continue;
-    if (c.x < Game.camX-40 || c.x > Game.camX+W+40) continue;
+    if (c.x < VL-40 || c.x > VR+40) continue;
     ctx.save();
     ctx.translate(c.x,c.y);
     const w = Math.abs(Math.cos(Game.time*4 + c.x));
@@ -1389,7 +2306,7 @@ function drawItems(){
   // fuel cans
   for (const f of fuels){
     if (f.taken) continue;
-    if (f.x < Game.camX-40 || f.x > Game.camX+W+40) continue;
+    if (f.x < VL-40 || f.x > VR+40) continue;
     ctx.save(); ctx.translate(f.x,f.y);
     const bob = Math.sin(Game.time*3+f.x)*3; ctx.translate(0,bob);
     ctx.fillStyle='#e33'; roundRect(-11,-14,22,26,4); ctx.fill();
@@ -1424,6 +2341,7 @@ function drawCar(){
 
   // chassis body — distinct silhouette per vehicle
   drawBody(c);
+  if (Game.mode==='vibe' && Vibe.riding) drawPassenger(c);
   ctx.restore();
 
   // exhaust smoke (world space, behind car)
@@ -1445,6 +2363,13 @@ function drawCar(){
   drawDust();
 }
 
+// second head in the cabin while a passenger is aboard — seat differs per silhouette
+function drawPassenger(c){
+  const bw = c.wheelBase*2+16, bh = c.chH;
+  if (c.shape === 'buggy')      drawHead(-bw*0.28, -bh*1.00, bh*0.34, '#7e57c2');
+  else if (c.shape === 'truck') drawHead( bw*0.21, -bh*0.74, bh*0.17, '#7e57c2');
+  else                          drawHead(-bw*0.11, -bh*1.02, bh*0.23, '#7e57c2');
+}
 function drawHead(x, y, r, capColor){
   ctx.fillStyle='#f4c8a0'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
   ctx.fillStyle=capColor; ctx.beginPath(); ctx.arc(x, y-r*0.25, r*1.05, Math.PI, 0); ctx.fill();
@@ -1541,8 +2466,9 @@ document.addEventListener('gesturestart', e=>e.preventDefault());
 updateBest();
 requestAnimationFrame(frame);
 
-// PWA: register service worker for offline play (secure contexts: https + localhost; ignored on file://)
-if ('serviceWorker' in navigator && window.isSecureContext) {
+// PWA: register service worker for offline play (secure contexts: https + localhost; ignored on file://).
+// Skipped inside an iframe — in the GamePass hub the host owns the origin, and sw.js isn't served there.
+if ('serviceWorker' in navigator && window.isSecureContext && window.parent === window) {
   window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 </script>
