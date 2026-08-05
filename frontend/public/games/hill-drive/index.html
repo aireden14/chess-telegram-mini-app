@@ -70,6 +70,8 @@
   .hud-btn.mini { width: 62px; height: 62px; font-size: 26px; bottom: 132px; border-width: 3px; }
   #horn { left: 37px; display: none;
     background: radial-gradient(circle at 40% 30%, #ffe6ad, #ef9f18); }
+  #cam  { right: 37px; display: none;
+    background: radial-gradient(circle at 40% 30%, #cfe4ff, #4a7fc1); }
   #radioBtn {
     position: fixed; top: calc(10px + env(safe-area-inset-top,0px)); right: 110px;
     width: 40px; height: 40px; border-radius: 10px;
@@ -192,6 +194,22 @@
   .modeseg .m.wide.on { background:linear-gradient(180deg,#8de0b4,#2fa36b); color:#04301e;
     box-shadow:0 4px 12px rgba(47,163,107,.4); }
 
+  .todseg { display:none; gap:6px; background:rgba(0,0,0,.22); border-radius:14px;
+    padding:5px; margin-bottom:12px; }
+  .todseg.show { display:flex; }
+  .todseg .t { flex:1; text-align:center; padding:7px 4px; border-radius:10px; cursor:pointer;
+    font-size:17px; color:#cfd8e3; transition:.15s; }
+  .todseg .t span { display:block; font-size:10px; font-weight:700; opacity:.75; margin-top:1px; }
+  .todseg .t.on { background:linear-gradient(180deg,#8de0b4,#2fa36b); color:#04301e; }
+
+  .cards-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:260px; overflow-y:auto; }
+  .card-item { background:rgba(255,255,255,.07); border-radius:10px; overflow:hidden; }
+  .card-item img { width:100%; display:block; }
+  .card-item .cap { padding:5px 7px; }
+  .card-item .cap .t { font-size:11px; font-weight:700; line-height:1.25; }
+  .card-item .cap .s { font-size:10px; opacity:.65; margin-top:1px; }
+  .cards-empty { font-size:14px; opacity:.75; line-height:1.5; padding:6px 0 12px; }
+
   #questChip {
     position: fixed; top: calc(58px + env(safe-area-inset-top,0px)); left: 50%;
     transform: translateX(-50%); display:none; align-items:center; gap:7px;
@@ -251,6 +269,7 @@
 
 <div id="brake" class="hud-btn">◀</div>
 <div id="horn" class="hud-btn mini">📢</div>
+<div id="cam" class="hud-btn mini">📷</div>
 <div id="gas" class="hud-btn">▶</div>
 
 <div class="toast" id="toast"></div>
@@ -261,6 +280,7 @@
     <h1>ХОЛМ ДРАЙВ</h1>
     <div class="tabs">
       <div class="tab active" data-tab="play">Играть</div>
+      <div class="tab" data-tab="cards">Открытки</div>
       <div class="tab" data-tab="how">Управление</div>
       <div class="tab" data-tab="news">Что нового</div>
     </div>
@@ -272,10 +292,20 @@
         <div class="m" data-mode="endless">♾️ Бесконечный<span class="sub">квесты и события</span></div>
         <div class="m wide" data-mode="vibe">🌴 Вайбовая езда<span class="sub">день и ночь, деревни, поручения — без аварий</span></div>
       </div>
+      <div class="todseg" id="todSeg">
+        <div class="t" data-tod="0.10">🌅<span>Утро</span></div>
+        <div class="t" data-tod="0.28">☀️<span>День</span></div>
+        <div class="t" data-tod="0.55">🌇<span>Закат</span></div>
+        <div class="t" data-tod="0.74">🌙<span>Ночь</span></div>
+      </div>
       <div class="veh-row" id="vehRow"></div>
       <div class="shop" id="shop"></div>
       <button class="btn" id="startBtn">🚗 Старт</button>
       <button class="btn alt" id="gamepassBtn" style="display:none">← В GamePass</button>
+    </div>
+
+    <div class="tabpane" id="tab-cards">
+      <div id="cardsWrap"></div>
     </div>
 
     <div class="tabpane" id="tab-how">
@@ -285,7 +315,8 @@
         На клавиатуре — <b>стрелки ←/→</b>.<br><br>
         <b>Как только колесо оторвалось от земли</b> (в прыжке, на гребне, на вилли) педали начинают рулить наклоном: газ поднимает нос вверх, тормоз опускает вниз. Клюёшь носом — дай газ; заваливаешься назад — придержи тормоз. Отпусти обе педали, и вращение само успокоится.<br><br>
         Застрял носом вверх на подъёме — придержи <b>◀</b>, скатись назад и возьми разгон. Следи за топливом — жёлтые канистры пополняют бак.<br><br>
-        <b>🌴 В вайбовой езде:</b> кнопка <b>📢</b> (или клавиша <b>H</b>) — клаксон: прохожие машут в ответ, собаки бегут рядом, овцы разбегаются. Кнопка <b>🎵</b> сверху включает и выключает радио. Время суток идёт само — ночью зажигаются фары и окна в домах.<br><br>
+        <b>🌴 В вайбовой езде:</b> кнопка <b>📢</b> (или клавиша <b>H</b>) — клаксон: прохожие машут в ответ, собаки бегут рядом, овцы разбегаются. Кнопка <b>📷</b> — снять открытку на память, все они лежат во вкладке «Открытки». Кнопка <b>🎵</b> сверху включает радио.<br>
+        Время суток идёт само (полный круг — около 4 минут), но начать можно с любого: выбери 🌅/☀️/🌇/🌙 перед стартом. Ночью зажигаются фары, окна в домах и светлячки над лугом. Иногда находит дождь, а после него встаёт радуга.<br><br>
         Крути <b>сальто</b> ради бонусных монет. Собранные монеты копятся в гараже — трать их на <b>прокачку</b> машины и разблокировку новых. Чем дальше едешь, тем сменяются <b>биомы</b>: луг, пустыня, снег.
       </p>
     </div>
@@ -621,6 +652,23 @@ const Audio2 = {
       o.start(t); o.stop(t+0.34);
     }
   },
+  // looping rain bed — one noise buffer, gain follows the shower intensity
+  rainStart(){
+    if(!this.ready||this.muted||this.rainSrc) return;
+    const len = this.ctx.sampleRate*2;
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i] = (Math.random()*2-1)*0.5;
+    const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1500; f.Q.value=0.55;
+    const g = this.ctx.createGain(); g.gain.value = 0;
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(); this.rainSrc = src; this.rainGain = g;
+  },
+  rainLevel(v){
+    if(!this.rainGain) return;
+    this.rainGain.gain.setTargetAtTime(this.muted ? 0 : v*0.055, this.ctx.currentTime, 0.5);
+  },
   // soft sustained note on the music bus (used by the radio)
   tone(freq, when, dur, type, vol, cutoff){
     if(!this.ready||this.muted) return;
@@ -691,6 +739,73 @@ const Radio = {
     }
     this.bar++;
   }
+};
+
+// ---------- Postcards: keep something from the drive ----------
+// A downscaled JPEG of the current view plus where and when it was taken.
+const Cards = {
+  MAX: 18,
+  load(){ try { return JSON.parse(localStorage.getItem('hc_cards')) || []; } catch(e){ return []; } },
+  _write(list){ try { localStorage.setItem('hc_cards', JSON.stringify(list)); return true; } catch(e){ return false; } },
+  add(card){
+    const list = this.load();
+    list.unshift(card);
+    while (list.length > this.MAX) list.pop();
+    // storage is small: if the write is rejected, drop the oldest until it fits
+    while (list.length > 1 && !this._write(list)) list.pop();
+    if (list.length === 1 && !this._write(list)) return false;
+    return true;
+  },
+  clear(){ localStorage.removeItem('hc_cards'); }
+};
+
+function takePostcard(){
+  if (Game.mode!=='vibe' || Game.state!=='play') return;
+  render(0);                                     // make sure the frame is current
+  const w = 320, h = Math.max(1, Math.round(w * canvas.height / canvas.width));
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  off.getContext('2d').drawImage(canvas, 0, 0, w, h);
+  let img;
+  try { img = off.toDataURL('image/jpeg', 0.55); }
+  catch(e){ toast('📷 Не вышло сохранить'); return; }
+  const lm = Vibe.place || nearestLandmark(Car.x, 420);
+  const ok = Cards.add({
+    img,
+    title: lm ? `${lm.def.ico} ${lm.def.name}` : `${biomeAt(Game.distance).name}`,
+    sub: `${Sky.name} · ${Math.floor(Game.distance)} м${Rain.wet ? ' · дождь' : ''}`,
+    ts: Date.now(),
+  });
+  toast(ok ? '📷 Открытка сохранена' : '📷 Нет места для открытки');
+  if (ok) Audio2.blip(1050, 0.09, 'square', 0.14);
+  flashT = 0.35;
+}
+let flashT = 0;                                  // white shutter flash
+
+// ---------- Passing rain showers (vibe mode) ----------
+const Rain = {
+  state:'dry', t:0, next:0, dur:0, level:0, bow:0, drops:[], splashes:[],
+  reset(){ this.state='dry'; this.t=0; this.level=0; this.bow=0;
+           this.next = 45 + Math.random()*70; this.drops.length = 0; this.splashes.length = 0; },
+  step(dt){
+    if (Game.mode!=='vibe' || Game.state!=='play'){
+      this.level = Math.max(0, this.level - dt*0.8); Audio2.rainLevel(this.level); return;
+    }
+    this.t += dt;
+    if (this.state==='dry' && this.t > this.next){
+      this.state='rain'; this.t=0; this.dur = 26 + Math.random()*34;
+      Audio2.rainStart();
+      toast('🌧️ Начинается дождь');
+    } else if (this.state==='rain' && this.t > this.dur){
+      this.state='dry'; this.t=0; this.next = 70 + Math.random()*90;
+      this.bow = 15;                                  // rainbow lingers after the shower
+    }
+    const target = this.state==='rain' ? 1 : 0;
+    this.level += (target - this.level) * Math.min(1, dt*0.6);
+    if (this.bow > 0) this.bow -= dt;
+    Audio2.rainLevel(this.level);
+  },
+  get wet(){ return this.level > 0.05; }
 };
 
 // ---------- Car physics ----------
@@ -903,6 +1018,8 @@ function startGame() {
   if (Game.mode==='endless') Quest.reset(); else Quest.clear();
   if (Game.mode==='vibe') Vibe.reset(); else Vibe.clear();
   Sky.reset();
+  Rain.reset();
+  flashT = 0;
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('gameover').classList.add('hidden');
   document.getElementById('pause').classList.add('hidden');
@@ -917,6 +1034,7 @@ function startGame() {
 // horn + radio buttons only make sense on the chill drive
 function showVibeControls(on){
   document.getElementById('horn').style.display = on ? 'flex' : 'none';
+  document.getElementById('cam').style.display = on ? 'flex' : 'none';
   document.getElementById('radioBtn').style.display = on ? 'flex' : 'none';
 }
 
@@ -978,10 +1096,12 @@ const VIBE_TASKS = [
 const Vibe = {
   peds:[], animals:[], marker:null, riding:false, task:null, progress:0, mark:0, done:0,
   nextPedX:0, nextAnimalX:0, last:null, honkCd:0, honkRipple:0,
+  place:null, lastPlaceIdx:null, lastPlaceX:0, sayT:0, sayMsg:'',
 
   reset(){
     this.peds = []; this.animals = []; this.marker = null; this.riding = false;
     this.done = 0; this.last = null; this.honkCd = 0; this.honkRipple = 0;
+    this.place = null; this.lastPlaceIdx = null; this.lastPlaceX = 0; this.sayT = 0;
     this.nextPedX = Car.x + 420;
     this.nextAnimalX = Car.x + 900;
     this.pick();
@@ -1063,6 +1183,21 @@ const Vibe = {
   update(dt){
     if (this.honkCd > 0) this.honkCd -= dt;
     if (this.honkRipple > 0) this.honkRipple -= dt*1.6;
+    if (this.sayT > 0) this.sayT -= dt;
+
+    // arriving at a named place: announce it once and remember you've been
+    const lm = nearestLandmark(Car.x, 130);
+    this.place = lm;                                  // also drives the 📷 caption
+    if (lm && lm.i !== this.lastPlaceIdx){
+      this.lastPlaceIdx = lm.i;
+      toast(`${lm.def.ico} ${lm.def.name}`);
+      Save.data.places = Save.data.places || {};
+      Save.data.places[lm.def.id] = (Save.data.places[lm.def.id]||0) + 1;
+      Save.persist();
+    } else if (!lm && this.lastPlaceIdx != null && Math.abs(Car.x - (this.lastPlaceX||0)) > 400){
+      this.lastPlaceIdx = null;
+    }
+    if (lm) this.lastPlaceX = lm.x;
 
     // populate the roadside with people to be careful around
     while (this.nextPedX < Car.x + 1800){
@@ -1168,7 +1303,9 @@ const Vibe = {
         this.marker = { type:'drop', x: m.x + 260 + Math.random()*220 };
         toast('🚕 Пассажир сел — вези до флажка');
       } else if (m.type==='drop' && d < 48 && spd < 130){
-        this.riding = false; this.complete();
+        this.riding = false;
+        this.sayT = 2.6; this.sayMsg = PASSENGER_BYE[Math.random()*PASSENGER_BYE.length|0];
+        this.complete();
       } else if (m.type==='stop' && d < 62 && spd < 45){
         this.complete();
       } else if (m.type==='view' && d < 60){
@@ -1200,6 +1337,7 @@ const Vibe = {
 const PED_CAPS = ['#e57373','#64b5f6','#ffd54f','#a1887f','#81c784','#ba68c8'];
 // pass people below this and it counts as driving carefully (about half of cruising speed)
 const PED_SAFE_SPEED = 215;
+const PASSENGER_BYE = ['Спасибо!', 'Удачи в пути!', 'Хорошей дороги!', 'Вот спасибо!'];
 
 function endGame(reason, tip) {
   if (Game.state === 'over') return;
@@ -1259,6 +1397,13 @@ const doHonk = e => { e.preventDefault(); e.stopPropagation(); Vibe.honk();
 hornBtn.addEventListener('touchstart', doHonk, {passive:false});
 hornBtn.addEventListener('mousedown', doHonk);
 
+// postcard camera (vibe mode)
+const camBtn = document.getElementById('cam');
+const doSnap = e => { e.preventDefault(); e.stopPropagation(); takePostcard();
+  camBtn.classList.add('pressed'); setTimeout(()=>camBtn.classList.remove('pressed'), 120); };
+camBtn.addEventListener('touchstart', doSnap, {passive:false});
+camBtn.addEventListener('mousedown', doSnap);
+
 const keys = {};
 window.addEventListener('keydown', e=>{
   if (e.repeat) return;
@@ -1278,10 +1423,13 @@ function refreshBank(){ document.getElementById('bankCoins').textContent = Save.
 
 // mode selector (Заезд / Бесконечный)
 Game.mode = localStorage.getItem('hc_mode') || 'run';
+// declared here, not on Sky: the mode selector runs before `const Sky` is initialised
+let todStart = +(localStorage.getItem('hc_tod') || 0.10);
 function refreshModeSeg(){
   document.querySelectorAll('#modeSeg .m').forEach(m=>{
     m.classList.toggle('on', m.dataset.mode===Game.mode);
   });
+  refreshTodSeg();
   updateBest();
 }
 document.querySelectorAll('#modeSeg .m').forEach(m=>{
@@ -1333,7 +1481,53 @@ function buildShop() {
   }
 }
 
-function rebuildMenu(){ buildVehiclePicker(); buildShop(); refreshBank(); }
+// postcard album — built from DOM nodes so nothing is ever parsed as markup
+function buildCards(){
+  const wrap = document.getElementById('cardsWrap');
+  if (!wrap) return;
+  wrap.textContent = '';
+  const list = Cards.load();
+  if (!list.length){
+    const p = document.createElement('div');
+    p.className = 'cards-empty';
+    p.textContent = 'Пока пусто. В «Вайбовой езде» нажми 📷 — вид, который сейчас на экране, сохранится сюда вместе с названием места и временем суток.';
+    wrap.appendChild(p);
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'cards-grid';
+  for (const c of list){
+    const item = document.createElement('div'); item.className = 'card-item';
+    const im = document.createElement('img'); im.src = c.img; im.alt = '';
+    const cap = document.createElement('div'); cap.className = 'cap';
+    const t = document.createElement('div'); t.className = 't'; t.textContent = c.title || '';
+    const s = document.createElement('div'); s.className = 's'; s.textContent = c.sub || '';
+    cap.appendChild(t); cap.appendChild(s);
+    item.appendChild(im); item.appendChild(cap);
+    grid.appendChild(item);
+  }
+  wrap.appendChild(grid);
+  const btn = document.createElement('button');
+  btn.className = 'btn alt'; btn.textContent = 'Очистить открытки';
+  btn.style.marginTop = '10px';
+  btn.onclick = ()=>{ Cards.clear(); buildCards(); };
+  wrap.appendChild(btn);
+}
+
+// time of day a vibe drive starts at
+function refreshTodSeg(){
+  const seg = document.getElementById('todSeg');
+  if (!seg) return;
+  seg.classList.toggle('show', Game.mode === 'vibe');
+  seg.querySelectorAll('.t').forEach(el =>
+    el.classList.toggle('on', Math.abs(+el.dataset.tod - todStart) < 0.001));
+}
+document.querySelectorAll('#todSeg .t').forEach(el => {
+  el.onclick = ()=>{ todStart = +el.dataset.tod;
+    localStorage.setItem('hc_tod', String(todStart)); refreshTodSeg(); };
+});
+
+function rebuildMenu(){ buildVehiclePicker(); buildShop(); refreshBank(); buildCards(); refreshTodSeg(); }
 rebuildMenu();
 
 document.querySelectorAll('.tab').forEach(t=>{
@@ -1342,11 +1536,20 @@ document.querySelectorAll('.tab').forEach(t=>{
     document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'cards') buildCards();
   };
 });
 
 // What's new
 const CHANGELOG = [
+  { date:'04.08.2026, 16:20', items:[
+    '🗺️ У дороги появились места с названиями: ветряная мельница, придорожное кафе, старый колодец, смотровая вышка, автобусная остановка. Подъезжаешь — игра говорит, куда ты приехал.',
+    '📷 Открытки на память: кнопкой 📷 снимаешь вид, который сейчас на экране. Снимок подписывается местом и временем суток и ложится во вкладку «Открытки».',
+    '🌧️ Иногда находит дождь — со звуком, а когда распогодится, встаёт радуга.',
+    '✨ Ночью над лугом летают светлячки.',
+    '🌇 Время суток теперь можно выбрать перед стартом: утро, день, закат или ночь — не нужно ждать четыре минуты до темноты.',
+    '💬 Пассажир благодарит, когда довезёшь его до места.',
+  ]},
   { date:'02.08.2026, 15:20', items:[
     '🧱 Убрана невидимая стена: в рельефе на 318 м была ступенька в 73 пикселя (генератор рвал трассу на стыке кусков). Именно в неё разбивалось большинство заездов.',
     '🎮 Педали наконец работают, когда одно колесо оторвалось от земли. Раньше в этом положении управление отключалось полностью — а там происходили ВСЕ аварии.',
@@ -1555,8 +1758,8 @@ function frame(now) {
     // pulse the pedal that would bring it back level
     updatePedalHint();
 
-    // vibe mode: people on the roadside + gentle errands
-    if (Game.mode==='vibe') Vibe.update(dt);
+    // vibe mode: people on the roadside, gentle errands, passing showers
+    if (Game.mode==='vibe'){ Vibe.update(dt); Rain.step(dt); }
 
     // head hit ground => game over (flip); in vibe mode it just rights the car
     checkCrash(dt);
@@ -1678,7 +1881,7 @@ const TOD_CYCLE = 260;      // seconds for one full day/night loop in vibe mode
 const Sky = {
   t: 0.16, sky:null, dark:0, name:'День', starAlpha:0, sunX:0, sunY:0, sunUp:true,
 
-  reset(){ this.t = 0.10; this.step(0); },     // vibe runs start just after sunrise
+  reset(){ this.t = (Game.mode==='vibe') ? todStart : 0.28; this.step(0); },
 
   step(dt){
     if (Game.mode === 'vibe' && Game.state === 'play') this.t = (this.t + dt/TOD_CYCLE) % 1;
@@ -1732,6 +1935,9 @@ function render(dt) {
   ctx.beginPath(); ctx.arc(S.sunX, S.sunY, S.sunUp?52:38, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
+  // rainbow belongs in the sky, behind the hills — drawn before the parallax layers
+  if (Game.mode==='vibe') drawRainbow();
+
   // parallax hills (background)
   drawParallax(0.25, CB.para[0], H*0.55);
   drawParallax(0.45, CB.para[1], H*0.62);
@@ -1750,8 +1956,8 @@ function render(dt) {
   // endless-mode structures (mines, ramps, pits)
   if (Terrain.mode==='endless') drawFeatures();
 
-  // roadside cottages (vibe only) sit behind the trees
-  if (Game.mode==='vibe') drawHouses();
+  // roadside cottages & named places (vibe only) sit behind the trees
+  if (Game.mode==='vibe'){ drawHouses(); drawLandmarks(); }
 
   // trees & bushes on the ground
   drawDecorations();
@@ -1776,7 +1982,7 @@ function render(dt) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.scale(ZOOM, ZOOM);
       ctx.translate(-Game.camX, -Game.camY);
-      if (Game.mode==='vibe') drawWindowGlow();
+      if (Game.mode==='vibe'){ drawWindowGlow(); drawFireflies(); }
       if (Game.state!=='menu') drawHeadlights();
       ctx.restore();
     }
@@ -1784,6 +1990,13 @@ function render(dt) {
 
   // weather ambience (screen space, on top of the world)
   drawWeather();
+
+  // camera shutter flash
+  if (flashT > 0){
+    flashT -= (dt || 0);
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, flashT)*1.7})`;
+    ctx.fillRect(0,0,W,H);
+  }
 }
 
 // deterministic starfield, drifting very slightly with the camera
@@ -1987,6 +2200,19 @@ function drawVibe(){
     if (p.x < VL-60 || p.x > VR+60) continue;
     drawPerson(p.x, p.y, p.cap, { wave: p.wave>0, fallen: p.hit });
   }
+  // passenger says goodbye after a drop-off
+  if (Vibe.sayT > 0 && Vibe.sayMsg){
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, Vibe.sayT);
+    ctx.font = 'bold 15px -apple-system, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = ctx.measureText(Vibe.sayMsg).width + 26;
+    const bx = Car.x, by = Car.y - 74 - Math.min(14, (2.6-Vibe.sayT)*10);
+    ctx.fillStyle = '#fff'; roundRect(bx-w/2, by-15, w, 30, 12); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx-6, by+13); ctx.lineTo(bx+2, by+24); ctx.lineTo(bx+8, by+13); ctx.fill();
+    ctx.fillStyle = '#37474f'; ctx.fillText(Vibe.sayMsg, bx, by);
+    ctx.restore();
+  }
   // expanding ring when the horn goes off
   if (Vibe.honkRipple > 0){
     ctx.save();
@@ -2136,6 +2362,125 @@ function drawWindowGlow(){
   });
 }
 
+// ---------- Named places along the road (vibe mode) ----------
+// The endless road needs somewhere to be going: deterministic landmarks you pass,
+// which announce themselves and become the title of any postcard taken nearby.
+const LM_SPACING = 2600;
+const LANDMARKS = [
+  { id:'mill',   name:'Ветряная мельница',    ico:'🌾' },
+  { id:'cafe',   name:'Придорожное кафе',     ico:'☕' },
+  { id:'well',   name:'Старый колодец',       ico:'🪣' },
+  { id:'tower',  name:'Смотровая вышка',      ico:'🗼' },
+  { id:'busstop',name:'Автобусная остановка', ico:'🚏' },
+];
+function landmarkAt(i){
+  if (hash(i*11.7 + 3.3) > 0.45) return null;
+  const k = Math.min(LANDMARKS.length-1, Math.floor(hash(i*5.9)*LANDMARKS.length));
+  return { i, x: i*LM_SPACING + (hash(i*2.3)-0.5)*420, def: LANDMARKS[k], s: 0.95 + hash(i*7.1)*0.3 };
+}
+function eachVisibleLandmark(fn){
+  const i0 = Math.floor((VL-500)/LM_SPACING), i1 = Math.ceil((VR+500)/LM_SPACING);
+  for (let i=i0;i<=i1;i++){ const l = landmarkAt(i); if (l && l.x > VL-400 && l.x < VR+400) fn(l); }
+}
+// closest landmark within `range` px — used for arrival toasts and postcard captions
+function nearestLandmark(x, range){
+  const i0 = Math.floor((x-range)/LM_SPACING), i1 = Math.ceil((x+range)/LM_SPACING);
+  let best = null, bd = range;
+  for (let i=i0;i<=i1;i++){
+    const l = landmarkAt(i); if (!l) continue;
+    const d = Math.abs(l.x - x);
+    if (d < bd){ bd = d; best = l; }
+  }
+  return best;
+}
+function drawLandmarks(){
+  eachVisibleLandmark(l => {
+    Terrain.ensure(l.x);
+    const gy = Terrain.heightAt(l.x), s = l.s;
+    ctx.save();
+    ctx.translate(l.x, gy);
+    ctx.scale(s, s);
+    switch (l.def.id){
+      case 'mill': {
+        ctx.fillStyle = '#d8cdb8';                                  // tapered tower
+        ctx.beginPath();
+        ctx.moveTo(-20,0); ctx.lineTo(-13,-86); ctx.lineTo(13,-86); ctx.lineTo(20,0);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#7a4b3a';                                  // cap
+        ctx.beginPath(); ctx.moveTo(-17,-86); ctx.lineTo(0,-104); ctx.lineTo(17,-86); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#6d4c34'; ctx.fillRect(-6,-30,12,30);      // door
+        ctx.save();                                                 // turning sails
+        ctx.translate(0,-90); ctx.rotate(Game.time*0.55);
+        for (let a=0;a<4;a++){
+          ctx.rotate(Math.PI/2);
+          ctx.fillStyle = '#8d6239'; ctx.fillRect(-2.5, 0, 5, 46);
+          ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(2.5, 8, 9, 32);
+        }
+        ctx.restore();
+        ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(0,-90,5,0,7); ctx.fill();
+        break;
+      }
+      case 'cafe': {
+        ctx.fillStyle = '#efe3cf'; roundRect(-40,-58,80,58,4); ctx.fill();
+        ctx.fillStyle = '#5d7f6a'; roundRect(-44,-70,88,14,4); ctx.fill();   // awning
+        ctx.fillStyle = 'rgba(255,255,255,.45)';
+        for (let i=0;i<5;i++) ctx.fillRect(-42+i*18, -70, 9, 14);
+        ctx.fillStyle = '#bfeaff'; ctx.fillRect(-30,-50,26,22);              // window
+        ctx.fillStyle = '#6d4c34'; ctx.fillRect(8,-40,22,40);                // door
+        ctx.strokeStyle = '#6d4c41'; ctx.lineWidth = 4;                      // sign post
+        ctx.beginPath(); ctx.moveTo(52,0); ctx.lineTo(52,-56); ctx.stroke();
+        ctx.fillStyle = '#f0a94e'; roundRect(38,-80,30,24,6); ctx.fill();
+        ctx.font = '15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('☕', 53, -68);
+        break;
+      }
+      case 'well': {
+        ctx.fillStyle = '#9aa3ab';                                   // stone ring
+        roundRect(-20,-26,40,26,5); ctx.fill();
+        ctx.fillStyle = '#6b757e'; roundRect(-20,-30,40,7,3); ctx.fill();
+        ctx.fillStyle = '#3a4a55'; ctx.beginPath(); ctx.ellipse(0,-27,15,4,0,0,7); ctx.fill();
+        ctx.strokeStyle = '#7a5b3a'; ctx.lineWidth = 5;              // posts + roof
+        ctx.beginPath(); ctx.moveTo(-15,-26); ctx.lineTo(-15,-62); ctx.moveTo(15,-26); ctx.lineTo(15,-62); ctx.stroke();
+        ctx.fillStyle = '#8d5b45';
+        ctx.beginPath(); ctx.moveTo(-27,-60); ctx.lineTo(0,-80); ctx.lineTo(27,-60); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 2;              // bucket on a rope
+        const sw = Math.sin(Game.time*1.3)*3;
+        ctx.beginPath(); ctx.moveTo(0,-60); ctx.lineTo(sw,-44); ctx.stroke();
+        ctx.fillStyle = '#8d6239'; roundRect(sw-6,-44,12,10,2); ctx.fill();
+        break;
+      }
+      case 'tower': {
+        ctx.strokeStyle = '#8d6239'; ctx.lineWidth = 5;              // lattice legs
+        ctx.beginPath();
+        ctx.moveTo(-24,0); ctx.lineTo(-11,-74); ctx.moveTo(24,0); ctx.lineTo(11,-74);
+        ctx.moveTo(-19,-28); ctx.lineTo(19,-28); ctx.moveTo(-15,-52); ctx.lineTo(15,-52);
+        ctx.moveTo(-19,-28); ctx.lineTo(15,-52); ctx.moveTo(19,-28); ctx.lineTo(-15,-52);
+        ctx.stroke();
+        ctx.fillStyle = '#a1734a'; ctx.fillRect(-22,-82,44,9);       // platform
+        ctx.strokeStyle = '#8d6239'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-20,-82); ctx.lineTo(-20,-98); ctx.moveTo(20,-82); ctx.lineTo(20,-98); ctx.stroke();
+        ctx.fillStyle = '#7a4b3a';
+        ctx.beginPath(); ctx.moveTo(-27,-96); ctx.lineTo(0,-114); ctx.lineTo(27,-96); ctx.closePath(); ctx.fill();
+        break;
+      }
+      default: {                                                     // bus stop
+        ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(-30,0); ctx.lineTo(-30,-56); ctx.moveTo(26,0); ctx.lineTo(26,-56); ctx.stroke();
+        ctx.fillStyle = '#4e7fa8'; roundRect(-38,-64,72,10,3); ctx.fill();
+        ctx.fillStyle = '#8d6239'; ctx.fillRect(-28,-24,52,7);       // bench
+        ctx.fillRect(-24,-17,5,17); ctx.fillRect(17,-17,5,17);
+        ctx.strokeStyle = '#78909c'; ctx.lineWidth = 4;              // sign
+        ctx.beginPath(); ctx.moveTo(44,0); ctx.lineTo(44,-52); ctx.stroke();
+        ctx.fillStyle = '#fff'; roundRect(32,-74,26,22,5); ctx.fill();
+        ctx.font = '14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🚌', 45, -63);
+        break;
+      }
+    }
+    ctx.restore();
+  });
+}
+
 // birds drifting across the daytime sky (screen space)
 function drawBirds(){
   ctx.save();
@@ -2182,6 +2527,70 @@ function drawWeather(){
       ctx.beginPath(); ctx.arc(f.x,f.y,1.6,0,7); ctx.fill();
     }
   }
+  if (Game.mode==='vibe') drawRain();
+}
+
+// passing shower: slanted streaks + a grey wash, intensity follows Rain.level
+let rainDrops = [];
+function drawRain(){
+  const L = Rain.level;
+  if (L <= 0.02) return;
+  const want = Math.round(190*L);
+  while (rainDrops.length < want) rainDrops.push({ x:Math.random()*(W+160)-80, y:Math.random()*H,
+                                                  len:12+Math.random()*16, sp:11+Math.random()*8 });
+  if (rainDrops.length > want) rainDrops.length = want;
+  ctx.save();
+  ctx.fillStyle = `rgba(90,110,135,${0.16*L})`;      // overcast wash
+  ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = `rgba(190,215,240,${0.5*L})`;
+  ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (const d of rainDrops){
+    d.y += d.sp; d.x += d.sp*0.34;
+    if (d.y > H){ d.y = -20; d.x = Math.random()*(W+160)-80; }
+    if (d.x > W+40) d.x -= W+120;
+    ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - d.len*0.34, d.y - d.len);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// a rainbow hangs around for a few seconds once the rain stops
+const BOW_COLS = ['#e5544b','#ef8b3c','#f2c94c','#5fb95f','#4a90d9','#8e6fd0'];
+function drawRainbow(){
+  if (Rain.bow <= 0 || Rain.level > 0.15) return;
+  const a = Math.min(1, Rain.bow/5) * 0.42 * (1 - Sky.dark);
+  if (a <= 0.01) return;
+  ctx.save();
+  ctx.lineWidth = 9;
+  // sit the arc on the ground line and let it rise into the upper sky;
+  // the parallax hills drawn afterwards hide its feet
+  const ground = Math.min(H*0.85, Math.max(H*0.3, (Car.y - Game.camY)*ZOOM));
+  const cx = W*0.62, cy = ground + H*0.10, r0 = Math.max(60, cy - H*0.16);
+  BOW_COLS.forEach((c,i) => {
+    ctx.strokeStyle = c; ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(cx, cy, r0 + i*9, Math.PI, 0); ctx.stroke();
+  });
+  ctx.restore();
+}
+
+// fireflies drifting over the meadow after dark
+function drawFireflies(){
+  const k = lightK();
+  const meadow = (((Math.floor(Game.distance/ZONE)%3)+3)%3) === 0;
+  if (k <= 0 || !meadow || Rain.level > 0.3) return;
+  ctx.save();
+  for (let i=0;i<26;i++){
+    const bx = VL + ((hash(i*3.1)*1400 + Game.time*(9+hash(i*5.7)*14)) % (VR-VL+300));
+    const by = Terrain.heightAt(bx) - 22 - hash(i*7.3)*70 + Math.sin(Game.time*1.7 + i)*11;
+    const tw = 0.35 + Math.abs(Math.sin(Game.time*2.4 + i*1.7))*0.65;
+    const g = ctx.createRadialGradient(bx, by, 0, bx, by, 11);
+    g.addColorStop(0, `rgba(220,255,150,${0.8*tw*k})`);
+    g.addColorStop(1, 'rgba(200,255,120,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(bx, by, 11, 0, 7); ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawParallax(factor, color, baseline){
