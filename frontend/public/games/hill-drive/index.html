@@ -428,6 +428,7 @@ if (!Save.isUnlocked(selectedVehicle)) selectedVehicle = 'jeep';
 
 // ---------- Terrain ----------
 const WORLD_AMP = 78;        // hill amplitude in world px — fixed, never device-dependent
+const FEATURE_BLEND = 6;     // segments used to ease a feature's exit back into the terrain
 const VIEW_TARGET_W = 900;   // world px we try to keep on screen, so phones can see ahead too
 const Terrain = {
   seg: 24,            // horizontal spacing between control points (px)
@@ -477,7 +478,9 @@ const Terrain = {
   // difficulty grows with distance (index): features get closer & rougher
   _injectFeatures(fromIdx) {
     const len = this.pts.length;
-    while (this.nextFeatIdx < len - 20) {
+    // headroom for the longest feature (mine, 20) plus its blend tail, so a feature is
+    // never truncated at a chunk boundary and left with an unblended seam
+    while (this.nextFeatIdx < len - 30) {
       const s = this.nextFeatIdx;
       if (s < fromIdx) { this.nextFeatIdx = fromIdx; continue; }
       const prog = Math.min(1, s / 900);               // 0..1 over first ~22km of index
@@ -519,6 +522,17 @@ const Terrain = {
           this.pts[s+k] = h;
         }
         this.features.push({type:'mine', s, e:s+span, x0:s*this.seg, x1:(s+span)*this.seg});
+      }
+      // Ease back into the natural wave. Features are built relative to the ground at
+      // their start, but the wave resumes at an unrelated height right after them — that
+      // seam was a sheer wall (up to 160px over one 24px segment, i.e. 81°) on half of
+      // all features, and hitting it threw the car backwards into a tumble.
+      const endH = this.pts[s + span - 1];
+      for (let k = 0; k < FEATURE_BLEND; k++){
+        const j = s + span + k;
+        if (j >= len || this.pts[j] == null) break;
+        const u = (k + 1) / (FEATURE_BLEND + 1);
+        this.pts[j] = endH + (this.pts[j] - endH) * (u*u*(3 - 2*u));
       }
       // gap before next feature shrinks with progress, but never gets claustrophobic
       const gap = Math.max(17, Math.round(38 - prog*18)) + (Math.random()*8|0);
@@ -761,14 +775,17 @@ const Cards = {
 
 function takePostcard(){
   if (Game.mode!=='vibe' || Game.state!=='play') return;
+  // the webview can hand us a zero-sized canvas mid-layout; drawImage throws on that
+  if (!canvas.width || !canvas.height){ toast('📷 Не вышло снять'); return; }
   render(0);                                     // make sure the frame is current
   const w = 320, h = Math.max(1, Math.round(w * canvas.height / canvas.width));
-  const off = document.createElement('canvas');
-  off.width = w; off.height = h;
-  off.getContext('2d').drawImage(canvas, 0, 0, w, h);
   let img;
-  try { img = off.toDataURL('image/jpeg', 0.55); }
-  catch(e){ toast('📷 Не вышло сохранить'); return; }
+  try {
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    off.getContext('2d').drawImage(canvas, 0, 0, w, h);
+    img = off.toDataURL('image/jpeg', 0.55);
+  } catch(e){ toast('📷 Не вышло снять'); return; }
   const lm = Vibe.place || nearestLandmark(Car.x, 420);
   const ok = Cards.add({
     img,
@@ -815,6 +832,8 @@ const REVERSE_VT   = 45;    // px/s of forward roll above which the left pedal i
 const REVERSE_POWER= 0.6;   // reverse gear is weaker than forward
 const ONE_WHEEL_AUTHORITY = 0.75;  // pitch authority left when only one wheel is still down
 const TAKEOFF_SPIN_CAP = 2.2;      // rad/s max spin a crest may fling the car into
+// NB: a matching cap on grounded spin was tried and dropped — a paired-seed A/B over 18
+// runs showed no benefit (12/18 finished with it vs 15/18 without).
 const CRASH_ANGLE  = 1.35;  // rad (~77°) — below this a head scrape is survivable, not a crash
 const VIBE_TOP     = 440;   // px/s soft top speed in vibe mode — cruising, not racing
 
@@ -977,6 +996,7 @@ const Car = {
     this.vx *= 0.999;
     const angDamp = wheelsUp === 0 ? 0.9 : (throttle === 0 ? 3.5 : 0.8);
     this.angVel *= Math.exp(-angDamp * dt);
+
 
     this.x += this.vx*dt;
     this.y += this.vy*dt;
@@ -1542,6 +1562,10 @@ document.querySelectorAll('.tab').forEach(t=>{
 
 // What's new
 const CHANGELOG = [
+  { date:'04.08.2026, 21:40', items:[
+    '🧱 Половина препятствий в «Бесконечном» была пришита к трассе через обрыв: на выходе из шахты или трамплина попадалась стена в 81°. Машину отбрасывало назад и закручивало — выглядело как авария на ровном месте. Теперь препятствия плавно переходят обратно в рельеф: из 123 проверенных обрывов не осталось ни одного.',
+    '📷 Открытка больше не ломается, если снять её в момент, когда окно меняет размер.',
+  ]},
   { date:'04.08.2026, 16:20', items:[
     '🗺️ У дороги появились места с названиями: ветряная мельница, придорожное кафе, старый колодец, смотровая вышка, автобусная остановка. Подъезжаешь — игра говорит, куда ты приехал.',
     '📷 Открытки на память: кнопкой 📷 снимаешь вид, который сейчас на экране. Снимок подписывается местом и временем суток и ложится во вкладку «Открытки».',
