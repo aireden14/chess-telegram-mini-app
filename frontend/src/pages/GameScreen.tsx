@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useReducedMotion } from "framer-motion";
+import { BorderBeam } from "border-beam";
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import { api } from "../api/client";
@@ -12,6 +14,7 @@ import { Modal } from "../components/Modal";
 import { TopNav } from "../components/TopNav";
 import { makePiecesForStyle } from "../components/pieceStyles";
 import { usePieceStyleStore } from "../store/pieceStyle";
+import { useThemeStore } from "../store/theme";
 import { shareInvite, copyToClipboard } from "../hooks/useTelegram";
 import { celebrate } from "../hooks/celebrate";
 
@@ -21,6 +24,8 @@ export function GameScreen() {
   const { user, token, botUsername } = useAuthStore();
   const { socket, connect } = useSocketStore();
   const pieceStyle = usePieceStyleStore((s) => s.pieceStyle);
+  const theme = useThemeStore((s) => s.theme);
+  const reduceMotion = useReducedMotion();
   const {
     game,
     myColor,
@@ -420,7 +425,16 @@ export function GameScreen() {
       <MovesList pgn={game.pgn} />
 
       {game.status === "WAITING" && (
-        <div className="card">
+        <BorderBeam
+          size="pulse-inner"
+          colorVariant="ocean"
+          theme={theme}
+          strength={0.58}
+          duration={2.9}
+          active={!reduceMotion}
+          style={{ width: "100%" }}
+        >
+          <div className="card">
           <h2 className="h2" style={{ marginBottom: 8 }}>Ожидаем соперника</h2>
           <p className="muted" style={{ margin: "0 0 12px" }}>
             Поделитесь ссылкой, чтобы пригласить друга:
@@ -469,7 +483,8 @@ export function GameScreen() {
           >
             Отменить
           </button>
-        </div>
+          </div>
+        </BorderBeam>
       )}
 
       {game.status === "ACTIVE" && (
@@ -502,13 +517,23 @@ export function GameScreen() {
       {game.status === "PAUSED" && (
         <div className="card" style={{ textAlign: "center" }}>
           <h2 className="h2">Игра на паузе</h2>
-          <button
-            className="btn btn-primary btn-block"
-            style={{ marginTop: 12 }}
-            onClick={() => socket?.emit("REQUEST_RESUME", { gameId: game.id })}
+          <BorderBeam
+            size="sm"
+            colorVariant="ocean"
+            theme={theme}
+            strength={0.76}
+            duration={2.35}
+            active={!reduceMotion}
+            borderRadius={18}
+            style={{ width: "100%", marginTop: 12 }}
           >
-            Продолжить
-          </button>
+            <button
+              className="btn btn-primary btn-block"
+              onClick={() => socket?.emit("REQUEST_RESUME", { gameId: game.id })}
+            >
+              Продолжить
+            </button>
+          </BorderBeam>
         </div>
       )}
 

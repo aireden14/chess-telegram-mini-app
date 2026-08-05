@@ -1,8 +1,14 @@
 import React, { useEffect } from "react";
+import { useReducedMotion } from "framer-motion";
+import { BorderBeam } from "border-beam";
 import { TopNav } from "../components/TopNav";
 import { CHANGELOG, markWhatsNewSeen } from "../data/changelog";
+import { useThemeStore } from "../store/theme";
 
 export function WhatsNewScreen() {
+  const reduceMotion = useReducedMotion();
+  const theme = useThemeStore((s) => s.theme);
+
   useEffect(() => {
     markWhatsNewSeen();
   }, []);
@@ -11,8 +17,9 @@ export function WhatsNewScreen() {
     <div className="app-screen">
       <TopNav title="Что нового" backTo="/" />
       <div className="whats-new">
-        {CHANGELOG.map((entry, idx) => (
-          <section key={entry.version} className="menu-group whats-new-entry">
+        {CHANGELOG.map((entry, idx) => {
+          const content = (
+            <section className="menu-group whats-new-entry">
             <div className="whats-new-head">
               <span className="whats-new-version">
                 v{entry.version}
@@ -26,8 +33,26 @@ export function WhatsNewScreen() {
                 <li key={i}>{item}</li>
               ))}
             </ul>
-          </section>
-        ))}
+            </section>
+          );
+
+          return idx === 0 ? (
+            <BorderBeam
+              key={entry.version}
+              size="pulse-inner"
+              colorVariant="sunset"
+              theme={theme}
+              strength={0.5}
+              duration={3.2}
+              active={!reduceMotion}
+              style={{ width: "100%" }}
+            >
+              {content}
+            </BorderBeam>
+          ) : (
+            <React.Fragment key={entry.version}>{content}</React.Fragment>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
+import { BorderBeam } from "border-beam";
 import { useAuthStore } from "../store/auth";
 import { useThemeStore } from "../store/theme";
 import { useVisualModeStore } from "../store/visualMode";
@@ -117,6 +118,20 @@ export function GamePickerScreen() {
   const renderAppButton = (a: AppEntry, i: number) => {
     const isImg = a.icon.includes(".png") || a.icon.includes(".jpg");
     const iconSrc = a.icon.startsWith("/") ? a.icon : `/images/${a.icon}`;
+    const isFeatured = a.to === "/hill-drive";
+    const icon = (
+      <span
+        className="home-app-icon"
+        style={{ background: `linear-gradient(150deg, ${a.grad[0]}, ${a.grad[1]})` }}
+      >
+        {isImg ? (
+          <img src={iconSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
+        ) : (
+          <span className="home-app-emoji" aria-hidden>{a.icon}</span>
+        )}
+        {a.badge && <span className={`home-app-badge home-app-badge--${a.badge.toLowerCase()}`}>{a.badge}</span>}
+      </span>
+    );
 
     return (
       <motion.button
@@ -126,17 +141,20 @@ export function GamePickerScreen() {
         style={{ animationDelay: `${0.03 + i * 0.04}s` }}
         whileTap={reduce ? undefined : { scale: 0.9 }}
       >
-        <span
-          className="home-app-icon"
-          style={{ background: `linear-gradient(150deg, ${a.grad[0]}, ${a.grad[1]})` }}
-        >
-          {isImg ? (
-            <img src={iconSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "22.5%" }} />
-          ) : (
-            <span className="home-app-emoji" aria-hidden>{a.icon}</span>
-          )}
-          {a.badge && <span className={`home-app-badge home-app-badge--${a.badge.toLowerCase()}`}>{a.badge}</span>}
-        </span>
+        {isFeatured ? (
+          <BorderBeam
+            size="sm"
+            colorVariant="ocean"
+            theme={theme}
+            strength={0.82}
+            duration={2.7}
+            active={!reduce}
+            borderRadius={21}
+            style={{ width: 72, height: 72, overflow: "visible" }}
+          >
+            {icon}
+          </BorderBeam>
+        ) : icon}
         <span className="home-app-label">{a.title}</span>
       </motion.button>
     );

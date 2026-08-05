@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.30.0",
+    date: "5 августа 2026, 19:07 (Алматы)",
+    title: "Живые Beam-индикаторы и PDF Studio",
+    items: [
+      "✨ Новая игра, комната ожидания и кнопка возврата в партию теперь мягко подсвечиваются движущимся лучом",
+      "📄 PDF Studio показывает сборку и готовность PDF световыми контурами, а активный инструмент — тонкой line-анимацией",
+      "♿ Эффекты уважают системную настройку уменьшения движения",
+    ],
+  },
+  {
     version: "3.29.0",
     date: "1 августа 2026, ночь (Алматы)",
     title: "WAVE FORGE 3.1 — бростеп (авто-вобл + сайдчейн)",
