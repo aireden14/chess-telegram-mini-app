@@ -1,4 +1,4 @@
-export type SudokuDifficulty = "easy" | "medium" | "hard" | "expert";
+export type SudokuDifficulty = "easy" | "medium" | "hard" | "expert" | "labyrinth" | "abyss";
 export type SudokuCheckMode = "instant" | "manual";
 
 export interface SudokuCell {
@@ -19,6 +19,8 @@ export interface SudokuPuzzle {
   createdAt: number;
   mode: "classic" | "daily";
   dailyDate?: string;
+  /** Есть только у раскладов, проверенных логическим решателем (Лабиринт, Бездна). */
+  techniques?: string[];
 }
 
 export interface SudokuStats {

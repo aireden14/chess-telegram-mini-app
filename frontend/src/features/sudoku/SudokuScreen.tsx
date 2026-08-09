@@ -7,9 +7,15 @@ import { useSudokuStore } from "./sudokuStore";
 import { useSudokuProfile, SudokuReward } from "./sudokuProfileStore";
 import { SudokuBoard } from "./SudokuBoard";
 import { SudokuNumberPad } from "./SudokuNumberPad";
-import { difficultyLabel, formatSudokuTime } from "./SudokuStats";
+import { difficultyLabel, formatSudokuTime, DIFFICULTY_HINTS } from "./SudokuStats";
+import { TECHNIQUE_LABELS, SudokuTechnique } from "./sudokuLogic";
 
-const DIFFICULTIES: SudokuDifficulty[] = ["easy", "medium", "hard", "expert"];
+const DIFFICULTIES: SudokuDifficulty[] = ["easy", "medium", "hard", "expert", "labyrinth", "abyss"];
+// Тёмные эмодзи на тёмной панели не читаются — у «Бездны» намеренно светящийся значок.
+const DIFFICULTY_ICONS: Partial<Record<SudokuDifficulty, string>> = {
+  labyrinth: "🌀",
+  abyss: "🌌",
+};
 
 type Menu = "settings" | "tasks" | "ach" | "leaders" | null;
 interface Toast {
@@ -34,6 +40,7 @@ export function SudokuScreen() {
     isComplete,
     victory,
     undoStack,
+    generating,
     startNew,
     startDaily,
     selectCell,
@@ -244,6 +251,12 @@ export function SudokuScreen() {
       </div>
 
       <div className="sudoku-board-shell">
+        {generating && (
+          <div className="sudoku-generating" role="status">
+            <div className="spinner" />
+            <span>Подбираем расклад…</span>
+          </div>
+        )}
         <SudokuBoard
           puzzle={puzzle}
           entries={entries}
@@ -299,11 +312,24 @@ export function SudokuScreen() {
                 {DIFFICULTIES.map((d) => (
                   <button
                     key={d}
-                    className={`seg-item${puzzle.mode === "classic" && puzzle.difficulty === d ? " active" : ""}`}
+                    className={`seg-item${puzzle.mode === "classic" && puzzle.difficulty === d ? " active" : ""}${
+                      DIFFICULTY_HINTS[d] ? " seg-item-graded" : ""
+                    }`}
                     onClick={() => startClassic(d)}
                   >
+                    {DIFFICULTY_ICONS[d] ? `${DIFFICULTY_ICONS[d]} ` : ""}
                     {difficultyLabel(d)}
                   </button>
+                ))}
+              </div>
+              <div className="sudoku-menu-notes">
+                {DIFFICULTIES.filter((d) => DIFFICULTY_HINTS[d]).map((d) => (
+                  <p key={d}>
+                    <strong>
+                      {DIFFICULTY_ICONS[d]} {difficultyLabel(d)}
+                    </strong>{" "}
+                    — {DIFFICULTY_HINTS[d]}
+                  </p>
                 ))}
               </div>
               <button
@@ -479,6 +505,14 @@ export function SudokuScreen() {
               {formatSudokuTime(victory.elapsedSeconds)} · ошибок {victory.mistakes} · подсказок{" "}
               {victory.hintsUsed}
             </p>
+            {puzzle.techniques && puzzle.techniques.length > 0 && (
+              <p className="sudoku-victory-tech">
+                Без этого расклад не сходился:{" "}
+                {puzzle.techniques
+                  .map((technique) => TECHNIQUE_LABELS[technique as SudokuTechnique] ?? technique)
+                  .join(", ")}
+              </p>
+            )}
             {reward && (
               <div className="sudoku-reward">
                 {reward.leveledUp && (

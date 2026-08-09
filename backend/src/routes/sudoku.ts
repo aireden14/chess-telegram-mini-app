@@ -5,9 +5,19 @@ import { safeJson } from "../utils/json";
 
 export const sudokuRouter = Router();
 
-type Difficulty = "easy" | "medium" | "hard" | "expert";
-const DIFFS: Difficulty[] = ["easy", "medium", "hard", "expert"];
-const BASE_POINTS: Record<Difficulty, number> = { easy: 10, medium: 20, hard: 35, expert: 55 };
+type Difficulty = "easy" | "medium" | "hard" | "expert" | "labyrinth" | "abyss";
+const DIFFS: Difficulty[] = ["easy", "medium", "hard", "expert", "labyrinth", "abyss"];
+// Лабиринт и Бездна проверены логическим решателем: там гарантированно нужны
+// продвинутые приёмы, поэтому и платят они заметно больше «Эксперта».
+const BASE_POINTS: Record<Difficulty, number> = {
+  easy: 10,
+  medium: 20,
+  hard: 35,
+  expert: 55,
+  labyrinth: 80,
+  abyss: 120,
+};
+const HARD_PLUS: Difficulty[] = ["hard", "expert", "labyrinth", "abyss"];
 const TASK_XP = 15; // per completed daily task
 const ALL_DAILY_XP = 50; // bonus for completing all daily tasks
 const XP_PER_LEVEL = 100;
@@ -28,6 +38,8 @@ const ACHIEVEMENTS = [
   { id: "no_hints", title: "Без подсказок", desc: "Реши без подсказок" },
   { id: "speed", title: "Скорость", desc: "Реши быстрее 3 минут" },
   { id: "expert", title: "Эксперт", desc: "Реши уровень «Эксперт»" },
+  { id: "labyrinth", title: "Картограф", desc: "Пройди «Лабиринт»" },
+  { id: "abyss", title: "Бездна смотрит в ответ", desc: "Пройди «Бездну»" },
   { id: "streak_7", title: "Неделя", desc: "Серия ежедневных — 7 дней" },
   { id: "streak_30", title: "Месяц подряд", desc: "Серия ежедневных — 30 дней" },
   { id: "marathon", title: "Марафон", desc: "Реши 50 судоку" },
@@ -40,7 +52,7 @@ const DAILY_POOL: Array<{ id: string; title: string; check: (r: SolveResult) => 
   { id: "daily_solve", title: "Реши дневную судоку", check: (r) => r.mode === "daily" },
   { id: "flawless", title: "Реши без ошибок", check: (r) => r.mistakes === 0 },
   { id: "no_hints", title: "Реши без подсказок", check: (r) => r.hintsUsed === 0 },
-  { id: "hard_plus", title: "Реши «Сложно» или «Эксперт»", check: (r) => r.difficulty === "hard" || r.difficulty === "expert" },
+  { id: "hard_plus", title: "Реши «Сложно» или выше", check: (r) => HARD_PLUS.includes(r.difficulty) },
   { id: "under_5", title: "Реши быстрее 5 минут", check: (r) => r.elapsedSeconds < 300 },
 ];
 
@@ -272,6 +284,8 @@ sudokuRouter.post(
     if (hintsUsed === 0) grant("no_hints");
     if (elapsedSeconds < 180) grant("speed");
     if (difficulty === "expert") grant("expert");
+    if (difficulty === "labyrinth") grant("labyrinth");
+    if (difficulty === "abyss") grant("abyss");
     if (dailyStreak >= 7) grant("streak_7");
     if (dailyStreak >= 30) grant("streak_30");
     if (level >= 5) grant("level_5");

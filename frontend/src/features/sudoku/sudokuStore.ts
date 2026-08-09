@@ -4,6 +4,7 @@ import {
   generateDailySudoku,
   generateSudokuPuzzle,
   getTodayKey,
+  isGradedDifficulty,
   isSolved,
 } from "./sudokuEngine";
 import { SudokuCheckMode, SudokuDifficulty, SudokuGameState, SudokuStats } from "./types";
@@ -24,6 +25,8 @@ type Snapshot = Pick<
 interface SudokuStore extends SudokuGameState {
   stats: SudokuStats;
   undoStack: Snapshot[];
+  /** Идёт сборка расклада на «умных» уровнях — она заметно дольше обычной. */
+  generating: boolean;
   startNew: (difficulty: SudokuDifficulty) => void;
   startDaily: () => void;
   selectCell: (index: number) => void;
@@ -44,10 +47,16 @@ const emptyNotes = () => Array.from({ length: 81 }, () => [] as number[]);
 const defaultStats = (): SudokuStats => ({
   played: 0,
   completed: 0,
-  bestTimes: { easy: null, medium: null, hard: null, expert: null },
+  bestTimes: { easy: null, medium: null, hard: null, expert: null, labyrinth: null, abyss: null },
   dailyStreak: 0,
   lastDailyDate: null,
 });
+
+/** У тех, кто играл до появления новых уровней, в сохранённых рекордах их ключей нет. */
+function migrateBestTimes(bestTimes: SudokuStats["bestTimes"]): SudokuStats["bestTimes"] {
+  const complete = defaultStats().bestTimes;
+  return { ...complete, ...(bestTimes || {}) };
+}
 
 function snapshot(state: SudokuStore): Snapshot {
   return {
@@ -98,9 +107,11 @@ function completeStats(state: SudokuStore): Pick<SudokuStore, "stats" | "victory
   const puzzle = state.puzzle!;
   const currentBest = state.stats.bestTimes[puzzle.difficulty];
   const bestTimes = {
-    ...state.stats.bestTimes,
+    ...migrateBestTimes(state.stats.bestTimes),
+    // Нестрогое сравнение: у старых сохранений ключа нового уровня нет вовсе,
+    // и Math.min(undefined, …) записал бы в рекорд NaN.
     [puzzle.difficulty]:
-      currentBest === null ? state.elapsedSeconds : Math.min(currentBest, state.elapsedSeconds),
+      currentBest == null ? state.elapsedSeconds : Math.min(currentBest, state.elapsedSeconds),
   };
 
   let dailyStreak = state.stats.dailyStreak;
@@ -176,9 +187,20 @@ export const useSudokuStore = create<SudokuStore>()(
       victory: null,
       undoStack: [],
       stats: defaultStats(),
+      generating: false,
       startNew(difficulty) {
-        const puzzle = generateSudokuPuzzle(difficulty);
-        set((state) => startFromPuzzle(puzzle, state.stats));
+        if (!isGradedDifficulty(difficulty)) {
+          const puzzle = generateSudokuPuzzle(difficulty);
+          set((state) => startFromPuzzle(puzzle, state.stats));
+          return;
+        }
+        // Лабиринт и Бездна отбираются логическим решателем — это сотни миллисекунд.
+        // Уступаем кадр, чтобы успел отрисоваться индикатор, иначе экран просто замирает.
+        set({ generating: true });
+        window.setTimeout(() => {
+          const puzzle = generateSudokuPuzzle(difficulty);
+          set((state) => ({ ...startFromPuzzle(puzzle, state.stats), generating: false }));
+        }, 32);
       },
       startDaily() {
         const today = getTodayKey();
@@ -354,6 +376,8 @@ export const useSudokuStore = create<SudokuStore>()(
           state.selectedNumber = state.selectedNumber ?? null;
           state.checkMode = state.checkMode ?? "instant";
           state.checkedAt = state.checkedAt ?? null;
+          state.generating = false;
+          state.stats = { ...state.stats, bestTimes: migrateBestTimes(state.stats?.bestTimes) };
         }
       },
     },

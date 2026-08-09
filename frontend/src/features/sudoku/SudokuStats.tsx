@@ -6,6 +6,14 @@ const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
   medium: "Средне",
   hard: "Сложно",
   expert: "Эксперт",
+  labyrinth: "Лабиринт",
+  abyss: "Бездна",
+};
+
+/** Короткое обещание уровня: что именно придётся уметь. */
+export const DIFFICULTY_HINTS: Partial<Record<SudokuDifficulty, string>> = {
+  labyrinth: "Одиночки кончаются рано — дальше только пары и тройки. Без угадывания.",
+  abyss: "Не сходится без X-Wing, XY-Wing или Swordfish. Тоже без угадывания.",
 };
 
 export function formatSudokuTime(seconds: number): string {

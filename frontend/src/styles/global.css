@@ -1613,6 +1613,7 @@ body {
 }
 
 .sudoku-board-shell {
+  position: relative;
   width: 100%;
   padding: 8px;
   border-radius: var(--radius-lg);
@@ -3714,6 +3715,59 @@ body {
 .segment.sudoku-menu-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+}
+
+/* Уровни, собранные логическим решателем, — Лабиринт и Бездна */
+.seg-item.seg-item-graded {
+  color: #ffd9a0;
+}
+
+.seg-item.seg-item-graded.active {
+  color: inherit;
+}
+
+.sudoku-menu-notes {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.sudoku-menu-notes p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}
+
+.sudoku-menu-notes strong {
+  color: #ffd9a0;
+  font-weight: 700;
+}
+
+.sudoku-generating {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-radius: 18px;
+  background: rgba(8, 10, 18, 0.72);
+  backdrop-filter: blur(3px);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.sudoku-victory-tech {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffd9a0;
 }
 
 /* ===== Tablet / iPad ===== */
