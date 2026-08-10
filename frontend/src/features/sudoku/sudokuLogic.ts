@@ -169,15 +169,20 @@ function eliminate(board: Board, index: number, mask: number): number {
   return popcount(before) - popcount(after);
 }
 
-type StepResult = { technique: SudokuTechnique } | null | false;
+/** Приёмы-размещения дополнительно сообщают, какую клетку они закрыли. */
+type StepResult =
+  | { technique: SudokuTechnique; placement?: { index: number; digit: number } }
+  | null
+  | false;
 
 function nakedSingle(board: Board): StepResult {
   for (let index = 0; index < CELLS; index += 1) {
     if (board.values[index]) continue;
     const mask = board.cands[index];
     if (popcount(mask) === 1) {
-      if (!place(board, index, digitsOf(mask)[0])) return false;
-      return { technique: "naked-single" };
+      const digit = digitsOf(mask)[0];
+      if (!place(board, index, digit)) return false;
+      return { technique: "naked-single", placement: { index, digit } };
     }
   }
   return null;
@@ -205,7 +210,7 @@ function hiddenSingle(board: Board): StepResult {
       if (count === 0) return false;
       if (count === 1) {
         if (!place(board, spot, digit)) return false;
-        return { technique: "hidden-single" };
+        return { technique: "hidden-single", placement: { index: spot, digit } };
       }
     }
   }
@@ -491,6 +496,58 @@ function collectAdvanced(used: Set<SudokuTechnique>): SudokuTechnique[] {
   return [...used]
     .filter((technique) => TECHNIQUE_TIER[technique] >= 4)
     .sort((a, b) => TECHNIQUE_TIER[a] - TECHNIQUE_TIER[b]);
+}
+
+export interface Deduction {
+  index: number;
+  digit: number;
+  /** Ранг самого трудного приёма, который понадобился ради этого хода. */
+  tier: number;
+}
+
+/**
+ * Ищет ближайшую клетку, которую можно закрыть приёмами не сложнее `maxTier`.
+ *
+ * Это и есть «мозг» бота в «Переделе»: он видит ровно то, что выводится из доски
+ * прямо сейчас, и ничего сверх того. Поэтому каждая закрытая игроком клетка
+ * действительно открывает боту новые ходы — подглядывать в решение он не умеет.
+ * `null` означает «пока нечего вывести», а не «расклад сломан».
+ */
+export function findDeduction(grid: Array<number | null>, maxTier: number): Deduction | null {
+  const board = createBoard(grid);
+  if (!board) return null;
+
+  const strategies = STRATEGIES.filter((entry) => TECHNIQUE_TIER[entry.technique] <= maxTier);
+  let hardestTier = 0;
+
+  // Приёмы-исключения сами цифр не ставят, но открывают дорогу одиночкам,
+  // поэтому крутим до первого размещения. Потолок — страховка от зацикливания.
+  for (let guard = 0; guard < 800; guard += 1) {
+    let progressed = false;
+    for (const strategy of strategies) {
+      const step = strategy.run(board);
+      if (step === false) return null;
+      if (!step) continue;
+      const tier = TECHNIQUE_TIER[step.technique];
+      if (tier > hardestTier) hardestTier = tier;
+      if (step.placement) return { ...step.placement, tier: hardestTier };
+      progressed = true;
+      break;
+    }
+    if (!progressed) return null;
+  }
+  return null;
+}
+
+/** Кандидаты в каждой пустой клетке — для подсветки и для цены клетки. */
+export function cellCandidates(grid: Array<number | null>): number[][] {
+  const board = createBoard(grid);
+  if (!board) return Array.from({ length: CELLS }, () => []);
+  const result: number[][] = [];
+  for (let index = 0; index < CELLS; index += 1) {
+    result.push(board.values[index] ? [] : digitsOf(board.cands[index]));
+  }
+  return result;
 }
 
 export function describeTechniques(techniques: SudokuTechnique[]): string {
