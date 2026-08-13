@@ -15,16 +15,16 @@ export interface BotLevel {
   title: string;
   /** Потолок приёмов решателя: бот физически не видит того, что сложнее. */
   maxTier: number;
-  /** Пауза между ходами. */
+  /** Средняя пауза между ходами; реальная гуляет вокруг неё. */
   delayMs: number;
   desc: string;
 }
 
 export const BOT_LEVELS: BotLevel[] = [
-  { id: "rookie", title: "Новичок", maxTier: 1, delayMs: 5200, desc: "Видит только голые одиночки и медлит" },
-  { id: "steady", title: "Уверенный", maxTier: 2, delayMs: 3600, desc: "Добавляет скрытые одиночки" },
-  { id: "master", title: "Мастер", maxTier: 3, delayMs: 2500, desc: "Ещё и указующие пары, думает быстро" },
-  { id: "grandmaster", title: "Гроссмейстер", maxTier: 6, delayMs: 1700, desc: "Пары, тройки и X-Wing почти без пауз" },
+  { id: "rookie", title: "Новичок", maxTier: 1, delayMs: 16000, desc: "Видит только голые одиночки и подолгу думает" },
+  { id: "steady", title: "Уверенный", maxTier: 2, delayMs: 13000, desc: "Добавляет скрытые одиночки, темп как у человека" },
+  { id: "master", title: "Мастер", maxTier: 3, delayMs: 9500, desc: "Ещё и указующие пары, думает бодро" },
+  { id: "grandmaster", title: "Гроссмейстер", maxTier: 6, delayMs: 6500, desc: "Пары, тройки и X-Wing, почти не медлит" },
 ];
 
 export function botLevelById(id: string): BotLevel {
@@ -89,6 +89,17 @@ function buildPuzzle() {
   return generateSudokuPuzzle("medium");
 }
 
+/**
+ * Живая пауза бота.
+ *
+ * Человек не ходит метрономом: где-то цифра бросается в глаза сразу, где-то он
+ * скребёт доску полминуты. Ровный интервал сразу выдаёт машину, поэтому средний
+ * темп размазан по диапазону примерно от 0,6 до 1,5 от заявленного.
+ */
+function humanPause(delayMs: number): number {
+  return Math.round(delayMs * (0.6 + Math.random() * 0.9));
+}
+
 function countCells(owners: Owner[], owner: Owner): number {
   return owners.filter((value) => value === owner).length;
 }
@@ -137,7 +148,7 @@ export const usePeredel = create<PeredelState>()(
           mistakes: 0,
           frozenUntil: 0,
           // Фора на осмотр доски, иначе бот начинает щёлкать раньше, чем игрок вчитался.
-          botNextAt: now + level.delayMs + 1500,
+          botNextAt: now + humanPause(level.delayMs) + 2500,
           lastBotIndex: null,
           flash: null,
           result: null,
@@ -216,7 +227,7 @@ export const usePeredel = create<PeredelState>()(
         const move = findDeduction(state.entries, level.maxTier);
         if (!move) {
           // Боту нечего вывести — ждёт, пока игрок откроет ему дорогу.
-          set({ botNextAt: now + Math.max(600, level.delayMs / 2) });
+          set({ botNextAt: now + Math.max(1200, humanPause(level.delayMs) / 2) });
           return;
         }
 
@@ -231,7 +242,7 @@ export const usePeredel = create<PeredelState>()(
           owners,
           candidates: cellCandidates(entries),
           botScore: state.botScore + points,
-          botNextAt: now + level.delayMs,
+          botNextAt: now + humanPause(level.delayMs),
           lastBotIndex: move.index,
           selectedIndex: state.selectedIndex === move.index ? null : state.selectedIndex,
           flash: { index: move.index, points, owner: "bot" },

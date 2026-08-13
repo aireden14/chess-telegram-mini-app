@@ -144,11 +144,22 @@ export function LocalGameScreen() {
       </div>
 
       <div className="board-wrap">
+        {/*
+          Тап по фигуре библиотека считает микро-перетаскиванием: порог у TouchBackend
+          равен нулю, а палец всегда смещается на пиксель-другой. Начавшееся
+          перетаскивание глушит click, поэтому onSquareClick по фигуре не срабатывал
+          и ход приходилось именно тащить. Выделяем на старте перетаскивания — тогда
+          тап выбирает фигуру, а полноценный drag работает как раньше.
+        */}
         <Chessboard
           position={fen}
           boardOrientation={orientation}
           onPieceDrop={onPieceDrop}
           onSquareClick={onSquareClick}
+          onPieceDragBegin={(_piece, square) => {
+            if (!status.over) highlight(square);
+          }}
+          isDraggablePiece={({ piece }) => !status.over && piece[0] === turn}
           customSquareStyles={legal}
           customPieces={customPieces}
           customBoardStyle={{ borderRadius: 20, overflow: "hidden" }}
