@@ -45,6 +45,7 @@ import { CheckersScreen } from "./features/checkers/CheckersScreen";
 import { CardOfDayScreen } from "./features/cardOfDay/CardOfDayScreen";
 import { IcebreakerScreen } from "./features/icebreakers/IcebreakerScreen";
 import { BlockTowerScreen } from "./features/blockTower/BlockTowerScreen";
+import { DarkDungeonScreen } from "./features/darkDungeon/DarkDungeonScreen";
 import { useAuthStore } from "./store/auth";
 import { usePieceStyleStore } from "./store/pieceStyle";
 import { useThemeStore } from "./store/theme";
@@ -122,6 +123,7 @@ export function App() {
         <Route path="/card-of-day" element={<Protected><CardOfDayScreen /></Protected>} />
         <Route path="/icebreakers" element={<Protected><IcebreakerScreen /></Protected>} />
         <Route path="/block-tower" element={<Protected><BlockTowerScreen /></Protected>} />
+        <Route path="/dark-dungeon" element={<Protected><DarkDungeonScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>
     </BrowserRouter>

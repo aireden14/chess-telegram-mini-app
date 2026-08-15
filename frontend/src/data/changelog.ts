@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.35.0",
+    date: "15 августа 2026, 03:40 (Алматы)",
+    title: "Новая игра: DARK DUNGEON",
+    items: [
+      "⚔️ Пошаговый roguelike в тёмных подземельях: процедурная генерация комнат и коридоров, тактический бой, магия и сундуки с лутом",
+      "🛡️ Сохранение состояния забега: безопасный выход с подтверждением и возможность продолжить поход в любой момент",
+      "📱 Сенсорный D-Pad, быстрое применение зелий и заклинаний, ретро-синтез звуков через Web Audio API",
+    ],
+  },
+  {
     version: "3.34.0",
     date: "13 августа 2026, 20:41 (Алматы)",
     title: "Новая игра: БЛОК ЗА БЛОКОМ",
