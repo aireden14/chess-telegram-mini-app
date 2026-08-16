@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.36.0",
+    date: "16 августа 2026, 13:22 (Алматы)",
+    title: "Новая игра: NEON TRAIL",
+    items: [
+      "🟢 Проведи одну непрерывную линию через все точки, не посещая одну точку дважды",
+      "🧩 18 головоломок в трёх сериях сложности, подсказки, отмена хода и оценка до трёх звёзд",
+      "📱 Управление непрерывным свайпом, мышью и клавиатурой; прогресс сохраняется на устройстве",
+    ],
+  },
+  {
     version: "3.35.0",
     date: "15 августа 2026, 03:40 (Алматы)",
     title: "Новая игра: DARK DUNGEON",

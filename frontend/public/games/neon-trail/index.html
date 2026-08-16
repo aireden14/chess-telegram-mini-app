@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#06130f" />
+    <meta name="description" content="Neon Trail — спокойные головоломки на соединение всех точек одной линией." />
+    <title>Neon Trail — головоломки одной линией</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <button class="icon-button" id="levelsButton" type="button" aria-label="Выбрать уровень" title="Уровни">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg>
+        </button>
+        <div class="brand" aria-label="Neon Trail">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>NEON TRAIL</span>
+        </div>
+        <button class="icon-button" id="soundButton" type="button" aria-label="Выключить звук" title="Звук">
+          <svg class="sound-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.1-3.8v7.6a4.5 4.5 0 0 0 2.1-3.8zm-2.1-8v2.1a7 7 0 0 1 0 11.8V20a9 9 0 0 0 0-16z" /></svg>
+          <svg class="sound-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.3 3 2.4-2.4-1.3-1.3-2.4 2.4-2.4-2.4-1.3 1.3 2.4 2.4-2.4 2.4 1.3 1.3 2.4-2.4 2.4 2.4 1.3-1.3z" /></svg>
+        </button>
+      </header>
+
+      <section class="game-view" id="gameView" aria-labelledby="levelTitle">
+        <div class="level-head">
+          <div>
+            <p class="eyebrow">УРОВЕНЬ <span id="levelNumber">01</span></p>
+            <h1 id="levelTitle">Первый след</h1>
+          </div>
+          <div class="progress-orbit" aria-label="Прогресс уровня">
+            <svg viewBox="0 0 44 44" aria-hidden="true">
+              <circle class="orbit-track" cx="22" cy="22" r="18"></circle>
+              <circle class="orbit-value" id="orbitValue" cx="22" cy="22" r="18"></circle>
+            </svg>
+            <span id="progressPercent">0%</span>
+          </div>
+        </div>
+
+        <p class="instruction" id="instruction">Проведи одну линию через все точки</p>
+
+        <div class="device-frame" id="deviceFrame">
+          <div class="device-glint" aria-hidden="true"></div>
+          <div class="board-wrap" id="boardWrap">
+            <svg id="board" class="board" role="application" aria-label="Игровое поле. Начните с пульсирующей зелёной точки." tabindex="0"></svg>
+            <div class="board-message" id="boardMessage" role="status" aria-live="polite"></div>
+          </div>
+          <div class="device-label" aria-hidden="true"><span></span> ONE LINE <span></span></div>
+        </div>
+
+        <div class="action-row">
+          <button class="action-button" id="undoButton" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7V3L2 9l7 6v-4c5 0 8.5 1.5 11 5-1-5-4-9-11-9z" /></svg>
+            <span>Назад</span>
+          </button>
+          <button class="action-button reset-button" id="resetButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.2 3.8L8 11V5H2l2.3 2.3A9 9 0 1 0 12 3z" /></svg>
+            <span>Заново</span>
+          </button>
+          <button class="action-button hint-button" id="hintButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2zm2 11.6V15h-4v-1.4l-.7-.5a5 5 0 1 1 5.4 0z" /></svg>
+            <span>Подсказка</span>
+          </button>
+        </div>
+
+        <p class="tip"><span aria-hidden="true">✦</span> По предыдущей точке можно провести назад</p>
+      </section>
+
+      <section class="panel-view" id="levelsView" aria-labelledby="levelsTitle" hidden>
+        <div class="panel-head">
+          <div><p class="eyebrow">КАРТА ПУТИ</p><h1 id="levelsTitle">Уровни</h1></div>
+          <button class="icon-button close-panel" type="button" data-close-panel aria-label="Закрыть выбор уровней">×</button>
+        </div>
+        <div class="level-grid" id="levelGrid"></div>
+        <div class="stats-card">
+          <div><strong id="completedStat">0</strong><span>пройдено</span></div>
+          <div><strong id="starsStat">0</strong><span>звёзд</span></div>
+          <div><strong id="bestStreakStat">0</strong><span>серия</span></div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="updatesView" aria-labelledby="updatesTitle" hidden>
+        <div class="panel-head">
+          <div><p class="eyebrow">ЖУРНАЛ ВЕРСИЙ</p><h1 id="updatesTitle">Что нового</h1></div>
+          <button class="icon-button close-panel" type="button" data-close-panel aria-label="Закрыть журнал обновлений">×</button>
+        </div>
+        <article class="update-card latest">
+          <div class="update-meta"><span>ТЕКУЩАЯ ВЕРСИЯ</span><time datetime="2026-08-16T13:22:00+05:00">16 августа 2026, 13:22</time></div>
+          <h2>Теперь в GamePass</h2>
+          <p>Игра добавлена в каталог GamePass. Доступны 18 головоломок, управление пальцем и клавиатурой, подсказки, сохранение прогресса и мягкие звуковые эффекты.</p>
+          <ul>
+            <li>Три серии уровней: «Искра», «Контур» и «Импульс»</li>
+            <li>Отмена хода прямо жестом назад</li>
+            <li>Адаптивное поле для телефона и компьютера</li>
+          </ul>
+        </article>
+        <div class="rules-card">
+          <span class="rules-icon" aria-hidden="true">⌁</span>
+          <div><h2>Как играть</h2><p>Начни с зелёной точки. Соединяй соседние точки по горизонтали или вертикали. Каждую точку можно посетить только один раз.</p></div>
+        </div>
+      </section>
+
+      <nav class="bottom-nav" aria-label="Основная навигация">
+        <button class="nav-button is-active" type="button" data-view="gameView" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h10a5 5 0 0 1 4.8 6.4l-1.4 5A3.5 3.5 0 0 1 17 19a3 3 0 0 1-2.6-1.5L13.6 16h-3.2l-.8 1.5A3 3 0 0 1 7 19a3.5 3.5 0 0 1-3.4-2.6l-1.4-5A5 5 0 0 1 7 5zm1 5H6v2h2v2h2v-2h2v-2h-2V8H8v2zm8.5 0a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4zm2 3a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4z" /></svg>
+          <span>Игра</span>
+        </button>
+        <button class="nav-button" type="button" data-view="levelsView">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg>
+          <span>Уровни</span>
+        </button>
+        <button class="nav-button" type="button" data-view="updatesView">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z" /></svg>
+          <span>Что нового</span>
+        </button>
+      </nav>
+
+      <footer class="footer-signature">Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+    </main>
+
+    <div class="modal-backdrop" id="winModal" hidden>
+      <section class="win-card" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+        <div class="win-burst" aria-hidden="true"><span>✦</span></div>
+        <p class="eyebrow">ЛИНИЯ ЗАМКНУЛАСЬ</p>
+        <h2 id="winTitle">Отличный путь!</h2>
+        <div class="star-row" id="winStars" aria-label="Результат: 3 звезды">★ ★ ★</div>
+        <p id="winSummary">Все точки соединены без ошибок.</p>
+        <button class="primary-button" id="nextButton" type="button">Следующий уровень <span aria-hidden="true">→</span></button>
+        <button class="text-button" id="replayButton" type="button">Пройти ещё раз</button>
+      </section>
+    </div>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

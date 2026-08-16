@@ -53,7 +53,7 @@ backend/src/
 ```
 
 Маршруты (`App.tsx`): `/` picker · `/chess` · `/create` · `/join/:id` · `/game/:id` · `/local`
-· `/checkers` · `/catan` · `/sudoku` · `/dark-dungeon` · `/block-tower` · `/force-deflector` · `/volt-runner` · `/hill-drive` · `/beat-maker` · `/fable-world` · `/profile` · `/whats-new`
+· `/checkers` · `/catan` · `/sudoku` · `/dark-dungeon` · `/neon-trail` · `/block-tower` · `/force-deflector` · `/volt-runner` · `/hill-drive` · `/beat-maker` · `/fable-world` · `/profile` · `/whats-new`
 · `/history` · `/replay/:id` · `/leaderboard` · `/paused` · `/loading`.
 
 ## Игры — как устроены
@@ -89,6 +89,7 @@ backend/src/
 - **NEON REQUIEM** (`/neon-requiem`): оригинальный standalone top-down action в `frontend/public/games/neon-requiem/` с тремя контрактами, процедурной Canvas 2D-графикой и synthwave-музыкой WebAudio. Экран `features/neonRequiem/NeonRequiemScreen.tsx`, backend не нужен. Мышь/клавиатура и dual-stick touch, прогресс/рекорды в `gamepass.neon-requiem.v1`; экран «Что нового» встроен в меню самой игры.
 - **БЛОК ЗА БЛОКОМ** (`/block-tower`): standalone one-tap стройка в `frontend/public/games/block-tower/index.html`, экран `features/blockTower/BlockTowerScreen.tsx`. Кран двигает блок, тап/клик/Space укладывает этаж, выступ срезается, промах обрушает башню; рекорд в `gamepass.block-tower.best.v1`, backend не нужен. В меню игры есть экран «Что нового».
 - **DARK DUNGEON** (`/dark-dungeon`): пошаговый roguelike-рогалик в тёмных подземельях в `frontend/public/games/dark-dungeon/index.html`, экран `features/darkDungeon/DarkDungeonScreen.tsx`. Процедурная генерация комнат и коридоров, туман войны, тактический бой, заклинания (Огонь, Лечение, Теневой шаг), сундуки, прокачка характеристик, сохранение в localStorage `dark_dungeon_save_v1` и подтверждение выхода при активном забеге. Backend не нужен.
+- **NEON TRAIL** (`/neon-trail`): standalone-головоломка одной линией в `frontend/public/games/neon-trail/`, экран `features/neonTrail/NeonTrailScreen.tsx`. 18 уровней, управление свайпом/мышью/клавиатурой, подсказки и локальный прогресс `neon-trail-progress-v1`; backend не нужен. Источник — `apps/neon-trail-game/` в workspace, при обновлении синхронизируй `index.html`, `styles.css` и `src/`.
 - **VOLT RUNNER** (`/volt-runner`): source-of-truth находится в `apps/volt-runner/`, production-копия — `frontend/public/games/volt-runner/`, экран — `features/voltRunner/VoltRunnerScreen.tsx`. После правок запускай `npm --prefix frontend run volt:build`, затем `volt:check`; public-копию напрямую не редактируй. 6 авторских неоновых трасс + Movement Lab, переменный/двойной прыжок, jump/dash buffer, coyote time, движущиеся платформы и леворукая touch-раскладка. Сохранение `gamepass.volt-runner.v3` мигрирует v1/v2, backend не нужен. Landscape/full-bleed. Перед следующими правками читай `VOLT_RUNNER_ROADMAP.md`; выполняй релизы по порядку и обновляй чекбоксы вместе с обоими changelog.
 - **Холм Драйв** (`/hill-drive`): standalone canvas-гонка, source-of-truth — `apps/hill-climb/`, production-копия — `frontend/public/games/hill-drive/`, экран — `features/hillDrive/HillDriveScreen.tsx`. Заезд и бесконечный режим работают без backend; локально сохраняются монеты, машины, прокачка и рекорды. При обновлении копируй `index.html`, `manifest.json`, `icon.svg` и `sw.js` из source-of-truth и повышай cache key service worker.
 
