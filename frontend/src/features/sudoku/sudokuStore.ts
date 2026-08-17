@@ -6,7 +6,15 @@ import {
   getTodayKey,
   isGradedDifficulty,
   isSolved,
+  normalizeDifficulty,
 } from "./sudokuEngine";
+import {
+  bestTimeKey,
+  SudokuSize,
+  SudokuVariant,
+  SUDOKU_SIZES,
+  variantOf,
+} from "./sudokuVariants";
 import { SudokuCheckMode, SudokuDifficulty, SudokuGameState, SudokuStats } from "./types";
 
 type Snapshot = Pick<
@@ -27,7 +35,9 @@ interface SudokuStore extends SudokuGameState {
   undoStack: Snapshot[];
   /** Идёт сборка расклада на «умных» уровнях — она заметно дольше обычной. */
   generating: boolean;
-  startNew: (difficulty: SudokuDifficulty) => void;
+  /** Выбранный размер поля: он переживает партию и перезапуск. */
+  size: SudokuSize;
+  startNew: (difficulty: SudokuDifficulty, size?: SudokuSize) => void;
   startDaily: () => void;
   selectCell: (index: number) => void;
   selectNumber: (value: number | null) => void;
@@ -42,20 +52,36 @@ interface SudokuStore extends SudokuGameState {
   dismissVictory: () => void;
 }
 
-const emptyNotes = () => Array.from({ length: 81 }, () => [] as number[]);
+const emptyNotes = (cells = 81) => Array.from({ length: cells }, () => [] as number[]);
+
+const DIFFICULTIES: SudokuDifficulty[] = [
+  "easy",
+  "medium",
+  "hard",
+  "expert",
+  "labyrinth",
+  "abyss",
+];
+
+function emptyBestTimes(): SudokuStats["bestTimes"] {
+  const times: SudokuStats["bestTimes"] = {};
+  for (const size of SUDOKU_SIZES) {
+    for (const difficulty of DIFFICULTIES) times[bestTimeKey(size, difficulty)] = null;
+  }
+  return times;
+}
 
 const defaultStats = (): SudokuStats => ({
   played: 0,
   completed: 0,
-  bestTimes: { easy: null, medium: null, hard: null, expert: null, labyrinth: null, abyss: null },
+  bestTimes: emptyBestTimes(),
   dailyStreak: 0,
   lastDailyDate: null,
 });
 
-/** У тех, кто играл до появления новых уровней, в сохранённых рекордах их ключей нет. */
+/** У тех, кто играл до появления новых уровней и размеров, этих ключей в рекордах нет. */
 function migrateBestTimes(bestTimes: SudokuStats["bestTimes"]): SudokuStats["bestTimes"] {
-  const complete = defaultStats().bestTimes;
-  return { ...complete, ...(bestTimes || {}) };
+  return { ...emptyBestTimes(), ...(bestTimes || {}) };
 }
 
 function snapshot(state: SudokuStore): Snapshot {
@@ -76,28 +102,34 @@ function isGiven(state: SudokuStore, index: number): boolean {
   return state.puzzle?.givens[index] !== null;
 }
 
-function peersOf(index: number): number[] {
-  const row = Math.floor(index / 9);
-  const col = index % 9;
+function peersOf(index: number, variant: SudokuVariant): number[] {
+  const { size, boxW, boxH } = variant;
+  const row = Math.floor(index / size);
+  const col = index % size;
   const peers = new Set<number>();
-  for (let i = 0; i < 9; i += 1) {
-    peers.add(row * 9 + i);
-    peers.add(i * 9 + col);
+  for (let i = 0; i < size; i += 1) {
+    peers.add(row * size + i);
+    peers.add(i * size + col);
   }
-  const boxRow = Math.floor(row / 3) * 3;
-  const boxCol = Math.floor(col / 3) * 3;
-  for (let r = boxRow; r < boxRow + 3; r += 1) {
-    for (let c = boxCol; c < boxCol + 3; c += 1) {
-      peers.add(r * 9 + c);
+  const boxRow = Math.floor(row / boxH) * boxH;
+  const boxCol = Math.floor(col / boxW) * boxW;
+  for (let r = boxRow; r < boxRow + boxH; r += 1) {
+    for (let c = boxCol; c < boxCol + boxW; c += 1) {
+      peers.add(r * size + c);
     }
   }
   peers.delete(index);
   return [...peers];
 }
 
-function cleanPeerNotes(notes: number[][], index: number, value: number): number[][] {
+function cleanPeerNotes(
+  notes: number[][],
+  index: number,
+  value: number,
+  variant: SudokuVariant,
+): number[][] {
   const next = notes.map((cell) => [...cell]);
-  for (const peer of peersOf(index)) {
+  for (const peer of peersOf(index, variant)) {
     next[peer] = next[peer].filter((note) => note !== value);
   }
   return next;
@@ -105,12 +137,14 @@ function cleanPeerNotes(notes: number[][], index: number, value: number): number
 
 function completeStats(state: SudokuStore): Pick<SudokuStore, "stats" | "victory" | "isComplete"> {
   const puzzle = state.puzzle!;
-  const currentBest = state.stats.bestTimes[puzzle.difficulty];
+  const variant = variantOf(puzzle.size);
+  const recordKey = bestTimeKey(variant.size, puzzle.difficulty);
+  const currentBest = state.stats.bestTimes[recordKey];
   const bestTimes = {
     ...migrateBestTimes(state.stats.bestTimes),
     // Нестрогое сравнение: у старых сохранений ключа нового уровня нет вовсе,
     // и Math.min(undefined, …) записал бы в рекорд NaN.
-    [puzzle.difficulty]:
+    [recordKey]:
       currentBest == null ? state.elapsedSeconds : Math.min(currentBest, state.elapsedSeconds),
   };
 
@@ -130,6 +164,7 @@ function completeStats(state: SudokuStore): Pick<SudokuStore, "stats" | "victory
     isComplete: true,
     victory: {
       difficulty: puzzle.difficulty,
+      size: variant.size,
       elapsedSeconds: state.elapsedSeconds,
       mistakes: state.mistakes,
       hintsUsed: state.hintsUsed,
@@ -149,10 +184,12 @@ function startFromPuzzle(
   puzzle: NonNullable<SudokuGameState["puzzle"]>,
   stats: SudokuStats,
 ): Partial<SudokuStore> {
+  const variant = variantOf(puzzle.size);
   return {
     puzzle,
+    size: variant.size,
     entries: [...puzzle.givens],
-    notes: emptyNotes(),
+    notes: emptyNotes(variant.cells),
     selectedIndex: null,
     selectedNumber: null,
     notesMode: false,
@@ -188,17 +225,22 @@ export const useSudokuStore = create<SudokuStore>()(
       undoStack: [],
       stats: defaultStats(),
       generating: false,
-      startNew(difficulty) {
-        if (!isGradedDifficulty(difficulty)) {
-          const puzzle = generateSudokuPuzzle(difficulty);
+      size: 9,
+      startNew(difficulty, size) {
+        const variant = variantOf(size ?? get().size);
+        const level = normalizeDifficulty(difficulty, variant.size);
+
+        if (variant.size === 9 && !isGradedDifficulty(level)) {
+          const puzzle = generateSudokuPuzzle(level, { size: variant.size });
           set((state) => startFromPuzzle(puzzle, state.stats));
           return;
         }
-        // Лабиринт и Бездна отбираются логическим решателем — это сотни миллисекунд.
-        // Уступаем кадр, чтобы успел отрисоваться индикатор, иначе экран просто замирает.
-        set({ generating: true });
+        // Лабиринт, Бездна и любое поле крупнее 9×9 собираются логическим
+        // решателем — это сотни миллисекунд. Уступаем кадр, чтобы успел
+        // отрисоваться индикатор, иначе экран просто замирает.
+        set({ generating: true, size: variant.size });
         window.setTimeout(() => {
-          const puzzle = generateSudokuPuzzle(difficulty);
+          const puzzle = generateSudokuPuzzle(level, { size: variant.size });
           set((state) => ({ ...startFromPuzzle(puzzle, state.stats), generating: false }));
         }, 32);
       },
@@ -208,18 +250,22 @@ export const useSudokuStore = create<SudokuStore>()(
         set((state) => startFromPuzzle(puzzle, state.stats));
       },
       selectCell(index) {
-        if (index < 0 || index > 80) return;
+        const state = get();
+        const cells = variantOf(state.puzzle?.size).cells;
+        if (index < 0 || index >= cells) return;
         set({ selectedIndex: index });
       },
       selectNumber(value) {
-        if (value !== null && (value < 1 || value > 9)) return;
+        const size = variantOf(get().puzzle?.size).size;
+        if (value !== null && (value < 1 || value > size)) return;
         set({ selectedNumber: value });
       },
       enterNumber(value, targetIndex) {
         const state = get();
+        const variant = variantOf(state.puzzle?.size);
         const index = targetIndex ?? state.selectedIndex;
         if (!state.puzzle || index === null || isGiven(state, index) || state.isComplete) return "blocked";
-        if (value < 1 || value > 9) return "blocked";
+        if (value < 1 || value > variant.size) return "blocked";
 
         if (state.notesMode) {
           const notes = state.notes.map((cell) => [...cell]);
@@ -237,7 +283,7 @@ export const useSudokuStore = create<SudokuStore>()(
         const entries = [...state.entries];
         const isCorrect = value === state.puzzle.solution[index];
         const notes = isCorrect
-          ? cleanPeerNotes(state.notes, index, value)
+          ? cleanPeerNotes(state.notes, index, value, variant)
           : state.notes.map((cell) => [...cell]);
         entries[index] = value;
         notes[index] = [];
@@ -291,7 +337,12 @@ export const useSudokuStore = create<SudokuStore>()(
         if (target < 0) return "blocked";
 
         const entries = [...state.entries];
-        const notes = cleanPeerNotes(state.notes, target, state.puzzle.solution[target]);
+        const notes = cleanPeerNotes(
+          state.notes,
+          target,
+          state.puzzle.solution[target],
+          variantOf(state.puzzle.size),
+        );
         entries[target] = state.puzzle.solution[target];
         notes[target] = [];
         const nextState = {
@@ -356,6 +407,7 @@ export const useSudokuStore = create<SudokuStore>()(
       name: "chess-app-sudoku-v1",
       partialize: (state) => ({
         puzzle: state.puzzle,
+        size: state.size,
         entries: state.entries,
         notes: state.notes,
         selectedIndex: state.selectedIndex,
@@ -378,6 +430,8 @@ export const useSudokuStore = create<SudokuStore>()(
           state.checkedAt = state.checkedAt ?? null;
           state.generating = false;
           state.stats = { ...state.stats, bestTimes: migrateBestTimes(state.stats?.bestTimes) };
+          // Сохранения до появления больших полей размера не знают.
+          state.size = variantOf(state.puzzle?.size ?? state.size).size;
         }
       },
     },

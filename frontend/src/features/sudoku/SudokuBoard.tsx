@@ -1,5 +1,13 @@
 import React from "react";
 import { SudokuPuzzle } from "./types";
+import {
+  blockEdgeClasses,
+  noteColumns,
+  noteRows,
+  symbolFor,
+  valuesOf,
+  variantOf,
+} from "./sudokuVariants";
 
 interface SudokuBoardProps {
   puzzle: SudokuPuzzle;
@@ -11,14 +19,6 @@ interface SudokuBoardProps {
   onSelect: (index: number) => void;
 }
 
-function sameBox(a: number, b: number): boolean {
-  const ar = Math.floor(a / 9);
-  const ac = a % 9;
-  const br = Math.floor(b / 9);
-  const bc = b % 9;
-  return Math.floor(ar / 3) === Math.floor(br / 3) && Math.floor(ac / 3) === Math.floor(bc / 3);
-}
-
 export function SudokuBoard({
   puzzle,
   entries,
@@ -28,15 +28,33 @@ export function SudokuBoard({
   showErrors,
   onSelect,
 }: SudokuBoardProps) {
+  const variant = variantOf(puzzle.size);
+  const { size, boxW, boxH } = variant;
   const selectedValue = selectedNumber ?? (selectedIndex === null ? null : entries[selectedIndex]);
+  const noteValues = valuesOf(variant);
+
+  const sameBox = (a: number, b: number): boolean =>
+    Math.floor(Math.floor(a / size) / boxH) === Math.floor(Math.floor(b / size) / boxH) &&
+    Math.floor((a % size) / boxW) === Math.floor((b % size) / boxW);
 
   return (
-    <div className="sudoku-board" role="grid" aria-label="Судоку 9 на 9">
+    <div
+      className="sudoku-board"
+      role="grid"
+      aria-label={`Судоку ${size} на ${size}`}
+      style={
+        {
+          "--sudoku-size": size,
+          "--sudoku-note-cols": noteColumns(variant),
+          "--sudoku-note-rows": noteRows(variant),
+        } as React.CSSProperties
+      }
+    >
       {entries.map((value, index) => {
-        const row = Math.floor(index / 9);
-        const col = index % 9;
-        const selectedRow = selectedIndex !== null ? Math.floor(selectedIndex / 9) : -1;
-        const selectedCol = selectedIndex !== null ? selectedIndex % 9 : -1;
+        const row = Math.floor(index / size);
+        const col = index % size;
+        const selectedRow = selectedIndex !== null ? Math.floor(selectedIndex / size) : -1;
+        const selectedCol = selectedIndex !== null ? selectedIndex % size : -1;
         const given = puzzle.givens[index] !== null;
         const isSelected = selectedIndex === index;
         const isPeer =
@@ -47,6 +65,7 @@ export function SudokuBoard({
         const isError = showErrors && !!value && value !== puzzle.solution[index];
         const classes = [
           "sudoku-cell",
+          blockEdgeClasses(index, variant),
           given ? "given" : "",
           !given && value ? "entered" : "",
           selectedNumber && isSelected && !given && !value ? "number-target" : "",
@@ -64,14 +83,16 @@ export function SudokuBoard({
             className={classes}
             onClick={() => onSelect(index)}
             role="gridcell"
-            aria-label={`Строка ${row + 1}, колонка ${col + 1}${value ? `, ${value}` : ""}`}
+            aria-label={`Строка ${row + 1}, колонка ${col + 1}${
+              value ? `, ${symbolFor(value)}` : ""
+            }`}
           >
             {value ? (
-              <span>{value}</span>
+              <span>{symbolFor(value)}</span>
             ) : notes[index]?.length ? (
               <span className="sudoku-notes">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((note) => (
-                  <i key={note}>{notes[index].includes(note) ? note : ""}</i>
+                {noteValues.map((note) => (
+                  <i key={note}>{notes[index].includes(note) ? symbolFor(note) : ""}</i>
                 ))}
               </span>
             ) : null}

@@ -59,6 +59,8 @@ export interface SudokuReward {
 
 export interface CompletePayload {
   difficulty: string;
+  /** Сторона поля: сервер платит за большие поля с множителем. */
+  size: number;
   mode: string;
   elapsedSeconds: number;
   mistakes: number;

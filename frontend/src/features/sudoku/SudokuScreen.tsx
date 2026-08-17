@@ -9,8 +9,9 @@ import { SudokuBoard } from "./SudokuBoard";
 import { SudokuNumberPad } from "./SudokuNumberPad";
 import { difficultyLabel, formatSudokuTime, DIFFICULTY_HINTS } from "./SudokuStats";
 import { TECHNIQUE_LABELS, SudokuTechnique } from "./sudokuLogic";
+import { difficultiesForSize } from "./sudokuEngine";
+import { SUDOKU_SIZES, SUDOKU_VARIANTS, SudokuSize, variantOf } from "./sudokuVariants";
 
-const DIFFICULTIES: SudokuDifficulty[] = ["easy", "medium", "hard", "expert", "labyrinth", "abyss"];
 // Тёмные эмодзи на тёмной панели не читаются — у «Бездны» намеренно светящийся значок.
 const DIFFICULTY_ICONS: Partial<Record<SudokuDifficulty, string>> = {
   labyrinth: "🌀",
@@ -96,12 +97,13 @@ export function SudokuScreen() {
 
   useEffect(() => {
     if (!victory) return;
-    const key = `${victory.mode}-${victory.difficulty}-${victory.elapsedSeconds}-${victory.mistakes}-${victory.hintsUsed}`;
+    const key = `${victory.mode}-${victory.difficulty}-${victory.size}-${victory.elapsedSeconds}-${victory.mistakes}-${victory.hintsUsed}`;
     if (reportedRef.current === key) return;
     reportedRef.current = key;
     celebrate();
     report({
       difficulty: victory.difficulty,
+      size: victory.size,
       mode: victory.mode,
       elapsedSeconds: victory.elapsedSeconds,
       mistakes: victory.mistakes,
@@ -130,6 +132,8 @@ export function SudokuScreen() {
     );
   }
 
+  const variant = variantOf(puzzle.size);
+  const difficulties = difficultiesForSize(variant.size);
   const hasProgress = !isComplete && entries.some((value, index) => value !== puzzle.givens[index]);
   const showErrors = checkMode === "instant" || checkedAt !== null;
   const hasEditableSelection =
@@ -141,7 +145,17 @@ export function SudokuScreen() {
 
   const startClassic = (difficulty: SudokuDifficulty) => {
     if (!confirmReplace()) return;
-    startNew(difficulty);
+    startNew(difficulty, variant.size);
+    triggerHaptic("medium");
+    setMenu(null);
+  };
+
+  const startSize = (size: SudokuSize) => {
+    if (size === variant.size && puzzle.mode === "classic") return;
+    if (!confirmReplace()) return;
+    // Сложность сохраняем: «Лабиринт» и «Бездна» на больших полях сами
+    // сведутся к «Эксперту» — их решателя там нет.
+    startNew(puzzle.difficulty, size);
     triggerHaptic("medium");
     setMenu(null);
   };
@@ -156,7 +170,7 @@ export function SudokuScreen() {
   const restartPuzzle = () => {
     if (!confirmReplace()) return;
     if (puzzle.mode === "daily") startDaily();
-    else startNew(puzzle.difficulty);
+    else startNew(puzzle.difficulty, variant.size);
     triggerHaptic("medium");
   };
 
@@ -195,6 +209,7 @@ export function SudokuScreen() {
   const tasksTotal = daily ? daily.tasks.length : 0;
   const achUnlocked = achievements.filter((a) => a.unlocked).length;
   const modeLabel = puzzle.mode === "daily" ? "День" : difficultyLabel(puzzle.difficulty);
+  const sizeLabel = variant.size === 9 ? null : variant.label;
 
   return (
     <div className="app-screen sudoku-screen">
@@ -204,6 +219,7 @@ export function SudokuScreen() {
         <div className="sudoku-toolbar-left">
           <span className="sudoku-toolbar-time">{formatSudokuTime(elapsedSeconds)}</span>
           <span className="sudoku-toolbar-mode">{modeLabel}</span>
+          {sizeLabel && <span className="sudoku-toolbar-size">{sizeLabel}</span>}
         </div>
         <div className="sudoku-toolbar-actions">
           <button className="sudoku-iconbtn" onClick={restartPuzzle} aria-label="Новая партия" title="Новая партия">
@@ -269,6 +285,7 @@ export function SudokuScreen() {
       </div>
 
       <SudokuNumberPad
+        variant={variant}
         entries={entries}
         selectedNumber={selectedNumber}
         notesMode={notesMode}
@@ -307,9 +324,36 @@ export function SudokuScreen() {
           <div className="modal sudoku-menu" onClick={(e) => e.stopPropagation()}>
             <h3>Настройки</h3>
             <div className="sudoku-menu-section">
+              <span className="sudoku-menu-label">Размер поля</span>
+              <div className="segment sudoku-size-grid">
+                {SUDOKU_SIZES.map((size) => {
+                  const item = SUDOKU_VARIANTS[size];
+                  return (
+                    <button
+                      key={size}
+                      className={`seg-item seg-item-size${
+                        puzzle.mode === "classic" && variant.size === size ? " active" : ""
+                      }`}
+                      onClick={() => startSize(size)}
+                    >
+                      <strong>{item.label}</strong>
+                      <em>{item.name}</em>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="sudoku-menu-notes">
+                <p>
+                  На больших полях клетки заполняются символами <strong>1–9</strong>, дальше{" "}
+                  <strong>A, B, C…</strong> — двузначные числа в такой клетке нечитаемы.
+                  «Лабиринт» и «Бездна» остаются только на 9×9.
+                </p>
+              </div>
+            </div>
+            <div className="sudoku-menu-section">
               <span className="sudoku-menu-label">Сложность</span>
               <div className="segment sudoku-menu-grid">
-                {DIFFICULTIES.map((d) => (
+                {difficulties.map((d) => (
                   <button
                     key={d}
                     className={`seg-item${puzzle.mode === "classic" && puzzle.difficulty === d ? " active" : ""}${
@@ -323,7 +367,7 @@ export function SudokuScreen() {
                 ))}
               </div>
               <div className="sudoku-menu-notes">
-                {DIFFICULTIES.filter((d) => DIFFICULTY_HINTS[d]).map((d) => (
+                {difficulties.filter((d) => DIFFICULTY_HINTS[d]).map((d) => (
                   <p key={d}>
                     <strong>
                       {DIFFICULTY_ICONS[d]} {difficultyLabel(d)}
@@ -502,8 +546,8 @@ export function SudokuScreen() {
             <h2>Чистая партия</h2>
             <p>
               {victory.mode === "daily" ? "Ежедневная" : difficultyLabel(victory.difficulty)} ·{" "}
-              {formatSudokuTime(victory.elapsedSeconds)} · ошибок {victory.mistakes} · подсказок{" "}
-              {victory.hintsUsed}
+              {SUDOKU_VARIANTS[victory.size].label} · {formatSudokuTime(victory.elapsedSeconds)} ·
+              ошибок {victory.mistakes} · подсказок {victory.hintsUsed}
             </p>
             {puzzle.techniques && puzzle.techniques.length > 0 && (
               <p className="sudoku-victory-tech">
@@ -532,7 +576,7 @@ export function SudokuScreen() {
                 className="btn btn-primary"
                 onClick={() => {
                   clearReward();
-                  startNew(victory.difficulty);
+                  startNew(victory.difficulty, victory.size);
                 }}
               >
                 Новая

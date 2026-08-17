@@ -1,3 +1,5 @@
+import { SudokuSize } from "./sudokuVariants";
+
 export type SudokuDifficulty = "easy" | "medium" | "hard" | "expert" | "labyrinth" | "abyss";
 export type SudokuCheckMode = "instant" | "manual";
 
@@ -14,6 +16,8 @@ export interface SudokuCell {
 export interface SudokuPuzzle {
   id: string;
   difficulty: SudokuDifficulty;
+  /** Сторона поля. У раскладов, сохранённых до появления больших полей, её нет. */
+  size?: SudokuSize;
   givens: Array<number | null>;
   solution: number[];
   createdAt: number;
@@ -26,7 +30,8 @@ export interface SudokuPuzzle {
 export interface SudokuStats {
   played: number;
   completed: number;
-  bestTimes: Record<SudokuDifficulty, number | null>;
+  /** Ключ — сложность для 9×9 и `размер:сложность` для остальных полей. */
+  bestTimes: Record<string, number | null>;
   dailyStreak: number;
   lastDailyDate: string | null;
 }
@@ -47,6 +52,7 @@ export interface SudokuGameState {
   isComplete: boolean;
   victory: {
     difficulty: SudokuDifficulty;
+    size: SudokuSize;
     elapsedSeconds: number;
     mistakes: number;
     hintsUsed: number;

@@ -1,5 +1,7 @@
 import { SudokuDifficulty, SudokuPuzzle } from "./types";
 import { analyzePuzzle, SudokuAnalysis } from "./sudokuLogic";
+import { SudokuSize, SudokuVariant, variantOf } from "./sudokuVariants";
+import { buildLargeSolution, carveLarge, LargeSpec } from "./sudokuLarge";
 
 const SIZE = 9;
 const CELLS = 81;
@@ -12,6 +14,34 @@ const TARGET_GIVENS: Record<SudokuDifficulty, number> = {
   labyrinth: 24,
   abyss: 22,
 };
+
+/**
+ * Уровни для полей крупнее 9×9.
+ *
+ * Доли открытых клеток взяты у классики (43/81, 36/81, 31/81, 27/81), а `tier` —
+ * потолок приёмов, которыми расклад обязан решаться. Чем выше уровень, тем
+ * труднее приёмы разрешены и тем глубже получается выкопать.
+ */
+const LARGE_SPECS: Record<"easy" | "medium" | "hard" | "expert", LargeSpec> = {
+  easy: { tier: 1, givensRatio: 0.53 },
+  medium: { tier: 2, givensRatio: 0.44 },
+  hard: { tier: 3, givensRatio: 0.38 },
+  expert: { tier: 4, givensRatio: 0.33 },
+};
+
+/** «Лабиринт» и «Бездна» живут только на 9×9: их решатель — на 9 бит. */
+export function difficultiesForSize(size: SudokuSize): SudokuDifficulty[] {
+  return size === 9
+    ? ["easy", "medium", "hard", "expert", "labyrinth", "abyss"]
+    : ["easy", "medium", "hard", "expert"];
+}
+
+export function normalizeDifficulty(
+  difficulty: SudokuDifficulty,
+  size: SudokuSize,
+): SudokuDifficulty {
+  return difficultiesForSize(size).includes(difficulty) ? difficulty : "expert";
+}
 
 /**
  * Уровни, которые собираются логическим решателем, а не просто выкапыванием клеток.
@@ -314,13 +344,65 @@ function generateGradedGivens(
   return best!;
 }
 
+/** Расклад для 12×12 и 16×16: копка идёт под контролем логического решателя. */
+function generateLargePuzzle(
+  variant: SudokuVariant,
+  difficulty: SudokuDifficulty,
+  seed: string,
+): { givens: Array<number | null>; solution: number[] } {
+  const spec = LARGE_SPECS[difficulty as keyof typeof LARGE_SPECS] ?? LARGE_SPECS.medium;
+  const deadline = Date.now() + 4000;
+
+  let best: { givens: Array<number | null>; solution: number[] } | null = null;
+  let bestGivens = Infinity;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const rng = makeRng(`${seed}:large:${attempt}`);
+    const solution = buildLargeSolution(variant, rng);
+    const givens = carveLarge(solution, variant, spec, rng, deadline);
+    const count = givens.filter((value) => value !== null).length;
+
+    if (count < bestGivens) {
+      bestGivens = count;
+      best = { givens, solution };
+    }
+    // Попали в целевую плотность — дальше искать нечего.
+    if (count <= Math.round(variant.cells * spec.givensRatio)) break;
+    if (Date.now() > deadline) break;
+  }
+
+  return best!;
+}
+
 export function generateSudokuPuzzle(
   difficulty: SudokuDifficulty,
-  options: { seed?: string; mode?: "classic" | "daily"; dailyDate?: string } = {},
+  options: {
+    seed?: string;
+    mode?: "classic" | "daily";
+    dailyDate?: string;
+    size?: SudokuSize;
+  } = {},
 ): SudokuPuzzle {
+  const variant = variantOf(options.size);
   const seed =
     options.seed ||
-    `${difficulty}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+    `${difficulty}:${variant.size}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+
+  if (variant.size !== 9) {
+    const level = normalizeDifficulty(difficulty, variant.size);
+    const large = generateLargePuzzle(variant, level, seed);
+    return {
+      id: `${options.mode || "classic"}-${variant.size}-${level}-${hashSeed(seed).toString(36)}`,
+      difficulty: level,
+      size: variant.size,
+      givens: large.givens,
+      solution: large.solution,
+      createdAt: Date.now(),
+      mode: options.mode || "classic",
+      dailyDate: options.dailyDate,
+    };
+  }
+
   const spec = GRADED_SPECS[difficulty];
 
   if (spec) {
@@ -328,6 +410,7 @@ export function generateSudokuPuzzle(
     return {
       id: `${options.mode || "classic"}-${difficulty}-${hashSeed(seed).toString(36)}`,
       difficulty,
+      size: 9,
       givens: graded.givens,
       solution: graded.solution,
       createdAt: Date.now(),
@@ -343,6 +426,7 @@ export function generateSudokuPuzzle(
   return {
     id: `${options.mode || "classic"}-${difficulty}-${hashSeed(seed).toString(36)}`,
     difficulty,
+    size: 9,
     givens,
     solution,
     createdAt: Date.now(),
@@ -364,5 +448,9 @@ export function generateDailySudoku(dateKey = getTodayKey()): SudokuPuzzle {
 }
 
 export function isSolved(entries: Array<number | null>, solution: number[]): boolean {
-  return entries.length === CELLS && entries.every((value, index) => value === solution[index]);
+  return (
+    solution.length > 0 &&
+    entries.length === solution.length &&
+    entries.every((value, index) => value === solution[index])
+  );
 }

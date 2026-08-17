@@ -1,6 +1,8 @@
 import React from "react";
+import { padColumns, symbolFor, SudokuVariant, valuesOf } from "./sudokuVariants";
 
 interface SudokuNumberPadProps {
+  variant: SudokuVariant;
   entries: Array<number | null>;
   selectedNumber: number | null;
   notesMode: boolean;
@@ -13,6 +15,7 @@ interface SudokuNumberPadProps {
 }
 
 export function SudokuNumberPad({
+  variant,
   entries,
   selectedNumber,
   notesMode,
@@ -25,18 +28,23 @@ export function SudokuNumberPad({
 }: SudokuNumberPadProps) {
   return (
     <div className="sudoku-pad">
-      <div className="sudoku-number-grid">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => {
+      <div
+        className="sudoku-number-grid"
+        style={{ "--sudoku-pad-cols": padColumns(variant) } as React.CSSProperties}
+      >
+        {valuesOf(variant).map((value) => {
           const count = entries.filter((entry) => entry === value).length;
           return (
             <button
               key={value}
               className={`sudoku-number${selectedNumber === value ? " active" : ""}`}
               onClick={() => onNumber(value)}
-              disabled={count >= 9}
+              disabled={count >= variant.size}
             >
-              <strong>{value}</strong>
-              <span>{count}/9</span>
+              <strong>{symbolFor(value)}</strong>
+              <span>
+                {count}/{variant.size}
+              </span>
             </button>
           );
         })}

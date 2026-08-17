@@ -1,4 +1,5 @@
 import React from "react";
+import { bestTimeKey, variantOf } from "./sudokuVariants";
 import { SudokuDifficulty, SudokuPuzzle, SudokuStats as Stats } from "./types";
 
 const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
@@ -43,9 +44,10 @@ export function SudokuStats({
   entries,
   stats,
 }: SudokuStatsProps) {
+  const variant = variantOf(puzzle.size);
   const filled = entries.filter(Boolean).length;
-  const progress = Math.round((filled / 81) * 100);
-  const best = stats.bestTimes[puzzle.difficulty];
+  const progress = Math.round((filled / variant.cells) * 100);
+  const best = stats.bestTimes[bestTimeKey(variant.size, puzzle.difficulty)] ?? null;
 
   return (
     <div className="sudoku-stat-grid">

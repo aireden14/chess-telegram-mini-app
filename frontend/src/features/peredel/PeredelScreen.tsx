@@ -3,6 +3,7 @@ import { TopNav } from "../../components/TopNav";
 import { triggerHaptic } from "../../hooks/useTelegram";
 import { celebrate } from "../../hooks/celebrate";
 import { BOT_LEVELS, botLevelById, usePeredel } from "./peredelStore";
+import { blockEdgeClasses, SUDOKU_VARIANTS } from "../sudoku/sudokuVariants";
 
 function sameBox(a: number, b: number): boolean {
   const rowA = Math.floor(a / 9);
@@ -167,6 +168,7 @@ export function PeredelScreen() {
                 sameBox(index, selectedIndex));
             const classes = [
               "sudoku-cell",
+              blockEdgeClasses(index, SUDOKU_VARIANTS[9]),
               given ? "given" : "",
               owner === "you" ? "peredel-you" : "",
               owner === "bot" ? "peredel-bot" : "",
