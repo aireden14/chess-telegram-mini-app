@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#17110d">
+<title>СЦЕНА · кто остался с жертвой</title>
+<style>
+  :root{
+    /* Telegram сам подставляет --tg-content-safe-area-inset-top; env() — запасной путь вне TG */
+    --safe-top:calc(env(safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px));
+    --bg:#17110d; --panel:#241a13; --panel2:#2f2218; --panel3:#3b2c1f;
+    --ink:#f0e3cd; --muted:#a8917a; --dim:#7a6552;
+    --line:#3a2a1d; --line2:#54402c;
+    --brass:#c9a24b; --brass2:#e6c67e; --blood:#a32b25; --ok:#6f9f5f; --warn:#d08a3a;
+    --wall:#e8d3a6;
+    --photo:#f3ead7;
+    --mono:"Courier New",ui-monospace,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:
+      radial-gradient(1100px 640px at 50% -14%,#2b1f16 0%,transparent 62%),
+      radial-gradient(720px 460px at 90% 110%,#241a12 0%,transparent 58%),
+      var(--bg);
+    color:var(--ink);font-family:var(--sans);
+    overscroll-behavior:none;
+  }
+  button{font-family:inherit;color:inherit}
+
+  /* ---------- каркас ---------- */
+  .screen{display:none;min-height:100vh;flex-direction:column}
+  .screen.on{display:flex}
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:calc(var(--safe-top) + 10px) 12px 10px;
+    background:linear-gradient(180deg,rgba(23,17,13,.97),rgba(23,17,13,.72));
+    backdrop-filter:blur(6px);
+  }
+  .tb{
+    background:var(--panel);border:1px solid var(--line);
+    padding:9px 12px;border-radius:9px;cursor:pointer;
+    font-size:12px;letter-spacing:.6px;min-height:40px;
+  }
+  .tb:active{background:var(--panel2)}
+  .tb[disabled]{opacity:.4}
+  .brand{font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:5px;text-shadow:0 2px 0 #000}
+  .brand i{color:var(--blood);font-style:normal}
+  .wrap{width:100%;max-width:560px;margin:0 auto;padding:0 12px 34px;
+    display:flex;flex-direction:column;gap:12px}
+
+  /* ---------- меню ---------- */
+  .hero{text-align:center;padding:22px 12px 4px}
+  .hero .logo{
+    font-family:var(--mono);font-size:42px;font-weight:900;letter-spacing:11px;
+    margin-left:11px;text-shadow:0 3px 0 #000,0 0 34px rgba(201,162,75,.30);
+  }
+  .hero .logo i{color:var(--blood);font-style:normal}
+  .hero .sub{color:var(--muted);font-size:11.5px;letter-spacing:2.2px;margin-top:8px;font-family:var(--mono)}
+  .mbtn{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:13px;
+    padding:13px 15px;font-size:15px;cursor:pointer;
+    box-shadow:0 8px 22px rgba(0,0,0,.45);
+  }
+  .mbtn:active{transform:translateY(1px)}
+  .mbtn .ic{font-size:21px;width:26px;text-align:center;flex:none}
+  .mbtn .tt{display:block;font-weight:600}
+  .mbtn .dd{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .mbtn.primary{border-color:#6b5330;background:linear-gradient(180deg,#33261a,#261c13)}
+  .mbtn.ghost{background:var(--panel);opacity:.94}
+  .mbtn .badge{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:1px;
+    border:1px solid var(--line2);color:var(--brass2);padding:3px 7px;border-radius:6px;flex:none}
+  .mbtn .badge.done{color:var(--ok);border-color:#3f5a35}
+  .grp{display:flex;flex-direction:column;gap:9px}
+  .sectitle{font-family:var(--mono);font-size:10.5px;letter-spacing:2.6px;color:var(--dim);padding:6px 2px 0}
+
+  footer{
+    text-align:center;color:var(--dim);font-size:11.5px;padding:16px 12px 26px;letter-spacing:.3px;
+  }
+  footer a{color:var(--brass);text-decoration:none;border-bottom:1px dotted var(--line2)}
+
+  /* ---------- доска ---------- */
+  .board-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .board{
+    display:grid;gap:0;
+    width:100%;max-width:min(94vw,440px);
+    border:2px solid var(--wall);border-radius:6px;overflow:hidden;
+    background:#0f0b08;
+    box-shadow:0 14px 34px rgba(0,0,0,.55);
+  }
+  .cell{
+    position:relative;aspect-ratio:1/1;
+    display:flex;align-items:center;justify-content:center;
+    border:.5px solid rgba(232,211,166,.13);
+    cursor:pointer;overflow:hidden;
+  }
+  .cell.dimmed::after{
+    content:"";position:absolute;inset:0;background:repeating-linear-gradient(
+      45deg,rgba(0,0,0,.22) 0 5px,rgba(0,0,0,.03) 5px 10px);
+    pointer-events:none;
+  }
+  .cell .zw{position:absolute;font-size:min(6vw,28px);opacity:.30;filter:grayscale(.25)}
+  .cell .obj{position:absolute;right:1px;bottom:1px;font-size:min(3.4vw,15px);line-height:1;
+    background:rgba(10,7,5,.62);border-radius:5px;padding:2px;
+    box-shadow:0 0 0 1px rgba(232,211,166,.22)}
+  .cell .xm{position:absolute;color:#d9b48a;opacity:.62;font-size:min(5.2vw,24px);font-weight:700;
+    font-family:var(--mono);pointer-events:none}
+  .cell .note{position:absolute;left:1px;top:0;font-size:min(3.6vw,16px);opacity:.5;filter:grayscale(.55)}
+  /* эмодзи на тёмной доске не читаются — фигура всегда на светлой «фотокарточке» */
+  .cell .pc{
+    position:relative;z-index:2;
+    width:78%;height:78%;border-radius:6px;
+    background:var(--photo);border:1px solid #b6a179;
+    display:flex;align-items:center;justify-content:center;
+    font-size:min(6.6vw,30px);line-height:1;
+    box-shadow:0 2px 6px rgba(0,0,0,.55);
+  }
+  .cell.sel{outline:2px solid var(--brass2);outline-offset:-2px;z-index:3}
+  .cell.vic::before{content:"";position:absolute;inset:0;z-index:1;
+    background:radial-gradient(circle at 50% 50%,rgba(163,43,37,.40),rgba(163,43,37,.08));
+    box-shadow:inset 0 0 0 2px rgba(228,86,74,.9);}
+  .cell .vm{position:relative;z-index:2;font-size:min(6.4vw,29px);
+    filter:drop-shadow(0 1px 3px rgba(0,0,0,.9))}
+  .cell.flash{animation:fl .7s ease}
+  @keyframes fl{0%,100%{filter:none}40%{filter:brightness(1.9)}}
+
+  .legend{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;width:100%;max-width:min(94vw,440px)}
+  .lg{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 8px;cursor:pointer}
+  .lg b{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .lg.hi{color:var(--ink);border-color:var(--brass)}
+
+  /* ---------- лоток подозреваемых ---------- */
+  .tray{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:2px 0 6px}
+  .tray::-webkit-scrollbar{display:none}
+  .chip{
+    flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;
+    background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:6px 8px 5px;min-width:60px;cursor:pointer;
+  }
+  .chip .ce{width:34px;height:34px;border-radius:7px;background:var(--photo);
+    display:flex;align-items:center;justify-content:center;font-size:21px;line-height:1}
+  .chip .cn{font-size:9.5px;letter-spacing:.2px;color:var(--muted);max-width:66px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chip.on{border-color:var(--brass);background:var(--panel3);box-shadow:0 0 0 1px var(--brass) inset}
+  .chip.used{opacity:.42}
+  .chip.used .ce{filter:grayscale(.7)}
+
+  /* ---------- улики ---------- */
+  .clues{display:flex;flex-direction:column;gap:6px}
+  .clue{
+    display:flex;gap:9px;align-items:flex-start;
+    background:linear-gradient(180deg,var(--panel),#20180f);
+    border:1px solid var(--line);border-left:3px solid var(--line2);
+    border-radius:9px;padding:9px 11px;font-size:13.2px;line-height:1.4;cursor:pointer;
+  }
+  .clue .ci{font-size:16px;flex:none;line-height:1.25}
+  .clue .ct{flex:1;min-width:0}
+  .clue.done{opacity:.42;border-left-color:var(--ok)}
+  .clue.done .ct{text-decoration:line-through}
+  .clue.hidden-c .ct{filter:blur(4px)}
+
+  .bar{display:flex;gap:6px;flex-wrap:wrap}
+  .act{
+    flex:1;min-width:78px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:10px 8px;font-size:12px;cursor:pointer;min-height:44px;
+  }
+  .act:active{background:var(--panel2)}
+  .act.on{border-color:var(--brass);background:var(--panel3);color:var(--brass2)}
+  .act.danger{border-color:#6d2723;color:#e79a92}
+  .act[disabled]{opacity:.38}
+  .hud{display:flex;gap:8px;align-items:center;justify-content:space-between;
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);letter-spacing:1px;padding:0 2px}
+  .hud b{color:var(--ink);font-weight:700}
+
+  /* ---------- модалка ---------- */
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    background:rgba(8,5,3,.78);padding:18px}
+  .modal.on{display:flex}
+  .sheet{
+    width:100%;max-width:420px;max-height:82vh;overflow:auto;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line2);border-radius:15px;padding:18px 16px;
+    box-shadow:0 22px 60px rgba(0,0,0,.7);
+  }
+  .sheet h3{margin:0 0 10px;font-family:var(--mono);letter-spacing:3px;font-size:15px}
+  .sheet p{margin:0 0 10px;font-size:13.4px;line-height:1.5;color:var(--ink)}
+  .sheet ul{margin:0 0 12px;padding-left:19px;font-size:13px;line-height:1.55;color:var(--muted)}
+  .sheet li{margin-bottom:4px}
+  .sheet .k{color:var(--brass2)}
+  .picklist{display:flex;flex-direction:column;gap:7px;margin:10px 0 12px}
+  .pick{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:9px 11px;cursor:pointer;font-size:14px;text-align:left;width:100%}
+  .pick:active{background:var(--panel3)}
+  .pick .pe{width:32px;height:32px;border-radius:6px;background:var(--photo);flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1}
+  .verdict{text-align:center;padding:4px 0 8px}
+  .verdict .vt{font-family:var(--mono);font-size:23px;letter-spacing:4px;font-weight:900}
+  .verdict .vt.win{color:var(--ok)}
+  .verdict .vt.lose{color:var(--blood)}
+  .verdict .vs{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:70;
+    background:#12100c;border:1px solid var(--line2);border-radius:10px;
+    padding:10px 15px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;
+    max-width:88vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  .toast.on{opacity:1}
+  .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;min-height:60vh;color:var(--muted);font-family:var(--mono);letter-spacing:3px;font-size:12px}
+  .spin{width:34px;height:34px;border:2px solid var(--line2);border-top-color:var(--brass);
+    border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .st{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 7px;text-align:center}
+  .st .sv{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--brass2)}
+  .st .sl{font-size:9.5px;color:var(--dim);letter-spacing:1px;margin-top:3px}
+</style>
+</head>
+<body>
+
+<!-- ================= МЕНЮ ================= -->
+<div class="screen on" id="scMenu">
+  <div class="topbar">
+    <button class="tb" id="exitBtn">← Хаб</button>
+    <div class="brand">СЦЕ<i>Н</i>А</div>
+    <button class="tb" id="rulesBtn">Правила</button>
+  </div>
+  <div class="wrap">
+    <div class="hero">
+      <div class="logo">СЦЕ<i>Н</i>А</div>
+      <div class="sub">КТО ОСТАЛСЯ С ЖЕРТВОЙ</div>
+    </div>
+
+    <div class="stats" id="menuStats"></div>
+
+    <div class="sectitle">ДЕЛО ДНЯ</div>
+    <button class="mbtn primary" id="dailyBtn">
+      <span class="ic">🗞</span>
+      <span><span class="tt">Утренний выпуск</span><span class="dd" id="dailyDesc">Одно дело на всех, новое каждый день</span></span>
+      <span class="badge" id="dailyBadge">6×6</span>
+    </button>
+
+    <div class="sectitle">АРХИВ ДЕЛ</div>
+    <div class="grp" id="levelList"></div>
+
+    <div class="sectitle">ПРОЧЕЕ</div>
+    <div class="grp">
+      <button class="mbtn ghost" id="resumeBtn" style="display:none">
+        <span class="ic">📂</span>
+        <span><span class="tt">Продолжить дело</span><span class="dd" id="resumeDesc">Незакрытое расследование</span></span>
+      </button>
+      <button class="mbtn ghost" id="newsBtn">
+        <span class="ic">🆕</span>
+        <span><span class="tt">Что нового</span><span class="dd" id="newsDesc">Последнее обновление</span></span>
+      </button>
+      <button class="mbtn ghost" id="rulesBtn2">
+        <span class="ic">📖</span>
+        <span><span class="tt">Как это устроено</span><span class="dd">Правила, улики, обвинение</span></span>
+      </button>
+    </div>
+
+    <footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+  </div>
+</div>
+
+<!-- ================= ИГРА ================= -->
+<div class="screen" id="scGame">
+  <div class="topbar">
+    <button class="tb" id="backBtn">← Дела</button>
+    <div class="brand" id="caseTitle">ДЕЛО</div>
+    <button class="tb" id="menuBtn">⋯</button>
+  </div>
+
+  <div class="wrap" id="gameBody">
+    <div class="loading" id="loadBox">
+      <div class="spin"></div>
+      <div>СОБИРАЕМ ДЕЛО…</div>
+    </div>
+
+    <div id="playBox" style="display:none;flex-direction:column;gap:11px">
+      <div class="hud">
+        <span>⏱ <b id="hTime">0:00</b></span>
+        <span id="hPlaced">0/0 на месте</span>
+        <span>🔍 <b id="hChecks">3</b> · 💡 <b id="hHints">2</b></span>
+      </div>
+
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="tray" id="tray"></div>
+
+      <div class="bar">
+        <button class="act" id="pencilBtn">🖊 Карандаш</button>
+        <button class="act" id="undoBtn">↩ Отмена</button>
+        <button class="act" id="wipeBtn">🧹 Пометки</button>
+      </div>
+      <div class="bar">
+        <button class="act" id="checkBtn">🔍 Сверить</button>
+        <button class="act" id="hintBtn">💡 Улика</button>
+        <button class="act danger" id="accuseBtn">🔨 Обвинить</button>
+      </div>
+
+      <div class="sectitle">УЛИКИ <span id="clueCount" style="color:var(--dim)"></span></div>
+      <div class="clues" id="clues"></div>
+
+      <div class="sectitle">СЦЕНА</div>
+      <div class="clues" id="sceneInfo"></div>
+
+      <footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   СЦЕНА — пространственный дедуктивный паззл.
+   Подозреваемые стоят по одному в каждом ряду и каждой колонке.
+   Улики — пространственные. Убийца тот, кто остался с жертвой
+   один на один в её зоне.
+   ============================================================ */
+
+var VERSION = "1.0.0";
+var NEWS = {
+  date: "18.08.2026",
+  title: "Первый выпуск",
+  items: [
+    "Новая игра «СЦЕНА»: расставь подозреваемых по карте особняка и найди того, кто остался с жертвой один на один.",
+    "Четыре уровня: Стажёр 5×5, Детектив 6×6, Инспектор 7×7, Комиссар 8×8.",
+    "«Дело дня» — одно и то же дело для всех, новое каждый день, со счётчиком серии.",
+    "Улики: комнаты, стороны света, соседство, предметы, счёт по комнатам и расстояния.",
+    "Карандаш для пометок, 3 сверки и 2 подсказки на дело; прогресс сохраняется при выходе."
+  ]
+};
+
+/* ---------- мелочи ---------- */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s){
+  var h = 2166136261 >>> 0;
+  for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function range(n){ var a = []; for (var i = 0; i < n; i++) a.push(i); return a; }
+function shuffleArr(arr, rng){
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--){ var j = (rng() * (i + 1)) | 0; var t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+function popcount(x){ var c = 0; while (x){ x &= x - 1; c++; } return c; }
+function lowBit(x){ var i = 0; while (!(x & 1)){ x >>= 1; i++; } return i; }
+var COMBO_CACHE = {};
+function combinations(n, k){
+  var key = n + ":" + k;
+  if (COMBO_CACHE[key]) return COMBO_CACHE[key];
+  var out = [];
+  (function rec(start, acc){
+    if (acc.length === k){ out.push(acc.slice()); return; }
+    for (var i = start; i < n; i++){ acc.push(i); rec(i + 1, acc); acc.pop(); }
+  })(0, []);
+  COMBO_CACHE[key] = out;
+  return out;
+}
+function fmtTime(sec){
+  var m = Math.floor(sec / 60), s = sec % 60;
+  return m + ":" + (s < 10 ? "0" : "") + s;
+}
+function plural(n, one, few, many){
+  var m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+function capFirst(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* ---------- содержимое особняка ---------- */
+var SUSPECTS = [
+  { e:"🎩", n:"Полковник",  g:"m" },
+  { e:"👒", n:"Вдова",      g:"f" },
+  { e:"🎻", n:"Скрипач",    g:"m" },
+  { e:"🧤", n:"Горничная",  g:"f" },
+  { e:"👔", n:"Дворецкий",  g:"m" },
+  { e:"🥼", n:"Доктор",     g:"m" },
+  { e:"🧣", n:"Певица",     g:"f" },
+  { e:"🧢", n:"Шофёр",      g:"m" },
+  { e:"🕶", n:"Антиквар",   g:"m" },
+  { e:"📿", n:"Гадалка",    g:"f" },
+  { e:"🎓", n:"Профессор",  g:"m" },
+  { e:"💼", n:"Стряпчий",   g:"m" }
+];
+var ROOMS = [
+  { n:"Библиотека",   inn:"в Библиотеке",   e:"📚" },
+  { n:"Гостиная",     inn:"в Гостиной",     e:"🛋" },
+  { n:"Кухня",        inn:"на Кухне",       e:"🍲" },
+  { n:"Оранжерея",    inn:"в Оранжерее",    e:"🪴" },
+  { n:"Кабинет",      inn:"в Кабинете",     e:"🖊" },
+  { n:"Столовая",     inn:"в Столовой",     e:"🍽" },
+  { n:"Бильярдная",   inn:"в Бильярдной",   e:"🎱" },
+  { n:"Холл",         inn:"в Холле",        e:"🕯" },
+  { n:"Курительная",  inn:"в Курительной",  e:"🚬" },
+  { n:"Погреб",       inn:"в Погребе",      e:"🍷" },
+  { n:"Терраса",      inn:"на Террасе",     e:"🌙" },
+  { n:"Спальня",      inn:"в Спальне",      e:"🛏" }
+];
+/* цвет комнаты не берётся из её названия: комнаты должны различаться
+   на глаз при любом раскладе, поэтому палитра фиксирована и разведена по тону */
+var ZONE_COLORS = ["#c07a2e", "#3f86b8", "#7fa32f", "#b8446b", "#7a5fd0", "#2fa693"];
+var OBJECTS = [
+  { e:"🎹", n:"рояль",     at:"у рояля",      near:"рядом с роялем" },
+  { e:"🔥", n:"камин",     at:"у камина",     near:"рядом с камином" },
+  { e:"🪞", n:"зеркало",   at:"у зеркала",    near:"рядом с зеркалом" },
+  { e:"🕰", n:"часы",      at:"у часов",      near:"рядом с часами" },
+  { e:"🪴", n:"пальма",    at:"у пальмы",     near:"рядом с пальмой" },
+  { e:"🗿", n:"статуя",    at:"у статуи",     near:"рядом со статуей" },
+  { e:"🖼", n:"картина",   at:"у картины",    near:"рядом с картиной" },
+  { e:"📻", n:"патефон",   at:"у патефона",   near:"рядом с патефоном" },
+  { e:"🧳", n:"чемодан",   at:"у чемодана",   near:"рядом с чемоданом" },
+  { e:"🐈", n:"кот",       at:"возле кота",   near:"рядом с котом" },
+  { e:"🪟", n:"окно",      at:"у окна",       near:"рядом с окном" },
+  { e:"🧸", n:"кукла",     at:"у куклы",      near:"рядом с куклой" }
+];
+
+var LEVELS = [
+  { id:1, n:5, tier:1, pad:4, name:"Стажёр",   icon:"🔰",
+    dd:"5×5, пять подозреваемых. Комнаты и стороны света.",
+    palette:{ zone:1, nzone:1, dir:1, obj:1, wall:1, same:1 } },
+  { id:2, n:6, tier:1, pad:2, name:"Детектив", icon:"🔎",
+    dd:"6×6. Добавляются соседство, предметы и «в разных комнатах».",
+    palette:{ zone:1, nzone:1, dir:1, obj:1, nearobj:1, wall:1, same:1, diff:1, beside:1, alone:1 } },
+  { id:3, n:7, tier:2, pad:1, name:"Инспектор", icon:"🕵️",
+    dd:"7×7. Счёт людей по комнатам и расстояния между ними.",
+    palette:{ zone:1, nzone:1, dir:1, obj:1, nearobj:1, wall:1, same:1, diff:1, beside:1,
+              nbeside:1, alone:1, zcount:1, apart:1 } },
+  { id:4, n:8, tier:3, pad:0, name:"Комиссар", icon:"🎖",
+    dd:"8×8, самый большой особняк и минимум улик.",
+    palette:{ zone:1, nzone:1, dir:1, obj:1, nearobj:1, wall:1, same:1, diff:1, beside:1,
+              nbeside:1, alone:1, zcount:1, apart:1 } }
+];
+
+/* ---------- геометрия ---------- */
+function rowOfCell(i, N){ return (i / N) | 0; }
+function colOfCell(i, N){ return i % N; }
+function isWallCell(i, N){
+  var r = rowOfCell(i, N), c = colOfCell(i, N);
+  return r === 0 || c === 0 || r === N - 1 || c === N - 1;
+}
+function isAdj(i, j, N){
+  var dr = Math.abs(rowOfCell(i, N) - rowOfCell(j, N));
+  var dc = Math.abs(colOfCell(i, N) - colOfCell(j, N));
+  return dr + dc === 1;
+}
+function neighborsOf(i, N){
+  var r = rowOfCell(i, N), c = colOfCell(i, N), out = [];
+  if (r > 0) out.push(i - N);
+  if (r < N - 1) out.push(i + N);
+  if (c > 0) out.push(i - 1);
+  if (c < N - 1) out.push(i + 1);
+  return out;
+}
+
+/* ---------- карта: разбиение на комнаты ---------- */
+function growZones(N, Z, rng){
+  var zone = new Int8Array(N * N).fill(-1);
+  var seeds = shuffleArr(range(N * N), rng).slice(0, Z);
+  for (var i = 0; i < Z; i++) zone[seeds[i]] = i;
+  var left = N * N - Z, guard = 0;
+  while (left > 0 && guard++ < 4000){
+    var order = shuffleArr(range(Z), rng);
+    for (var oi = 0; oi < Z && left > 0; oi++){
+      var z = order[oi], opts = [];
+      for (var c = 0; c < N * N; c++){
+        if (zone[c] !== z) continue;
+        var nb = neighborsOf(c, N);
+        for (var k = 0; k < nb.length; k++) if (zone[nb[k]] < 0) opts.push(nb[k]);
+      }
+      if (!opts.length) continue;
+      zone[opts[(rng() * opts.length) | 0]] = z;
+      left--;
+    }
+  }
+  return left > 0 ? null : zone;
+}
+
+/* ============================================================
+   РЕШАТЕЛЬ. Только корректные исключения, без перебора:
+   если пропагация домотала до полного расклада — решение
+   единственно по построению (тот же урок, что в судоку).
+   ============================================================ */
+function keepIf(mask, N, fn){
+  var ch = 0;
+  for (var i = 0; i < N * N; i++) if (mask[i] && !fn(i)){ mask[i] = 0; ch = 1; }
+  return ch;
+}
+function anyLeft(mask){ for (var i = 0; i < mask.length; i++) if (mask[i]) return true; return false; }
+function countLeft(mask){ var c = 0; for (var i = 0; i < mask.length; i++) if (mask[i]) c++; return c; }
+function rowsMaskOf(m, N){ var x = 0; for (var i = 0; i < N * N; i++) if (m[i]) x |= 1 << ((i / N) | 0); return x; }
+function colsMaskOf(m, N){ var x = 0; for (var i = 0; i < N * N; i++) if (m[i]) x |= 1 << (i % N); return x; }
+function zonesMaskOf(m, N, zone){ var x = 0; for (var i = 0; i < N * N; i++) if (m[i]) x |= 1 << zone[i]; return x; }
+function highBit(x){ return 31 - Math.clz32(x); }
+
+function propClue(cl, P, C){
+  var N = C.N, ch = 0, a = cl.a, b = cl.b, i, t;
+  switch (cl.t){
+    case "zone":    ch |= keepIf(P[a], N, function(i){ return C.zone[i] === cl.z; }); break;
+    case "nzone":   ch |= keepIf(P[a], N, function(i){ return C.zone[i] !== cl.z; }); break;
+    case "obj":     ch |= keepIf(P[a], N, function(i){ return i === cl.cell; }); break;
+    case "nearobj": ch |= keepIf(P[a], N, function(i){ return isAdj(i, cl.cell, N); }); break;
+    case "wall":    ch |= keepIf(P[a], N, function(i){ return isWallCell(i, N); }); break;
+    case "nwall":   ch |= keepIf(P[a], N, function(i){ return !isWallCell(i, N); }); break;
+
+    case "dir": {
+      var ax = cl.ax;
+      var va = ax === "r" ? rowsMaskOf(P[a], N) : colsMaskOf(P[a], N);
+      var vb = ax === "r" ? rowsMaskOf(P[b], N) : colsMaskOf(P[b], N);
+      if (!va || !vb) return -1;
+      var minA = lowBit(va), maxB = highBit(vb);
+      ch |= keepIf(P[a], N, function(i){ return (ax === "r" ? rowOfCell(i, N) : colOfCell(i, N)) < maxB; });
+      ch |= keepIf(P[b], N, function(i){ return (ax === "r" ? rowOfCell(i, N) : colOfCell(i, N)) > minA; });
+      break;
+    }
+    case "beside": {
+      ch |= keepIf(P[a], N, function(i){
+        var nb = neighborsOf(i, N);
+        for (var k = 0; k < nb.length; k++) if (P[b][nb[k]]) return true;
+        return false;
+      });
+      ch |= keepIf(P[b], N, function(i){
+        var nb = neighborsOf(i, N);
+        for (var k = 0; k < nb.length; k++) if (P[a][nb[k]]) return true;
+        return false;
+      });
+      break;
+    }
+    case "nbeside": {
+      var ca = countLeft(P[a]), cb = countLeft(P[b]);
+      ch |= keepIf(P[a], N, function(i){
+        var nb = neighborsOf(i, N), c = 0;
+        for (var k = 0; k < nb.length; k++) if (P[b][nb[k]]) c++;
+        return c < cb;
+      });
+      ch |= keepIf(P[b], N, function(i){
+        var nb = neighborsOf(i, N), c = 0;
+        for (var k = 0; k < nb.length; k++) if (P[a][nb[k]]) c++;
+        return c < ca;
+      });
+      break;
+    }
+    case "same": {
+      var za = zonesMaskOf(P[a], N, C.zone), zb = zonesMaskOf(P[b], N, C.zone);
+      var common = za & zb;
+      if (!common) return -1;
+      ch |= keepIf(P[a], N, function(i){ return (common >> C.zone[i]) & 1; });
+      ch |= keepIf(P[b], N, function(i){ return (common >> C.zone[i]) & 1; });
+      break;
+    }
+    case "diff": {
+      var za2 = zonesMaskOf(P[a], N, C.zone), zb2 = zonesMaskOf(P[b], N, C.zone);
+      if (!za2 || !zb2) return -1;
+      if (popcount(za2) === 1){ var z1 = lowBit(za2); ch |= keepIf(P[b], N, function(i){ return C.zone[i] !== z1; }); }
+      if (popcount(zb2) === 1){ var z2 = lowBit(zb2); ch |= keepIf(P[a], N, function(i){ return C.zone[i] !== z2; }); }
+      break;
+    }
+    case "apart": {
+      var ax2 = cl.ax, d = cl.d;
+      var ma = ax2 === "r" ? rowsMaskOf(P[a], N) : colsMaskOf(P[a], N);
+      var mb = ax2 === "r" ? rowsMaskOf(P[b], N) : colsMaskOf(P[b], N);
+      if (!ma || !mb) return -1;
+      ch |= keepIf(P[a], N, function(i){
+        var v = ax2 === "r" ? rowOfCell(i, N) : colOfCell(i, N);
+        return (v - d >= 0 && (mb >> (v - d)) & 1) || (v + d < N && (mb >> (v + d)) & 1);
+      });
+      ch |= keepIf(P[b], N, function(i){
+        var v = ax2 === "r" ? rowOfCell(i, N) : colOfCell(i, N);
+        return (v - d >= 0 && (ma >> (v - d)) & 1) || (v + d < N && (ma >> (v + d)) & 1);
+      });
+      break;
+    }
+    case "alone": {
+      for (t = 0; t < N; t++){
+        if (t === a) continue;
+        var zt = zonesMaskOf(P[t], N, C.zone);
+        if (popcount(zt) === 1){
+          var zz = lowBit(zt);
+          ch |= keepIf(P[a], N, function(i){ return C.zone[i] !== zz; });
+        }
+      }
+      var za3 = zonesMaskOf(P[a], N, C.zone);
+      if (!za3) return -1;
+      if (popcount(za3) === 1){
+        var zo = lowBit(za3);
+        for (t = 0; t < N; t++){
+          if (t === a) continue;
+          ch |= keepIf(P[t], N, function(i){ return C.zone[i] !== zo; });
+        }
+      }
+      break;
+    }
+    case "zcount": {
+      var z3 = cl.z, k = cl.k, forced = [], poss = [];
+      for (t = 0; t < N; t++){
+        var has = false, all = true, any = false;
+        for (i = 0; i < N * N; i++) if (P[t][i]){ any = true; if (C.zone[i] === z3) has = true; else all = false; }
+        if (!any) return -1;
+        if (has) poss.push(t);
+        if (has && all) forced.push(t);
+      }
+      if (forced.length > k) return -1;
+      if (poss.length < k) return -1;
+      if (forced.length === k){
+        for (t = 0; t < N; t++){
+          if (forced.indexOf(t) >= 0) continue;
+          ch |= keepIf(P[t], N, function(i){ return C.zone[i] !== z3; });
+        }
+      }
+      if (poss.length === k){
+        for (var pj = 0; pj < poss.length; pj++)
+          ch |= keepIf(P[poss[pj]], N, function(i){ return C.zone[i] === z3; });
+      }
+      break;
+    }
+  }
+  if (a != null && !anyLeft(P[a])) return -1;
+  if (b != null && !anyLeft(P[b])) return -1;
+  return ch;
+}
+
+/* alldiff по маскам: голые и скрытые подмножества до размера tier */
+function alldiffFilter(masks, n, tier){
+  var m = masks.slice(), changed = true, guard = 0;
+  var kmax = tier >= 3 ? 3 : (tier >= 2 ? 2 : 1);
+  while (changed && guard++ < 12){
+    changed = false;
+    for (var k = 1; k <= kmax; k++){
+      var combos = combinations(n, k), ci, j, i2;
+      for (ci = 0; ci < combos.length; ci++){
+        var set = combos[ci], u = 0;
+        for (j = 0; j < k; j++) u |= m[set[j]];
+        if (popcount(u) !== k) continue;
+        for (i2 = 0; i2 < n; i2++){
+          if (set.indexOf(i2) >= 0) continue;
+          if (m[i2] & u){ m[i2] &= ~u; if (!m[i2]) return null; changed = true; }
+        }
+      }
+      for (ci = 0; ci < combos.length; ci++){
+        var vs = combos[ci], vm = 0;
+        for (j = 0; j < k; j++) vm |= 1 << vs[j];
+        var owners = [];
+        for (i2 = 0; i2 < n; i2++) if (m[i2] & vm) owners.push(i2);
+        if (owners.length < k) return null;
+        if (owners.length !== k) continue;
+        for (j = 0; j < owners.length; j++){
+          var o = owners[j];
+          if (m[o] & ~vm){ m[o] &= vm; if (!m[o]) return null; changed = true; }
+        }
+      }
+    }
+  }
+  return m;
+}
+
+/* структурные ограничения: один в ряду, один в колонке, перестановочная матрица */
+function structProp(P, C, tier){
+  var N = C.N, ch = 0, s, i, r, c, k, t;
+  var rm = [], cm = [];
+  for (s = 0; s < N; s++){
+    var mr = 0, mc = 0;
+    for (i = 0; i < N * N; i++) if (P[s][i]){ mr |= 1 << ((i / N) | 0); mc |= 1 << (i % N); }
+    if (!mr) return -1;
+    rm.push(mr); cm.push(mc);
+  }
+  var nrm = alldiffFilter(rm, N, tier); if (!nrm) return -1;
+  var ncm = alldiffFilter(cm, N, tier); if (!ncm) return -1;
+  for (s = 0; s < N; s++){
+    if (nrm[s] !== rm[s]){
+      ch = 1;
+      for (i = 0; i < N * N; i++) if (P[s][i] && !((nrm[s] >> ((i / N) | 0)) & 1)) P[s][i] = 0;
+    }
+    if (ncm[s] !== cm[s]){
+      ch = 1;
+      for (i = 0; i < N * N; i++) if (P[s][i] && !((ncm[s] >> (i % N)) & 1)) P[s][i] = 0;
+    }
+  }
+  var rc = [];
+  for (r = 0; r < N; r++){
+    var mrc = 0;
+    for (c = 0; c < N; c++){
+      var cell = r * N + c;
+      for (s = 0; s < N; s++) if (P[s][cell]){ mrc |= 1 << c; break; }
+    }
+    if (!mrc) return -1;
+    rc.push(mrc);
+  }
+  var nrc = alldiffFilter(rc, N, tier); if (!nrc) return -1;
+  for (r = 0; r < N; r++){
+    if (nrc[r] === rc[r]) continue;
+    for (c = 0; c < N; c++){
+      if ((nrc[r] >> c) & 1) continue;
+      var cl2 = r * N + c;
+      for (s = 0; s < N; s++) if (P[s][cl2]){ P[s][cl2] = 0; ch = 1; }
+    }
+  }
+  for (s = 0; s < N; s++){
+    var cnt = 0, last = -1;
+    for (i = 0; i < N * N; i++) if (P[s][i]){ cnt++; last = i; if (cnt > 1) break; }
+    if (cnt === 0) return -1;
+    if (cnt !== 1) continue;
+    var rr = (last / N) | 0, cc2 = last % N;
+    for (t = 0; t < N; t++){
+      if (t === s) continue;
+      for (k = 0; k < N; k++){
+        if (P[t][rr * N + k]){ P[t][rr * N + k] = 0; ch = 1; }
+        if (P[t][k * N + cc2]){ P[t][k * N + cc2] = 0; ch = 1; }
+      }
+    }
+  }
+  return ch;
+}
+
+function solveCase(C, clues, tier){
+  var N = C.N, s, i, P = [];
+  for (s = 0; s < N; s++){
+    var a = new Uint8Array(N * N); a.fill(1); a[C.victim] = 0;
+    P.push(a);
+  }
+  /* правило дела: убийца остался с жертвой один на один */
+  var all = clues.concat([{ t:"zcount", z:C.victimZone, k:1 }]);
+  var changed = true, guard = 0;
+  while (changed && guard++ < 120){
+    changed = false;
+    for (i = 0; i < all.length; i++){
+      var r = propClue(all[i], P, C);
+      if (r < 0) return null;
+      if (r > 0) changed = true;
+    }
+    var r2 = structProp(P, C, tier);
+    if (r2 < 0) return null;
+    if (r2 > 0) changed = true;
+  }
+  var pos = new Int16Array(N);
+  for (s = 0; s < N; s++){
+    var cnt = 0, last = -1;
+    for (i = 0; i < N * N; i++) if (P[s][i]){ cnt++; last = i; }
+    if (cnt !== 1) return { done:false, P:P };
+    pos[s] = last;
+  }
+  return { done:true, P:P, pos:pos };
+}
+
+/* ============================================================
+   ГЕНЕРАТОР ДЕЛА
+   ============================================================ */
+function buildScene(N, rng){
+  var Z = N <= 5 ? 4 : (N <= 6 ? 5 : 6);
+  var zone = growZones(N, Z, rng);
+  if (!zone) return null;
+  var sizes = new Array(Z).fill(0), i, z, s, r;
+  for (i = 0; i < N * N; i++) sizes[zone[i]]++;
+  for (z = 0; z < Z; z++) if (sizes[z] < 2) return null;
+
+  var perm = shuffleArr(range(N), rng);
+  var who  = shuffleArr(range(N), rng);
+  var pos  = new Int16Array(N);
+  var occ  = new Uint8Array(N * N);
+  for (r = 0; r < N; r++){ var cell = r * N + perm[r]; pos[who[r]] = cell; occ[cell] = 1; }
+
+  var cnt = new Array(Z).fill(0);
+  for (s = 0; s < N; s++) cnt[zone[pos[s]]]++;
+  var cand = [];
+  for (z = 0; z < Z; z++){
+    if (cnt[z] !== 1) continue;
+    for (i = 0; i < N * N; i++) if (zone[i] === z && !occ[i]) cand.push(i);
+  }
+  if (!cand.length) return null;
+  var victim = cand[(rng() * cand.length) | 0];
+  var victimZone = zone[victim];
+  var killer = -1;
+  for (s = 0; s < N; s++) if (zone[pos[s]] === victimZone) killer = s;
+
+  var K = N <= 5 ? 4 : (N <= 6 ? 5 : 6);
+  var objCells = [], used = {};
+  var onSus = shuffleArr(range(N), rng).slice(0, 2);
+  for (i = 0; i < onSus.length; i++){
+    var pc = pos[onSus[i]];
+    if (!used[pc]){ used[pc] = 1; objCells.push(pc); }
+  }
+  var rest = shuffleArr(range(N * N), rng);
+  for (i = 0; i < rest.length && objCells.length < K; i++){
+    var c3 = rest[i];
+    if (c3 === victim || used[c3]) continue;
+    used[c3] = 1; objCells.push(c3);
+  }
+  var objPool = shuffleArr(OBJECTS, rng);
+  var objs = objCells.map(function(c, ix){ return { cell:c, o:objPool[ix % objPool.length] }; });
+  var objAt = {};
+  objs.forEach(function(ob){ objAt[ob.cell] = ob.o; });
+
+  var picked = shuffleArr(ROOMS, rng).slice(0, Z).map(function(rm, ix){
+    return { n:rm.n, inn:rm.inn, e:rm.e, c:ZONE_COLORS[ix % ZONE_COLORS.length] };
+  });
+  return {
+    N:N, zone:zone, zones:picked,
+    sus:shuffleArr(SUSPECTS, rng).slice(0, N),
+    pos:pos, occ:occ, victim:victim, victimZone:victimZone, killer:killer,
+    objs:objs, objAt:objAt, clues:[]
+  };
+}
+
+function buildPool(C, rng, pal){
+  var N = C.N, pool = [], s, t, z, i;
+  var zoneOfS = function(x){ return C.zone[C.pos[x]]; };
+  var rowS = function(x){ return rowOfCell(C.pos[x], N); };
+  var colS = function(x){ return colOfCell(C.pos[x], N); };
+
+  for (s = 0; s < N; s++){
+    if (pal.zone) pool.push({ t:"zone", a:s, z:zoneOfS(s) });
+    if (pal.nzone) for (z = 0; z < C.zones.length; z++)
+      if (z !== zoneOfS(s) && rng() < 0.35) pool.push({ t:"nzone", a:s, z:z });
+    if (pal.obj && C.objAt[C.pos[s]]) pool.push({ t:"obj", a:s, cell:C.pos[s], o:C.objAt[C.pos[s]] });
+    if (pal.nearobj) for (i = 0; i < C.objs.length; i++)
+      if (isAdj(C.pos[s], C.objs[i].cell, N)) pool.push({ t:"nearobj", a:s, cell:C.objs[i].cell, o:C.objs[i].o });
+    if (pal.wall){
+      if (isWallCell(C.pos[s], N)) pool.push({ t:"wall", a:s });
+      else if (rng() < 0.5) pool.push({ t:"nwall", a:s });
+    }
+    if (pal.alone){
+      var k1 = 0;
+      for (t = 0; t < N; t++) if (zoneOfS(t) === zoneOfS(s)) k1++;
+      if (k1 === 1 && zoneOfS(s) !== C.victimZone) pool.push({ t:"alone", a:s });
+    }
+  }
+  for (s = 0; s < N; s++) for (t = s + 1; t < N; t++){
+    if (pal.dir){
+      var hi = rowS(s) < rowS(t) ? s : t, lo = rowS(s) < rowS(t) ? t : s;
+      pool.push({ t:"dir", ax:"r", a:hi, b:lo, flip:rng() < 0.5 });
+      var wl = colS(s) < colS(t) ? s : t, er = colS(s) < colS(t) ? t : s;
+      pool.push({ t:"dir", ax:"c", a:wl, b:er, flip:rng() < 0.5 });
+    }
+    var near = isAdj(C.pos[s], C.pos[t], N);
+    if (pal.beside && near) pool.push({ t:"beside", a:s, b:t });
+    if (pal.nbeside && !near && rng() < 0.28) pool.push({ t:"nbeside", a:s, b:t });
+    if (pal.same && zoneOfS(s) === zoneOfS(t)) pool.push({ t:"same", a:s, b:t });
+    if (pal.diff && zoneOfS(s) !== zoneOfS(t) && rng() < 0.28) pool.push({ t:"diff", a:s, b:t });
+    if (pal.apart){
+      var dr = Math.abs(rowS(s) - rowS(t)); if (dr >= 1 && rng() < 0.45) pool.push({ t:"apart", ax:"r", a:s, b:t, d:dr });
+      var dc = Math.abs(colS(s) - colS(t)); if (dc >= 1 && rng() < 0.45) pool.push({ t:"apart", ax:"c", a:s, b:t, d:dc });
+    }
+  }
+  if (pal.zcount) for (z = 0; z < C.zones.length; z++){
+    if (z === C.victimZone) continue;          /* это игрок и так знает из правила дела */
+    var k2 = 0;
+    for (s = 0; s < N; s++) if (zoneOfS(s) === z) k2++;
+    if (rng() < 0.6) pool.push({ t:"zcount", z:z, k:k2 });
+  }
+  return pool;
+}
+
+function generateCase(level, seed){
+  var LV = LEVELS[level - 1];
+  var N = LV.n, tier = LV.tier;
+  var rng = mulberry32(seed >>> 0);
+  for (var attempt = 0; attempt < 80; attempt++){
+    var C = buildScene(N, rng);
+    if (!C) continue;
+    var pool = shuffleArr(buildPool(C, rng, LV.palette), rng);
+    if (pool.length < N) continue;
+    var take = Math.min(pool.length, N * 2);
+    var clues = pool.slice(0, take), idx = take;
+    var res = solveCase(C, clues, tier);
+    while ((!res || !res.done) && idx < pool.length){
+      clues = clues.concat(pool.slice(idx, idx + 4));
+      idx += 4;
+      res = solveCase(C, clues, tier);
+    }
+    if (!res || !res.done) continue;
+
+    /* минимизация: выкидываем всё, без чего дело всё ещё раскрывается логикой */
+    var keep = clues.slice();
+    var order = shuffleArr(range(clues.length), rng);
+    for (var oi = 0; oi < order.length; oi++){
+      var cl = clues[order[oi]];
+      var at = keep.indexOf(cl);
+      if (at < 0) continue;
+      var trial = keep.slice();
+      trial.splice(at, 1);
+      var r2 = solveCase(C, trial, tier);
+      if (r2 && r2.done) keep = trial;
+    }
+    /* лёгкие уровни смягчаем лишними верными уликами */
+    if (LV.pad > 0){
+      var extra = [];
+      for (var pi = 0; pi < pool.length && extra.length < LV.pad; pi++)
+        if (keep.indexOf(pool[pi]) < 0) extra.push(pool[pi]);
+      keep = keep.concat(extra);
+    }
+    C.clues = shuffleArr(keep, rng);
+    C.level = level; C.seed = seed; C.tier = tier;
+    return C;
+  }
+  return null;
+}
+
+/* ---------- тексты улик ---------- */
+function vWas(C, a){ return C.sus[a].g === "f" ? "была" : "был"; }
+function vStood(C, a){ return C.sus[a].g === "f" ? "стояла" : "стоял"; }
+function wAlone(C, a){ return C.sus[a].g === "f" ? "одна" : "один"; }
+function nameB(C, a){ return "<b>" + esc(C.sus[a].n) + "</b>"; }
+
+function clueText(C, cl){
+  var A = cl.a != null ? nameB(C, cl.a) : "", B = cl.b != null ? nameB(C, cl.b) : "";
+  switch (cl.t){
+    case "zone":    return A + " " + vWas(C, cl.a) + " " + esc(C.zones[cl.z].inn) + ".";
+    case "nzone":   return A + " не " + vWas(C, cl.a) + " " + esc(C.zones[cl.z].inn) + ".";
+    case "obj":     return A + " " + vStood(C, cl.a) + " " + esc(cl.o.at) + ".";
+    case "nearobj": return A + " " + vStood(C, cl.a) + " " + esc(cl.o.near) + ".";
+    case "wall":    return A + " " + vStood(C, cl.a) + " у самой стены.";
+    case "nwall":   return A + " не " + vStood(C, cl.a) + " у стены.";
+    case "dir":
+      if (cl.ax === "r") return cl.flip ? B + " — южнее, чем " + A + "." : A + " — севернее, чем " + B + ".";
+      return cl.flip ? B + " — восточнее, чем " + A + "." : A + " — западнее, чем " + B + ".";
+    case "beside":  return A + " и " + B + " стояли вплотную, бок о бок.";
+    case "nbeside": return A + " и " + B + " не стояли вплотную.";
+    case "same":    return A + " и " + B + " были в одной комнате.";
+    case "diff":    return A + " и " + B + " были в разных комнатах.";
+    case "apart":
+      return A + " и " + B + " — " + (cl.ax === "r" ? "по вертикали" : "по горизонтали") +
+             " с разницей ровно в " + cl.d + " " +
+             (cl.ax === "r" ? plural(cl.d, "ряд", "ряда", "рядов")
+                            : plural(cl.d, "колонку", "колонки", "колонок")) + ".";
+    case "alone":   return A + " " + vWas(C, cl.a) + " в комнате " + wAlone(C, cl.a) + ".";
+    case "zcount":
+      if (cl.k === 0) return capFirst(esc(C.zones[cl.z].inn)) + " не было никого.";
+      return capFirst(esc(C.zones[cl.z].inn)) + " — ровно " + cl.k + " " +
+             plural(cl.k, "человек", "человека", "человек") + ".";
+  }
+  return "";
+}
+function clueIcon(C, cl){
+  if (cl.t === "zcount") return C.zones[cl.z].e;
+  if (cl.b != null) return C.sus[cl.a].e + C.sus[cl.b].e;
+  return C.sus[cl.a].e;
+}
+
+/* ============================================================
+   СОСТОЯНИЕ И ХРАНИЛИЩЕ
+   ============================================================ */
+var LKEY = "scena.v1";
+var store = { best:{}, solved:{}, dailyDate:"", dailyWin:false, streak:0, seenNews:"", run:null };
+(function loadStore(){
+  try {
+    var raw = localStorage.getItem(LKEY);
+    if (raw){
+      var p = JSON.parse(raw);
+      if (p && typeof p === "object") for (var k in p) if (p.hasOwnProperty(k)) store[k] = p[k];
+    }
+  } catch (e){}
+})();
+function persist(){ try { localStorage.setItem(LKEY, JSON.stringify(store)); } catch (e){} }
+
+var C = null;                 /* текущее дело */
+var placed = null;            /* placed[s] = клетка или -1 */
+var xmarks = null;            /* Uint8Array(N*N) */
+var notes = null;             /* Uint8Array(N*N*N), индекс cell*N+s */
+var moves = [];               /* стек ходов (имя history зарезервировано окном) */
+var clueDone = null;          /* отработанные улики */
+var selected = -1;
+var pencil = false;
+var checksLeft = 3, hintsLeft = 2, usedChecks = 0, usedHints = 0;
+var revealed = null;
+var elapsed = 0, running = false, finished = false, isDaily = false;
+var tickTimer = null;
+
+function todayKey(){
+  var d = new Date();
+  return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+}
+function dailySeed(){ return hashStr("scena|" + todayKey()); }
+
+/* ---------- Telegram ---------- */
+/* Игра живёт в iframe хаба, где window.Telegram не определён — SDK только через родителя. */
+function tgApp(){
+  try {
+    if (window.Telegram && window.Telegram.WebApp) return window.Telegram.WebApp;
+    if (window.parent && window.parent !== window &&
+        window.parent.Telegram && window.parent.Telegram.WebApp) return window.parent.Telegram.WebApp;
+  } catch (e){}
+  return null;
+}
+(function tgBoot(){
+  try {
+    var tg = tgApp();
+    if (!tg) return;
+    if (tg.ready) tg.ready();
+    if (tg.expand) tg.expand();
+    if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+    var st = tg.contentSafeAreaInset || tg.safeAreaInset;
+    if (st && typeof st.top === "number" && st.top > 0)
+      document.documentElement.style.setProperty("--safe-top", (st.top + 8) + "px");
+  } catch (e){}
+})();
+function haptic(kind){
+  try {
+    var h = tgApp() && tgApp().HapticFeedback;
+    if (!h) return;
+    if (kind === "success") h.notificationOccurred("success");
+    else if (kind === "error") h.notificationOccurred("error");
+    else if (kind === "warning") h.notificationOccurred("warning");
+    else h.impactOccurred(kind || "light");
+  } catch (e){}
+}
+
+/* ---------- мелкий UI ---------- */
+var toastTimer = null;
+function toast(msg){
+  var t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2100);
+}
+function openModal(html){ $("sheet").innerHTML = html; $("modal").classList.add("on"); }
+function closeModal(){ $("modal").classList.remove("on"); }
+function show(id){
+  ["scMenu", "scGame"].forEach(function(s){ $(s).classList.toggle("on", s === id); });
+  window.scrollTo(0, 0);
+}
+function hexA(hex, a){
+  var n = parseInt(hex.slice(1), 16);
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+}
+
+/* ============================================================
+   МЕНЮ
+   ============================================================ */
+function renderMenu(){
+  var solvedTotal = 0;
+  for (var k in store.solved) if (store.solved.hasOwnProperty(k)) solvedTotal += store.solved[k];
+  $("menuStats").innerHTML =
+    '<div class="st"><div class="sv">' + solvedTotal + '</div><div class="sl">ДЕЛ ЗАКРЫТО</div></div>' +
+    '<div class="st"><div class="sv">' + (store.streak || 0) + '</div><div class="sl">СЕРИЯ ДНЕЙ</div></div>' +
+    '<div class="st"><div class="sv">' + (store.best[2] ? fmtTime(store.best[2]) : "—") + '</div><div class="sl">РЕКОРД 6×6</div></div>';
+
+  var doneToday = store.dailyDate === todayKey();
+  $("dailyBadge").textContent = doneToday ? (store.dailyWin ? "закрыто" : "провалено") : "6×6";
+  $("dailyBadge").className = "badge" + (doneToday && store.dailyWin ? " done" : "");
+  $("dailyDesc").textContent = doneToday
+    ? "Сегодняшнее дело уже разобрано — можно перепройти"
+    : "Одно дело на всех, новое каждый день";
+
+  $("levelList").innerHTML = LEVELS.map(function(L){
+    var n = store.solved[L.id] || 0;
+    var best = store.best[L.id] ? " · рекорд " + fmtTime(store.best[L.id]) : "";
+    return '<button class="mbtn" data-lv="' + L.id + '">' +
+      '<span class="ic">' + L.icon + '</span>' +
+      '<span><span class="tt">' + esc(L.name) + '</span>' +
+      '<span class="dd">' + esc(L.dd) + (best ? esc(best) : "") + '</span></span>' +
+      '<span class="badge' + (n > 0 ? " done" : "") + '">' + L.n + '×' + L.n + '</span></button>';
+  }).join("");
+  Array.prototype.forEach.call($("levelList").querySelectorAll("[data-lv]"), function(b){
+    b.onclick = function(){ startCase(parseInt(b.getAttribute("data-lv"), 10), null, false); };
+  });
+
+  $("newsDesc").textContent = NEWS.date + " · " + NEWS.title;
+  var r = store.run;
+  if (r && !r.finished){
+    $("resumeBtn").style.display = "";
+    $("resumeDesc").textContent = LEVELS[r.level - 1].name + " " + LEVELS[r.level - 1].n + "×" +
+      LEVELS[r.level - 1].n + (r.daily ? " · дело дня" : "") + " · " + fmtTime(r.elapsed || 0);
+  } else {
+    $("resumeBtn").style.display = "none";
+  }
+}
+
+/* ============================================================
+   ЗАПУСК ДЕЛА
+   ============================================================ */
+function startCase(level, seed, daily, restore){
+  isDaily = !!daily;
+  show("scGame");
+  $("loadBox").style.display = "flex";
+  $("playBox").style.display = "none";
+  $("caseTitle").textContent = daily ? "ДЕЛО ДНЯ" : LEVELS[level - 1].name.toUpperCase();
+  var useSeed = seed == null ? (Math.random() * 4294967295) >>> 0 : seed >>> 0;
+  setTimeout(function(){
+    var t0 = Date.now();
+    var built = generateCase(level, useSeed);
+    if (!built){
+      $("loadBox").innerHTML = '<div>ДЕЛО НЕ СОБРАЛОСЬ. ПОПРОБУЙТЕ ЕЩЁ РАЗ.</div>';
+      return;
+    }
+    C = built;
+    C.genMs = Date.now() - t0;
+    prepareCase(restore);
+    $("loadBox").style.display = "none";
+    $("playBox").style.display = "flex";
+    renderAll();
+  }, 40);
+}
+
+function prepareCase(restore){
+  var N = C.N;
+  placed = new Int16Array(N).fill(-1);
+  xmarks = new Uint8Array(N * N);
+  notes = new Uint8Array(N * N * N);
+  revealed = new Uint8Array(N);
+  clueDone = new Uint8Array(C.clues.length);
+  moves = [];
+  selected = 0;
+  pencil = false;
+  checksLeft = 3; hintsLeft = 2; usedChecks = 0; usedHints = 0;
+  elapsed = 0; finished = false; running = true;
+
+  /* клетка-подпись комнаты: ближайшая к центру массы зоны */
+  C.zoneLabel = {};
+  for (var z = 0; z < C.zones.length; z++){
+    var cells = [], sr = 0, sc = 0;
+    for (var i = 0; i < N * N; i++) if (C.zone[i] === z){ cells.push(i); sr += rowOfCell(i, N); sc += colOfCell(i, N); }
+    var cr = sr / cells.length, cc = sc / cells.length, bestC = cells[0], bd = 1e9;
+    for (var j = 0; j < cells.length; j++){
+      if (cells[j] === C.victim) continue;
+      var d = Math.abs(rowOfCell(cells[j], N) - cr) + Math.abs(colOfCell(cells[j], N) - cc);
+      if (d < bd){ bd = d; bestC = cells[j]; }
+    }
+    C.zoneLabel[bestC] = z;
+  }
+
+  if (restore){
+    for (var s = 0; s < N; s++) placed[s] = restore.placed[s];
+    for (var q = 0; q < N * N; q++) xmarks[q] = restore.xmarks[q] || 0;
+    if (restore.notes) for (var w = 0; w < notes.length; w++) notes[w] = restore.notes[w] || 0;
+    if (restore.clueDone) for (var e2 = 0; e2 < clueDone.length; e2++) clueDone[e2] = restore.clueDone[e2] || 0;
+    if (restore.revealed) for (var v = 0; v < N; v++) revealed[v] = restore.revealed[v] || 0;
+    elapsed = restore.elapsed || 0;
+    checksLeft = restore.checksLeft != null ? restore.checksLeft : 3;
+    hintsLeft = restore.hintsLeft != null ? restore.hintsLeft : 2;
+    usedChecks = restore.usedChecks || 0;
+    usedHints = restore.usedHints || 0;
+  }
+  clearInterval(tickTimer);
+  tickTimer = setInterval(function(){
+    if (!running || finished) return;
+    elapsed++;
+    $("hTime").textContent = fmtTime(elapsed);
+    if (elapsed % 10 === 0) saveRun();
+  }, 1000);
+}
+
+function saveRun(){
+  if (!C) return;
+  store.run = {
+    level:C.level, seed:C.seed, daily:isDaily, finished:finished,
+    placed:Array.prototype.slice.call(placed),
+    xmarks:Array.prototype.slice.call(xmarks),
+    notes:Array.prototype.slice.call(notes),
+    clueDone:Array.prototype.slice.call(clueDone),
+    revealed:Array.prototype.slice.call(revealed),
+    elapsed:elapsed, checksLeft:checksLeft, hintsLeft:hintsLeft,
+    usedChecks:usedChecks, usedHints:usedHints
+  };
+  persist();
+}
+function clearRun(){ store.run = null; persist(); }
+
+/* ============================================================
+   ОТРИСОВКА
+   ============================================================ */
+function renderAll(){ renderBoard(); renderLegend(); renderTray(); renderClues(); renderScene(); renderHud(); }
+
+function renderBoard(){
+  var N = C.N, i, s;
+  var at = new Int16Array(N * N).fill(-1);
+  for (s = 0; s < N; s++) if (placed[s] >= 0) at[placed[s]] = s;
+  var occR = {}, occC = {};
+  for (s = 0; s < N; s++) if (placed[s] >= 0){ occR[rowOfCell(placed[s], N)] = s; occC[colOfCell(placed[s], N)] = s; }
+
+  var html = "";
+  for (i = 0; i < N * N; i++){
+    var z = C.zone[i], r = rowOfCell(i, N), c = colOfCell(i, N), who = at[i];
+    var sh = [];
+    if (r > 0 && C.zone[i - N] !== z) sh.push("inset 0 3px 0 0 var(--wall)");
+    if (c > 0 && C.zone[i - 1] !== z) sh.push("inset 3px 0 0 0 var(--wall)");
+    var cls = "cell";
+    if (i === C.victim) cls += " vic";
+    else if (who < 0 && (occR[r] != null || occC[c] != null)) cls += " dimmed";
+
+    var inner = "";
+    if (C.zoneLabel[i] != null) inner += '<span class="zw">' + C.zones[C.zoneLabel[i]].e + '</span>';
+    if (C.objAt[i]) inner += '<span class="obj">' + C.objAt[i].e + '</span>';
+    var ns = [];
+    for (s = 0; s < N; s++) if (notes[i * N + s]) ns.push(C.sus[s].e);
+    if (ns.length && who < 0) inner += '<span class="note">' + ns.slice(0, 4).join("") + '</span>';
+    if (xmarks[i] && who < 0 && i !== C.victim) inner += '<span class="xm">✕</span>';
+    if (i === C.victim) inner += '<span class="vm">🩸</span>';
+    else if (who >= 0) inner += '<span class="pc"' +
+      (revealed[who] ? ' style="box-shadow:0 0 0 2px var(--brass),0 2px 6px rgba(0,0,0,.55)"' : '') +
+      '>' + C.sus[who].e + '</span>';
+
+    html += '<div class="' + cls + '" data-i="' + i + '" style="background:' + hexA(C.zones[z].c, .46) + ';' +
+      (sh.length ? "box-shadow:" + sh.join(",") + ";" : "") + '">' + inner + '</div>';
+  }
+  var b = $("board");
+  b.style.gridTemplateColumns = "repeat(" + N + ",1fr)";
+  b.innerHTML = html;
+}
+
+function renderLegend(){
+  var compass = '<span class="lg" style="cursor:default;opacity:.8">\u{1F9ED} север \u2191</span>';
+  $("legend").innerHTML = compass + C.zones.map(function(z, ix){
+    return '<span class="lg" data-z="' + ix + '"><b style="background:' + z.c + '"></b>' + z.e + " " + esc(z.n) +
+      (ix === C.victimZone ? " 🩸" : "") + '</span>';
+  }).join("");
+}
+
+function renderTray(){
+  var N = C.N, h = "";
+  for (var s = 0; s < N; s++){
+    h += '<button class="chip' + (selected === s ? " on" : "") + (placed[s] >= 0 ? " used" : "") +
+      '" data-s="' + s + '"><span class="ce">' + C.sus[s].e + '</span>' +
+      '<span class="cn">' + esc(C.sus[s].n) + '</span></button>';
+  }
+  $("tray").innerHTML = h;
+}
+
+function renderClues(){
+  $("clueCount").textContent = "· " + C.clues.length + " " + plural(C.clues.length, "штука", "штуки", "штук");
+  $("clues").innerHTML = C.clues.map(function(cl, ix){
+    return '<div class="clue' + (clueDone[ix] ? " done" : "") + '" data-c="' + ix + '">' +
+      '<span class="ci">' + clueIcon(C, cl) + '</span><span class="ct">' + clueText(C, cl) + '</span></div>';
+  }).join("");
+}
+
+function renderScene(){
+  var vz = C.zones[C.victimZone];
+  var objs = C.objs.map(function(o){ return o.o.e + " " + o.o.n; }).join(" · ");
+  $("sceneInfo").innerHTML =
+    '<div class="clue" style="border-left-color:var(--blood)"><span class="ci">🩸</span><span class="ct">' +
+      'Тело нашли ' + esc(vz.inn) + '. Убийца остался с жертвой один на один — значит, ' +
+      esc(vz.inn) + ' <b>ровно один</b> подозреваемый.</span></div>' +
+    '<div class="clue"><span class="ci">📐</span><span class="ct">' +
+      'В каждом ряду и в каждой колонке — ровно один подозреваемый.</span></div>' +
+    '<div class="clue"><span class="ci">🧭</span><span class="ct">' +
+      'Север — вверх, юг — вниз, запад — влево, восток — вправо. «Вплотную» — только по стороне, не по диагонали.</span></div>' +
+    '<div class="clue"><span class="ci">🪑</span><span class="ct">На сцене: ' + esc(objs) + '.</span></div>';
+}
+
+function renderHud(){
+  var p = 0;
+  for (var s = 0; s < C.N; s++) if (placed[s] >= 0) p++;
+  $("hTime").textContent = fmtTime(elapsed);
+  $("hPlaced").textContent = p + "/" + C.N + " расставлено";
+  $("hChecks").textContent = checksLeft;
+  $("hHints").textContent = hintsLeft;
+  $("pencilBtn").classList.toggle("on", pencil);
+  $("pencilBtn").textContent = pencil ? (selected >= 0 ? "🖊 Метка " + C.sus[selected].e : "🖊 Крестики") : "🖊 Карандаш";
+  $("checkBtn").disabled = checksLeft <= 0 || finished;
+  $("hintBtn").disabled = hintsLeft <= 0 || finished;
+  $("undoBtn").disabled = moves.length === 0 || finished;
+  $("accuseBtn").disabled = finished;
+}
+
+/* ============================================================
+   ХОДЫ
+   ============================================================ */
+function pushMove(m){ moves.push(m); if (moves.length > 400) moves.shift(); }
+function afterChange(){ renderBoard(); renderTray(); renderHud(); saveRun(); }
+function nextFree(from){
+  var N = C.N;
+  for (var k = 1; k <= N; k++){ var s = (from + k) % N; if (placed[s] < 0) return s; }
+  return from;
+}
+function toggleNote(i, s){
+  if (placed[s] === i) return;
+  pushMove({ k:"note", cell:i, s:s });
+  notes[i * C.N + s] ^= 1;
+  afterChange();
+}
+function quickX(i){
+  if (!C || finished || i === C.victim) return;
+  for (var s = 0; s < C.N; s++) if (placed[s] === i) return;
+  pushMove({ k:"x", cell:i });
+  xmarks[i] ^= 1;
+  haptic("light");
+  afterChange();
+}
+function tapCell(i){
+  if (!C || finished) return;
+  var N = C.N, s, at = -1;
+  for (s = 0; s < N; s++) if (placed[s] === i) at = s;
+  if (i === C.victim){ toast("Здесь лежит жертва — сюда никого не поставить."); return; }
+  if (pencil){
+    if (selected >= 0) toggleNote(i, selected); else quickX(i);
+    return;
+  }
+  if (at >= 0){
+    pushMove({ k:"place", s:at, from:i, to:-1 });
+    placed[at] = -1; selected = at;
+    haptic("light");
+    afterChange();
+    return;
+  }
+  if (selected < 0){ toast("Сначала выберите подозреваемого в лотке."); return; }
+  var r = rowOfCell(i, N), c = colOfCell(i, N);
+  for (var t = 0; t < N; t++){
+    if (t === selected || placed[t] < 0) continue;
+    if (rowOfCell(placed[t], N) === r || colOfCell(placed[t], N) === c){
+      toast("В этом ряду или колонке уже кто-то стоит.");
+      haptic("warning");
+      return;
+    }
+  }
+  pushMove({ k:"place", s:selected, from:placed[selected], to:i });
+  placed[selected] = i;
+  xmarks[i] = 0;
+  haptic("light");
+  selected = nextFree(selected);
+  afterChange();
+  maybeComplete();
+}
+function undoMove(){
+  var m = moves.pop();
+  if (!m) return;
+  if (m.k === "place") placed[m.s] = m.from;
+  else if (m.k === "x") xmarks[m.cell] ^= 1;
+  else if (m.k === "note") notes[m.cell * C.N + m.s] ^= 1;
+  else if (m.k === "snap"){ placed.set(m.placed); xmarks.set(m.xmarks); notes.set(m.notes); }
+  afterChange();
+}
+function snapshot(){
+  return { k:"snap",
+    placed:Int16Array.from(placed), xmarks:Uint8Array.from(xmarks), notes:Uint8Array.from(notes) };
+}
+function maybeComplete(){
+  for (var s = 0; s < C.N; s++) if (placed[s] < 0) return;
+  if (!finished) setTimeout(openAccuse, 300);
+}
+
+function doCheck(){
+  if (!C || finished || checksLeft <= 0) return;
+  checksLeft--; usedChecks++;
+  var ok = 0, tot = 0;
+  for (var s = 0; s < C.N; s++){
+    if (placed[s] < 0) continue;
+    tot++;
+    if (placed[s] === C.pos[s]) ok++;
+  }
+  if (!tot) toast("Пока на доске никого нет.");
+  else toast("На своих местах: " + ok + " из " + tot + ".");
+  haptic(tot && ok === tot ? "success" : "warning");
+  afterChange();
+}
+function doHint(){
+  if (!C || finished || hintsLeft <= 0) return;
+  var cands = [], s;
+  for (s = 0; s < C.N; s++) if (placed[s] !== C.pos[s]) cands.push(s);
+  if (!cands.length){ toast("Все уже на своих местах."); return; }
+  pushMove(snapshot());
+  var pick = cands[(Math.random() * cands.length) | 0], cell = C.pos[pick];
+  for (var t = 0; t < C.N; t++){
+    if (t === pick || placed[t] < 0) continue;
+    if (placed[t] === cell || rowOfCell(placed[t], C.N) === rowOfCell(cell, C.N) ||
+        colOfCell(placed[t], C.N) === colOfCell(cell, C.N)) placed[t] = -1;
+  }
+  placed[pick] = cell; revealed[pick] = 1; xmarks[cell] = 0;
+  hintsLeft--; usedHints++;
+  toast(C.sus[pick].n + " стоял" + (C.sus[pick].g === "f" ? "а" : "") + " вот здесь.");
+  haptic("success");
+  afterChange();
+  var el = $("board").querySelector('[data-i="' + cell + '"]');
+  if (el) el.classList.add("flash");
+  maybeComplete();
+}
+function doWipe(){
+  if (!C || finished) return;
+  pushMove(snapshot());
+  xmarks.fill(0); notes.fill(0);
+  toast("Пометки стёрты.");
+  afterChange();
+}
+
+/* ============================================================
+   ОБВИНЕНИЕ И ВЕРДИКТ
+   ============================================================ */
+function openAccuse(){
+  if (!C || finished) return;
+  var h = '<h3>ОБВИНЕНИЕ</h3><p>Назовите того, кто остался с жертвой ' +
+    esc(C.zones[C.victimZone].inn) + ' один на один. Обвинение окончательно.</p><div class="picklist">';
+  for (var s = 0; s < C.N; s++)
+    h += '<button class="pick" data-acc="' + s + '"><span class="pe">' + C.sus[s].e + '</span><span>' +
+      esc(C.sus[s].n) + '</span></button>';
+  h += '</div><button class="act" style="width:100%" id="thinkBtn">Ещё подумаю</button>';
+  openModal(h);
+  $("thinkBtn").onclick = closeModal;
+  Array.prototype.forEach.call($("sheet").querySelectorAll("[data-acc]"), function(b){
+    b.onclick = function(){ closeModal(); finishCase(parseInt(b.getAttribute("data-acc"), 10)); };
+  });
+}
+
+function finishCase(accused){
+  finished = true; running = false;
+  var win = accused === C.killer, s;
+  for (s = 0; s < C.N; s++) placed[s] = C.pos[s];
+  renderBoard(); renderTray(); renderHud();
+
+  var L = LEVELS[C.level - 1];
+  var score = win ? Math.max(50, L.n * 120 - usedHints * 40 - usedChecks * 15 - Math.floor(elapsed / 10)) : 0;
+  if (win){
+    store.solved[C.level] = (store.solved[C.level] || 0) + 1;
+    if (!store.best[C.level] || elapsed < store.best[C.level]) store.best[C.level] = elapsed;
+  }
+  if (isDaily && store.dailyDate !== todayKey()){
+    store.dailyDate = todayKey();
+    store.dailyWin = win;
+    store.streak = win ? (store.streak || 0) + 1 : 0;
+  }
+  clearRun(); persist();
+  haptic(win ? "success" : "error");
+
+  var h = '<div class="verdict"><div class="vt ' + (win ? "win" : "lose") + '">' +
+    (win ? "ДЕЛО ЗАКРЫТО" : "ДЕЛО РАЗВАЛИЛОСЬ") + '</div><div class="vs">' +
+    'Убийца — <b>' + C.sus[C.killer].e + " " + esc(C.sus[C.killer].n) + '</b>, ' +
+    esc(C.zones[C.victimZone].inn) + '.<br>' +
+    (win ? "Расклад сошёлся." : "Вы указали на: " + esc(C.sus[accused].n) + ". Верный расклад — на доске.") +
+    '<br>Время: ' + fmtTime(elapsed) + ' · сверок: ' + usedChecks + ' · подсказок: ' + usedHints +
+    (win ? '<br>Очки: <b>' + score + '</b>' : '') + '</div></div>' +
+    '<button class="act" style="width:100%;margin-bottom:7px" id="againBtn">Новое дело</button>' +
+    '<button class="act" style="width:100%" id="toMenuBtn">К списку дел</button>';
+  openModal(h);
+  $("againBtn").onclick = function(){ closeModal(); startCase(C.level, null, isDaily && false); };
+  $("toMenuBtn").onclick = function(){ closeModal(); goMenu(); };
+}
+
+function goMenu(){
+  running = false;
+  if (C && !finished) saveRun();
+  clearInterval(tickTimer);
+  show("scMenu");
+  renderMenu();
+}
+
+/* ============================================================
+   СПРАВКА
+   ============================================================ */
+function showRules(){
+  openModal(
+    '<h3>КАК ЭТО УСТРОЕНО</h3>' +
+    '<p>Перед вами план особняка, разбитый на комнаты. В ночь убийства каждый подозреваемый ' +
+    'стоял в своей клетке — и <span class="k">в каждом ряду и каждой колонке был ровно один человек</span>.</p>' +
+    '<ul>' +
+    '<li>Выберите подозреваемого в лотке и поставьте его на клетку.</li>' +
+    '<li>Улики — это правила, а не намёки. Каждая верна.</li>' +
+    '<li><b>Вплотную</b> — соседняя клетка по стороне, диагональ не считается.</li>' +
+    '<li><b>Север</b> — вверх, <b>юг</b> — вниз, <b>запад</b> — влево, <b>восток</b> — вправо.</li>' +
+    '<li><b>Комната</b> — цветная область на плане, а не ряд и не колонка.</li>' +
+    '<li>Тело помечено 🩸. Убийца остался с жертвой один на один — значит, в её комнате ровно один подозреваемый.</li>' +
+    '<li>Расставьте всех, потом назовите того, кто оказался в комнате с телом.</li>' +
+    '</ul>' +
+    '<p><b>Инструменты.</b> «Карандаш» — пометки: с выбранным подозреваемым ставит его призрачную метку, ' +
+    'без выбора — крестик «здесь никого». Долгое нажатие на клетку ставит крестик сразу. ' +
+    '«Сверить» (3 раза) скажет, сколько фигур стоит верно, но не покажет какие. ' +
+    '«Улика» (2 раза) откроет одну настоящую позицию.</p>' +
+    '<p>Угадывать не нужно: каждое дело раскрывается чистой логикой и имеет ровно одну разгадку.</p>' +
+    '<button class="act" style="width:100%" id="rulesOk">Понятно</button>');
+  $("rulesOk").onclick = closeModal;
+}
+function showNews(){
+  var h = '<h3>ЧТО НОВОГО</h3><p><b>' + esc(NEWS.date) + '</b><br>' + esc(NEWS.title) +
+    ' · версия ' + VERSION + '</p><ul>';
+  NEWS.items.forEach(function(i){ h += "<li>" + esc(i) + "</li>"; });
+  h += '</ul><button class="act" style="width:100%" id="newsOk">Закрыть</button>';
+  openModal(h);
+  $("newsOk").onclick = closeModal;
+  store.seenNews = NEWS.date; persist();
+}
+function showGameMenu(){
+  openModal(
+    '<h3>ДЕЛО</h3>' +
+    '<button class="act" style="width:100%;margin-bottom:7px" id="gmRules">📖 Правила</button>' +
+    '<button class="act" style="width:100%;margin-bottom:7px" id="gmNews">🆕 Что нового</button>' +
+    '<button class="act" style="width:100%;margin-bottom:7px" id="gmNew">🔄 Новое дело этого уровня</button>' +
+    '<button class="act danger" style="width:100%;margin-bottom:7px" id="gmGiveUp">🏳️ Сдаться и увидеть разгадку</button>' +
+    '<button class="act" style="width:100%" id="gmClose">Назад к делу</button>');
+  $("gmRules").onclick = function(){ closeModal(); showRules(); };
+  $("gmNews").onclick = function(){ closeModal(); showNews(); };
+  $("gmNew").onclick = function(){ closeModal(); startCase(C.level, null, false); };
+  $("gmGiveUp").onclick = function(){
+    closeModal();
+    var wrong = (C.killer + 1) % C.N;
+    finishCase(wrong);
+  };
+  $("gmClose").onclick = closeModal;
+}
+
+/* ============================================================
+   СОБЫТИЯ
+   ============================================================ */
+$("exitBtn").onclick = function(){
+  try { window.parent.postMessage("hexland:exit", "*"); } catch (e){}
+};
+$("rulesBtn").onclick = showRules;
+$("rulesBtn2").onclick = showRules;
+$("newsBtn").onclick = showNews;
+$("backBtn").onclick = goMenu;
+$("menuBtn").onclick = showGameMenu;
+$("dailyBtn").onclick = function(){ startCase(2, dailySeed(), true); };
+$("resumeBtn").onclick = function(){
+  var r = store.run;
+  if (!r) return;
+  startCase(r.level, r.seed, r.daily, r);
+};
+$("pencilBtn").onclick = function(){ pencil = !pencil; renderHud(); haptic("light"); };
+$("undoBtn").onclick = undoMove;
+$("wipeBtn").onclick = doWipe;
+$("checkBtn").onclick = doCheck;
+$("hintBtn").onclick = doHint;
+$("accuseBtn").onclick = openAccuse;
+$("modal").onclick = function(e){ if (e.target === $("modal")) closeModal(); };
+
+var lpTimer = null, lpFired = false;
+$("board").addEventListener("pointerdown", function(e){
+  var el = e.target.closest ? e.target.closest(".cell") : null;
+  if (!el) return;
+  lpFired = false;
+  clearTimeout(lpTimer);
+  lpTimer = setTimeout(function(){
+    lpFired = true;
+    quickX(parseInt(el.getAttribute("data-i"), 10));
+  }, 430);
+});
+["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach(function(ev){
+  $("board").addEventListener(ev, function(e){
+    if (ev === "pointermove" && e.pressure === 0) return;
+    clearTimeout(lpTimer);
+  });
+});
+$("board").addEventListener("click", function(e){
+  var el = e.target.closest ? e.target.closest(".cell") : null;
+  if (!el) return;
+  if (lpFired){ lpFired = false; return; }
+  tapCell(parseInt(el.getAttribute("data-i"), 10));
+});
+$("tray").addEventListener("click", function(e){
+  var el = e.target.closest ? e.target.closest(".chip") : null;
+  if (!el || finished) return;
+  var s = parseInt(el.getAttribute("data-s"), 10);
+  selected = (selected === s ? -1 : s);
+  renderTray(); renderHud();
+  haptic("light");
+});
+$("clues").addEventListener("click", function(e){
+  var el = e.target.closest ? e.target.closest(".clue") : null;
+  if (!el) return;
+  var ix = parseInt(el.getAttribute("data-c"), 10);
+  clueDone[ix] ^= 1;
+  el.classList.toggle("done", !!clueDone[ix]);
+  saveRun();
+});
+$("legend").addEventListener("click", function(e){
+  var el = e.target.closest ? e.target.closest(".lg") : null;
+  if (!el) return;
+  var z = parseInt(el.getAttribute("data-z"), 10);
+  Array.prototype.forEach.call($("legend").querySelectorAll(".lg"), function(x){ x.classList.remove("hi"); });
+  el.classList.add("hi");
+  for (var i = 0; i < C.N * C.N; i++){
+    if (C.zone[i] !== z) continue;
+    var cell = $("board").querySelector('[data-i="' + i + '"]');
+    if (!cell) continue;
+    cell.classList.remove("flash");
+    void cell.offsetWidth;
+    cell.classList.add("flash");
+  }
+});
+
+/* игровая поверхность не должна вести себя как документ */
+document.addEventListener("selectstart", function(e){
+  var t = e.target;
+  if (t && t.closest && t.closest("input,textarea,[contenteditable]")) return;
+  e.preventDefault();
+});
+document.addEventListener("dragstart", function(e){ e.preventDefault(); });
+document.addEventListener("contextmenu", function(e){
+  var t = e.target;
+  if (t && t.closest && t.closest("a,input,textarea,[contenteditable]")) return;
+  e.preventDefault();
+});
+document.addEventListener("visibilitychange", function(){
+  if (document.hidden){ running = false; if (C && !finished) saveRun(); }
+  else if (C && !finished) running = true;
+});
+window.onerror = function(msg, src, line){
+  try { toast("Сбой: " + msg + " (" + line + ")"); } catch (e){}
+};
+
+/* ============================================================
+   ОТЛАДКА ДЛЯ АГЕНТОВ
+   ============================================================ */
+window.SCENA = {
+  state: function(){
+    if (!C) return null;
+    return { level:C.level, seed:C.seed, N:C.N, clues:C.clues.length,
+      killer:C.sus[C.killer].n, victimZone:C.zones[C.victimZone].n,
+      placed:Array.prototype.slice.call(placed), elapsed:elapsed, finished:finished,
+      genMs:C.genMs, texts:C.clues.map(function(cl){ return clueText(C, cl).replace(/<[^>]+>/g, ""); }) };
+  },
+  autosolve: function(){
+    if (!C) return "нет дела";
+    for (var s = 0; s < C.N; s++) placed[s] = C.pos[s];
+    afterChange();
+    maybeComplete();
+    return C.sus[C.killer].n;
+  },
+  selftest: function(n, level){
+    n = n || 20; level = level || 2;
+    var ok = 0, fail = 0, clues = 0, ms = 0, worst = 0, i, t0;
+    for (i = 0; i < n; i++){
+      t0 = performance.now();
+      var G = generateCase(level, (Math.random() * 4294967295) >>> 0);
+      var dt = performance.now() - t0;
+      ms += dt; if (dt > worst) worst = dt;
+      if (!G){ fail++; continue; }
+      var r = solveCase(G, G.clues, LEVELS[level - 1].tier);
+      if (!r || !r.done){ fail++; continue; }
+      var good = true;
+      for (var s = 0; s < G.N; s++) if (r.pos[s] !== G.pos[s]) good = false;
+      var inZ = 0;
+      for (var s2 = 0; s2 < G.N; s2++) if (G.zone[G.pos[s2]] === G.victimZone) inZ++;
+      if (inZ !== 1) good = false;
+      if (good){ ok++; clues += G.clues.length; } else fail++;
+    }
+    return { level:level, ok:ok, fail:fail, avgClues:+(clues / Math.max(1, ok)).toFixed(1),
+             avgMs:+(ms / n).toFixed(1), worstMs:+worst.toFixed(1) };
+  }
+};
+
+renderMenu();
+</script>
+</body>
+</html>
