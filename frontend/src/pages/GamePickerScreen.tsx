@@ -22,6 +22,7 @@ type AppEntry = {
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
+  { key: "card", icon: "🔦", title: "АЛИБИ", to: "/alibi", grad: ["#4a5a72", "#c1322f"], badge: "NEW" },
   { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"], badge: "NEW" },
   { key: "card", icon: "⚔️", title: "DARK DUNGEON", to: "/dark-dungeon", grad: ["#8b0000", "#ff4500"], badge: "NEW" },
   { key: "card", icon: "🏗️", title: "БЛОК ЗА БЛОКОМ", to: "/block-tower", grad: ["#ffb52e", "#ff643d"], badge: "NEW" },
@@ -99,6 +100,8 @@ export function GamePickerScreen() {
   const sortedApps = useMemo(() => {
     return [...ALL_APPS].sort((a, b) => {
       // Последний релиз должен быть виден на первом экране GamePass сразу.
+      if (a.to === "/alibi") return -1;
+      if (b.to === "/alibi") return 1;
       if (a.to === "/neon-trail") return -1;
       if (b.to === "/neon-trail") return 1;
       const countDiff = (stats.launchCount[b.to] ?? 0) - (stats.launchCount[a.to] ?? 0);

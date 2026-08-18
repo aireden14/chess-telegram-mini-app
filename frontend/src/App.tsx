@@ -47,6 +47,7 @@ import { IcebreakerScreen } from "./features/icebreakers/IcebreakerScreen";
 import { BlockTowerScreen } from "./features/blockTower/BlockTowerScreen";
 import { DarkDungeonScreen } from "./features/darkDungeon/DarkDungeonScreen";
 import { NeonTrailScreen } from "./features/neonTrail/NeonTrailScreen";
+import { AlibiScreen } from "./features/alibi/AlibiScreen";
 import { useAuthStore } from "./store/auth";
 import { usePieceStyleStore } from "./store/pieceStyle";
 import { useThemeStore } from "./store/theme";
@@ -126,6 +127,7 @@ export function App() {
         <Route path="/block-tower" element={<Protected><BlockTowerScreen /></Protected>} />
         <Route path="/dark-dungeon" element={<Protected><DarkDungeonScreen /></Protected>} />
         <Route path="/neon-trail" element={<Protected><NeonTrailScreen /></Protected>} />
+        <Route path="/alibi" element={<Protected><AlibiScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>
     </BrowserRouter>

@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e13">
+<title>АЛИБИ · дело на логику</title>
+<style>
+  :root{
+    /* Telegram сам подставляет --tg-content-safe-area-inset-top; env() — запасной путь вне TG */
+    --safe-top:calc(env(safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px));
+    --bg:#0b0e13; --panel:#141922; --panel2:#1b2230; --panel3:#222b3a;
+    --ink:#dfe6f0; --muted:#7d8798; --dim:#5b6577;
+    --line:#28303e; --line2:#39445a;
+    --accent:#5d8bb3; --accent2:#96c1e2; --red:#c1322f; --ok:#4f9d76; --warn:#c9a24b;
+    --mono:"Courier New",ui-monospace,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:
+      radial-gradient(1100px 620px at 50% -12%,#1a2233 0%,transparent 62%),
+      radial-gradient(760px 460px at 88% 108%,#141a26 0%,transparent 58%),
+      var(--bg);
+    color:var(--ink);font-family:var(--sans);
+    overscroll-behavior:none;
+  }
+  button{font-family:inherit}
+
+  /* ---------- каркас ---------- */
+  .screen{display:none;min-height:100vh;flex-direction:column}
+  .screen.on{display:flex}
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:calc(var(--safe-top) + 10px) 12px 10px;
+    background:linear-gradient(180deg,rgba(11,14,19,.97),rgba(11,14,19,.74));
+    backdrop-filter:blur(6px);
+  }
+  .tb{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    padding:10px 12px;border-radius:9px;cursor:pointer;
+    font-size:12px;letter-spacing:.6px;min-height:42px;
+  }
+  .tb:active{background:var(--panel2)}
+  .brand{font-family:var(--mono);font-size:19px;font-weight:900;letter-spacing:6px;text-shadow:0 2px 0 #000}
+  .brand i{color:var(--red);font-style:normal}
+  .wrap{width:100%;max-width:560px;margin:0 auto;padding:0 12px 40px;
+    display:flex;flex-direction:column;gap:12px}
+
+  /* ---------- меню ---------- */
+  .hero{
+    text-align:center;padding:26px 12px 6px;
+  }
+  .hero .logo{
+    font-family:var(--mono);font-size:44px;font-weight:900;letter-spacing:12px;
+    margin-left:12px;text-shadow:0 3px 0 #000,0 0 34px rgba(93,139,179,.35);
+  }
+  .hero .logo i{color:var(--red);font-style:normal}
+  .hero .sub{color:var(--muted);font-size:12px;letter-spacing:2.4px;margin-top:8px;font-family:var(--mono)}
+  .mbtn{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:13px;color:var(--ink);
+    padding:14px 15px;font-size:15px;cursor:pointer;
+    box-shadow:0 8px 22px rgba(0,0,0,.42);
+  }
+  .mbtn:active{transform:translateY(1px)}
+  .mbtn .ic{font-size:21px;width:26px;text-align:center;flex:none}
+  .mbtn .tt{display:block;font-weight:600}
+  .mbtn .dd{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .mbtn.primary{border-color:#3c5f7d;background:linear-gradient(180deg,#1c2b3a,#16202c)}
+  .mbtn.ghost{background:var(--panel);opacity:.94}
+  .mbtn .badge{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:1px;
+    border:1px solid var(--line2);color:var(--accent2);padding:3px 7px;border-radius:6px;flex:none}
+  .grp{display:flex;flex-direction:column;gap:9px}
+  .sectitle{font-family:var(--mono);font-size:10.5px;letter-spacing:2.6px;color:var(--dim);
+    padding:6px 2px 0}
+
+  /* ---------- карточка дела ---------- */
+  .case{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.03);
+    font-family:var(--mono);
+  }
+  .case .stamp{
+    float:right;border:2px solid var(--red);color:var(--red);
+    font-size:9px;letter-spacing:2px;padding:3px 6px;border-radius:4px;
+    transform:rotate(5deg);opacity:.85;font-weight:bold;margin-left:8px;
+  }
+  .case h2{margin:0 0 2px;font-size:13.5px;letter-spacing:2.4px;color:var(--accent2)}
+  .case .meta{font-size:10px;color:var(--dim);margin-bottom:7px;letter-spacing:1.2px}
+  .case p{margin:0;font-size:12px;line-height:1.58;color:var(--muted)}
+  .case p.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .case .more{margin-top:6px;font-size:10px;letter-spacing:1.4px;color:var(--accent);cursor:pointer;display:inline-block}
+  .case .q{
+    margin-top:9px;padding:8px 10px;border-left:3px solid var(--red);
+    background:rgba(193,50,47,.07);font-size:12.5px;color:var(--ink);line-height:1.45;
+  }
+
+  /* ---------- статусная строка ---------- */
+  .status{display:flex;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted);
+    align-items:center;justify-content:space-between;padding:0 3px}
+  .status b{color:var(--ink);font-weight:600}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--muted);padding:8px 11px;font-size:11px;
+    letter-spacing:1px;cursor:pointer;min-height:36px}
+  .seg button.on{background:var(--panel3);color:var(--accent2)}
+
+  /* ---------- таблица назначений ---------- */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  table.grid{border-collapse:collapse;width:100%;font-size:12px}
+  table.grid th,table.grid td{border:1px solid var(--line);padding:0;text-align:center;vertical-align:middle}
+  table.grid thead th{
+    background:var(--panel2);color:var(--muted);font-family:var(--mono);
+    font-size:9.5px;letter-spacing:1.4px;font-weight:600;padding:8px 4px;white-space:nowrap;
+  }
+  table.grid thead th .ic{display:block;font-size:13px;margin-bottom:2px;opacity:.85}
+  table.grid tbody th{
+    background:var(--panel2);color:var(--accent2);font-family:var(--mono);
+    font-size:12px;width:34px;min-width:34px;padding:6px 2px;
+  }
+  .cell{
+    display:block;width:100%;min-height:50px;background:transparent;border:0;color:var(--ink);
+    padding:6px 4px;cursor:pointer;line-height:1.2;
+  }
+  .cell:active{background:var(--panel3)}
+  .cell .val{font-size:12px;font-weight:600;color:var(--ink);word-break:break-word}
+  .cell .val.hint{color:var(--warn)}
+  .cell .cands{font-size:9px;color:var(--dim);letter-spacing:.2px;word-break:break-word}
+  .cell .cands.one{color:var(--muted)}
+  .cell .empty{color:#3d4657;font-size:14px}
+
+  /* ---------- канон-сетка ---------- */
+  .gridblock{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+  .gridblock h3{margin:0;padding:8px 11px;font-family:var(--mono);font-size:10.5px;letter-spacing:2px;
+    color:var(--muted);background:var(--panel2);border-bottom:1px solid var(--line)}
+  table.canon{border-collapse:collapse;width:100%;font-size:11px}
+  table.canon th,table.canon td{border:1px solid var(--line);text-align:center;padding:0}
+  table.canon thead th{color:var(--dim);font-family:var(--mono);font-size:10px;padding:5px 2px;background:var(--panel2)}
+  table.canon tbody th{color:var(--muted);font-size:10.5px;text-align:left;padding:4px 7px;
+    background:var(--panel2);font-weight:500;white-space:nowrap;max-width:112px;overflow:hidden;text-overflow:ellipsis}
+  .cx{display:block;width:100%;min-height:30px;background:transparent;border:0;cursor:pointer;
+    font-size:13px;color:var(--dim);font-family:var(--mono)}
+  .cx.no{color:var(--red);opacity:.75}
+  .cx.yes{color:var(--ok);font-weight:900;background:rgba(79,157,118,.1)}
+  .cx:active{background:var(--panel3)}
+
+  /* ---------- показания ---------- */
+  .clues{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);
+    border-radius:12px;background:var(--panel);overflow:hidden}
+  .clue{
+    display:flex;gap:10px;align-items:flex-start;padding:10px 12px;cursor:pointer;
+    border-bottom:1px solid var(--line);
+  }
+  .clue:last-child{border-bottom:0}
+  .clue:active{background:var(--panel2)}
+  .clue .n{font-family:var(--mono);font-size:10px;color:var(--dim);flex:none;
+    border:1px solid var(--line2);border-radius:5px;min-width:20px;text-align:center;padding:2px 0;margin-top:1px}
+  .clue .tx{font-size:12.5px;line-height:1.5;color:var(--ink)}
+  .clue .tx .who{color:var(--accent);font-family:var(--mono);font-size:10.5px;letter-spacing:.8px;
+    display:block;margin-bottom:2px}
+  .clue.done{opacity:.38}
+  .clue.done .tx{text-decoration:line-through;text-decoration-color:var(--dim)}
+  .clue.done .n{border-color:var(--line);color:var(--line2)}
+
+  /* ---------- кнопки действий ---------- */
+  .row{display:flex;gap:9px}
+  .row>*{flex:1}
+  .act{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;
+    padding:12px 10px;font-size:12.5px;cursor:pointer;min-height:46px;letter-spacing:.4px;
+  }
+  .act:active{background:var(--panel2)}
+  .act[disabled]{opacity:.4;cursor:default}
+  .act.danger{border-color:#5a2523;background:linear-gradient(180deg,#2a1615,#1d1211);color:#e8a9a6}
+  .act.go{border-color:#3c5f7d;background:linear-gradient(180deg,#1c2b3a,#16202c);color:var(--accent2);
+    font-weight:600;letter-spacing:1.6px;font-family:var(--mono)}
+
+  /* ---------- нижняя шторка выбора ---------- */
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:60;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border-top:1px solid var(--line2);border-radius:16px 16px 0 0;
+    padding:12px 12px calc(14px + env(safe-area-inset-bottom,0px));
+    box-shadow:0 -14px 40px rgba(0,0,0,.6);
+    transform:translateY(110%);transition:transform .18s ease-out;
+    max-height:76vh;overflow-y:auto;
+  }
+  .sheet.on{transform:translateY(0)}
+  .sheet .hd{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:4px}
+  .sheet .hd .t{font-family:var(--mono);font-size:12px;letter-spacing:2px;color:var(--accent2)}
+  .sheet .sub{font-size:11px;color:var(--muted);margin-bottom:10px;font-family:var(--mono)}
+  .opt{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;margin-bottom:7px;color:var(--ink);font-size:13.5px;cursor:pointer;min-height:46px;
+  }
+  .opt:active{background:var(--panel3)}
+  .opt .mk{font-family:var(--mono);font-size:14px;width:20px;text-align:center;flex:none;color:var(--dim)}
+  .opt.yes{border-color:#2f6b50;background:rgba(79,157,118,.12)}
+  .opt.yes .mk{color:var(--ok)}
+  .opt.no{opacity:.45}
+  .opt.no .lb{text-decoration:line-through;text-decoration-color:var(--red)}
+  .opt.no .mk{color:var(--red)}
+  .opt .rf{display:block;font-size:10.5px;color:var(--dim);margin-top:2px;font-family:var(--mono)}
+  .scrim{position:fixed;inset:0;background:rgba(4,6,10,.66);z-index:55;display:none}
+  .scrim.on{display:block}
+
+  /* ---------- модалки ---------- */
+  .modal{
+    position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:16px;
+  }
+  .modal.on{display:flex}
+  .box{
+    width:100%;max-width:460px;max-height:82vh;overflow-y:auto;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line2);border-radius:15px;padding:16px;
+    box-shadow:0 24px 60px rgba(0,0,0,.7);
+  }
+  .box h3{margin:0 0 10px;font-family:var(--mono);font-size:14px;letter-spacing:2.4px;color:var(--accent2)}
+  .box p{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 9px}
+  .box p b{color:var(--ink)}
+  .box ul{margin:0 0 10px;padding-left:18px}
+  .box li{font-size:12.5px;line-height:1.6;color:var(--muted);margin-bottom:5px}
+  .box .big{font-family:var(--mono);font-size:22px;letter-spacing:3px;text-align:center;
+    color:var(--ink);margin:6px 0 4px}
+  .box .verdict{text-align:center;font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+  .kv{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;
+    padding:6px 0;border-bottom:1px dashed var(--line);color:var(--muted)}
+  .kv b{color:var(--ink);font-weight:600}
+  .kv:last-of-type{border-bottom:0}
+
+  footer{text-align:center;color:var(--dim);font-size:10.5px;padding:14px 0 4px;font-family:var(--mono)}
+  footer a{color:var(--accent);text-decoration:none}
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:90;
+    background:#0e131b;border:1px solid var(--line2);border-radius:10px;
+    padding:11px 15px;font-size:12.5px;color:var(--ink);max-width:88vw;text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 12px 30px rgba(0,0,0,.6)
+  }
+  .toast.on{opacity:1}
+  .loading{text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;
+    letter-spacing:2px;padding:40px 0}
+</style>
+</head>
+<body>
+
+<!-- ================= МЕНЮ ================= -->
+<div class="screen on" id="menuScreen">
+  <div class="wrap">
+    <div class="hero">
+      <div class="logo">АЛ<i>И</i>БИ</div>
+      <div class="sub">ДЕЛО РАСКРЫВАЕТСЯ ЛОГИКОЙ</div>
+    </div>
+
+    <div class="grp">
+      <button class="mbtn ghost" id="resumeBtn" style="display:none">
+        <span class="ic">📂</span>
+        <span><span class="tt">Продолжить дело</span><span class="dd" id="resumeDesc"></span></span>
+      </button>
+
+      <div class="sectitle">НОВОЕ ДЕЛО</div>
+      <button class="mbtn primary" data-level="patrol">
+        <span class="ic">🔦</span>
+        <span><span class="tt">Постовой</span><span class="dd">4 места, 3 приметы. Учебное дело — распутывается прямыми исключениями</span></span>
+      </button>
+      <button class="mbtn" data-level="detective">
+        <span class="ic">🕴</span>
+        <span><span class="tt">Детектив</span><span class="dd">5 мест, 3 приметы. Появляются показания вида «раньше, чем»</span></span>
+      </button>
+      <button class="mbtn" data-level="inspector">
+        <span class="ic">🎩</span>
+        <span><span class="tt">Инспектор</span><span class="dd">5 мест, 4 приметы. Одних исключений не хватит — нужны пары</span></span>
+      </button>
+      <button class="mbtn" data-level="commissar">
+        <span class="ic">🥃</span>
+        <span><span class="tt">Комиссар</span><span class="dd">6 мест, 4 приметы. Свидетели начинают говорить «мы не соседи»</span></span>
+      </button>
+      <button class="mbtn" data-level="shadow">
+        <span class="ic">🌑</span>
+        <span><span class="tt">Тень</span><span class="dd">6 мест, 5 примет. Без рассуждения от противного не закрывается</span></span>
+      </button>
+
+      <div class="sectitle">ЕЩЁ</div>
+      <button class="mbtn" id="dailyBtn">
+        <span class="ic">📅</span>
+        <span><span class="tt">Дело дня</span><span class="dd" id="dailyDesc">Одно и то же дело у всех, до полуночи</span></span>
+        <span class="badge" id="dailyBadge">—</span>
+      </button>
+      <button class="mbtn ghost" id="dossierBtn">
+        <span class="ic">🗄</span>
+        <span><span class="tt">Досье</span><span class="dd">Закрытые дела, лучшее время, серия</span></span>
+      </button>
+      <button class="mbtn ghost" id="helpBtn">
+        <span class="ic">❓</span>
+        <span><span class="tt">Как это работает</span><span class="dd">Правила, пометки, обвинение</span></span>
+      </button>
+      <button class="mbtn ghost" id="newsBtn">
+        <span class="ic">🆕</span>
+        <span><span class="tt">Что нового</span><span class="dd" id="newsDesc">Последнее обновление</span></span>
+      </button>
+      <button class="mbtn ghost" id="exitBtn">
+        <span class="ic">←</span>
+        <span><span class="tt">В меню игр</span><span class="dd">Вернуться в GamePass</span></span>
+      </button>
+    </div>
+
+    <footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>
+  </div>
+</div>
+
+<!-- ================= ИГРА ================= -->
+<div class="screen" id="gameScreen">
+  <div class="topbar">
+    <button class="tb" id="backBtn">← ДЕЛА</button>
+    <div class="brand">АЛ<i>И</i>БИ</div>
+    <button class="tb" id="menuDots">⋯</button>
+  </div>
+  <div class="wrap" id="gameBody">
+    <div class="loading" id="gameLoading">СОБИРАЕМ ПАПКУ…</div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- нижняя шторка выбора значения -->
+<div class="sheet" id="sheet">
+  <div class="hd">
+    <div class="t" id="sheetTitle">СТАКАН</div>
+    <div class="seg">
+      <button id="modeAnswer" class="on">ОТВЕТ</button>
+      <button id="modeNotes">ЗАМЕТКИ</button>
+    </div>
+  </div>
+  <div class="sub" id="sheetSub">третий стул</div>
+  <div id="sheetList"></div>
+  <div class="row" style="margin-top:4px">
+    <button class="act" id="sheetClear">Стереть клетку</button>
+    <button class="act" id="sheetClose">Закрыть</button>
+  </div>
+</div>
+
+<!-- универсальная модалка -->
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   1. ДВИЖОК: зебра-паззл на битовых масках
+   ============================================================ */
+(function (root) {
+  "use strict";
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashStr(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function pc(m) { var n = 0; while (m) { m &= m - 1; n++; } return n; }
+  function lo(m) { var p = 0; while (!(m & 1)) { m >>= 1; p++; } return p; }
+  function hi(m) { var p = -1; while (m) { m >>= 1; p++; } return p; }
+
+  function applyClues(cand, clues, N) {
+    var mask = (1 << N) - 1, changed = false, i;
+    for (i = 0; i < clues.length; i++) {
+      var cl = clues[i], a = cl.a, b = cl.b, t;
+      switch (cl.t) {
+        case "POS": {
+          var mp = 1 << cl.p;
+          if (cand[a] !== mp) { cand[a] &= mp; changed = true; }
+          break;
+        }
+        case "EDGE": {
+          var me = 1 | (1 << (N - 1));
+          if (cand[a] & ~me) { cand[a] &= me; changed = true; }
+          break;
+        }
+        case "SAME": {
+          t = cand[a] & cand[b];
+          if (t !== cand[a] || t !== cand[b]) { cand[a] = t; cand[b] = t; changed = true; }
+          break;
+        }
+        case "DIFF": {
+          if (pc(cand[a]) === 1 && (cand[b] & cand[a])) { cand[b] &= ~cand[a]; changed = true; }
+          if (pc(cand[b]) === 1 && (cand[a] & cand[b])) { cand[a] &= ~cand[b]; changed = true; }
+          break;
+        }
+        case "NEXT": {
+          var sb = ((cand[b] << 1) | (cand[b] >> 1)) & mask;
+          if (cand[a] & ~sb) { cand[a] &= sb; changed = true; }
+          var sa = ((cand[a] << 1) | (cand[a] >> 1)) & mask;
+          if (cand[b] & ~sa) { cand[b] &= sa; changed = true; }
+          break;
+        }
+        case "NOTNEXT": {
+          if (pc(cand[a]) === 1) {
+            var s1 = ((cand[a] << 1) | (cand[a] >> 1)) & mask;
+            if (cand[b] & s1) { cand[b] &= ~s1; changed = true; }
+          }
+          if (pc(cand[b]) === 1) {
+            var s2 = ((cand[b] << 1) | (cand[b] >> 1)) & mask;
+            if (cand[a] & s2) { cand[a] &= ~s2; changed = true; }
+          }
+          break;
+        }
+        case "DIST": {
+          var k = cl.k;
+          var db = ((cand[b] << k) | (cand[b] >> k)) & mask;
+          if (cand[a] & ~db) { cand[a] &= db; changed = true; }
+          var da = ((cand[a] << k) | (cand[a] >> k)) & mask;
+          if (cand[b] & ~da) { cand[b] &= da; changed = true; }
+          break;
+        }
+        case "IMMLEFT": {
+          var ib = (cand[b] >> 1) & mask;
+          if (cand[a] & ~ib) { cand[a] &= ib; changed = true; }
+          var ia = (cand[a] << 1) & mask;
+          if (cand[b] & ~ia) { cand[b] &= ia; changed = true; }
+          break;
+        }
+        case "LEFT": {
+          if (!cand[a] || !cand[b]) break;
+          var ma = (1 << hi(cand[b])) - 1;
+          if (cand[a] & ~ma) { cand[a] &= ma; changed = true; }
+          if (!cand[a]) break;
+          var mb = mask & ~((1 << (lo(cand[a]) + 1)) - 1);
+          if (cand[b] & ~mb) { cand[b] &= mb; changed = true; }
+          break;
+        }
+        case "ORDER3": {
+          var trip = [[cl.a, cl.b], [cl.b, cl.c], [cl.a, cl.c]];
+          for (var q = 0; q < 3; q++) {
+            var x = trip[q][0], y = trip[q][1];
+            if (!cand[x] || !cand[y]) break;
+            var mx = (1 << hi(cand[y])) - 1;
+            if (cand[x] & ~mx) { cand[x] &= mx; changed = true; }
+            if (!cand[x]) break;
+            var my = mask & ~((1 << (lo(cand[x]) + 1)) - 1);
+            if (cand[y] & ~my) { cand[y] &= my; changed = true; }
+          }
+          break;
+        }
+      }
+      if (cand[a] === 0) return -1;
+      if (b !== undefined && cand[b] === 0) return -1;
+      if (cl.t === "ORDER3" && cand[cl.c] === 0) return -1;
+    }
+    return changed ? 1 : 0;
+  }
+
+  function structural(cand, N, M) {
+    var changed = false;
+    for (var c = 0; c < M; c++) {
+      var base = c * N, v, w, m;
+      for (v = 0; v < N; v++) {
+        m = cand[base + v];
+        if (m === 0) return -1;
+        if (pc(m) === 1) {
+          for (w = 0; w < N; w++) {
+            if (w !== v && (cand[base + w] & m)) {
+              cand[base + w] &= ~m; changed = true;
+              if (cand[base + w] === 0) return -1;
+            }
+          }
+        }
+      }
+      for (var p = 0; p < N; p++) {
+        var bit = 1 << p, cnt = 0, who = -1;
+        for (v = 0; v < N; v++) if (cand[base + v] & bit) { cnt++; who = v; }
+        if (cnt === 0) return -1;
+        if (cnt === 1 && cand[base + who] !== bit) { cand[base + who] = bit; changed = true; }
+      }
+    }
+    return changed ? 1 : 0;
+  }
+
+  function subsets(cand, N, M) {
+    var changed = false;
+    for (var c = 0; c < M; c++) {
+      var base = c * N;
+      for (var i = 0; i < N; i++) {
+        for (var j = i + 1; j < N; j++) {
+          var u = cand[base + i] | cand[base + j], w;
+          if (pc(u) === 2) {
+            for (w = 0; w < N; w++) {
+              if (w !== i && w !== j && (cand[base + w] & u)) {
+                cand[base + w] &= ~u; changed = true;
+                if (!cand[base + w]) return -1;
+              }
+            }
+          }
+          for (var k = j + 1; k < N; k++) {
+            var u3 = u | cand[base + k];
+            if (pc(u3) === 3) {
+              for (w = 0; w < N; w++) {
+                if (w !== i && w !== j && w !== k && (cand[base + w] & u3)) {
+                  cand[base + w] &= ~u3; changed = true;
+                  if (!cand[base + w]) return -1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return changed ? 1 : 0;
+  }
+
+  function propagate(cand, clues, N, M, level) {
+    for (var guard = 0; guard < 400; guard++) {
+      var moved = 0, r;
+      r = applyClues(cand, clues, N); if (r < 0) return -1; moved |= r;
+      r = structural(cand, N, M); if (r < 0) return -1; moved |= r;
+      if (level >= 2) { r = subsets(cand, N, M); if (r < 0) return -1; moved |= r; }
+      if (!moved) return 1;
+    }
+    return 1;
+  }
+
+  function solvedFully(cand) {
+    for (var i = 0; i < cand.length; i++) if (pc(cand[i]) !== 1) return false;
+    return true;
+  }
+
+  function hypothesis(cand, clues, N, M) {
+    for (var e = 0; e < cand.length; e++) {
+      var m = cand[e];
+      if (pc(m) < 2) continue;
+      for (var p = 0; p < N; p++) {
+        if (!(m & (1 << p))) continue;
+        var cc = cand.slice();
+        cc[e] = 1 << p;
+        if (propagate(cc, clues, N, M, 2) < 0) {
+          cand[e] &= ~(1 << p);
+          if (!cand[e]) return -1;
+          return 1;
+        }
+      }
+    }
+    return 0;
+  }
+
+  function newCand(N, M) {
+    var full = (1 << N) - 1, arr = new Array(N * M);
+    for (var i = 0; i < arr.length; i++) arr[i] = full;
+    return arr;
+  }
+
+  function solveHuman(N, M, clues, level) {
+    var cand = newCand(N, M);
+    for (var guard = 0; guard < 200; guard++) {
+      var r = propagate(cand, clues, N, M, level >= 2 ? 2 : 1);
+      if (r < 0) return { ok: false, cand: cand };
+      if (solvedFully(cand)) return { ok: true, cand: cand };
+      if (level >= 3) {
+        var h = hypothesis(cand, clues, N, M);
+        if (h < 0) return { ok: false, cand: cand };
+        if (h > 0) continue;
+      }
+      return { ok: false, cand: cand };
+    }
+    return { ok: false, cand: cand };
+  }
+
+  function countSolutions(N, M, clues, limit) {
+    var count = 0;
+    function rec(cand) {
+      if (count >= limit) return;
+      if (propagate(cand, clues, N, M, 1) < 0) return;
+      var best = -1, bestc = 99;
+      for (var e = 0; e < cand.length; e++) {
+        var k = pc(cand[e]);
+        if (k > 1 && k < bestc) { bestc = k; best = e; }
+      }
+      if (best < 0) { count++; return; }
+      for (var p = 0; p < N; p++) {
+        if (!(cand[best] & (1 << p))) continue;
+        var cc = cand.slice();
+        cc[best] = 1 << p;
+        rec(cc);
+        if (count >= limit) return;
+      }
+    }
+    rec(newCand(N, M));
+    return count;
+  }
+
+  function shuffled(arr, rnd) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(rnd() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function randomSolution(N, M, rnd) {
+    var sol = [], base = [], i;
+    for (i = 0; i < N; i++) base.push(i);
+    for (var c = 0; c < M; c++) sol.push(shuffled(base, rnd));
+    return sol;
+  }
+
+  function buildPool(sol, N, M, allowed, rnd) {
+    var pool = [], c1, v1, c2, v2, allow = {};
+    for (var i = 0; i < allowed.length; i++) allow[allowed[i]] = true;
+    for (c1 = 0; c1 < M; c1++) {
+      for (v1 = 0; v1 < N; v1++) {
+        var e1 = c1 * N + v1, p1 = sol[c1][v1];
+        if (allow.POS) pool.push({ t: "POS", a: e1, p: p1 });
+        if (allow.EDGE && (p1 === 0 || p1 === N - 1)) pool.push({ t: "EDGE", a: e1 });
+        for (c2 = c1 + 1; c2 < M; c2++) {
+          for (v2 = 0; v2 < N; v2++) {
+            var e2 = c2 * N + v2, p2 = sol[c2][v2], d = Math.abs(p1 - p2);
+            if (d === 0) {
+              if (allow.SAME) pool.push({ t: "SAME", a: e1, b: e2 });
+            } else {
+              if (allow.DIFF) pool.push({ t: "DIFF", a: e1, b: e2 });
+              if (d === 1) {
+                if (allow.NEXT) pool.push({ t: "NEXT", a: e1, b: e2 });
+                if (allow.IMMLEFT) pool.push(p1 < p2 ? { t: "IMMLEFT", a: e1, b: e2 } : { t: "IMMLEFT", a: e2, b: e1 });
+              } else {
+                if (allow.NOTNEXT) pool.push({ t: "NOTNEXT", a: e1, b: e2 });
+                if (allow.DIST) pool.push({ t: "DIST", a: e1, b: e2, k: d });
+              }
+              if (allow.LEFT) pool.push(p1 < p2 ? { t: "LEFT", a: e1, b: e2 } : { t: "LEFT", a: e2, b: e1 });
+            }
+          }
+        }
+      }
+    }
+    if (allow.ORDER3 && M >= 3) {
+      var cats = [];
+      for (var q = 0; q < M; q++) cats.push(q);
+      for (var n = 0; n < 60; n++) {
+        var cs = shuffled(cats, rnd).slice(0, 3);
+        var trio = cs.map(function (c) { var v = Math.floor(rnd() * N); return { e: c * N + v, p: sol[c][v] }; });
+        trio.sort(function (x, y) { return x.p - y.p; });
+        if (trio[0].p < trio[1].p && trio[1].p < trio[2].p) {
+          pool.push({ t: "ORDER3", a: trio[0].e, b: trio[1].e, c: trio[2].e });
+        }
+      }
+    }
+    return pool;
+  }
+
+  function clueKey(cl) {
+    return cl.t + ":" + cl.a + ":" + (cl.b === undefined ? "-" : cl.b) + ":" +
+      (cl.c === undefined ? "-" : cl.c) + ":" + (cl.p === undefined ? "-" : cl.p) +
+      ":" + (cl.k === undefined ? "-" : cl.k);
+  }
+
+  var LEVELS = {
+    patrol:    { N: 4, M: 3, level: 1, maxPos: 2, extra: 2, allowed: ["POS", "SAME", "DIFF", "NEXT", "IMMLEFT", "EDGE"] },
+    detective: { N: 5, M: 3, level: 1, maxPos: 2, extra: 1, allowed: ["POS", "SAME", "DIFF", "NEXT", "IMMLEFT", "EDGE", "LEFT"] },
+    inspector: { N: 5, M: 4, level: 2, maxPos: 1, extra: 1, allowed: ["POS", "SAME", "DIFF", "NEXT", "IMMLEFT", "EDGE", "LEFT", "DIST"] },
+    commissar: { N: 6, M: 4, level: 2, maxPos: 1, extra: 0, allowed: ["POS", "SAME", "DIFF", "NEXT", "IMMLEFT", "EDGE", "LEFT", "DIST", "NOTNEXT"] },
+    shadow:    { N: 6, M: 5, level: 3, maxPos: 1, extra: 0, allowed: ["SAME", "DIFF", "NEXT", "IMMLEFT", "EDGE", "LEFT", "DIST", "NOTNEXT", "ORDER3"] }
+  };
+
+  function generate(levelKey, seed) {
+    var cfg = LEVELS[levelKey] || LEVELS.detective;
+    var N = cfg.N, M = cfg.M;
+    var rnd = mulberry32(seed >>> 0);
+
+    for (var attempt = 0; attempt < 60; attempt++) {
+      var sol = randomSolution(N, M, rnd);
+      var pool = shuffled(buildPool(sol, N, M, cfg.allowed, rnd), rnd);
+
+      var posUsed = 0, ordered = [];
+      for (var i = 0; i < pool.length; i++) {
+        if (pool[i].t === "POS") {
+          if (posUsed >= cfg.maxPos) continue;
+          posUsed++;
+        }
+        ordered.push(pool[i]);
+      }
+
+      var clues = [], solvedAt = -1;
+      for (var j = 0; j < ordered.length; j++) {
+        clues.push(ordered[j]);
+        if (clues.length < 3) continue;
+        if (solveHuman(N, M, clues, cfg.level).ok) { solvedAt = j; break; }
+      }
+      if (solvedAt < 0) continue;
+
+      var pruneOrder = shuffled(clues.map(function (_, idx) { return idx; }), rnd);
+      var keep = clues.slice();
+      for (var k = 0; k < pruneOrder.length; k++) {
+        var cl = clues[pruneOrder[k]];
+        var trial = keep.filter(function (x) { return x !== cl; });
+        if (trial.length === keep.length) continue;
+        if (solveHuman(N, M, trial, cfg.level).ok) keep = trial;
+      }
+
+      var minLevel = 3;
+      for (var L = 1; L <= 3; L++) if (solveHuman(N, M, keep, L).ok) { minLevel = L; break; }
+      if (cfg.level >= 2 && minLevel < 2 && attempt < 40) continue;
+
+      if (cfg.extra > 0) {
+        var have = {};
+        keep.forEach(function (x) { have[clueKey(x)] = true; });
+        var soft = ordered.filter(function (x) {
+          return !have[clueKey(x)] && (x.t === "SAME" || x.t === "NEXT" || x.t === "IMMLEFT" || x.t === "EDGE");
+        });
+        for (var s = 0; s < cfg.extra && s < soft.length; s++) keep.push(soft[s]);
+      }
+
+      if (countSolutions(N, M, keep, 2) !== 1) continue;
+      return { levelKey: levelKey, N: N, M: M, sol: sol, clues: keep, minLevel: minLevel, seed: seed };
+    }
+    return null;
+  }
+
+  root.AlibiEngine = {
+    LEVELS: LEVELS, generate: generate, solveHuman: solveHuman, countSolutions: countSolutions,
+    mulberry32: mulberry32, hashStr: hashStr, pc: pc
+  };
+})(window);
+
+
+/* ============================================================
+   2. СОДЕРЖАНИЕ: приметы, места, показания
+   ============================================================ */
+/* Каждое значение несёт ref — именительную формулировку («тот, кто пил джин»).
+   Все показания и вопрос дела строятся только из неё: так ни одна примета
+   не требует склонения и текст не ломается ни в одном шаблоне. */
+var CATS = {
+  name: { id:"name", title:"ЛИЦО", icon:"🕴", values:[
+    {k:"Морелли",ref:"Морелли"},{k:"Дювал",ref:"Дювал"},{k:"Кранц",ref:"Кранц"},
+    {k:"Ортис",ref:"Ортис"},{k:"Бэлл",ref:"Бэлл"},{k:"Сойер",ref:"Сойер"},
+    {k:"Ваймс",ref:"Ваймс"},{k:"Гурский",ref:"Гурский"},{k:"Райс",ref:"Райс"}
+  ]},
+  drink: { id:"drink", title:"СТАКАН", icon:"🥃", values:[
+    {k:"джин",ref:"тот, кто пил джин"},{k:"бурбон",ref:"тот, кто пил бурбон"},
+    {k:"вермут",ref:"тот, кто пил вермут"},{k:"кофе",ref:"тот, кто пил чёрный кофе"},
+    {k:"содовая",ref:"тот, кто пил содовую"},{k:"абсент",ref:"тот, кто пил абсент"},
+    {k:"пиво",ref:"тот, кто пил тёплое пиво"},{k:"вода",ref:"тот, кто пил простую воду"}
+  ]},
+  smoke: { id:"smoke", title:"ДЫМ", icon:"🚬", values:[
+    {k:"«Лаки»",ref:"тот, кто курил «Лаки»"},{k:"«Кэмел»",ref:"тот, кто курил «Кэмел»"},
+    {k:"трубка",ref:"тот, кто курил трубку"},{k:"сигара",ref:"тот, кто курил сигару"},
+    {k:"папиросы",ref:"тот, кто курил папиросы"},{k:"самокрутка",ref:"тот, кто курил самокрутку"},
+    {k:"ментол",ref:"тот, кто курил ментоловые"},{k:"не курил",ref:"тот, кто не курил вовсе"}
+  ]},
+  coat: { id:"coat", title:"ПРИМЕТА", icon:"🧥", values:[
+    {k:"серый плащ",ref:"человек в сером плаще"},
+    {k:"кожаное пальто",ref:"человек в кожаном пальто"},
+    {k:"федора",ref:"человек в федоре"},
+    {k:"клетчатый шарф",ref:"человек в клетчатом шарфе"},
+    {k:"рваные перчатки",ref:"человек в рваных перчатках"},
+    {k:"мокрые ботинки",ref:"человек в мокрых ботинках"},
+    {k:"треснувшие очки",ref:"человек в треснувших очках"},
+    {k:"красный шарф",ref:"человек в красном шарфе"}
+  ]},
+  job: { id:"job", title:"РЕМЕСЛО", icon:"🔧", values:[
+    {k:"грузчик",ref:"грузчик"},{k:"тапёр",ref:"тапёр"},{k:"страховщик",ref:"страховой агент"},
+    {k:"санитар",ref:"санитар"},{k:"ростовщик",ref:"ростовщик"},{k:"репортёр",ref:"репортёр"},
+    {k:"шофёр",ref:"шофёр"},{k:"часовщик",ref:"часовщик"},{k:"аптекарь",ref:"аптекарь"}
+  ]},
+  item: { id:"item", title:"В КАРМАНЕ", icon:"🗝", values:[
+    {k:"латунный ключ",ref:"тот, у кого нашли латунный ключ"},
+    {k:"квитанция",ref:"тот, у кого нашли ломбардную квитанцию"},
+    {k:"гильза",ref:"тот, у кого нашли стреляную гильзу"},
+    {k:"рваное фото",ref:"тот, у кого нашли фото с оторванным углом"},
+    {k:"морфий",ref:"тот, у кого нашли пузырёк морфия"},
+    {k:"колода",ref:"тот, у кого нашли краплёную колоду"},
+    {k:"чужой паспорт",ref:"тот, у кого нашли чужой паспорт"},
+    {k:"билет",ref:"тот, у кого нашли театральный билет"}
+  ]},
+  alibi: { id:"alibi", title:"АЛИБИ", icon:"📄", values:[
+    {k:"кино",ref:"тот, кто клялся, что был в кино"},
+    {k:"радио",ref:"тот, кто клялся, что чинил радио"},
+    {k:"спал",ref:"тот, кто клялся, что спал"},
+    {k:"карты",ref:"тот, кто клялся, что играл в карты"},
+    {k:"остановка",ref:"тот, кто клялся, что ждал на остановке"},
+    {k:"телефон",ref:"тот, кто клялся, что дежурил у телефона"},
+    {k:"мусор",ref:"тот, кто клялся, что выносил мусор"},
+    {k:"газета",ref:"тот, кто клялся, что читал газету"}
+  ]},
+  time: { id:"time", title:"ЧАС", icon:"⏱", values:[
+    {k:"22:40",ref:"тот, кого видели в 22:40"},{k:"23:05",ref:"тот, кого видели в 23:05"},
+    {k:"23:20",ref:"тот, кого видели в 23:20"},{k:"23:45",ref:"тот, кого видели в 23:45"},
+    {k:"00:15",ref:"тот, кого видели в 00:15"},{k:"01:00",ref:"тот, кого видели в 01:00"},
+    {k:"01:35",ref:"тот, кого видели в 01:35"},{k:"02:10",ref:"тот, кого видели в 02:10"}
+  ]},
+  scent: { id:"scent", title:"ЗАПАХ", icon:"👃", values:[
+    {k:"камфора",ref:"тот, от кого пахло камфорой"},
+    {k:"одеколон",ref:"тот, от кого пахло дешёвым одеколоном"},
+    {k:"машинное масло",ref:"тот, от кого пахло машинным маслом"},
+    {k:"сирень",ref:"тот, от кого пахло сиренью"},
+    {k:"гарь",ref:"тот, от кого пахло гарью"},
+    {k:"йод",ref:"тот, от кого пахло йодом"},
+    {k:"ваниль",ref:"тот, от кого пахло ванилью"},
+    {k:"нафталин",ref:"тот, от кого пахло нафталином"}
+  ]},
+  sound: { id:"sound", title:"ЗВУК", icon:"🎧", values:[
+    {k:"кашель",ref:"тот, кого выдал кашель"},
+    {k:"скрип половиц",ref:"тот, кого выдал скрип половиц"},
+    {k:"радио",ref:"тот, кого выдало радио"},
+    {k:"машинка",ref:"тот, кого выдала пишущая машинка"},
+    {k:"звон бутылок",ref:"тот, кого выдал звон бутылок"},
+    {k:"лай собаки",ref:"тот, кого выдал лай собаки"},
+    {k:"тишина",ref:"тот, от кого не было ни звука"},
+    {k:"капающий кран",ref:"тот, кого выдал капающий кран"}
+  ]}
+};
+
+var SCENES = [
+  {
+    id:"bar", title:"«ФЛАМИНГО»", place:"ночной клуб, стойка бара",
+    axis:"СТУЛ", dir:"слева направо от входа",
+    at:["на первом стуле","на втором стуле","на третьем стуле","на четвёртом стуле","на пятом стуле","на шестом стуле"],
+    edge:"с краю стойки", before:"левее, чем",
+    dist:["","","два стула","три стула","четыре стула","пять стульев"],
+    intro:"Стойка «Фламинго» в ту ночь была занята вся. Свет мигнул и погас — сорок секунд темноты, не больше. Когда лампы вернулись, один из гостей лежал лицом в стакане, а бармен клялся, что не отходил ни на шаг и никто не вставал с места.",
+    cats:["drink","smoke","coat","item","alibi","time","scent","job"],
+    voices:["Бармен:","Гардеробщица:","Из протокола осмотра:","Тапёр за роялем:","Швейцар у дверей:","Официантка:"]
+  },
+  {
+    id:"house", title:"КЛЕНОВАЯ, 14", place:"доходный дом, лестничная клетка",
+    axis:"ЭТАЖ", dir:"снизу вверх",
+    at:["на первом этаже","на втором этаже","на третьем этаже","на четвёртом этаже","на пятом этаже","на шестом этаже"],
+    edge:"либо в самом низу, либо под крышей", before:"ниже, чем",
+    dist:["","","два этажа","три этажа","четыре этажа","пять этажей"],
+    intro:"Домовладелец нашёл его на лестничном пролёте под утро — уже холодного. Лифт в доме сломан третий месяц, значит, убийца шёл пешком, а лестница скрипит так, что слышно на два этажа. Жильцы сидели по своим квартирам и все как один ничего не видели.",
+    cats:["smoke","coat","job","item","alibi","time","scent","sound"],
+    voices:["Домовладелец:","Соседка снизу клянётся:","Из протокола осмотра:","Почтальон вспомнил:","Дворник:","Мальчишка с третьего:"]
+  },
+  {
+    id:"train", title:"«МЕРИДИАН»", place:"ночной экспресс, спальный вагон",
+    axis:"КУПЕ", dir:"от головы состава",
+    at:["в первом купе","во втором купе","в третьем купе","в четвёртом купе","в пятом купе","в шестом купе"],
+    edge:"в крайнем купе", before:"ближе к голове состава, чем",
+    dist:["","","два купе","три купе","четыре купе","пять купе"],
+    intro:"Экспресс шёл без остановок семь часов, и это главное: сойти было некуда. Проводник запер тамбуры в полночь, а в половине третьего постучал в четвёртое купе с чаем — и больше уже никого не будил. Значит, он всё ещё в вагоне.",
+    cats:["drink","smoke","coat","item","alibi","time","scent","job"],
+    voices:["Проводник:","Из протокола осмотра:","Пассажирка из соседнего вагона:","Машинист по громкой связи:","Официант вагона-ресторана:","Телеграмма из депо:"]
+  },
+  {
+    id:"press", title:"«ВЕЧЕРНИЙ ВЕСТНИК»", place:"редакция, общая комната",
+    axis:"СТОЛ", dir:"от окна к двери",
+    at:["за первым столом","за вторым столом","за третьим столом","за четвёртым столом","за пятым столом","за шестым столом"],
+    edge:"за крайним столом", before:"ближе к окну, чем",
+    dist:["","","два стола","три стола","четыре стола","пять столов"],
+    intro:"Номер сдавали в четыре утра, поэтому в редакции горел свет и стучали машинки. Редактора нашли в его стеклянной каморке, а на его столе лежала полоса с вычеркнутой заметкой — той самой, из-за которой всю неделю кричали. Полосу кто-то забрал.",
+    cats:["smoke","coat","job","item","alibi","time","sound","drink"],
+    voices:["Ночной редактор:","Из протокола осмотра:","Наборщик из типографии:","Курьер:","Телефонистка коммутатора:","Уборщица:"]
+  },
+  {
+    id:"hotel", title:"«АРКАДИЯ»", place:"отель, четвёртый этаж",
+    axis:"НОМЕР", dir:"по коридору от лестницы",
+    at:["в первом номере","во втором номере","в третьем номере","в четвёртом номере","в пятом номере","в шестом номере"],
+    edge:"в крайнем номере", before:"ближе к лестнице, чем",
+    dist:["","","два номера","три номера","четыре номера","пять номеров"],
+    intro:"В «Аркадии» тонкие стены и толстые ковры: слышно всё, а шагов не слышно вовсе. Горничная открыла номер в семь утра и закричала так, что проснулся весь этаж. Ключ от номера при этом висел на своём крючке внизу, у портье.",
+    cats:["drink","smoke","coat","item","alibi","time","scent","sound"],
+    voices:["Портье:","Горничная:","Из протокола осмотра:","Лифтёр:","Постоялец из-за стены:","Ночной сторож:"]
+  },
+  {
+    id:"docks", title:"ПРИЧАЛ ДЕВЯТЬ", place:"портовые склады",
+    axis:"АНГАР", dir:"вдоль воды",
+    at:["в первом ангаре","во втором ангаре","в третьем ангаре","в четвёртом ангаре","в пятом ангаре","в шестом ангаре"],
+    edge:"в крайнем ангаре", before:"ближе к воротам, чем",
+    dist:["","","два ангара","три ангара","четыре ангара","пять ангаров"],
+    intro:"Туман с воды стоял стеной, и прожектор бил в молоко. Сторож обходил ангары каждый час и в четвёртом наткнулся на бригадира — с ломом рядом и без пульса. Ворота порта были заперты с полуночи, а на воде за всю ночь ни одной лодки.",
+    cats:["smoke","coat","job","item","alibi","time","scent","sound"],
+    voices:["Сторож:","Из протокола осмотра:","Крановщик:","Диспетчер порта:","Тальман со сменой:","Собака подняла лай — по словам сторожа:"]
+  },
+  {
+    id:"theatre", title:"«ОДЕОН»", place:"театр, гримёрные",
+    axis:"ГРИМЁРКА", dir:"от сцены вглубь",
+    at:["в первой гримёрке","во второй гримёрке","в третьей гримёрке","в четвёртой гримёрке","в пятой гримёрке","в шестой гримёрке"],
+    edge:"в крайней гримёрке", before:"ближе к сцене, чем",
+    dist:["","","две гримёрки","три гримёрки","четыре гримёрки","пять гримёрок"],
+    intro:"Занавес дали в одиннадцатом часу, публика разошлась, и в гримёрных остались свои. Примадонну нашли за ширмой с разбитым зеркалом, а осколок кто-то аккуратно завернул в афишу и унёс. Сторож у служебного входа божится: наружу за весь вечер не вышел никто.",
+    cats:["drink","smoke","coat","item","alibi","time","scent","sound"],
+    voices:["Сторож служебного входа:","Костюмерша:","Из протокола осмотра:","Осветитель с колосников:","Суфлёр:","Билетёрша:"]
+  },
+  {
+    id:"poker", title:"СТОЛ НА ДЕВЯТОЙ", place:"подпольная игра, задняя комната",
+    axis:"МЕСТО", dir:"от банкира по кругу",
+    at:["на первом месте","на втором месте","на третьем месте","на четвёртом месте","на пятом месте","на шестом месте"],
+    edge:"с самого края стола", before:"ближе к банкиру, чем",
+    dist:["","","два места","три места","четыре места","пять мест"],
+    intro:"Игра шла с девяти вечера, и банк к ночи вырос до неприличного. Свет над столом — одна лампа под жестяным абажуром, всё остальное в темноте. Когда банкир потянулся к банку, погас и он: удар пришёлся сзади, а из комнаты за всю ночь никто не выходил.",
+    cats:["drink","smoke","coat","item","alibi","time","job","sound"],
+    voices:["Крупье:","Из протокола осмотра:","Вышибала у двери:","Официант с подносом:","Сосед по столу:","Хозяйка заведения:"]
+  }
+];
+
+/* ============================================================
+   3. СБОРКА ДЕЛА: логика + текст
+   ============================================================ */
+var E = window.AlibiEngine;
+
+function pickN(arr, n, rnd) {
+  var a = arr.slice(), out = [];
+  for (var i = 0; i < n && a.length; i++) out.push(a.splice(Math.floor(rnd() * a.length), 1)[0]);
+  return out;
+}
+
+function buildCase(levelKey, seed) {
+  var puz = E.generate(levelKey, seed);
+  if (!puz) return null;
+  var rnd = E.mulberry32((seed ^ 0x9e3779b9) >>> 0);
+
+  var scene = SCENES[Math.floor(rnd() * SCENES.length)];
+  // категории: «лицо» всегда первое, остальные — из набора сцены
+  var others = pickN(scene.cats, puz.M - 1, rnd);
+  var catIds = ["name"].concat(others);
+  var cats = catIds.map(function (id) {
+    var c = CATS[id];
+    return { id: id, title: c.title, icon: c.icon, q: c.q, values: pickN(c.values, puz.N, rnd) };
+  });
+
+  var victimPool = CATS.name.values.filter(function (v) {
+    return cats[0].values.every(function (u) { return u.k !== v.k; });
+  });
+  var victim = victimPool.length ? victimPool[Math.floor(rnd() * victimPool.length)].k : "неизвестный";
+
+  // главный вопрос дела — про любую примету, кроме имени
+  var qc = 1 + Math.floor(rnd() * (puz.M - 1));
+  var qv = Math.floor(rnd() * puz.N);
+  var question = "нас интересует " + cats[qc].values[qv].ref + ". Кто это?";
+
+  // голоса тасуем и раздаём подряд: шаг по индексу зацикливался на двух свидетелях
+  var voices = pickN(scene.voices, scene.voices.length, rnd);
+  var texts = puz.clues.map(function (cl, i) {
+    return { voice: voices[i % voices.length], text: clueText(cl, cats, scene, puz.N) };
+  });
+
+  return {
+    levelKey: levelKey, seed: seed, N: puz.N, M: puz.M, sol: puz.sol, clues: puz.clues,
+    minLevel: puz.minLevel, scene: scene, cats: cats, victim: victim,
+    question: question, qc: qc, qv: qv, texts: texts
+  };
+}
+
+function refOf(cats, N, e) { return cats[Math.floor(e / N)].values[e % N].ref; }
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* Приметы описаны оборотами «тот, кто …» — придаточное надо закрывать запятой,
+   если следом идёт тире или «и». m() ставит её в середине фразы, S() — в начале. */
+function m(r) { return r + (r.indexOf(",") >= 0 ? "," : ""); }
+function S(r) { return cap(m(r)); }
+
+function clueText(cl, cats, scene, N) {
+  var a = refOf(cats, N, cl.a);
+  var b = cl.b === undefined ? "" : refOf(cats, N, cl.b);
+  switch (cl.t) {
+    case "POS":     return S(a) + " — " + scene.at[cl.p] + ".";
+    case "EDGE":    return S(a) + " — " + scene.edge + ".";
+    case "SAME":    return S(a) + " — это " + b + ".";
+    case "DIFF":    return S(a) + " — не " + b + ".";
+    case "NEXT":    return S(a) + " и " + m(b) + " — рядом.";
+    case "NOTNEXT": return S(a) + " и " + m(b) + " — не соседи.";
+    case "IMMLEFT": return cap(a) + ", сразу следом — " + b + ".";
+    case "LEFT":    return S(a) + " — " + scene.before + " " + b + ".";
+    case "DIST":    return S(a) + " и " + m(b) + " — через " + scene.dist[cl.k] + " друг от друга.";
+    case "ORDER3":  return "Порядок такой: сначала " + a + ", потом " + b + ", потом " +
+                           m(refOf(cats, N, cl.c)) + " — не обязательно подряд.";
+  }
+  return "";
+}
+
+/* ============================================================
+   4. СОСТОЯНИЕ И ХРАНИЛИЩЕ
+   ============================================================ */
+var VERSION = "1.0.0";
+var NEWS = {
+  date: "18 августа 2026, 13:41 (Алматы)",
+  title: "Первый выпуск",
+  items: [
+    "🔦 Пять ступеней следствия: от учебного дела на четыре места до «Тени» на шесть мест и пять примет",
+    "🗂 Восемь мест действия — бар, доходный дом, ночной экспресс, редакция, отель, порт, театр и подпольный стол",
+    "📅 «Дело дня»: одно и то же дело у всех до полуночи, за серию дней идёт счётчик",
+    "✍️ Два вида ввода: таблица с пометками и классическая сетка ✓/✗ — состояние общее",
+    "⚖️ Обвинение предъявляется один раз: игра предупредит, если версия расходится с показаниями, но не скажет, с какими"
+  ]
+};
+
+var LKEY = "alibi.v1";
+var store = load();
+
+function load() {
+  try {
+    var raw = localStorage.getItem(LKEY);
+    if (raw) {
+      var s = JSON.parse(raw);
+      s.stats = s.stats || {}; s.stats.solved = s.stats.solved || {}; s.stats.best = s.stats.best || {};
+      s.daily = s.daily || { streak: 0, best: 0, last: "", doneSeed: 0 };
+      return s;
+    }
+  } catch (e) {}
+  return { stats: { solved: {}, best: {}, total: 0, clean: 0 }, daily: { streak: 0, best: 0, last: "", doneSeed: 0 }, save: null, seenNews: "" };
+}
+function persist() { try { localStorage.setItem(LKEY, JSON.stringify(store)); } catch (e) {} }
+
+var G = null;          // текущее дело
+var mark = null;       // mark[c][v][p]: 0 — не знаем, 1 — исключено, 2 — это он
+var hinted = null;     // hinted[c][p] — клетку подсказал свидетель
+var undoStack = [];
+var doneClues = {};
+var startedAt = 0, elapsed = 0, timerId = 0, running = false;
+var hintsUsed = 0, doubts = 0, finished = false;
+var view = "table";    // table | canon
+var sheetMode = "answer";
+var sheetCell = null;
+
+/* ============================================================
+   5. ЭКРАНЫ И РЕНДЕР
+   ============================================================ */
+var $ = function (id) { return document.getElementById(id); };
+
+function show(screen) {
+  $("menuScreen").classList.toggle("on", screen === "menu");
+  $("gameScreen").classList.toggle("on", screen === "game");
+  window.scrollTo(0, 0);
+}
+
+function toast(msg, ms) {
+  var t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("on"); }, ms || 2200);
+}
+
+function fmtTime(sec) {
+  var m = Math.floor(sec / 60), s = sec % 60;
+  return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function todayKey() {
+  var d = new Date();
+  return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+}
+
+// ---------- меню ----------
+function renderMenu() {
+  var d = store.daily, done = d.last === todayKey();
+  $("dailyBadge").textContent = done ? "ЗАКРЫТО" : "СЕРИЯ " + (d.streak || 0);
+  $("dailyDesc").textContent = done
+    ? "Сегодняшнее дело закрыто. Серия: " + d.streak + " " + plural(d.streak, "день", "дня", "дней")
+    : "Одно и то же дело у всех, до полуночи";
+  var r = store.save;
+  $("resumeBtn").style.display = r ? "" : "none";
+  if (r) {
+    $("resumeDesc").textContent = (E.LEVELS[r.levelKey] ? LEVEL_TITLE[r.levelKey] : "Дело") +
+      (r.daily ? " · дело дня" : "") + " · " + fmtTime(r.elapsed || 0);
+  }
+  $("newsDesc").textContent = NEWS.date + " · " + NEWS.title;
+}
+
+var LEVEL_TITLE = { patrol:"Постовой", detective:"Детектив", inspector:"Инспектор", commissar:"Комиссар", shadow:"Тень" };
+
+function plural(n, one, few, many) {
+  var a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
+// ---------- запуск дела ----------
+function startCase(levelKey, seed, isDaily, restore) {
+  show("game");
+  $("gameBody").innerHTML = '<div class="loading">СОБИРАЕМ ПАПКУ…</div>';
+  setTimeout(function () {
+    var c = buildCase(levelKey, seed);
+    if (!c) { toast("Дело не сложилось, пробуем другое"); startCase(levelKey, (seed * 31 + 7) >>> 0, isDaily, null); return; }
+    G = c; G.daily = !!isDaily;
+    mark = []; hinted = [];
+    for (var ci = 0; ci < G.M; ci++) {
+      mark.push([]); hinted.push([]);
+      for (var v = 0; v < G.N; v++) { mark[ci].push([]); for (var p = 0; p < G.N; p++) mark[ci][v].push(0); }
+      for (var p2 = 0; p2 < G.N; p2++) hinted[ci].push(false);
+    }
+    undoStack = []; doneClues = {}; hintsUsed = 0; doubts = 0; finished = false; elapsed = 0; view = "table";
+
+    if (restore) {
+      mark = restore.mark; hinted = restore.hinted; doneClues = restore.doneClues || {};
+      hintsUsed = restore.hintsUsed || 0; doubts = restore.doubts || 0; elapsed = restore.elapsed || 0;
+    }
+    renderGame();
+    startTimer();
+    saveProgress();
+  }, 30);
+}
+
+function startTimer() {
+  running = true; startedAt = Date.now();
+  clearInterval(timerId);
+  timerId = setInterval(function () {
+    if (!running) return;
+    elapsed++;
+    var el = document.getElementById("clock");
+    if (el) el.textContent = fmtTime(elapsed);
+    if (elapsed % 15 === 0) saveProgress();
+  }, 1000);
+}
+function stopTimer() { running = false; clearInterval(timerId); }
+
+function saveProgress() {
+  if (!G || finished) return;
+  store.save = {
+    levelKey: G.levelKey, seed: G.seed, daily: G.daily, mark: mark, hinted: hinted,
+    doneClues: doneClues, hintsUsed: hintsUsed, doubts: doubts, elapsed: elapsed
+  };
+  persist();
+}
+
+// ---------- отрисовка дела ----------
+function renderGame() {
+  var body = $("gameBody");
+  body.innerHTML = "";
+  body.appendChild(el(caseCardHTML()));
+  body.appendChild(el(statusHTML()));
+  body.appendChild(el(view === "table" ? tableHTML() : canonHTML()));
+  body.appendChild(el(cluesHTML()));
+  body.appendChild(el(actionsHTML()));
+  body.appendChild(el('<footer>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></footer>'));
+  bindGame();
+}
+
+function el(html) { var d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function caseCardHTML() {
+  return '<div class="case">' +
+    '<div class="stamp">' + (G.daily ? "ДЕЛО ДНЯ" : "ОТКРЫТО") + '</div>' +
+    '<h2>' + esc(G.scene.title) + '</h2>' +
+    '<div class="meta">' + esc(G.scene.place) + ' · ' + G.N + ' ' + plural(G.N, "фигурант", "фигуранта", "фигурантов") +
+    ' · ' + esc(LEVEL_TITLE[G.levelKey] || "") + '</div>' +
+    '<p class="clamp" id="introText">' + esc(G.scene.intro) + ' Покойный — ' + esc(G.victim) + '.</p>' +
+    '<span class="more" id="introMore">РАЗВЕРНУТЬ ▾</span>' +
+    '<div class="q"><b>ВОПРОС ДЕЛА:</b> ' + esc(G.question) + '</div>' +
+    '</div>';
+}
+
+function statusHTML() {
+  return '<div class="status">' +
+    '<div>⏱ <b id="clock">' + fmtTime(elapsed) + '</b>' +
+    (hintsUsed ? ' · подсказок: <b>' + hintsUsed + '</b>' : '') +
+    (doubts ? ' · сомнений: <b>' + doubts + '</b>' : '') + '</div>' +
+    '<div class="seg">' +
+      '<button id="viewTable" class="' + (view === "table" ? "on" : "") + '">ТАБЛИЦА</button>' +
+      '<button id="viewCanon" class="' + (view === "canon" ? "on" : "") + '">СЕТКА</button>' +
+    '</div></div>';
+}
+
+function cellState(c, p) {
+  // возвращает {v:index|-1, cands:[idx]}
+  var found = -1, cands = [];
+  for (var v = 0; v < G.N; v++) {
+    if (mark[c][v][p] === 2) found = v;
+    else if (mark[c][v][p] === 0) cands.push(v);
+  }
+  return { v: found, cands: cands };
+}
+
+function tableHTML() {
+  var h = '<div class="tablewrap"><table class="grid"><thead><tr><th class="axis">' +
+    '<span class="ic">📍</span>' + esc(G.scene.axis) + '</th>';
+  for (var c = 0; c < G.M; c++) {
+    h += '<th><span class="ic">' + G.cats[c].icon + '</span>' + esc(G.cats[c].title) + '</th>';
+  }
+  h += '</tr></thead><tbody>';
+  for (var p = 0; p < G.N; p++) {
+    h += '<tr><th>' + (p + 1) + '</th>';
+    for (var c2 = 0; c2 < G.M; c2++) {
+      var st = cellState(c2, p), inner;
+      if (st.v >= 0) {
+        inner = '<span class="val' + (hinted[c2][p] ? " hint" : "") + '">' + esc(G.cats[c2].values[st.v].k) + '</span>';
+      } else if (st.cands.length === 0) {
+        inner = '<span class="empty">✗</span>';
+      } else {
+        var names = st.cands.map(function (v) { return G.cats[c2].values[v].k; });
+        var txt = names.length > 3 ? names.slice(0, 3).join(" · ") + " +" + (names.length - 3) : names.join(" · ");
+        inner = '<span class="cands' + (names.length === 1 ? " one" : "") + '">' + esc(txt) + '</span>';
+      }
+      h += '<td><button class="cell" data-c="' + c2 + '" data-p="' + p + '">' + inner + '</button></td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  return h;
+}
+
+function canonHTML() {
+  var h = '<div style="display:flex;flex-direction:column;gap:10px">';
+  for (var c = 0; c < G.M; c++) {
+    h += '<div class="gridblock"><h3>' + G.cats[c].icon + ' ' + esc(G.cats[c].title) +
+      ' · ' + esc(G.scene.axis.toLowerCase()) + ' ' + esc(G.scene.dir) + '</h3><table class="canon"><thead><tr><th></th>';
+    for (var p = 0; p < G.N; p++) h += '<th>' + (p + 1) + '</th>';
+    h += '</tr></thead><tbody>';
+    for (var v = 0; v < G.N; v++) {
+      h += '<tr><th>' + esc(G.cats[c].values[v].k) + '</th>';
+      for (var p2 = 0; p2 < G.N; p2++) {
+        var m = mark[c][v][p2];
+        var cls = m === 1 ? "no" : m === 2 ? "yes" : "";
+        var ch = m === 1 ? "✗" : m === 2 ? "✓" : "·";
+        h += '<td><button class="cx ' + cls + '" data-c="' + c + '" data-v="' + v + '" data-p="' + p2 + '">' + ch + '</button></td>';
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+  return h + '</div>';
+}
+
+function cluesHTML() {
+  // один корневой узел: el() берёт только первый, а заголовок и список должны попасть оба
+  var h = '<div><div class="sectitle">ПОКАЗАНИЯ · ' + G.texts.length +
+    ' · тап зачёркивает отработанное</div><div class="clues">';
+  G.texts.forEach(function (t, i) {
+    h += '<div class="clue' + (doneClues[i] ? " done" : "") + '" data-i="' + i + '">' +
+      '<div class="n">' + (i + 1) + '</div>' +
+      '<div class="tx"><span class="who">' + esc(t.voice) + '</span>' + esc(t.text) + '</div></div>';
+  });
+  return h + '</div></div>';
+}
+
+function actionsHTML() {
+  return '<div style="display:flex;flex-direction:column;gap:9px">' +
+    '<div class="row">' +
+      '<button class="act" id="undoBtn">↶ Отмена</button>' +
+      '<button class="act" id="hintBtn">🔍 Свидетель уточнит</button>' +
+    '</div>' +
+    '<button class="act go" id="accuseBtn">ПРЕДЪЯВИТЬ ОБВИНЕНИЕ</button>' +
+    '<div class="row">' +
+      '<button class="act" id="restartBtn">Начать это дело заново</button>' +
+      '<button class="act danger" id="giveupBtn">Сдать дело в архив</button>' +
+    '</div></div>';
+}
+
+function bindGame() {
+  var more = $("introMore");
+  if (more) more.onclick = function () {
+    var p = $("introText"), open = p.classList.toggle("clamp");
+    more.textContent = open ? "РАЗВЕРНУТЬ ▾" : "СВЕРНУТЬ ▴";
+  };
+  $("viewTable").onclick = function () { view = "table"; renderGame(); };
+  $("viewCanon").onclick = function () { view = "canon"; renderGame(); };
+
+  Array.prototype.forEach.call(document.querySelectorAll(".cell"), function (b) {
+    b.onclick = function () { openSheet(+b.dataset.c, +b.dataset.p); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".cx"), function (b) {
+    b.onclick = function () { cycleMark(+b.dataset.c, +b.dataset.v, +b.dataset.p); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".clue"), function (b) {
+    b.onclick = function () {
+      var i = +b.dataset.i;
+      doneClues[i] = !doneClues[i];
+      b.classList.toggle("done", !!doneClues[i]);
+      saveProgress();
+    };
+  });
+
+  $("undoBtn").onclick = undo;
+  $("hintBtn").onclick = askWitness;
+  $("accuseBtn").onclick = accuse;
+  $("restartBtn").onclick = function () {
+    if (!confirm("Начать это же дело заново? Все пометки сотрутся, показания те же.")) return;
+    startCase(G.levelKey, G.seed, G.daily, null);
+  };
+  $("giveupBtn").onclick = function () {
+    if (!confirm("Сдать дело в архив нераскрытым? Оно закроется без результата.")) return;
+    stopTimer(); store.save = null; persist(); G = null; show("menu"); renderMenu();
+  };
+}
+
+/* ============================================================
+   6. ВВОД
+   ============================================================ */
+function snapshot() {
+  undoStack.push(JSON.stringify({ m: mark, h: hinted }));
+  if (undoStack.length > 60) undoStack.shift();
+}
+function undo() {
+  if (!undoStack.length) { toast("Отменять нечего"); return; }
+  var s = JSON.parse(undoStack.pop());
+  mark = s.m; hinted = s.h;
+  renderGame(); saveProgress();
+}
+
+// поставить ✓: значение v занимает позицию p в категории c
+function setAnswer(c, v, p) {
+  snapshot();
+  for (var w = 0; w < G.N; w++) mark[c][w][p] = (w === v ? 2 : 1);
+  for (var q = 0; q < G.N; q++) if (q !== p) mark[c][v][q] = 1;
+  saveProgress();
+}
+function clearCell(c, p) {
+  snapshot();
+  for (var w = 0; w < G.N; w++) if (mark[c][w][p] === 2) mark[c][w][p] = 0;
+  hinted[c][p] = false;
+  saveProgress();
+}
+function toggleExclude(c, v, p) {
+  snapshot();
+  mark[c][v][p] = mark[c][v][p] === 1 ? 0 : 1;
+  saveProgress();
+}
+function cycleMark(c, v, p) {
+  var m = mark[c][v][p];
+  if (m === 0) { toggleExclude(c, v, p); }
+  else if (m === 1) { setAnswer(c, v, p); }
+  else { snapshot(); mark[c][v][p] = 0; hinted[c][p] = false; saveProgress(); }
+  renderGame();
+}
+
+// ---------- шторка ----------
+function openSheet(c, p) {
+  sheetCell = { c: c, p: p };
+  $("sheetTitle").textContent = G.cats[c].icon + " " + G.cats[c].title;
+  $("sheetSub").textContent = G.scene.at[p].replace(/^./, function (m) { return m.toUpperCase(); });
+  renderSheet();
+  $("sheet").classList.add("on");
+  $("scrim").classList.add("on");
+}
+function closeSheet() {
+  $("sheet").classList.remove("on");
+  $("scrim").classList.remove("on");
+  sheetCell = null;
+}
+function renderSheet() {
+  if (!sheetCell) return;
+  var c = sheetCell.c, p = sheetCell.p, h = "";
+  for (var v = 0; v < G.N; v++) {
+    var m = mark[c][v][p];
+    var cls = m === 2 ? "yes" : m === 1 ? "no" : "";
+    var mk = m === 2 ? "✓" : m === 1 ? "✗" : "·";
+    var val = G.cats[c].values[v];
+    h += '<button class="opt ' + cls + '" data-v="' + v + '">' +
+      '<span class="mk">' + mk + '</span>' +
+      '<span><span class="lb">' + esc(val.k) + '</span>' +
+      '<span class="rf">' + esc(val.ref) + '</span></span></button>';
+  }
+  $("sheetList").innerHTML = h;
+  Array.prototype.forEach.call($("sheetList").querySelectorAll(".opt"), function (b) {
+    b.onclick = function () {
+      var v = +b.dataset.v;
+      if (sheetMode === "answer") {
+        if (mark[c][v][p] === 2) clearCell(c, p); else setAnswer(c, v, p);
+      } else {
+        if (mark[c][v][p] === 2) { toast("Сначала сотрите ответ в этой клетке"); return; }
+        toggleExclude(c, v, p);
+      }
+      renderSheet(); renderGameKeepSheet();
+    };
+  });
+  $("modeAnswer").classList.toggle("on", sheetMode === "answer");
+  $("modeNotes").classList.toggle("on", sheetMode === "notes");
+}
+function renderGameKeepSheet() {
+  var open = $("sheet").classList.contains("on");
+  var cell = sheetCell;
+  renderGame();
+  if (open && cell) { sheetCell = cell; $("sheet").classList.add("on"); $("scrim").classList.add("on"); }
+}
+
+/* ============================================================
+   7. ПОДСКАЗКА, ПРОВЕРКА, ОБВИНЕНИЕ
+   ============================================================ */
+function trueValueAt(c, p) {
+  for (var v = 0; v < G.N; v++) if (G.sol[c][v] === p) return v;
+  return -1;
+}
+
+function askWitness() {
+  var wrong = [];
+  for (var c = 0; c < G.M; c++) {
+    for (var p = 0; p < G.N; p++) {
+      var st = cellState(c, p), tv = trueValueAt(c, p);
+      if (st.v !== tv) wrong.push({ c: c, p: p, v: tv });
+    }
+  }
+  if (!wrong.length) { toast("Свидетелю нечего добавить — таблица сходится"); return; }
+  if (!confirm("Свидетель уточнит одну клетку. Это попадёт в отчёт по делу. Спрашиваем?")) return;
+  var pick = wrong[Math.floor(Math.random() * wrong.length)];
+  setAnswer(pick.c, pick.v, pick.p);
+  hinted[pick.c][pick.p] = true;
+  hintsUsed++;
+  renderGame();
+  toast("Свидетель: «" + S(G.cats[pick.c].values[pick.v].ref) + " — " + G.scene.at[pick.p] + "»", 3200);
+}
+
+function isComplete() {
+  for (var c = 0; c < G.M; c++) for (var p = 0; p < G.N; p++) if (cellState(c, p).v < 0) return false;
+  return true;
+}
+function emptyCount() {
+  var n = 0;
+  for (var c = 0; c < G.M; c++) for (var p = 0; p < G.N; p++) if (cellState(c, p).v < 0) n++;
+  return n;
+}
+function matchesSolution() {
+  for (var c = 0; c < G.M; c++) for (var p = 0; p < G.N; p++) if (cellState(c, p).v !== trueValueAt(c, p)) return false;
+  return true;
+}
+
+function accuse() {
+  if (!isComplete()) {
+    var n = emptyCount();
+    toast("Дело не собрано: " + n + " " + plural(n, "клетка пуста", "клетки пусты", "клеток пусто"));
+    return;
+  }
+  if (!matchesSolution()) {
+    doubts++;
+    saveProgress();
+    if (!confirm("Часть показаний расходится с вашей версией. Какие именно — следствие не подскажет.\n\nВсё равно предъявить обвинение?")) {
+      renderGame();
+      return;
+    }
+    finish(false);
+    return;
+  }
+  finish(true);
+}
+
+function finish(won) {
+  finished = true;
+  stopTimer();
+  store.save = null;
+
+  if (won) {
+    var st = store.stats;
+    st.solved[G.levelKey] = (st.solved[G.levelKey] || 0) + 1;
+    st.total = (st.total || 0) + 1;
+    if (!hintsUsed && !doubts) st.clean = (st.clean || 0) + 1;
+    var prev = st.best[G.levelKey];
+    if (!prev || elapsed < prev) st.best[G.levelKey] = elapsed;
+    if (G.daily) {
+      var d = store.daily, t = todayKey();
+      if (d.last !== t) {
+        var y = new Date(); y.setDate(y.getDate() - 1);
+        var yk = y.getFullYear() + "-" + (y.getMonth() + 1) + "-" + y.getDate();
+        d.streak = d.last === yk ? (d.streak || 0) + 1 : 1;
+        d.last = t;
+        if (d.streak > (d.best || 0)) d.best = d.streak;
+      }
+    }
+  }
+  persist();
+
+  var culpritName = G.cats[0].values[trueValueAt(0, G.sol[G.qc][G.qv])].k;
+  var qref = G.cats[G.qc].values[G.qv].ref;
+
+  var h = '<h3>' + (won ? "ДЕЛО ЗАКРЫТО" : "ОБВИНЕНИЕ РАССЫПАЛОСЬ") + '</h3>';
+  if (won) {
+    h += '<div class="big">' + esc(culpritName) + '</div>' +
+      '<div class="verdict">' + esc(S(qref)) + ' — это ' + esc(culpritName) + '.<br>Показания сошлись до последнего.</div>';
+  } else {
+    h += '<div class="big" style="color:var(--red)">НЕ ТОТ</div>' +
+      '<div class="verdict">Версия развалилась в суде: она противоречила показаниям.<br>' +
+      esc(S(qref)) + ' — это ' + esc(culpritName) + '.</div>';
+  }
+  h += '<div class="kv"><span>время</span><b>' + fmtTime(elapsed) + '</b></div>' +
+    '<div class="kv"><span>подсказки свидетелей</span><b>' + hintsUsed + '</b></div>' +
+    '<div class="kv"><span>сомнения перед обвинением</span><b>' + doubts + '</b></div>' +
+    '<div class="kv"><span>ступень</span><b>' + esc(LEVEL_TITLE[G.levelKey]) + (G.daily ? " · дело дня" : "") + '</b></div>';
+  if (won && !hintsUsed && !doubts) h += '<p style="color:var(--ok);text-align:center;margin-top:10px">ЧИСТАЯ РАБОТА — без подсказок и сомнений</p>';
+  h += '<div class="row" style="margin-top:14px">' +
+    '<button class="act" id="againBtn">Новое дело</button>' +
+    '<button class="act go" id="toMenuBtn">В меню</button></div>';
+  openModal(h);
+  $("againBtn").onclick = function () { closeModal(); startCase(G.levelKey, (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, false, null); };
+  $("toMenuBtn").onclick = function () { closeModal(); G = null; show("menu"); renderMenu(); };
+}
+
+/* ============================================================
+   8. МОДАЛКИ
+   ============================================================ */
+function openModal(html) { $("modalBox").innerHTML = html; $("modal").classList.add("on"); }
+function closeModal() { $("modal").classList.remove("on"); }
+
+function showHelp() {
+  openModal(
+    '<h3>КАК ЭТО РАБОТАЕТ</h3>' +
+    '<p>Несколько человек заняли несколько мест — стулья у стойки, этажи, купе. У каждого свой набор примет: стакан, дым, ремесло, вещь в кармане. <b>Каждая примета встречается ровно один раз.</b></p>' +
+    '<p>Показания свидетелей — единственный источник правды. Из них по цепочке выводится вся таблица; угадывать не нужно и вредно.</p>' +
+    '<ul>' +
+    '<li><b>Таблица.</b> Тапните клетку — откроется список примет. В режиме <b>ОТВЕТ</b> тап ставит ✓, в режиме <b>ЗАМЕТКИ</b> вычёркивает то, чего там быть не может.</li>' +
+    '<li><b>Сетка.</b> Классический вид: тап по клетке гоняет её по кругу · → ✗ → ✓. Данные общие с таблицей.</li>' +
+    '<li><b>Показания.</b> Тап по строке зачёркивает отработанное — чтобы не перечитывать одно и то же.</li>' +
+    '<li><b>Свидетель уточнит.</b> Открывает одну верную клетку. Попадает в отчёт по делу.</li>' +
+    '<li><b>Обвинение.</b> Предъявляется один раз и только по полностью заполненной таблице. Если версия расходится с показаниями, следствие предупредит — но не скажет, где именно, и запишет вам сомнение.</li>' +
+    '</ul>' +
+    '<p>Когда ✓ поставлено, игра сама вычёркивает эту примету у остальных мест — это механическая работа, а не вывод. Всё остальное вы делаете сами.</p>' +
+    '<button class="act go" style="width:100%;margin-top:6px" onclick="closeModal()">ПОНЯЛ</button>'
+  );
+}
+
+function showNews() {
+  var h = '<h3>ЧТО НОВОГО</h3><p><b>' + esc(NEWS.date) + '</b><br>' + esc(NEWS.title) + ' · версия ' + VERSION + '</p><ul>';
+  NEWS.items.forEach(function (i) { h += '<li>' + esc(i) + '</li>'; });
+  h += '</ul><button class="act go" style="width:100%;margin-top:6px" onclick="closeModal()">ЗАКРЫТЬ</button>';
+  openModal(h);
+  store.seenNews = VERSION; persist();
+}
+
+function showDossier() {
+  var st = store.stats, d = store.daily;
+  var h = '<h3>ДОСЬЕ</h3>';
+  h += '<div class="kv"><span>закрыто дел</span><b>' + (st.total || 0) + '</b></div>';
+  h += '<div class="kv"><span>из них вчистую</span><b>' + (st.clean || 0) + '</b></div>';
+  h += '<div class="kv"><span>серия «дел дня»</span><b>' + (d.streak || 0) + ' (рекорд ' + (d.best || 0) + ')</b></div>';
+  h += '<p style="margin-top:12px">По ступеням:</p>';
+  Object.keys(LEVEL_TITLE).forEach(function (k) {
+    var n = st.solved[k] || 0, b = st.best[k];
+    h += '<div class="kv"><span>' + LEVEL_TITLE[k] + '</span><b>' + n +
+      (b ? ' · лучшее ' + fmtTime(b) : '') + '</b></div>';
+  });
+  h += '<button class="act go" style="width:100%;margin-top:14px" onclick="closeModal()">ЗАКРЫТЬ</button>';
+  openModal(h);
+}
+
+/* ============================================================
+   9. СТАРТ
+   ============================================================ */
+Array.prototype.forEach.call(document.querySelectorAll("[data-level]"), function (b) {
+  b.onclick = function () {
+    startCase(b.dataset.level, (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, false, null);
+  };
+});
+
+$("dailyBtn").onclick = function () {
+  var t = todayKey();
+  if (store.daily.last === t) {
+    if (!confirm("Сегодняшнее дело уже закрыто. Открыть его заново? На серию это не повлияет.")) return;
+  }
+  var order = ["patrol", "detective", "inspector", "commissar", "shadow"];
+  var lvl = order[new Date().getDay() % order.length];
+  startCase(lvl, E.hashStr("alibi-daily-" + t), true, null);
+};
+
+$("resumeBtn").onclick = function () {
+  var r = store.save;
+  if (!r) return;
+  startCase(r.levelKey, r.seed, r.daily, r);
+};
+
+$("helpBtn").onclick = showHelp;
+$("newsBtn").onclick = showNews;
+$("dossierBtn").onclick = showDossier;
+$("exitBtn").onclick = function () {
+  try { parent.postMessage("hexland:exit", "*"); } catch (e) {}
+};
+$("backBtn").onclick = function () {
+  saveProgress(); stopTimer();
+  G = null; show("menu"); renderMenu();
+};
+$("menuDots").onclick = function () {
+  openModal(
+    '<h3>ДЕЛО</h3>' +
+    '<button class="act" style="width:100%;margin-bottom:8px" onclick="closeModal();showHelp()">Как это работает</button>' +
+    '<button class="act" style="width:100%;margin-bottom:8px" onclick="closeModal();showDossier()">Досье</button>' +
+    '<button class="act" style="width:100%;margin-bottom:8px" onclick="closeModal();showNews()">Что нового</button>' +
+    '<button class="act go" style="width:100%" onclick="closeModal()">Назад к делу</button>'
+  );
+};
+
+$("modeAnswer").onclick = function () { sheetMode = "answer"; renderSheet(); };
+$("modeNotes").onclick = function () { sheetMode = "notes"; renderSheet(); };
+$("sheetClose").onclick = closeSheet;
+$("sheetClear").onclick = function () {
+  if (!sheetCell) return;
+  clearCell(sheetCell.c, sheetCell.p);
+  renderSheet(); renderGameKeepSheet();
+};
+$("scrim").onclick = function () { closeSheet(); };
+$("modal").onclick = function (e) { if (e.target === $("modal")) closeModal(); };
+
+// игровая поверхность не должна вести себя как документ
+document.addEventListener("selectstart", function (e) {
+  var t = e.target;
+  if (t && t.closest && t.closest("input,textarea,[contenteditable]")) return;
+  e.preventDefault();
+});
+document.addEventListener("dragstart", function (e) { e.preventDefault(); });
+document.addEventListener("contextmenu", function (e) {
+  var t = e.target;
+  if (t && t.closest && t.closest("a,input,textarea,[contenteditable]")) return;
+  e.preventDefault();
+});
+document.addEventListener("visibilitychange", function () {
+  if (document.hidden) { running = false; saveProgress(); }
+  else if (G && !finished) { running = true; }
+});
+
+renderMenu();
+</script>
+</body>
+</html>
