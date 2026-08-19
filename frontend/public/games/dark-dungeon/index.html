@@ -25,7 +25,7 @@
       --purple: #a855f7;
       --green: #10b981;
       --bg-dark: #070608;
-      --panel-bg: rgba(18, 12, 16, 0.94);
+      --panel-bg: rgba(18, 12, 16, 0.95);
       --border-goth: #5a4b3c;
       --border-gold: #c29b38;
       --safe-top: max(env(safe-area-inset-top), 0px);
@@ -54,6 +54,23 @@
       touch-action: none;
     }
 
+    #error-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(185, 28, 28, 0.95);
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 13px;
+      padding: 8px 12px;
+      z-index: 9999;
+      text-align: center;
+      border-bottom: 2px solid #ef4444;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    }
+
     #game-canvas {
       position: absolute;
       top: 0;
@@ -76,7 +93,7 @@
     }
 
     /* Interactive elements in UI layer */
-    .interactive, .panel, .btn, .hud-btn, .orb, .potion-slot, .skill-btn, .touch-btn, #joystick-zone {
+    .interactive, .panel, .btn, .hud-btn, .orb, .potion-slot, .skill-btn, .touch-btn, #joystick-zone, .loot-plate {
       pointer-events: auto;
     }
 
@@ -189,12 +206,6 @@
       transition: width 0.12s ease-out;
     }
 
-    #target-affixes {
-      font-size: 10px;
-      color: #93c5fd;
-      margin-top: 2px;
-    }
-
     /* Top Right Controls */
     .top-right-group {
       display: flex;
@@ -292,7 +303,7 @@
     }
 
     .toast-msg {
-      background: rgba(15, 10, 8, 0.92);
+      background: rgba(15, 10, 8, 0.94);
       border: 1px solid var(--border-gold);
       border-radius: 6px;
       padding: 6px 14px;
@@ -493,6 +504,7 @@
       align-items: center;
       justify-content: center;
       touch-action: none;
+      pointer-events: auto;
     }
 
     #joystick-thumb {
@@ -1099,57 +1111,52 @@
     #low-health-vignette {
       position: fixed;
       inset: 0;
-      box-shadow: inset 0 0 60px rgba(239, 68, 68, 0);
       pointer-events: none;
-      z-index: 30;
+      z-index: 9;
+      box-shadow: inset 0 0 60px rgba(239, 68, 68, 0);
       transition: box-shadow 0.3s;
     }
 
-    /* Death & Victory Screens */
+    /* Game Over & Victory Screens */
     #game-over-screen, #victory-screen {
       position: fixed;
       inset: 0;
-      background: rgba(10, 2, 4, 0.9);
+      background: rgba(0, 0, 0, 0.88);
+      z-index: 210;
       display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 250;
-      text-align: center;
       padding: 20px;
-    }
-
-    .skull-banner {
-      font-size: 64px;
-      margin-bottom: 8px;
+      text-align: center;
     }
 
     .death-heading {
       font-family: 'Cinzel', serif;
-      font-size: min(44px, 11vw);
-      font-weight: 900;
+      font-size: min(42px, 10vw);
       color: #ef4444;
-      text-shadow: 0 0 25px #b91c1c;
-      letter-spacing: 4px;
-      margin-bottom: 12px;
+      text-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+      margin-bottom: 8px;
     }
 
     .victory-heading {
       font-family: 'Cinzel', serif;
-      font-size: min(40px, 10vw);
-      font-weight: 900;
-      color: #fbbf24;
-      text-shadow: 0 0 25px #d97706;
-      letter-spacing: 4px;
+      font-size: min(42px, 10vw);
+      color: #ffd700;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+      margin-bottom: 8px;
+    }
+
+    .skull-banner {
+      font-size: 50px;
       margin-bottom: 12px;
     }
 
-    /* Footer / Signature */
     .powered-by-signature {
-      font-size: 11px;
-      color: #8b7969;
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 14px;
       text-align: center;
-      margin-top: 6px;
     }
 
     .powered-by-signature a {
@@ -1162,51 +1169,58 @@
       text-decoration: underline;
     }
   </style>
+
+  <!-- Local Pre-bundled Three.js Engine (Self-contained, Zero CDN reliance) -->
+  <script src="./assets/three.min.js"></script>
 </head>
 <body>
 
-  <!-- Three.js Render Canvas -->
+  <!-- Error banner to prevent silent hangs -->
+  <div id="error-banner">
+    <span id="error-msg"></span>
+    <button id="btn-close-error" style="margin-left:10px; background:#fff; color:#000; border:none; padding:2px 8px; border-radius:3px; cursor:pointer;">✕</button>
+  </div>
+
+  <!-- 3D Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- UI Overlay Layer -->
+  <!-- Screen UI Overlay Layer -->
   <div id="ui-layer">
-
-    <!-- Top Bar -->
+    <!-- Top HUD Bar -->
     <div id="top-bar">
-      <!-- Hero info -->
-      <div class="top-left-stats interactive">
+      <!-- Hero Avatar & Stats -->
+      <div class="top-left-stats">
         <div class="hero-badge">
           <div class="hero-avatar" id="hud-avatar">⚔️</div>
           <div class="hero-info-text">
-            <div class="hero-name" id="hud-hero-name">Варвар</div>
-            <div class="hero-lvl">Ур. <span id="hud-level">1</span> | <span class="gold-count"><span id="hud-gold">100</span> 🪙</span></div>
+            <span class="hero-name" id="hud-hero-name">Варвар</span>
+            <span class="hero-lvl">Ур. <b id="hud-level" style="color:#22c55e;">1</b> | <span class="gold-count" id="hud-gold">100</span> 🪙</span>
           </div>
         </div>
 
-        <!-- Mercenary Badge -->
+        <!-- Mercenary HP bar if hired -->
         <div id="merc-hud">
           <span>🛡️ Хазад</span>
           <div id="merc-hp-bar"><div id="merc-hp-fill"></div></div>
         </div>
       </div>
 
-      <!-- Center: Targeted Enemy HP -->
+      <!-- Top Center Target Frame -->
       <div class="top-center-hud">
         <div id="target-hp-bar">
-          <div id="target-name">💀 Скелет-мечник (Ур. 1)</div>
+          <div id="target-name">Враг</div>
           <div class="target-bar-outer">
             <div id="target-hp-fill"></div>
           </div>
-          <div id="target-affixes">Обычный монстр</div>
         </div>
       </div>
 
-      <!-- Right: Menu buttons & Minimap -->
-      <div class="top-right-group interactive">
+      <!-- Top Right Controls (Minimap & Menu) -->
+      <div class="top-right-group">
         <div class="menu-buttons">
-          <button class="hud-icon-btn" id="btn-open-inv" title="Инвентарь (I)">🎒</button>
-          <button class="hud-icon-btn" id="btn-open-skills" title="Древо навыков (T)">📜</button>
-          <button class="hud-icon-btn" id="btn-open-stats" title="Характеристики (C)">📊</button>
+          <button class="hud-icon-btn" id="btn-open-inv" title="Инвентарь [I]">🎒</button>
+          <button class="hud-icon-btn" id="btn-open-skills" title="Навыки [T]">⚡</button>
+          <button class="hud-icon-btn" id="btn-open-stats" title="Характеристики [C]">📜</button>
           <button class="hud-icon-btn" id="btn-open-news" title="Что нового">✨</button>
         </div>
 
@@ -1216,93 +1230,90 @@
       </div>
     </div>
 
-    <!-- Center Toast Container -->
+    <!-- Center Screen Notifications -->
     <div id="toast-container"></div>
 
-    <!-- Soul charges combo bar for Rogue/Assassin -->
-    <div id="soul-charges-bar">
-      <div class="soul-orb" id="soul-0"></div>
-      <div class="soul-orb" id="soul-1"></div>
-      <div class="soul-orb" id="soul-2"></div>
-      <div class="soul-orb" id="soul-3"></div>
-      <div class="soul-orb" id="soul-4"></div>
-    </div>
-
-    <!-- Bottom Dock -->
+    <!-- Bottom Dock: Health Orb (Left), Center Action Belt, Mana Orb (Right) -->
     <div id="bottom-dock">
       <!-- Health Orb -->
-      <div class="orb-container interactive" id="health-orb-wrap">
-        <div class="orb" id="health-orb">
+      <div class="orb-container">
+        <div class="orb" id="health-orb" title="Здоровье">
           <div class="orb-fill" id="health-fill"></div>
-          <div class="orb-text" id="health-text">100/100</div>
+          <div class="orb-text" id="health-text">150/150</div>
         </div>
       </div>
 
-      <!-- Center Quick Potion Belt & Controls Hint -->
-      <div class="center-dock interactive">
+      <!-- Center Action Dock -->
+      <div class="center-dock">
+        <!-- Potion Belt -->
         <div id="potion-belt">
-          <div class="potion-slot" id="belt-0" title="Зелье Здоровья (1)">
+          <div class="potion-slot" id="belt-0" title="Зелье Здоровья [1]">
             <span class="potion-key">1</span>
             ❤️
             <span class="potion-count" id="count-pot-hp">3</span>
           </div>
-          <div class="potion-slot" id="belt-1" title="Зелье Маны (2)">
+          <div class="potion-slot" id="belt-1" title="Зелье Маны [2]">
             <span class="potion-key">2</span>
             💙
             <span class="potion-count" id="count-pot-mp">3</span>
           </div>
-          <div class="potion-slot" id="belt-2" title="Зелье Омоложения (3)">
+          <div class="potion-slot" id="belt-2" title="Полное Омоложение [3]">
             <span class="potion-key">3</span>
             💜
             <span class="potion-count" id="count-pot-rejuv">1</span>
           </div>
-          <div class="potion-slot" id="belt-3" title="Свиток Портала (4)">
+          <div class="potion-slot" id="belt-3" title="Свиток Портала [4]">
             <span class="potion-key">4</span>
             🌀
-            <span class="potion-count" id="count-scroll">1</span>
+            <span class="potion-count" id="count-pot-scroll">1</span>
           </div>
         </div>
 
-        <div class="powered-by-signature">
-          Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a>
+        <!-- Soul charges indicator for Assassin -->
+        <div id="soul-charges-bar">
+          <div class="soul-orb" id="soul-0"></div>
+          <div class="soul-orb" id="soul-1"></div>
+          <div class="soul-orb" id="soul-2"></div>
+          <div class="soul-orb" id="soul-3"></div>
+          <div class="soul-orb" id="soul-4"></div>
         </div>
       </div>
 
       <!-- Mana Orb -->
-      <div class="orb-container interactive" id="mana-orb-wrap">
-        <div class="orb" id="mana-orb">
+      <div class="orb-container">
+        <div class="orb" id="mana-orb" title="Мана">
           <div class="orb-fill" id="mana-fill"></div>
-          <div class="orb-text" id="mana-text">100/100</div>
+          <div class="orb-text" id="mana-text">50/50</div>
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- Touch Controls Layer (Virtual Joystick & Buttons) -->
+  <!-- Mobile Touch Controls Layer -->
   <div id="touch-controls">
-    <!-- Joystick on left -->
+    <!-- Virtual Analog Joystick (Left) -->
     <div id="joystick-zone">
       <div id="joystick-thumb"></div>
     </div>
 
-    <!-- Action buttons cluster on right -->
+    <!-- Action Buttons Cluster (Right) -->
     <div id="action-buttons-zone">
-      <!-- Main Attack Button -->
-      <button class="touch-btn" id="btn-attack" title="Атака [Пробел / ЛКМ]">
-        ⚔️
+      <!-- Main Attack (Space) -->
+      <button class="touch-btn" id="btn-attack" title="Атака [Пробел]">
+        🗡️
+        <span class="btn-key-badge">ATK</span>
       </button>
 
       <!-- Skill 1 (Q) -->
       <button class="touch-btn" id="btn-skill-1" title="Навык 1 [Q]">
-        🌀
+        <span id="skill-1-icon">🌀</span>
         <span class="btn-key-badge">Q</span>
         <div class="cd-overlay" id="cd-overlay-1"></div>
       </button>
 
       <!-- Skill 2 (E) -->
       <button class="touch-btn" id="btn-skill-2" title="Навык 2 [E]">
-        ⚡
+        <span id="skill-2-icon">⚡</span>
         <span class="btn-key-badge">E</span>
         <div class="cd-overlay" id="cd-overlay-2"></div>
       </button>
@@ -1338,7 +1349,7 @@
       <div class="class-card selected" data-class="barbarian">
         <div class="class-icon">⚔️</div>
         <div class="class-name">Варвар</div>
-        <div class="class-desc">Могучий берсерк с огромным двуручным мечом. Рассекает орды нежити круговыми ударами.</div>
+        <div class="class-desc">Могучий берсерк с двуручным мечом. Рассекает орды нежити круговыми ударами.</div>
         <div class="class-stats-preview">
           <div class="stat-row"><span>Здоровье:</span> <b style="color:#ef4444;">150</b></div>
           <div class="stat-row"><span>Мана:</span> <b style="color:#3b82f6;">50</b></div>
@@ -1351,7 +1362,7 @@
       <div class="class-card" data-class="sorceress">
         <div class="class-icon">🔮</div>
         <div class="class-name">Волшебница</div>
-        <div class="class-desc">Повелительница огня и холода. Сжигает врагов огненными шарами и защищается ледяной броней.</div>
+        <div class="class-desc">Повелительница магии стихий. Сжигает врагов огненными шарами и защищается ледяной броней.</div>
         <div class="class-stats-preview">
           <div class="stat-row"><span>Здоровье:</span> <b style="color:#ef4444;">75</b></div>
           <div class="stat-row"><span>Мана:</span> <b style="color:#3b82f6;">160</b></div>
@@ -1364,7 +1375,7 @@
       <div class="class-card" data-class="assassin">
         <div class="class-icon">🗡️</div>
         <div class="class-name">Ассасин</div>
-        <div class="class-desc">Мастер скрытности и парных клинков. Накапливает заряды душ и наносит смертельные удары из тени.</div>
+        <div class="class-desc">Мастер скрытности и клинков. Накапливает заряды душ и наносит смертоносные криты из тени.</div>
         <div class="class-stats-preview">
           <div class="stat-row"><span>Здоровье:</span> <b style="color:#ef4444;">95</b></div>
           <div class="stat-row"><span>Мана:</span> <b style="color:#3b82f6;">80</b></div>
@@ -1402,13 +1413,11 @@
         </div>
 
         <!-- Inventory Grid -->
-        <div class="inv-grid" id="inv-grid-container">
-          <!-- Rendered via JS -->
-        </div>
+        <div class="inv-grid" id="inv-grid-container"></div>
 
         <div style="display: flex; justify-content: space-between; font-size: 13px;">
           <span>Золото: <b style="color:#ffd700;" id="inv-gold-val">100 🪙</b></span>
-          <span style="color:#9ca3af;">Нажмите на предмет для действия</span>
+          <span style="color:#9ca3af;">Нажмите на предмет для экипировки</span>
         </div>
       </div>
     </div>
@@ -1424,9 +1433,7 @@
         <span>Очки навыков: <b style="color:#00ffcc;" id="skill-points-val">0</b></span>
       </div>
 
-      <div class="skills-tree-list" id="skills-tree-container">
-        <!-- Injected via JS -->
-      </div>
+      <div class="skills-tree-list" id="skills-tree-container"></div>
     </div>
   </div>
 
@@ -1444,7 +1451,7 @@
       <div class="stats-table">
         <div class="stat-row-alloc">
           <div>
-            <b>Сила (STR):</b> <span id="stat-str-val">10</span>
+            <b>Сила (STR):</b> <span id="stat-str-val">18</span>
             <div style="font-size:10px; color:#9ca3af;">Увеличивает физический урон</div>
           </div>
           <button class="stat-alloc-btn" data-stat="str">+</button>
@@ -1452,7 +1459,7 @@
 
         <div class="stat-row-alloc">
           <div>
-            <b>Ловкость (DEX):</b> <span id="stat-dex-val">10</span>
+            <b>Ловкость (DEX):</b> <span id="stat-dex-val">12</span>
             <div style="font-size:10px; color:#9ca3af;">Увеличивает шанс крита и уклонение</div>
           </div>
           <button class="stat-alloc-btn" data-stat="dex">+</button>
@@ -1460,15 +1467,15 @@
 
         <div class="stat-row-alloc">
           <div>
-            <b>Живучесть (VIT):</b> <span id="stat-vit-val">15</span>
-            <div style="font-size:10px; color:#9ca3af;">Увеличивает здоровье и регенерацию</div>
+            <b>Живучесть (VIT):</b> <span id="stat-vit-val">20</span>
+            <div style="font-size:10px; color:#9ca3af;">Увеличивает здоровье и защиту</div>
           </div>
           <button class="stat-alloc-btn" data-stat="vit">+</button>
         </div>
 
         <div class="stat-row-alloc">
           <div>
-            <b>Энергия (ENE):</b> <span id="stat-ene-val">10</span>
+            <b>Энергия (ENE):</b> <span id="stat-ene-val">5</span>
             <div style="font-size:10px; color:#9ca3af;">Увеличивает запас и силу маны</div>
           </div>
           <button class="stat-alloc-btn" data-stat="ene">+</button>
@@ -1493,12 +1500,12 @@
       <div class="modal-title">Декард Каин (Мудрец)</div>
 
       <div class="scroll-container">
-        <p id="cain-speech">"Остановись и послушай... Древнее зло пробудилось в недрах этого собора. Тебе предстоит пройти сквозь склепы и сразить Владыку Пламени."</p>
+        <p id="cain-speech">"Остановись и послушай... Древнее зло пробудилось в недрах собора. Спустись в катакомбы, очисти склепы и срази Владыку Пламени!"</p>
       </div>
 
       <div class="cain-options">
         <button class="cain-btn" id="cain-quest-btn">
-          <span>📜 [Квест] Очистить 1-й этаж подземелья</span>
+          <span>📜 [Квест] Очистить этаж подземелья</span>
           <span style="color:#22c55e;" id="quest-status-text">0 / 8</span>
         </button>
         <button class="cain-btn" id="cain-buy-hp">
@@ -1525,13 +1532,13 @@
 
       <div style="font-size: 13px; line-height: 1.5; color: #d4c4b4; display: flex; flex-direction: column; gap: 10px;">
         <div>
-          <b style="color:var(--gold);">Версия 1.0 (15.08.2026)</b> — Полный релиз Diablo Action-RPG!
+          <b style="color:var(--gold);">Версия 1.0 (17.08.2026)</b> — Полный релиз Diablo Action-RPG!
         </div>
 
         <ul style="padding-left: 18px; display: flex; flex-direction: column; gap: 6px;">
           <li><b>3 Игровых Класса:</b> Варвар (Вихрь & Сокрушение), Волшебница (Огненный шар & Ледяная броня), Ассасин (Заряды душ & Теневой шаг).</li>
           <li><b>3D Изометрическое подземелье:</b> Процедурные комнаты, динамическое освещение факелами, алтари и сундуки.</li>
-          <li><b>Стелс-система факела:</b> Выключайте факел [F], чтобы подкрадываться к монстрам и наносить смертоносный урон из тени!</li>
+          <li><b>Стелс-система факела:</b> Выключайте факел [F], чтобы подкрадываться к монстрам и наносить гарантированный крит из тени!</li>
           <li><b>Синтезатор звуков Web Audio:</b> Полная генерация взмахов меча, заклинаний, зелий и мрачного эмбиента без внешних ссылок.</li>
           <li><b>Мобильное управление:</b> Виртуальный аналоговый джойстик слева + кнопки атак и навыков справа.</li>
           <li><b>Сохранение в LocalStorage:</b> Ваш прогресс и экипировка автоматически сохраняются в <code>gamepass.dark-dungeon.v1</code>.</li>
@@ -1557,22 +1564,27 @@
     <div class="skull-banner">🏆</div>
     <div class="victory-heading">ПОБЕДА!</div>
     <p style="color:#d4c4b4; margin-bottom: 20px;">Владыка пламени повержен! Святилище очищено от скверны.</p>
-    <button class="btn-main" id="btn-victory-continue">Продолжить приключение</button>
+    <button class="btn-main" id="btn-victory-continue">Спуститься глубже</button>
   </div>
 
-  <!-- Core Scripts: Three.js & Game Engine -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  <!-- GAME SCRIPT -->
+  <script>
+    // =========================================================================
+    // GLOBAL ERROR HANDLING BANNER
+    // =========================================================================
+    window.addEventListener('error', function(e) {
+      console.error("Dark Dungeon Error:", e.error || e.message);
+      var eb = document.getElementById('error-banner');
+      var em = document.getElementById('error-msg');
+      if (eb && em) {
+        em.textContent = "Ошибка: " + (e.message || (e.error && e.error.message) || "Произошла ошибка в игре");
+        eb.style.display = 'block';
       }
-    }
-  </script>
+    });
 
-  <script type="module">
-    import * as THREE from 'three';
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    document.getElementById('btn-close-error').onclick = function() {
+      document.getElementById('error-banner').style.display = 'none';
+    };
 
     // =========================================================================
     // 1. SOUND ENGINE (100% PURE WEB AUDIO SYNTHESIZER)
@@ -1588,12 +1600,14 @@
       init() {
         if (this.initialized) return;
         try {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          this.ctx = new AudioContext();
-          this.startAmbientDrone();
-          this.initialized = true;
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+            this.startAmbientDrone();
+            this.initialized = true;
+          }
         } catch (e) {
-          console.warn("AudioContext init error:", e);
+          console.warn("AudioContext init warning:", e);
         }
       }
 
@@ -1605,239 +1619,263 @@
 
       startAmbientDrone() {
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        this.droneOsc = this.ctx.createOscillator();
-        this.droneGain = this.ctx.createGain();
-        const filter = this.ctx.createBiquadFilter();
+        try {
+          const now = this.ctx.currentTime;
+          this.droneOsc = this.ctx.createOscillator();
+          this.droneGain = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
 
-        this.droneOsc.type = 'triangle';
-        this.droneOsc.frequency.setValueAtTime(50, now);
+          this.droneOsc.type = 'triangle';
+          this.droneOsc.frequency.setValueAtTime(50, now);
 
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(110, now);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(110, now);
 
-        this.droneGain.gain.setValueAtTime(0.04, now);
+          this.droneGain.gain.setValueAtTime(0.04, now);
 
-        this.droneOsc.connect(filter);
-        filter.connect(this.droneGain);
-        this.droneGain.connect(this.ctx.destination);
+          this.droneOsc.connect(filter);
+          filter.connect(this.droneGain);
+          this.droneGain.connect(this.ctx.destination);
 
-        this.droneOsc.start(now);
+          this.droneOsc.start(now);
+        } catch (e) {
+          console.warn("Drone sound error:", e);
+        }
       }
 
       playSlash() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const bufferSize = Math.floor(this.ctx.sampleRate * 0.22);
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.22);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
 
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.Q.value = 4.0;
-        filter.frequency.setValueAtTime(1800, now);
-        filter.frequency.exponentialRampToValueAtTime(200, now + 0.22);
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.Q.value = 4.0;
+          filter.frequency.setValueAtTime(1800, now);
+          filter.frequency.exponentialRampToValueAtTime(200, now + 0.22);
 
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.2, now + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.2, now + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start(now);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
       }
 
       playHit() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.exponentialRampToValueAtTime(35, now + 0.15);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(35, now + 0.15);
 
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } catch (e) {}
       }
 
       playFireball() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const filter = this.ctx.createBiquadFilter();
-        const gain = this.ctx.createGain();
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
 
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(100, now);
-        osc.frequency.exponentialRampToValueAtTime(650, now + 0.3);
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(100, now);
+          osc.frequency.exponentialRampToValueAtTime(650, now + 0.3);
 
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(300, now);
-        filter.frequency.exponentialRampToValueAtTime(1600, now + 0.3);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(300, now);
+          filter.frequency.exponentialRampToValueAtTime(1600, now + 0.3);
 
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.18, now + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.18, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
 
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.3);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } catch (e) {}
       }
 
       playExplosion() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
 
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(90, now);
-        osc.frequency.linearRampToValueAtTime(20, now + 0.45);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(90, now);
+          osc.frequency.linearRampToValueAtTime(20, now + 0.45);
 
-        gain.gain.setValueAtTime(0.35, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.45);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } catch (e) {}
       }
 
       playFrostSpell() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = freq;
-          const start = now + idx * 0.04;
-          gain.gain.setValueAtTime(0.001, start);
-          gain.gain.linearRampToValueAtTime(0.1, start + 0.04);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(start);
-          osc.stop(start + 0.6);
-        });
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const start = now + idx * 0.04;
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.1, start + 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.6);
+          });
+        } catch (e) {}
       }
 
       playShadowStep() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.25);
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } catch (e) {}
       }
 
       playPotion() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        for (let i = 0; i < 4; i++) {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          const start = now + i * 0.05;
-          osc.frequency.setValueAtTime(350 + Math.random() * 80, start);
-          osc.frequency.exponentialRampToValueAtTime(800 + Math.random() * 100, start + 0.07);
-          gain.gain.setValueAtTime(0.001, start);
-          gain.gain.linearRampToValueAtTime(0.08, start + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(start);
-          osc.stop(start + 0.07);
-        }
+        try {
+          const now = this.ctx.currentTime;
+          for (let i = 0; i < 4; i++) {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const start = now + i * 0.05;
+            osc.frequency.setValueAtTime(350 + Math.random() * 80, start);
+            osc.frequency.exponentialRampToValueAtTime(800 + Math.random() * 100, start + 0.07);
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.08, start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.07);
+          }
+        } catch (e) {}
       }
 
       playCoin() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        [987.77, 1318.51].forEach((f, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = f;
-          const start = now + idx * 0.06;
-          gain.gain.setValueAtTime(0.001, start);
-          gain.gain.linearRampToValueAtTime(0.12, start + 0.01);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(start);
-          osc.stop(start + 0.3);
-        });
+        try {
+          const now = this.ctx.currentTime;
+          [987.77, 1318.51].forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            const start = now + idx * 0.06;
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.12, start + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.3);
+          });
+        } catch (e) {}
       }
 
       playLevelUp() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.value = freq;
-          const start = now + idx * 0.07;
-          gain.gain.setValueAtTime(0.001, start);
-          gain.gain.linearRampToValueAtTime(0.12, start + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(start);
-          osc.stop(start + 0.5);
-        });
+        try {
+          const now = this.ctx.currentTime;
+          const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const start = now + idx * 0.07;
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.12, start + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.5);
+          });
+        } catch (e) {}
       }
 
       playCainHum() {
         this.init(); this.resume();
         if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        [100, 85, 92, 75].forEach((f, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sawtooth';
-          const start = now + idx * 0.14;
-          osc.frequency.setValueAtTime(f, start);
-          gain.gain.setValueAtTime(0.001, start);
-          gain.gain.linearRampToValueAtTime(0.15, start + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(start);
-          osc.stop(start + 0.18);
-        });
+        try {
+          const now = this.ctx.currentTime;
+          [100, 85, 92, 75].forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            const start = now + idx * 0.14;
+            osc.frequency.setValueAtTime(f, start);
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.15, start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.18);
+          });
+        } catch (e) {}
       }
     }
 
@@ -1863,9 +1901,9 @@
       statPoints: 0,
       skillPoints: 0,
       skills: {
-        skill1: 1, // Cleave / Fireball / Twin Daggers
-        skill2: 0, // Whirlwind / Meteor / Shadow Step
-        skill3: 0  // Leap Slam / Frost Armor / Soul Burst
+        skill1: 1,
+        skill2: 0,
+        skill3: 0
       },
       soulCharges: 0,
       torchOn: true,
@@ -1922,81 +1960,368 @@
       return false;
     }
 
-    // =========================================================================
-    // 3. THREE.JS 3D WORLD SETUP
-    // =========================================================================
-    const canvas = document.getElementById('game-canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x060508);
-    scene.fog = new THREE.FogExp2(0x060508, 0.035);
-
-    // Isometric Orthographic Camera
-    const aspect = window.innerWidth / window.innerHeight;
-    const d = 14;
-    const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 500);
-    const camOffset = new THREE.Vector3(18, 24, 18);
-    camera.position.copy(camOffset);
-    camera.lookAt(0, 0, 0);
-
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x2d242a, 0.5);
-    scene.add(ambientLight);
-
-    const moonLight = new THREE.DirectionalLight(0x6d84a8, 0.45);
-    moonLight.position.set(20, 40, 20);
-    moonLight.castShadow = true;
-    moonLight.shadow.mapSize.width = 1024;
-    moonLight.shadow.mapSize.height = 1024;
-    scene.add(moonLight);
-
-    window.addEventListener('resize', () => {
-      const asp = window.innerWidth / window.innerHeight;
-      camera.left = -d * asp;
-      camera.right = d * asp;
-      camera.top = d;
-      camera.bottom = -d;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    function applyClassPresets(c) {
+      STATE.heroClass = c;
+      if (c === 'barbarian') {
+        STATE.health = 150; STATE.maxHealth = 150;
+        STATE.mana = 50; STATE.maxMana = 50;
+        STATE.stats = { str: 18, dex: 12, vit: 20, ene: 5 };
+        document.getElementById('skill-1-icon').textContent = '🌀';
+        document.getElementById('skill-2-icon').textContent = '⚡';
+      } else if (c === 'sorceress') {
+        STATE.health = 75; STATE.maxHealth = 75;
+        STATE.mana = 160; STATE.maxMana = 160;
+        STATE.stats = { str: 7, dex: 10, vit: 10, ene: 22 };
+        document.getElementById('skill-1-icon').textContent = '🔥';
+        document.getElementById('skill-2-icon').textContent = '❄️';
+      } else if (c === 'assassin') {
+        STATE.health = 95; STATE.maxHealth = 95;
+        STATE.mana = 80; STATE.maxMana = 80;
+        STATE.stats = { str: 11, dex: 20, vit: 12, ene: 8 };
+        document.getElementById('skill-1-icon').textContent = '🗡️';
+        document.getElementById('skill-2-icon').textContent = '💥';
+      }
+    }
 
     // =========================================================================
-    // 4. DUNGEON GENERATION & ENVIRONMENT
+    // 3. IMMEDIATE UI LISTENERS AT TOP OF SCRIPT (NO RELIANCE ON DELAYED LOADS)
     // =========================================================================
+    function bindImmediateUI() {
+      // Class cards selection
+      const cards = document.querySelectorAll('.class-card');
+      cards.forEach(card => {
+        const onSelect = (e) => {
+          if (e) e.preventDefault();
+          cards.forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          const c = card.getAttribute('data-class');
+          applyClassPresets(c);
+        };
+        card.addEventListener('click', onSelect);
+        card.addEventListener('pointerdown', onSelect);
+      });
+
+      // Start Game Button
+      const btnStart = document.getElementById('btn-start-game');
+      const handleStart = (e) => {
+        if (e) e.preventDefault();
+        startGame(false);
+      };
+      btnStart.addEventListener('click', handleStart);
+      btnStart.addEventListener('pointerdown', handleStart);
+
+      // Continue Save Button
+      const btnContinue = document.getElementById('btn-continue-save');
+      const handleContinue = (e) => {
+        if (e) e.preventDefault();
+        startGame(true);
+      };
+      btnContinue.addEventListener('click', handleContinue);
+      btnContinue.addEventListener('pointerdown', handleContinue);
+
+      // Check if save exists on startup
+      if (loadGame()) {
+        btnContinue.style.display = 'inline-block';
+        btnContinue.textContent = `Продолжить: ${STATE.heroClass.toUpperCase()} (Ур. ${STATE.level})`;
+        applyClassPresets(STATE.heroClass);
+        // Highlight active card
+        cards.forEach(c => {
+          if (c.getAttribute('data-class') === STATE.heroClass) c.classList.add('selected');
+          else c.classList.remove('selected');
+        });
+      }
+
+      // Modal Close buttons
+      document.querySelectorAll('.modal-close-btn').forEach(btn => {
+        const handleClose = (e) => {
+          if (e) e.preventDefault();
+          const target = btn.getAttribute('data-close');
+          const m = document.getElementById(target);
+          if (m) m.style.display = 'none';
+        };
+        btn.addEventListener('click', handleClose);
+        btn.addEventListener('pointerdown', handleClose);
+      });
+
+      // HUD modal opener buttons
+      const bindModalBtn = (btnId, modalId, onOpen) => {
+        const el = document.getElementById(btnId);
+        if (!el) return;
+        const handler = (e) => {
+          if (e) e.preventDefault();
+          if (onOpen) onOpen();
+          const m = document.getElementById(modalId);
+          if (m) m.style.display = 'flex';
+        };
+        el.addEventListener('click', handler);
+        el.addEventListener('pointerdown', handler);
+      };
+
+      bindModalBtn('btn-open-inv', 'inventory-modal', renderInventory);
+      bindModalBtn('btn-open-skills', 'skills-modal', renderSkills);
+      bindModalBtn('btn-open-stats', 'stats-modal', renderStats);
+      bindModalBtn('btn-open-news', 'news-modal');
+
+      // Potions belt quick clicks
+      const bindPotion = (id, type) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const handler = (e) => {
+          if (e) e.preventDefault();
+          usePotion(type);
+        };
+        el.addEventListener('click', handler);
+        el.addEventListener('pointerdown', handler);
+      };
+
+      bindPotion('belt-0', 'hp');
+      bindPotion('belt-1', 'mp');
+      bindPotion('belt-2', 'rejuv');
+      bindPotion('belt-3', 'portal');
+
+      // Stat allocation buttons
+      document.querySelectorAll('.stat-alloc-btn').forEach(btn => {
+        const handler = (e) => {
+          if (e) e.preventDefault();
+          const stat = btn.getAttribute('data-stat');
+          if (STATE.statPoints > 0) {
+            STATE.statPoints--;
+            STATE.stats[stat]++;
+            if (stat === 'vit') { STATE.maxHealth += 5; STATE.health += 5; }
+            if (stat === 'ene') { STATE.maxMana += 5; STATE.mana += 5; }
+            renderStats();
+            updateHUD();
+            showToast(`Характеристика ${stat.toUpperCase()} увеличена!`);
+            saveGame();
+          }
+        };
+        btn.addEventListener('click', handler);
+        btn.addEventListener('pointerdown', handler);
+      });
+
+      // Cain dialogue buttons
+      document.getElementById('cain-quest-btn').onclick = () => {
+        if (STATE.quest.completed) {
+          STATE.gold += 100;
+          gainExp(150);
+          showToast('🏆 Награда за квест получена (+100 🪙)!');
+          STATE.quest.completed = false;
+          STATE.quest.currentKills = 0;
+          STATE.quest.targetKills += 5;
+          document.getElementById('npc-modal').style.display = 'none';
+          saveGame();
+        } else {
+          showToast(`Убейте еще ${STATE.quest.targetKills - STATE.quest.currentKills} монстров!`);
+        }
+      };
+
+      document.getElementById('cain-buy-hp').onclick = () => {
+        if (STATE.gold >= 25) {
+          STATE.gold -= 25;
+          STATE.potionBelt[0].count++;
+          updateHUD();
+          audio.playCoin();
+          showToast('Куплено Зелье Здоровья!');
+          saveGame();
+        }
+      };
+
+      document.getElementById('cain-buy-mp').onclick = () => {
+        if (STATE.gold >= 25) {
+          STATE.gold -= 25;
+          STATE.potionBelt[1].count++;
+          updateHUD();
+          audio.playCoin();
+          showToast('Куплено Зелье Маны!');
+          saveGame();
+        }
+      };
+
+      document.getElementById('cain-hire-merc').onclick = () => {
+        if (STATE.gold >= 100 && !STATE.merc.hired) {
+          STATE.gold -= 100;
+          STATE.merc.hired = true;
+          document.getElementById('merc-hud').style.display = 'flex';
+          updateHUD();
+          audio.playCoin();
+          showToast('🛡️ Наемник Хазад присоединился к вам!');
+          saveGame();
+        }
+      };
+
+      // Respawn & Victory buttons
+      document.getElementById('btn-respawn').onclick = () => {
+        STATE.health = STATE.maxHealth;
+        STATE.mana = STATE.maxMana;
+        if (window.playerInstance) window.playerInstance.mesh.position.set(0, 0, 0);
+        document.getElementById('game-over-screen').style.display = 'none';
+        updateHUD();
+      };
+
+      document.getElementById('btn-victory-continue').onclick = () => {
+        document.getElementById('victory-screen').style.display = 'none';
+        STATE.floor++;
+        if (typeof createDungeonFloor === 'function') createDungeonFloor();
+        if (window.playerInstance) window.playerInstance.mesh.position.set(0, 0, 0);
+        saveGame();
+      };
+
+      // Desktop keyboard controls
+      window.addEventListener('keydown', (e) => {
+        keys[e.code] = true;
+        if (e.code === 'KeyI') { renderInventory(); toggleModal('inventory-modal'); }
+        if (e.code === 'KeyT') { renderSkills(); toggleModal('skills-modal'); }
+        if (e.code === 'KeyC') { renderStats(); toggleModal('stats-modal'); }
+        if (e.code === 'KeyF') { if (window.playerInstance) window.playerInstance.setTorch(!STATE.torchOn); }
+        if (e.code === 'KeyQ') { if (window.playerInstance) window.playerInstance.castSkill1(); }
+        if (e.code === 'KeyE') { if (window.playerInstance) window.playerInstance.castSkill2(); }
+        if (e.code === 'Space') { if (window.playerInstance) window.playerInstance.attack(); }
+        if (e.code === 'Digit1') usePotion('hp');
+        if (e.code === 'Digit2') usePotion('mp');
+        if (e.code === 'Digit3') usePotion('rejuv');
+        if (e.code === 'Digit4') usePotion('portal');
+        if (e.code === 'Escape') {
+          document.querySelectorAll('.modal-backdrop').forEach(m => m.style.display = 'none');
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.code] = false;
+      });
+    }
+
+    function toggleModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    // Run immediate binding right now!
+    bindImmediateUI();
+
+    // =========================================================================
+    // 4. THREE.JS 3D ENGINE & GAMEPLAY LOGIC
+    // =========================================================================
+    let gameInitialized = false;
+    let renderer, scene, camera, player;
     const colliders = [];
     const interactables = [];
     const enemies = [];
     const projectiles = [];
     const lootDrops = [];
-    const particles = [];
+    const keys = {};
 
-    const gltfLoader = new GLTFLoader();
+    let joystickActive = false;
+    let joystickVector = { x: 0, y: 0 };
+    const camOffset = new THREE.Vector3(18, 24, 18);
 
+    function startGame(isContinue) {
+      audio.init();
+      audio.playSlash();
+
+      document.getElementById('class-select-screen').style.display = 'none';
+
+      if (!gameInitialized) {
+        initThreeEngine();
+        gameInitialized = true;
+      }
+
+      if (!isContinue) {
+        applyClassPresets(STATE.heroClass);
+      }
+
+      player.buildProceduralHero();
+      createDungeonFloor();
+      updateHUD();
+      updateSoulChargesHUD();
+
+      try {
+        window.parent.postMessage({ type: 'dark-dungeon:run', active: true }, '*');
+      } catch (e) {}
+
+      showToast(isContinue ? '⚔️ Игра загружена!' : `⚔️ Класс: ${STATE.heroClass.toUpperCase()}`);
+    }
+
+    function initThreeEngine() {
+      const canvas = document.getElementById('game-canvas');
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x060508);
+      scene.fog = new THREE.FogExp2(0x060508, 0.035);
+
+      // Isometric Orthographic Camera
+      const aspect = window.innerWidth / window.innerHeight;
+      const d = 14;
+      camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 500);
+      camera.position.copy(camOffset);
+      camera.lookAt(0, 0, 0);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0x2d242a, 0.55);
+      scene.add(ambientLight);
+
+      const moonLight = new THREE.DirectionalLight(0x6d84a8, 0.45);
+      moonLight.position.set(20, 40, 20);
+      moonLight.castShadow = true;
+      moonLight.shadow.mapSize.width = 1024;
+      moonLight.shadow.mapSize.height = 1024;
+      scene.add(moonLight);
+
+      window.addEventListener('resize', () => {
+        const asp = window.innerWidth / window.innerHeight;
+        camera.left = -d * asp;
+        camera.right = d * asp;
+        camera.top = d;
+        camera.bottom = -d;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      player = new PlayerController();
+      window.playerInstance = player;
+
+      initTouchControls();
+      initRaycasting();
+
+      animate();
+    }
+
+    // =========================================================================
+    // 5. DUNGEON GENERATION
+    // =========================================================================
     function createDungeonFloor() {
-      // Clear old level
+      // Clear scene elements
+      while (scene.children.length > 2) { // Keep ambient and moon light
+        const obj = scene.children[scene.children.length - 1];
+        if (obj === player.mesh) {
+          scene.children.pop();
+          continue;
+        }
+        scene.remove(obj);
+      }
+      scene.add(player.mesh);
+
       colliders.length = 0;
       interactables.length = 0;
       enemies.length = 0;
+      projectiles.length = 0;
+      document.getElementById('loot-plates-layer').innerHTML = '';
+      lootDrops.length = 0;
 
       // Dungeon Ground
       const groundGeo = new THREE.PlaneGeometry(90, 90, 16, 16);
-      const groundMat = new THREE.MeshStandardMaterial({
-        color: 0x1f1917,
-        roughness: 0.85,
-        metalness: 0.1
-      });
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x1f1917, roughness: 0.85, metalness: 0.1 });
       const ground = new THREE.Mesh(groundGeo, groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
       scene.add(ground);
 
-      // Stone Wall generator
       const wallMat = new THREE.MeshStandardMaterial({ color: 0x2e231f, roughness: 0.9 });
       const pillarMat = new THREE.MeshStandardMaterial({ color: 0x42322a, roughness: 0.8 });
 
@@ -2019,24 +2344,22 @@
         scene.add(p);
         colliders.push(new THREE.Box3().setFromObject(p));
 
-        // Wall sconce torch light
         const torchLight = new THREE.PointLight(0xff7700, 1.8, 10);
         torchLight.position.set(x, 2.5, z);
         scene.add(torchLight);
       }
 
-      // Outer Perimeter walls
+      // Outer Perimeter
       addWall(0, -40, 80, 2);
       addWall(0, 40, 80, 2);
       addWall(-40, 0, 2, 80);
       addWall(40, 0, 2, 80);
 
-      // Inner dungeon rooms & corridors
+      // Inner dungeon corridors
       addWall(-15, -15, 20, 2);
       addWall(15, -15, 20, 2);
       addWall(-15, 15, 20, 2);
       addWall(15, 15, 20, 2);
-
       addWall(-25, 0, 2, 20);
       addWall(25, 0, 2, 20);
 
@@ -2050,7 +2373,7 @@
       addPillar(-25, 25);
       addPillar(25, 25);
 
-      // Campfire in Town Safe Center
+      // Campfire in Center Safe Hub
       const campGeo = new THREE.CylinderGeometry(0.8, 0.9, 0.3, 8);
       const campMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
       const campfire = new THREE.Mesh(campGeo, campMat);
@@ -2070,10 +2393,10 @@
       createChest(-20, 20);
       createChest(20, 20);
 
-      // Exit Staircase Portal to deeper floor
+      // Exit Staircase Portal
       createExitPortal(0, 32);
 
-      // Spawn Monsters on the floor
+      // Spawn Monsters
       spawnFloorMonsters();
     }
 
@@ -2101,7 +2424,7 @@
         mesh: cainGroup,
         type: 'npc',
         name: 'Декард Каин',
-        radius: 2.5,
+        radius: 2.8,
         onInteract: () => openNPCModal()
       });
     }
@@ -2134,7 +2457,7 @@
         mesh: shrineGroup,
         type: 'shrine',
         name: type === 'health' ? 'Святилище Исцеления' : 'Святилище Ярости',
-        radius: 2.0,
+        radius: 2.2,
         onInteract: () => {
           audio.playFrostSpell();
           if (type === 'health') {
@@ -2143,6 +2466,8 @@
             showToast('❤️ Полное здоровье восстановлено!');
           } else {
             showToast('⚡ Благословение скорости получено!');
+            player.speed = 13;
+            setTimeout(() => { player.speed = 9; }, 20000);
           }
         }
       });
@@ -2166,7 +2491,7 @@
         mesh: chestGroup,
         type: 'chest',
         name: 'Сундук с сокровищами',
-        radius: 2.0,
+        radius: 2.2,
         onInteract: () => {
           if (opened) return;
           opened = true;
@@ -2199,7 +2524,7 @@
         mesh: portalGroup,
         type: 'portal',
         name: 'Спуск на следующий этаж',
-        radius: 2.5,
+        radius: 2.8,
         onInteract: () => {
           STATE.floor++;
           showToast(`🚩 Этаж ${STATE.floor} достигнут!`);
@@ -2212,7 +2537,7 @@
     }
 
     // =========================================================================
-    // 5. PLAYER CHARACTER (BARBARIAN, SORCERESS, ROGUE)
+    // 6. PLAYER CHARACTER CONTROLLER
     // =========================================================================
     class PlayerController {
       constructor() {
@@ -2228,27 +2553,24 @@
         this.buildProceduralHero();
         scene.add(this.mesh);
 
-        // Try loading GLTF Soldier model if available
-        gltfLoader.load('./Soldier.glb', (gltf) => {
-          const model = gltf.scene;
-          model.scale.set(1.4, 1.4, 1.4);
-          model.rotation.y = Math.PI;
-          model.traverse(c => {
-            if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
-          });
-          // Replace fallback meshes with gltf model
-          while (this.mesh.children.length > 0) {
-            this.mesh.remove(this.mesh.children[0]);
-          }
-          this.mesh.add(model);
-          this.addTorchLight();
-        }, undefined, (err) => {
-          console.log("Using procedural 3D hero model.");
-        });
+        // Try GLTFLoader if Soldier.glb is available
+        if (THREE.GLTFLoader) {
+          const loader = new THREE.GLTFLoader();
+          loader.load('./Soldier.glb', (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(1.4, 1.4, 1.4);
+            model.rotation.y = Math.PI;
+            model.traverse(c => {
+              if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+            });
+            while (this.mesh.children.length > 0) this.mesh.remove(this.mesh.children[0]);
+            this.mesh.add(model);
+            this.addTorchLight();
+          }, undefined, () => {});
+        }
       }
 
       buildProceduralHero() {
-        // Clear children
         while (this.mesh.children.length > 0) this.mesh.remove(this.mesh.children[0]);
 
         const bodyColor = STATE.heroClass === 'barbarian' ? 0x991b1b : (STATE.heroClass === 'sorceress' ? 0x1e3a8a : 0x1f2937);
@@ -2265,7 +2587,6 @@
         head.position.y = 1.85;
         this.mesh.add(head);
 
-        // Weapon
         const wepGeo = new THREE.BoxGeometry(0.12, 1.2, 0.12);
         const wepMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8 });
         const wep = new THREE.Mesh(wepGeo, wepMat);
@@ -2294,29 +2615,26 @@
       attack() {
         audio.playSlash();
 
-        // Perform combat attack based on class
         if (STATE.heroClass === 'barbarian') {
-          // Melee Cleave
+          // Cleave
           const range = 3.2;
           enemies.forEach(e => {
             if (e.isDead) return;
-            const dist = this.mesh.position.distanceTo(e.mesh.position);
-            if (dist <= range) {
+            if (this.mesh.position.distanceTo(e.mesh.position) <= range) {
               const dmg = 18 + STATE.stats.str * 1.5;
               e.takeDamage(dmg, false);
             }
           });
         } else if (STATE.heroClass === 'sorceress') {
-          // Arcane Spark Projectile
+          // Spark
           spawnProjectile(this.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), this.mesh.rotation.y, 'spark');
         } else if (STATE.heroClass === 'assassin') {
-          // Twin Dagger Flurry & Soul Charges
+          // Flurry & Soul charges
           const range = 2.5;
           let hit = false;
           enemies.forEach(e => {
             if (e.isDead) return;
-            const dist = this.mesh.position.distanceTo(e.mesh.position);
-            if (dist <= range) {
+            if (this.mesh.position.distanceTo(e.mesh.position) <= range) {
               const crit = Math.random() < (0.2 + (STATE.torchOn ? 0 : 0.8));
               const dmg = (14 + STATE.stats.dex * 1.8) * (crit ? 2.5 : 1.0);
               e.takeDamage(dmg, crit);
@@ -2333,7 +2651,6 @@
 
       castSkill1() {
         if (STATE.heroClass === 'barbarian') {
-          // Whirlwind
           if (STATE.mana < 15) { showToast('Недостаточно маны!'); return; }
           STATE.mana -= 15;
           updateHUD();
@@ -2346,7 +2663,6 @@
             }
           });
         } else if (STATE.heroClass === 'sorceress') {
-          // Fireball
           if (STATE.mana < 20) { showToast('Недостаточно маны!'); return; }
           STATE.mana -= 20;
           updateHUD();
@@ -2354,13 +2670,11 @@
           showToast('🔥 Огненный шар!');
           spawnProjectile(this.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), this.mesh.rotation.y, 'fireball');
         } else if (STATE.heroClass === 'assassin') {
-          // Shadow Step
           if (STATE.mana < 15) { showToast('Недостаточно маны!'); return; }
           STATE.mana -= 15;
           updateHUD();
           audio.playShadowStep();
           showToast('🗡️ Теневой шаг!');
-          // Teleport behind nearest enemy
           let nearest = null, minDist = 8;
           enemies.forEach(e => {
             if (e.isDead) return;
@@ -2376,7 +2690,6 @@
 
       castSkill2() {
         if (STATE.heroClass === 'barbarian') {
-          // Leap Slam
           if (STATE.mana < 25) { showToast('Недостаточно маны!'); return; }
           STATE.mana -= 25;
           updateHUD();
@@ -2389,7 +2702,6 @@
             }
           });
         } else if (STATE.heroClass === 'sorceress') {
-          // Frost Armor & Blizzard
           if (STATE.mana < 30) { showToast('Недостаточно маны!'); return; }
           STATE.mana -= 30;
           updateHUD();
@@ -2397,7 +2709,6 @@
           showToast('❄️ Ледяная броня активирована!');
           this.activateFrostArmor();
         } else if (STATE.heroClass === 'assassin') {
-          // Soul Burst
           if (STATE.soulCharges === 0) { showToast('Нужны Заряды Душ (атакуйте врагов)!'); return; }
           audio.playExplosion();
           showToast(`💥 Взрыв Душ (x${STATE.soulCharges})!`);
@@ -2438,7 +2749,6 @@
           }
         }
 
-        // Move to target position
         if (this.targetPos) {
           const dir = new THREE.Vector3().subVectors(this.targetPos, this.mesh.position);
           dir.y = 0;
@@ -2456,10 +2766,8 @@
       }
     }
 
-    const player = new PlayerController();
-
     // =========================================================================
-    // 6. MONSTERS & BOSSES
+    // 7. MONSTERS & BOSSES
     // =========================================================================
     class Monster {
       constructor(x, z, type = 'skeleton') {
@@ -2496,7 +2804,6 @@
         this.mesh.add(head);
 
         if (this.type === 'boss') {
-          // Boss Horns
           const hornGeo = new THREE.ConeGeometry(0.15, 0.6, 6);
           const hornMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
           const h1 = new THREE.Mesh(hornGeo, hornMat);
@@ -2516,10 +2823,7 @@
         this.hp -= dmg;
         audio.playHit();
 
-        // Spawn Damage Number
         spawnDamageText(this.mesh.position, Math.round(dmg), isCrit ? 'crit' : 'physical');
-
-        // Update target HP bar if targeted
         showTargetHP(this);
 
         if (this.hp <= 0) {
@@ -2531,21 +2835,18 @@
         this.isDead = true;
         scene.remove(this.mesh);
 
-        // Quest progress
         STATE.quest.currentKills++;
         if (STATE.quest.currentKills >= STATE.quest.targetKills && !STATE.quest.completed) {
           STATE.quest.completed = true;
           showToast('🏆 Квест выполнен! Поговорите с Декардом Каином.');
         }
 
-        // Exp & Gold
         const xpGain = this.type === 'boss' ? 120 : 25;
         gainExp(xpGain);
 
         const goldDrop = this.type === 'boss' ? 150 : Math.floor(10 + Math.random() * 20);
         dropLoot(this.mesh.position.x, this.mesh.position.z, 'gold', goldDrop);
 
-        // Loot drop chance
         if (Math.random() < 0.4 || this.type === 'boss') {
           const rarity = this.type === 'boss' ? 'unique' : (Math.random() < 0.3 ? 'rare' : 'magic');
           dropLoot(this.mesh.position.x + 0.4, this.mesh.position.z, rarity);
@@ -2571,7 +2872,6 @@
             this.mesh.position.addScaledVector(dir, this.speed * dt);
             this.mesh.rotation.y = Math.atan2(dir.x, dir.z);
           } else {
-            // Attack player
             this.attackTimer += dt;
             if (this.attackTimer >= 1.5) {
               this.attackTimer = 0;
@@ -2598,15 +2898,13 @@
     }
 
     function spawnFloorMonsters() {
-      // Regular skeletons
       for (let i = 0; i < 8; i++) {
         const x = -30 + Math.random() * 60;
         const z = -30 + Math.random() * 60;
-        if (Math.hypot(x, z) < 8) continue; // Safe hub
+        if (Math.hypot(x, z) < 8) continue;
         enemies.push(new Monster(x, z, 'skeleton'));
       }
 
-      // Molten Shamans
       for (let i = 0; i < 3; i++) {
         const x = -30 + Math.random() * 60;
         const z = -30 + Math.random() * 60;
@@ -2614,12 +2912,11 @@
         enemies.push(new Monster(x, z, 'shaman'));
       }
 
-      // Boss on Floor 3 or far corner
       enemies.push(new Monster(0, 25, 'boss'));
     }
 
     // =========================================================================
-    // 7. PROJECTILES & LOOT SYSTEM
+    // 8. PROJECTILES & LOOT SYSTEM
     // =========================================================================
     function spawnProjectile(pos, rotY, type) {
       const geo = new THREE.SphereGeometry(type === 'fireball' ? 0.35 : 0.2, 8, 8);
@@ -2662,7 +2959,13 @@
         el: lootPlate
       };
 
-      lootPlate.onclick = () => pickUpLoot(dropObj);
+      const handlePick = (e) => {
+        if (e) e.preventDefault();
+        pickUpLoot(dropObj);
+      };
+      lootPlate.addEventListener('click', handlePick);
+      lootPlate.addEventListener('pointerdown', handlePick);
+
       lootDrops.push(dropObj);
     }
 
@@ -2684,8 +2987,8 @@
         showToast(`Подобрано: ${drop.name}`);
       }
       updateHUD();
+      saveGame();
 
-      // Remove plate
       if (drop.el && drop.el.parentNode) drop.el.parentNode.removeChild(drop.el);
       const idx = lootDrops.indexOf(drop);
       if (idx !== -1) lootDrops.splice(idx, 1);
@@ -2707,6 +3010,7 @@
     }
 
     function toScreenPosition(pos) {
+      if (!camera) return { x: 0, y: 0 };
       const v = pos.clone().project(camera);
       return {
         x: (v.x * 0.5 + 0.5) * window.innerWidth,
@@ -2715,10 +3019,9 @@
     }
 
     // =========================================================================
-    // 8. HUD & UI INTERACTION
+    // 9. HUD & UI INTERACTION
     // =========================================================================
     function updateHUD() {
-      // Orbs
       const hpPct = Math.max(0, Math.min(100, (STATE.health / STATE.maxHealth) * 100));
       const mpPct = Math.max(0, Math.min(100, (STATE.mana / STATE.maxMana) * 100));
 
@@ -2727,7 +3030,6 @@
       document.getElementById('health-text').textContent = `${Math.round(STATE.health)}/${STATE.maxHealth}`;
       document.getElementById('mana-text').textContent = `${Math.round(STATE.mana)}/${STATE.maxMana}`;
 
-      // Low health screen vignette
       const vig = document.getElementById('low-health-vignette');
       if (hpPct <= 25) {
         vig.style.boxShadow = `inset 0 0 70px rgba(239, 68, 68, ${0.8 - (hpPct / 25) * 0.4})`;
@@ -2735,13 +3037,11 @@
         vig.style.boxShadow = 'inset 0 0 60px rgba(239, 68, 68, 0)';
       }
 
-      // Badges
       document.getElementById('hud-hero-name').textContent = STATE.heroClass === 'barbarian' ? 'Варвар' : (STATE.heroClass === 'sorceress' ? 'Волшебница' : 'Ассасин');
       document.getElementById('hud-level').textContent = STATE.level;
       document.getElementById('hud-gold').textContent = STATE.gold;
       document.getElementById('hud-avatar').textContent = STATE.heroClass === 'barbarian' ? '⚔️' : (STATE.heroClass === 'sorceress' ? '🔮' : '🗡️');
 
-      // Potions counts
       document.getElementById('count-pot-hp').textContent = STATE.potionBelt[0]?.count || 0;
       document.getElementById('count-pot-mp').textContent = STATE.potionBelt[1]?.count || 0;
       document.getElementById('count-pot-rejuv').textContent = STATE.potionBelt[2]?.count || 0;
@@ -2801,29 +3101,6 @@
       }, 2500);
     }
 
-    // Modal helpers
-    function openModal(id) {
-      document.getElementById(id).style.display = 'flex';
-    }
-    function closeModal(id) {
-      document.getElementById(id).style.display = 'none';
-    }
-
-    document.querySelectorAll('.modal-close-btn').forEach(btn => {
-      btn.onclick = () => closeModal(btn.getAttribute('data-close'));
-    });
-
-    document.getElementById('btn-open-inv').onclick = () => { renderInventory(); openModal('inventory-modal'); };
-    document.getElementById('btn-open-skills').onclick = () => { renderSkills(); openModal('skills-modal'); };
-    document.getElementById('btn-open-stats').onclick = () => { renderStats(); openModal('stats-modal'); };
-    document.getElementById('btn-open-news').onclick = () => openModal('news-modal');
-
-    // Potions Belt quick clicks
-    document.getElementById('belt-0').onclick = () => usePotion('hp');
-    document.getElementById('belt-1').onclick = () => usePotion('mp');
-    document.getElementById('belt-2').onclick = () => usePotion('rejuv');
-    document.getElementById('belt-3').onclick = () => usePotion('portal');
-
     function usePotion(type) {
       if (type === 'hp' && STATE.potionBelt[0].count > 0) {
         STATE.potionBelt[0].count--;
@@ -2843,32 +3120,34 @@
         showToast('💜 Полное омоложение!');
       } else if (type === 'portal' && STATE.potionBelt[3].count > 0) {
         STATE.potionBelt[3].count--;
-        player.mesh.position.set(0, 0, 0);
+        if (player) player.mesh.position.set(0, 0, 0);
         audio.playFrostSpell();
         showToast('🌀 Телепортация в безопасный лагерь!');
       }
       updateHUD();
+      saveGame();
     }
 
-    // Inventory Rendering
     function renderInventory() {
       const grid = document.getElementById('inv-grid-container');
       grid.innerHTML = '';
       document.getElementById('inv-gold-val').textContent = `${STATE.gold} 🪙`;
 
-      STATE.inventory.forEach((item, idx) => {
+      STATE.inventory.forEach((item) => {
         const slot = document.createElement('div');
         slot.className = `inv-item ${item.rarity}`;
         slot.textContent = item.icon;
         slot.title = `${item.name} (${item.rarity})`;
-        slot.onclick = () => {
+        const onEquip = (e) => {
+          if (e) e.preventDefault();
           showToast(`Экипировано: ${item.name}`);
         };
+        slot.addEventListener('click', onEquip);
+        slot.addEventListener('pointerdown', onEquip);
         grid.appendChild(slot);
       });
     }
 
-    // Skills Tree Rendering
     function renderSkills() {
       const container = document.getElementById('skills-tree-container');
       container.innerHTML = '';
@@ -2895,19 +3174,23 @@
           </div>
           <button class="skill-btn-add" ${STATE.skillPoints <= 0 ? 'disabled' : ''}>+ Улучшить</button>
         `;
-        card.querySelector('.skill-btn-add').onclick = () => {
+        const btnAdd = card.querySelector('.skill-btn-add');
+        const onUpgrade = (e) => {
+          if (e) e.preventDefault();
           if (STATE.skillPoints > 0) {
             STATE.skillPoints--;
             STATE.skills[s.key] = (STATE.skills[s.key] || 0) + 1;
             renderSkills();
             showToast('📜 Навык улучшен!');
+            saveGame();
           }
         };
+        btnAdd.addEventListener('click', onUpgrade);
+        btnAdd.addEventListener('pointerdown', onUpgrade);
         container.appendChild(card);
       });
     }
 
-    // Stats Sheet Rendering
     function renderStats() {
       document.getElementById('stat-points-val').textContent = STATE.statPoints;
       document.getElementById('stats-lvl-val').textContent = STATE.level;
@@ -2923,146 +3206,91 @@
       document.getElementById('stat-calc-crit').textContent = `${Math.min(60, 5 + STATE.stats.dex * 0.8)}%`;
     }
 
-    document.querySelectorAll('.stat-alloc-btn').forEach(btn => {
-      btn.onclick = () => {
-        const stat = btn.getAttribute('data-stat');
-        if (STATE.statPoints > 0) {
-          STATE.statPoints--;
-          STATE.stats[stat]++;
-          if (stat === 'vit') { STATE.maxHealth += 5; STATE.health += 5; }
-          if (stat === 'ene') { STATE.maxMana += 5; STATE.mana += 5; }
-          renderStats();
-          updateHUD();
-          showToast(`Характеристика ${stat.toUpperCase()} увеличена!`);
-        }
-      };
-    });
-
-    // NPC Modal
     function openNPCModal() {
       audio.playCainHum();
       document.getElementById('quest-status-text').textContent = `${STATE.quest.currentKills} / ${STATE.quest.targetKills}`;
-      openModal('npc-modal');
+      document.getElementById('npc-modal').style.display = 'flex';
     }
 
-    document.getElementById('cain-quest-btn').onclick = () => {
-      if (STATE.quest.completed) {
-        STATE.gold += 100;
-        gainExp(150);
-        showToast('🏆 Награда за квест получена (+100 🪙)!');
-        STATE.quest.completed = false;
-        STATE.quest.currentKills = 0;
-        STATE.quest.targetKills += 5;
-        closeModal('npc-modal');
-      } else {
-        showToast(`Убейте еще ${STATE.quest.targetKills - STATE.quest.currentKills} монстров!`);
-      }
-    };
-
-    document.getElementById('cain-buy-hp').onclick = () => {
-      if (STATE.gold >= 25) {
-        STATE.gold -= 25;
-        STATE.potionBelt[0].count++;
-        updateHUD();
-        audio.playCoin();
-        showToast('Куплено Зелье Здоровья!');
-      }
-    };
-
-    document.getElementById('cain-buy-mp').onclick = () => {
-      if (STATE.gold >= 25) {
-        STATE.gold -= 25;
-        STATE.potionBelt[1].count++;
-        updateHUD();
-        audio.playCoin();
-        showToast('Куплено Зелье Маны!');
-      }
-    };
-
-    document.getElementById('cain-hire-merc').onclick = () => {
-      if (STATE.gold >= 100 && !STATE.merc.hired) {
-        STATE.gold -= 100;
-        STATE.merc.hired = true;
-        document.getElementById('merc-hud').style.display = 'flex';
-        updateHUD();
-        audio.playCoin();
-        showToast('🛡️ Наемник Хазад присоединился к вам!');
-      }
-    };
-
     // =========================================================================
-    // 9. CONTROLS: VIRTUAL JOYSTICK, TOUCH & KEYBOARD
+    // 10. CONTROLS: JOYSTICK, TOUCH & RAYCASTING
     // =========================================================================
-    // Virtual Analog Joystick
-    const joystickZone = document.getElementById('joystick-zone');
-    const joystickThumb = document.getElementById('joystick-thumb');
-    let joystickActive = false;
-    let joystickVector = { x: 0, y: 0 };
+    function initTouchControls() {
+      const joystickZone = document.getElementById('joystick-zone');
+      const joystickThumb = document.getElementById('joystick-thumb');
 
-    joystickZone.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      joystickActive = true;
-      handleJoystickTouch(e.touches[0]);
-    });
+      const onTouchStart = (e) => {
+        e.preventDefault();
+        joystickActive = true;
+        handleJoy(e.touches[0]);
+      };
 
-    window.addEventListener('touchmove', (e) => {
-      if (!joystickActive) return;
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        const rect = joystickZone.getBoundingClientRect();
-        if (touch.clientX >= rect.left - 50 && touch.clientX <= rect.right + 50 &&
-            touch.clientY >= rect.top - 50 && touch.clientY <= rect.bottom + 50) {
-          handleJoystickTouch(touch);
-          break;
+      const onTouchMove = (e) => {
+        if (!joystickActive) return;
+        for (let i = 0; i < e.touches.length; i++) {
+          const t = e.touches[i];
+          const rect = joystickZone.getBoundingClientRect();
+          if (t.clientX >= rect.left - 50 && t.clientX <= rect.right + 50 &&
+              t.clientY >= rect.top - 50 && t.clientY <= rect.bottom + 50) {
+            handleJoy(t);
+            break;
+          }
         }
+      };
+
+      const onTouchEnd = (e) => {
+        if (e.touches.length === 0) {
+          joystickActive = false;
+          joystickVector = { x: 0, y: 0 };
+          joystickThumb.style.transform = 'translate(0px, 0px)';
+        }
+      };
+
+      joystickZone.addEventListener('touchstart', onTouchStart, { passive: false });
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd, { passive: false });
+      window.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+      function handleJoy(t) {
+        const rect = joystickZone.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let dx = t.clientX - cx;
+        let dy = t.clientY - cy;
+        const maxDist = rect.width / 2 - 10;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > maxDist) {
+          dx = (dx / dist) * maxDist;
+          dy = (dy / dist) * maxDist;
+        }
+
+        joystickThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+        joystickVector.x = dx / maxDist;
+        joystickVector.y = dy / maxDist;
       }
-    });
 
-    window.addEventListener('touchend', (e) => {
-      if (e.touches.length === 0) {
-        joystickActive = false;
-        joystickVector = { x: 0, y: 0 };
-        joystickThumb.style.transform = 'translate(0px, 0px)';
-      }
-    });
+      // Action buttons
+      const bindTouchBtn = (id, action) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const handler = (e) => {
+          if (e) e.preventDefault();
+          action();
+        };
+        btn.addEventListener('touchstart', handler, { passive: false });
+        btn.addEventListener('click', handler);
+      };
 
-    function handleJoystickTouch(touch) {
-      const rect = joystickZone.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      let dx = touch.clientX - centerX;
-      let dy = touch.clientY - centerY;
-      const maxDist = rect.width / 2 - 10;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist > maxDist) {
-        dx = (dx / dist) * maxDist;
-        dy = (dy / dist) * maxDist;
-      }
-
-      joystickThumb.style.transform = `translate(${dx}px, ${dy}px)`;
-      joystickVector.x = dx / maxDist;
-      joystickVector.y = dy / maxDist;
+      bindTouchBtn('btn-attack', () => { if (player) player.attack(); });
+      bindTouchBtn('btn-skill-1', () => { if (player) player.castSkill1(); });
+      bindTouchBtn('btn-skill-2', () => { if (player) player.castSkill2(); });
+      bindTouchBtn('btn-torch', () => { if (player) player.setTorch(!STATE.torchOn); });
+      bindTouchBtn('btn-interact', () => checkInteractions());
     }
-
-    // Touch Action Buttons
-    document.getElementById('btn-attack').addEventListener('touchstart', (e) => { e.preventDefault(); player.attack(); });
-    document.getElementById('btn-attack').addEventListener('click', () => player.attack());
-
-    document.getElementById('btn-skill-1').addEventListener('touchstart', (e) => { e.preventDefault(); player.castSkill1(); });
-    document.getElementById('btn-skill-1').addEventListener('click', () => player.castSkill1());
-
-    document.getElementById('btn-skill-2').addEventListener('touchstart', (e) => { e.preventDefault(); player.castSkill2(); });
-    document.getElementById('btn-skill-2').addEventListener('click', () => player.castSkill2());
-
-    document.getElementById('btn-torch').addEventListener('touchstart', (e) => { e.preventDefault(); player.setTorch(!STATE.torchOn); });
-    document.getElementById('btn-torch').addEventListener('click', () => player.setTorch(!STATE.torchOn));
-
-    document.getElementById('btn-interact').addEventListener('touchstart', (e) => { e.preventDefault(); checkInteractions(); });
-    document.getElementById('btn-interact').addEventListener('click', () => checkInteractions());
 
     function checkInteractions() {
-      // Check nearby interactables
+      if (!player) return;
       let interacted = false;
       interactables.forEach(item => {
         if (player.mesh.position.distanceTo(item.mesh.position) <= item.radius) {
@@ -3073,71 +3301,46 @@
       if (!interacted) showToast('Поблизости нет объектов для взаимодействия');
     }
 
-    // Tap-to-move / Screen click fallback
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
+    function initRaycasting() {
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
 
-    window.addEventListener('pointerdown', (e) => {
-      // Ignore clicks on UI layers
-      if (e.target.closest('#ui-layer') || e.target.closest('#touch-controls') || e.target.closest('.modal-card')) return;
+      window.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#ui-layer') || e.target.closest('#touch-controls') || e.target.closest('.modal-card') || e.target.closest('#error-banner')) return;
 
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
 
-      const intersects = raycaster.intersectObjects(scene.children, true);
-      for (let i = 0; i < intersects.length; i++) {
-        const hit = intersects[i];
-        if (hit.point.y < 0.5) {
-          player.targetPos = hit.point.clone();
-          player.targetPos.y = 0;
-          break;
+        const intersects = raycaster.intersectObjects(scene.children, true);
+        for (let i = 0; i < intersects.length; i++) {
+          const hit = intersects[i];
+          if (hit.point.y < 0.5) {
+            player.targetPos = hit.point.clone();
+            player.targetPos.y = 0;
+            break;
+          }
         }
-      }
-    });
-
-    // Desktop Keyboard controls
-    const keys = {};
-    window.addEventListener('keydown', (e) => {
-      keys[e.code] = true;
-      if (e.code === 'KeyI') openModal('inventory-modal');
-      if (e.code === 'KeyT') openModal('skills-modal');
-      if (e.code === 'KeyC') openModal('stats-modal');
-      if (e.code === 'KeyF') player.setTorch(!STATE.torchOn);
-      if (e.code === 'KeyQ') player.castSkill1();
-      if (e.code === 'KeyE') player.castSkill2();
-      if (e.code === 'Space') player.attack();
-      if (e.code === 'Digit1') usePotion('hp');
-      if (e.code === 'Digit2') usePotion('mp');
-      if (e.code === 'Digit3') usePotion('rejuv');
-      if (e.code === 'Digit4') usePotion('portal');
-      if (e.code === 'Escape') {
-        document.querySelectorAll('.modal-backdrop').forEach(m => m.style.display = 'none');
-      }
-    });
-
-    window.addEventListener('keyup', (e) => {
-      keys[e.code] = false;
-    });
+      });
+    }
 
     // =========================================================================
-    // 10. MINIMAP RADAR
+    // 11. MINIMAP RADAR
     // =========================================================================
     const minimapCanvas = document.getElementById('minimap-canvas');
     const minimapCtx = minimapCanvas.getContext('2d');
 
     function drawMinimap() {
+      if (!player) return;
       minimapCtx.clearRect(0, 0, 100, 100);
 
-      // Background
-      minimapCtx.fillStyle = 'rgba(15, 10, 14, 0.8)';
+      minimapCtx.fillStyle = 'rgba(15, 10, 14, 0.85)';
       minimapCtx.fillRect(0, 0, 100, 100);
 
-      const mapScale = 1.1; // 90 units map to 100px
+      const mapScale = 1.1;
       const cx = 50;
       const cy = 50;
 
-      // Draw enemies
       enemies.forEach(e => {
         if (e.isDead) return;
         const mx = cx + e.mesh.position.x * mapScale;
@@ -3148,7 +3351,6 @@
         minimapCtx.fill();
       });
 
-      // Draw Player
       const px = cx + player.mesh.position.x * mapScale;
       const py = cy + player.mesh.position.z * mapScale;
       minimapCtx.fillStyle = '#f59e0b';
@@ -3158,74 +3360,7 @@
     }
 
     // =========================================================================
-    // 11. STARTUP & CLASS SELECTION
-    // =========================================================================
-    document.querySelectorAll('.class-card').forEach(card => {
-      card.onclick = () => {
-        document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        STATE.heroClass = card.getAttribute('data-class');
-      };
-    });
-
-    document.getElementById('btn-start-game').onclick = () => {
-      audio.init();
-      // Initialize class base stats
-      if (STATE.heroClass === 'barbarian') {
-        STATE.health = 150; STATE.maxHealth = 150;
-        STATE.mana = 50; STATE.maxMana = 50;
-        STATE.stats = { str: 18, dex: 12, vit: 20, ene: 5 };
-      } else if (STATE.heroClass === 'sorceress') {
-        STATE.health = 75; STATE.maxHealth = 75;
-        STATE.mana = 160; STATE.maxMana = 160;
-        STATE.stats = { str: 7, dex: 10, vit: 10, ene: 22 };
-      } else if (STATE.heroClass === 'assassin') {
-        STATE.health = 95; STATE.maxHealth = 95;
-        STATE.mana = 80; STATE.maxMana = 80;
-        STATE.stats = { str: 11, dex: 20, vit: 12, ene: 8 };
-      }
-
-      player.buildProceduralHero();
-      createDungeonFloor();
-      updateHUD();
-      updateSoulChargesHUD();
-      document.getElementById('class-select-screen').style.display = 'none';
-      showToast('⚔️ Добро пожаловать в Темное Подземелье!');
-    };
-
-    // Check save
-    if (loadGame()) {
-      const btnCont = document.getElementById('btn-continue-save');
-      btnCont.style.display = 'inline-block';
-      btnCont.textContent = `Продолжить: ${STATE.heroClass.toUpperCase()} (Ур. ${STATE.level})`;
-      btnCont.onclick = () => {
-        audio.init();
-        player.buildProceduralHero();
-        createDungeonFloor();
-        updateHUD();
-        updateSoulChargesHUD();
-        document.getElementById('class-select-screen').style.display = 'none';
-        showToast('⚔️ Игра загружена!');
-      };
-    }
-
-    document.getElementById('btn-respawn').onclick = () => {
-      STATE.health = STATE.maxHealth;
-      STATE.mana = STATE.maxMana;
-      player.mesh.position.set(0, 0, 0);
-      document.getElementById('game-over-screen').style.display = 'none';
-      updateHUD();
-    };
-
-    document.getElementById('btn-victory-continue').onclick = () => {
-      document.getElementById('victory-screen').style.display = 'none';
-      STATE.floor++;
-      createDungeonFloor();
-      player.mesh.position.set(0, 0, 0);
-    };
-
-    // =========================================================================
-    // 12. MAIN GAME LOOP
+    // 12. MAIN ANIMATION LOOP
     // =========================================================================
     let lastTime = performance.now();
 
@@ -3236,42 +3371,38 @@
       const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
-      // Handle Keyboard Movement
+      if (!player) return;
+
       let moveX = 0, moveZ = 0;
       if (keys['KeyW'] || keys['ArrowUp']) moveZ -= 1;
       if (keys['KeyS'] || keys['ArrowDown']) moveZ += 1;
       if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
       if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
 
-      // Merge with Joystick
       if (joystickActive) {
         moveX = joystickVector.x;
         moveZ = joystickVector.y;
       }
 
       if (moveX !== 0 || moveZ !== 0) {
-        player.targetPos = null; // Override tap-to-move
+        player.targetPos = null;
         const moveVec = new THREE.Vector3(moveX, 0, moveZ).normalize();
         player.mesh.position.addScaledVector(moveVec, player.speed * dt);
         player.mesh.rotation.y = Math.atan2(moveVec.x, moveVec.z);
       }
 
-      // Update Player
       player.update(dt);
 
-      // Camera Follows Player smoothly
       camera.position.x = player.mesh.position.x + camOffset.x;
       camera.position.y = player.mesh.position.y + camOffset.y;
       camera.position.z = player.mesh.position.z + camOffset.z;
       camera.lookAt(player.mesh.position);
 
-      // Update Projectiles
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
         p.mesh.position.addScaledVector(p.dir, p.speed * dt);
         p.life -= dt;
 
-        // Check monster hits
         enemies.forEach(e => {
           if (e.isDead) return;
           if (p.mesh.position.distanceTo(e.mesh.position) < 1.2) {
@@ -3286,24 +3417,18 @@
         }
       }
 
-      // Update Monsters
       enemies.forEach(e => e.update(dt));
 
-      // Update Floating 2D Loot Nameplates positions
       lootDrops.forEach(drop => {
         const pos2D = toScreenPosition(drop.pos);
         drop.el.style.left = `${pos2D.x}px`;
         drop.el.style.top = `${pos2D.y}px`;
       });
 
-      // Update Minimap
       drawMinimap();
 
-      // Render 3D Scene
       renderer.render(scene, camera);
     }
-
-    animate();
   </script>
 </body>
 </html>
