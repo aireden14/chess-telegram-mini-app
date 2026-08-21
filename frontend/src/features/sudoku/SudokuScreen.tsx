@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { TopNav } from "../../components/TopNav";
 import { triggerHaptic } from "../../hooks/useTelegram";
 import { celebrate } from "../../hooks/celebrate";
@@ -11,6 +12,8 @@ import { difficultyLabel, formatSudokuTime, DIFFICULTY_HINTS } from "./SudokuSta
 import { TECHNIQUE_LABELS, SudokuTechnique } from "./sudokuLogic";
 import { difficultiesForSize } from "./sudokuEngine";
 import { SUDOKU_SIZES, SUDOKU_VARIANTS, SudokuSize, variantOf } from "./sudokuVariants";
+import { useSudokuSchool } from "./school/schoolStore";
+import { LESSON_COUNT } from "./school/lessons";
 
 // Тёмные эмодзи на тёмной панели не читаются — у «Бездны» намеренно светящийся значок.
 const DIFFICULTY_ICONS: Partial<Record<SudokuDifficulty, string>> = {
@@ -68,6 +71,9 @@ export function SudokuScreen() {
     report,
     clearReward,
   } = useSudokuProfile();
+
+  const nav = useNavigate();
+  const schoolDone = useSudokuSchool((state) => state.completed.length);
 
   const reportedRef = useRef<string | null>(null);
   const [menu, setMenu] = useState<Menu>(null);
@@ -228,6 +234,22 @@ export function SudokuScreen() {
           <button
             className="sudoku-iconbtn"
             onClick={() => {
+              nav("/sudoku/school");
+              triggerHaptic("light");
+            }}
+            aria-label="Школа судоку"
+            title="Школа судоку: 20 уроков"
+          >
+            🎓
+            {schoolDone < LESSON_COUNT && (
+              <span className="sudoku-iconbtn-badge">
+                {schoolDone}/{LESSON_COUNT}
+              </span>
+            )}
+          </button>
+          <button
+            className="sudoku-iconbtn"
+            onClick={() => {
               setMenu("tasks");
               triggerHaptic("light");
             }}
@@ -382,6 +404,9 @@ export function SudokuScreen() {
                 onClick={startToday}
               >
                 Задача дня
+              </button>
+              <button className="btn btn-block" style={{ marginTop: 10 }} onClick={() => nav("/sudoku/school")}>
+                🎓 Школа судоку · {schoolDone}/{LESSON_COUNT}
               </button>
             </div>
             <div className="sudoku-menu-section">

@@ -6,6 +6,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "sudoku:lessons": "node scripts/build-sudoku-lessons.mjs",
+    "sudoku:lessons:check": "node scripts/check-sudoku-lessons.mjs",
     "volt:build": "node scripts/build-volt-runner.mjs",
     "volt:check": "node scripts/build-volt-runner.mjs --check && node --test ../apps/volt-runner/tests/*.test.mjs && node scripts/check-volt-runner.mjs"
   },

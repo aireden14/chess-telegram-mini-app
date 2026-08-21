@@ -15,6 +15,7 @@ import { ReplayScreen } from "./pages/ReplayScreen";
 import { LeaderboardScreen } from "./pages/LeaderboardScreen";
 import { PausedScreen } from "./pages/PausedScreen";
 import { SudokuScreen } from "./features/sudoku/SudokuScreen";
+import { SudokuSchoolScreen } from "./features/sudoku/school/SudokuSchoolScreen";
 import { PeredelScreen } from "./features/peredel/PeredelScreen";
 import { ForceDeflectorScreen } from "./features/forceDeflector/ForceDeflectorScreen";
 import { NeurogridScreen } from "./features/neurogrid/NeurogridScreen";
@@ -96,6 +97,7 @@ export function App() {
         <Route path="/leaderboard" element={<Protected><LeaderboardScreen /></Protected>} />
         <Route path="/paused" element={<Protected><PausedScreen /></Protected>} />
         <Route path="/sudoku" element={<Protected><SudokuScreen /></Protected>} />
+        <Route path="/sudoku/school" element={<Protected><SudokuSchoolScreen /></Protected>} />
         <Route path="/peredel" element={<Protected><PeredelScreen /></Protected>} />
         <Route path="/force-deflector" element={<Protected><ForceDeflectorScreen /></Protected>} />
         <Route path="/neurogrid" element={<Protected><NeurogridScreen /></Protected>} />

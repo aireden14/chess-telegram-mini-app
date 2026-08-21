@@ -4175,3 +4175,348 @@ body {
   font-style: normal;
   color: #ffd9a0;
 }
+
+/* ===== Школа судоку =====
+ * Тренажёр приёмов: доска тут не игровая, а иллюстративная — своя разметка
+ * подсветок поверх тех же классов сетки, что и в самой игре.
+ */
+
+.school-screen {
+  padding-bottom: 28px;
+}
+
+.school-head {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(145deg, var(--glass-solid), rgba(255, 255, 255, 0.02));
+}
+
+.school-head h2 {
+  margin: 6px 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.school-head p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--apple-text-faint);
+}
+
+.school-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--apple-text-faint);
+}
+
+.school-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+.school-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--piece-dark-1), var(--piece-dark-2));
+  transition: width 0.3s ease;
+}
+
+.school-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.school-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-solid);
+  color: var(--apple-text);
+  text-align: left;
+  transition: transform 0.14s ease, background 0.18s ease;
+}
+
+.school-card:active {
+  transform: scale(0.985);
+}
+
+.school-card.locked {
+  opacity: 0.45;
+}
+
+.school-card.done {
+  border-color: color-mix(in srgb, var(--piece-dark-1) 45%, transparent);
+}
+
+.school-card-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.school-card.done .school-card-num {
+  background: linear-gradient(135deg, var(--piece-dark-1), var(--piece-dark-2));
+  color: #000;
+}
+
+.school-card-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.school-card-body strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.school-card-body em {
+  font-size: 12px;
+  font-style: normal;
+  color: var(--apple-text-faint);
+}
+
+.school-card-skip {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--apple-text-faint);
+}
+
+.school-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--apple-text-faint);
+}
+
+.school-footer a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+/* ===== Урок ===== */
+
+.school-lesson {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.school-theory {
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-solid);
+}
+
+.school-theory h2 {
+  margin: 6px 0 4px;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.school-theory p {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--apple-text-faint);
+}
+
+.school-goal {
+  font-weight: 700;
+  color: var(--apple-text) !important;
+}
+
+.school-task {
+  display: grid;
+  gap: 12px;
+}
+
+.school-task-head {
+  display: grid;
+  gap: 4px;
+}
+
+.school-task-order {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--apple-text-faint);
+}
+
+.school-ask {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.school-shell {
+  padding: 6px;
+}
+
+.school-pad {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+}
+
+.school-number {
+  padding: 10px 0;
+}
+
+.school-number strong {
+  font-size: 18px;
+}
+
+.school-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+}
+
+.school-note {
+  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--apple-text-faint);
+}
+
+.school-note.warn {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ffd2d2;
+}
+
+.school-note.good {
+  border-color: color-mix(in srgb, var(--piece-dark-1) 45%, transparent);
+  color: var(--apple-text);
+}
+
+.school-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.school-controls .btn-block {
+  grid-column: 1 / -1;
+}
+
+.school-done {
+  padding: 26px 18px;
+  text-align: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-solid);
+}
+
+.school-done h2 {
+  margin: 6px 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.school-done p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--apple-text-faint);
+}
+
+.school-done-orb {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 28px;
+  color: #000;
+  background: linear-gradient(135deg, var(--piece-dark-1), var(--piece-dark-2));
+}
+
+/* ===== Подсветки на доске урока ===== */
+
+.school-board .sudoku-cell:disabled {
+  opacity: 1;
+}
+
+.school-board .sudoku-cell.school-scope {
+  background: color-mix(in srgb, var(--piece-dark-1) 16%, var(--board-dark));
+}
+
+.school-board .sudoku-cell.given.school-scope {
+  background: color-mix(in srgb, var(--piece-dark-1) 26%, var(--board-light));
+}
+
+/* Всё вне области приёма гаснет, но остаётся читаемым: строки и колонки
+   снаружи всё ещё нужны, чтобы вычеркнуть цифру внутри области. */
+.school-board .sudoku-cell.school-dim {
+  opacity: 0.42;
+}
+
+.school-board .sudoku-cell.school-focus {
+  box-shadow: inset 0 0 0 2px var(--piece-dark-1);
+  background: color-mix(in srgb, var(--piece-dark-1) 26%, transparent);
+}
+
+.school-board .sudoku-cell.school-mark {
+  box-shadow: inset 0 0 0 2px var(--accent-blue);
+  background: color-mix(in srgb, var(--accent-blue) 26%, transparent);
+}
+
+.school-board .sudoku-cell.school-wrong {
+  box-shadow: inset 0 0 0 2px var(--red);
+  background: rgba(239, 68, 68, 0.24);
+}
+
+.school-board .sudoku-cell.school-placed {
+  color: #000;
+  background: linear-gradient(135deg, var(--piece-dark-1), var(--piece-dark-2));
+}
+
+/* Кандидаты в школе крупнее игровых: здесь они не пометка на полях, а сам
+   предмет урока — по ним ищут пары, тройки и рыб. */
+.school-board .sudoku-notes {
+  font-size: clamp(7px, calc(24vw / 9), 13px);
+}
+
+/* Вычеркнутый кандидат: не исчезает, а перечёркивается — видно, что именно ушло. */
+.school-board .sudoku-notes i.school-struck {
+  color: var(--red);
+  text-decoration: line-through;
+  opacity: 0.9;
+}
+
+.school-hint-line {
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  text-align: center;
+  color: var(--apple-text-faint);
+}
