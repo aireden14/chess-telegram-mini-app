@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#17110d">
-<title>СЦЕНА · кто остался с жертвой</title>
+<title>Мурдоку Алины · кто остался с жертвой</title>
 <style>
   :root{
     /* Telegram сам подставляет --tg-content-safe-area-inset-top; env() — запасной путь вне TG */
@@ -50,6 +50,7 @@
   .tb[disabled]{opacity:.4}
   .brand{font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:5px;text-shadow:0 2px 0 #000}
   .brand i{color:var(--blood);font-style:normal}
+  .brand.long{font-size:13.5px;letter-spacing:2.6px}
   .wrap{width:100%;max-width:560px;margin:0 auto;padding:0 12px 34px;
     display:flex;flex-direction:column;gap:12px}
 
@@ -59,6 +60,7 @@
     font-family:var(--mono);font-size:42px;font-weight:900;letter-spacing:11px;
     margin-left:11px;text-shadow:0 3px 0 #000,0 0 34px rgba(201,162,75,.30);
   }
+  .hero .logo.two{font-size:33px;letter-spacing:7px;line-height:1.06;margin-left:7px}
   .hero .logo i{color:var(--blood);font-style:normal}
   .hero .sub{color:var(--muted);font-size:11.5px;letter-spacing:2.2px;margin-top:8px;font-family:var(--mono)}
   .mbtn{
@@ -228,12 +230,12 @@
 <div class="screen on" id="scMenu">
   <div class="topbar">
     <button class="tb" id="exitBtn">← Хаб</button>
-    <div class="brand">СЦЕ<i>Н</i>А</div>
+    <div class="brand long">МУРДОКУ АЛ<i>И</i>НЫ</div>
     <button class="tb" id="rulesBtn">Правила</button>
   </div>
   <div class="wrap">
     <div class="hero">
-      <div class="logo">СЦЕ<i>Н</i>А</div>
+      <div class="logo two">МУРД<i>О</i>КУ<br>АЛИНЫ</div>
       <div class="sub">КТО ОСТАЛСЯ С ЖЕРТВОЙ</div>
     </div>
 
@@ -325,7 +327,7 @@
 <script>
 "use strict";
 /* ============================================================
-   СЦЕНА — пространственный дедуктивный паззл.
+   МУРДОКУ АЛИНЫ (бывш. «СЦЕНА») — пространственный дедуктивный паззл.
    Подозреваемые стоят по одному в каждом ряду и каждой колонке.
    Улики — пространственные. Убийца тот, кто остался с жертвой
    один на один в её зоне.
@@ -333,14 +335,12 @@
 
 var VERSION = "1.0.0";
 var NEWS = {
-  date: "18.08.2026",
-  title: "Первый выпуск",
+  date: "22 августа 2026, 23:52 (Алматы)",
+  title: "Новое имя: «Мурдоку Алины»",
   items: [
-    "Новая игра «СЦЕНА»: расставь подозреваемых по карте особняка и найди того, кто остался с жертвой один на один.",
-    "Четыре уровня: Стажёр 5×5, Детектив 6×6, Инспектор 7×7, Комиссар 8×8.",
-    "«Дело дня» — одно и то же дело для всех, новое каждый день, со счётчиком серии.",
-    "Улики: комнаты, стороны света, соседство, предметы, счёт по комнатам и расстояния.",
-    "Карандаш для пометок, 3 сверки и 2 подсказки на дело; прогресс сохраняется при выходе."
+    "🩸 Игра «СЦЕНА» переименована в «Мурдоку Алины» — правила, дела и уровни не изменились ни на клетку",
+    "🔗 Адрес прежний: кто заходил по прямой ссылке, ничего перенастраивать не нужно",
+    "📊 Серии «Дела дня», рекорды и сохранённый прогресс на месте"
   ]
 };
 

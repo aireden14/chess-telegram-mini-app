@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../catan/catan.css";
 
-// Сцена: пространственный дедуктивный паззл — standalone iframe, без backend.
+// Мурдоку Алины (бывш. «Сцена»): пространственный дедуктивный паззл — standalone iframe, без backend.
 export function SceneScreen() {
   const nav = useNavigate();
 
@@ -23,7 +23,7 @@ export function SceneScreen() {
     <div className="catan-fs" style={{ paddingTop: "var(--safe-top, 0px)" }}>
       <iframe
         className="catan-fs-frame"
-        title="Сцена · кто остался с жертвой"
+        title="Мурдоку Алины · кто остался с жертвой"
         src="/games/scene/index.html"
         allow="autoplay; fullscreen"
       />

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0e13">
-<title>АЛИБИ · дело на логику</title>
+<title>ДЕТЕКТИВ · дело на логику</title>
 <style>
   :root{
     /* Telegram сам подставляет --tg-content-safe-area-inset-top; env() — запасной путь вне TG */
@@ -55,7 +55,7 @@
     text-align:center;padding:26px 12px 6px;
   }
   .hero .logo{
-    font-family:var(--mono);font-size:44px;font-weight:900;letter-spacing:12px;
+    font-family:var(--mono);font-size:34px;font-weight:900;letter-spacing:8px;
     margin-left:12px;text-shadow:0 3px 0 #000,0 0 34px rgba(93,139,179,.35);
   }
   .hero .logo i{color:var(--red);font-style:normal}
@@ -253,7 +253,7 @@
 <div class="screen on" id="menuScreen">
   <div class="wrap">
     <div class="hero">
-      <div class="logo">АЛ<i>И</i>БИ</div>
+      <div class="logo">ДЕТЕКТ<i>И</i>В</div>
       <div class="sub">ДЕЛО РАСКРЫВАЕТСЯ ЛОГИКОЙ</div>
     </div>
 
@@ -317,7 +317,7 @@
 <div class="screen" id="gameScreen">
   <div class="topbar">
     <button class="tb" id="backBtn">← ДЕЛА</button>
-    <div class="brand">АЛ<i>И</i>БИ</div>
+    <div class="brand">ДЕТЕКТ<i>И</i>В</div>
     <button class="tb" id="menuDots">⋯</button>
   </div>
   <div class="wrap" id="gameBody">
@@ -981,14 +981,12 @@ function clueText(cl, cats, scene, N) {
    ============================================================ */
 var VERSION = "1.0.0";
 var NEWS = {
-  date: "18 августа 2026, 13:41 (Алматы)",
-  title: "Первый выпуск",
+  date: "22 августа 2026, 23:52 (Алматы)",
+  title: "Новое имя: «Детектив»",
   items: [
-    "🔦 Пять ступеней следствия: от учебного дела на четыре места до «Тени» на шесть мест и пять примет",
-    "🗂 Восемь мест действия — бар, доходный дом, ночной экспресс, редакция, отель, порт, театр и подпольный стол",
-    "📅 «Дело дня»: одно и то же дело у всех до полуночи, за серию дней идёт счётчик",
-    "✍️ Два вида ввода: таблица с пометками и классическая сетка ✓/✗ — состояние общее",
-    "⚖️ Обвинение предъявляется один раз: игра предупредит, если версия расходится с показаниями, но не скажет, с какими"
+    "🔦 Игра «АЛИБИ» переименована в «Детектив» — дела, приметы и пять ступеней следствия прежние",
+    "📄 Само слово «алиби» никуда не делось: это по-прежнему одна из примет в показаниях",
+    "🔗 Адрес прежний, счётчик серии и сохранённое дело не сбрасываются"
   ]
 };
 

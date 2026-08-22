@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../catan/catan.css";
 
-// Алиби: зебра-паззл в нуарной обёртке — standalone iframe, без backend.
+// Детектив (бывш. «Алиби»): зебра-паззл в нуарной обёртке — standalone iframe, без backend.
 export function AlibiScreen() {
   const nav = useNavigate();
 
@@ -23,7 +23,7 @@ export function AlibiScreen() {
     <div className="catan-fs" style={{ paddingTop: "var(--safe-top, 0px)" }}>
       <iframe
         className="catan-fs-frame"
-        title="Алиби · дело на логику"
+        title="Детектив · дело на логику"
         src="/games/alibi/index.html"
         allow="autoplay; fullscreen"
       />

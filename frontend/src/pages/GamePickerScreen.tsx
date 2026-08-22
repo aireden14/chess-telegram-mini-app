@@ -50,13 +50,13 @@ const HIDDEN_ROUTES = new Set<string>([
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
-  { key: "card", icon: "🩸", title: "СЦЕНА", to: "/scene", grad: ["#7a4a2a", "#a32b25"] },
-  { key: "card", icon: "🔦", title: "АЛИБИ", to: "/alibi", grad: ["#4a5a72", "#c1322f"] },
+  { key: "card", icon: "🩸", title: "Мурдоку Алины", to: "/scene", grad: ["#7a4a2a", "#a32b25"] },
+  { key: "card", icon: "🔦", title: "Детектив", to: "/alibi", grad: ["#4a5a72", "#c1322f"] },
   { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"] },
   { key: "card", icon: "⚔️", title: "DARK DUNGEON", to: "/dark-dungeon", grad: ["#8b0000", "#ff4500"] },
   { key: "card", icon: "🏗️", title: "БЛОК ЗА БЛОКОМ", to: "/block-tower", grad: ["#ffb52e", "#ff643d"] },
   { key: "card", icon: "🚙", title: "Холм Драйв", to: "/hill-drive", grad: ["#62c7f2", "#ffb13b"] },
-  { key: "card", icon: "🚩", title: "Передел", to: "/peredel", grad: ["#2979ff", "#ff526e"] },
+  { key: "card", icon: "🚩", title: "Судоку PVP", to: "/peredel", grad: ["#2979ff", "#ff526e"] },
   { key: "card", icon: "🍬", title: "SUGAR STRIKE", to: "/sugar-strike", grad: ["#ff9fc4", "#8fd3ff"] },
   { key: "card", icon: "🎛️", title: "WAVE FORGE", to: "/beat-maker", grad: ["#24e0ff", "#ff2d96"] },
   { key: "card", icon: "🔻", title: "NEON REQUIEM", to: "/neon-requiem", grad: ["#ff174f", "#00f0ff"] },

@@ -101,7 +101,7 @@ export function PeredelScreen() {
 
   return (
     <div className="app-screen peredel-screen">
-      <TopNav title="Передел" backTo="/" />
+      <TopNav title="Судоку PVP" backTo="/" />
 
       <div className="peredel-scorebar">
         <div className="peredel-side you">
@@ -155,7 +155,7 @@ export function PeredelScreen() {
             <span>Промах — ход пропущен</span>
           </div>
         )}
-        <div className="sudoku-board peredel-board" role="grid" aria-label="Передел, поле 9 на 9">
+        <div className="sudoku-board peredel-board" role="grid" aria-label="Судоку PVP, поле 9 на 9">
           {entries.map((value, index) => {
             const given = givens[index] !== null;
             const owner = owners[index];
@@ -276,7 +276,7 @@ export function PeredelScreen() {
             <p className="sudoku-kicker">Доска заполнена</p>
             <h2>
               {result.youScore > result.botScore
-                ? "Передел твой"
+                ? "Ты забрал больше"
                 : result.youScore === result.botScore
                   ? "Ничья"
                   : "Бот забрал больше"}
