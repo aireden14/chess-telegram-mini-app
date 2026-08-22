@@ -23,6 +23,8 @@ type AppEntry = {
 // Роуты в App.tsx и код игр на месте — чтобы вернуть игру в хаб, достаточно убрать строку отсюда.
 const HIDDEN_ROUTES = new Set<string>([
   "/dark-dungeon",
+  "/block-tower",
+  "/hill-drive",
   "/sugar-strike",
   "/beat-maker",
   "/neon-requiem",
@@ -48,20 +50,18 @@ const HIDDEN_ROUTES = new Set<string>([
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
-  { key: "card", icon: "🩸", title: "СЦЕНА", to: "/scene", grad: ["#7a4a2a", "#a32b25"], badge: "NEW" },
-  { key: "card", icon: "🔦", title: "АЛИБИ", to: "/alibi", grad: ["#4a5a72", "#c1322f"], badge: "NEW" },
-  { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"], badge: "NEW" },
-  { key: "card", icon: "⚔️", title: "DARK DUNGEON", to: "/dark-dungeon", grad: ["#8b0000", "#ff4500"], badge: "NEW" },
-  // на доработку по итогам аудита 22.08.2026
-  { key: "card", icon: "🏗️", title: "БЛОК ЗА БЛОКОМ", to: "/block-tower", grad: ["#ffb52e", "#ff643d"], badge: "NEW" },
-  // на доработку по итогам аудита 22.08.2026
-  { key: "card", icon: "🚙", title: "Холм Драйв", to: "/hill-drive", grad: ["#62c7f2", "#ffb13b"], badge: "NEW" },
-  { key: "card", icon: "🚩", title: "Передел", to: "/peredel", grad: ["#2979ff", "#ff526e"], badge: "NEW" },
-  { key: "card", icon: "🍬", title: "SUGAR STRIKE", to: "/sugar-strike", grad: ["#ff9fc4", "#8fd3ff"], badge: "NEW" },
-  { key: "card", icon: "🎛️", title: "WAVE FORGE", to: "/beat-maker", grad: ["#24e0ff", "#ff2d96"], badge: "NEW" },
-  { key: "card", icon: "🔻", title: "NEON REQUIEM", to: "/neon-requiem", grad: ["#ff174f", "#00f0ff"], badge: "NEW" },
-  { key: "card", icon: "⚡", title: "VOLT RUNNER", to: "/volt-runner", grad: ["#ffe600", "#ff5c00"], badge: "NEW" },
-  { key: "card", icon: "⚔️", title: "NEON BLADE", to: "/neon-blade", grad: ["#ff2d96", "#00e5ff"], badge: "NEW" },
+  { key: "card", icon: "🩸", title: "СЦЕНА", to: "/scene", grad: ["#7a4a2a", "#a32b25"] },
+  { key: "card", icon: "🔦", title: "АЛИБИ", to: "/alibi", grad: ["#4a5a72", "#c1322f"] },
+  { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"] },
+  { key: "card", icon: "⚔️", title: "DARK DUNGEON", to: "/dark-dungeon", grad: ["#8b0000", "#ff4500"] },
+  { key: "card", icon: "🏗️", title: "БЛОК ЗА БЛОКОМ", to: "/block-tower", grad: ["#ffb52e", "#ff643d"] },
+  { key: "card", icon: "🚙", title: "Холм Драйв", to: "/hill-drive", grad: ["#62c7f2", "#ffb13b"] },
+  { key: "card", icon: "🚩", title: "Передел", to: "/peredel", grad: ["#2979ff", "#ff526e"] },
+  { key: "card", icon: "🍬", title: "SUGAR STRIKE", to: "/sugar-strike", grad: ["#ff9fc4", "#8fd3ff"] },
+  { key: "card", icon: "🎛️", title: "WAVE FORGE", to: "/beat-maker", grad: ["#24e0ff", "#ff2d96"] },
+  { key: "card", icon: "🔻", title: "NEON REQUIEM", to: "/neon-requiem", grad: ["#ff174f", "#00f0ff"] },
+  { key: "card", icon: "⚡", title: "VOLT RUNNER", to: "/volt-runner", grad: ["#ffe600", "#ff5c00"] },
+  { key: "card", icon: "⚔️", title: "NEON BLADE", to: "/neon-blade", grad: ["#ff2d96", "#00e5ff"] },
   { key: "catan", icon: "/game-icons/256/catan.png", title: "Катан", to: "/catan", grad: ["#00b8a9", "#ffb23f"] },
   { key: "card", icon: "/game-icons/256/catan-fable.png", title: "Катан Fable", to: "/catan-fable", grad: ["#7d4cff", "#c35cff"] },
   { key: "card", icon: "/game-icons/256/fable-factory.png", title: "Fable Factory", to: "/fable-factory", grad: ["#ffb000", "#00d6ff"] },
@@ -78,12 +78,12 @@ const ALL_APPS: AppEntry[] = [
   { key: "card", icon: "🌀", title: "Overquest", to: "/overquest", grad: ["#805dff", "#43dfe8"] },
   { key: "card", icon: "🚪", title: "Мачкин", to: "/machkin", grad: ["#d4a13c", "#c8503f"] },
   { key: "card", icon: "🕵️", title: "Гарридоку", to: "/garridoku", grad: ["#c9a24b", "#3a2c5e"] },
-  { key: "card", icon: "🔎", title: "Мурдоку", to: "/murdoku", grad: ["#8b1e3f", "#1f2a44"], badge: "NEW" },
+  { key: "card", icon: "🔎", title: "Мурдоку", to: "/murdoku", grad: ["#8b1e3f", "#1f2a44"] },
   { key: "force", icon: "/game-icons/256/force-deflector.png", title: "Отражатель", to: "/force-deflector", grad: ["#7b61ff", "#2ea8ff"] },
   { key: "force", icon: "/game-icons/256/neurogrid.png", title: "Neurogrid", to: "/neurogrid", grad: ["#00e5ff", "#ff39d6"] },
   { key: "force", icon: "/game-icons/256/webgrid.png", title: "WebGrid", to: "/webgrid", grad: ["#22ff88", "#efff4a"] },
   { key: "card", icon: "🛸", title: "Nebula Drift", to: "/nebula-drift", grad: ["#00e5ff", "#ff39d6"] },
-  { key: "card", icon: "⚔️", title: "Jedi Survivors", to: "/jedi-survivors", grad: ["#3fd6ff", "#00ff9c"], badge: "NEW" },
+  { key: "card", icon: "⚔️", title: "Jedi Survivors", to: "/jedi-survivors", grad: ["#3fd6ff", "#00ff9c"] },
   { key: "catan_beta", icon: "/game-icons/256/reader.png", title: "Читалка", to: "/reader", grad: ["#1c7cff", "#ff6a7a"] },
   { key: "catan_beta", icon: "/game-icons/256/pdf-studio.png", title: "PDF Studio", to: "/pdf-studio", grad: ["#f43a3a", "#2ea8ff"] },
 ];
@@ -91,6 +91,9 @@ const ALL_APPS: AppEntry[] = [
 // То, что реально показывает главный экран. APP_BY_ROUTE намеренно строится по полному списку:
 // скрытая игра открывается по прямой ссылке, и её запуск должен попасть в статистику.
 const CATALOG = ALL_APPS.filter((app) => !HIDDEN_ROUTES.has(app.to));
+
+// Всегда первыми на главной, в этом порядке — независимо от того, что запускают чаще.
+const PINNED = ["/sudoku", "/catan"];
 
 const APP_BY_ROUTE = new Map(ALL_APPS.map((app) => [app.to, app]));
 
@@ -128,17 +131,16 @@ export function GamePickerScreen() {
     return () => window.clearTimeout(timer);
   }, [contentProgress]);
 
-  // Один плоский список: чаще всего запускаемые — сверху, при равном счёте — недавно запущенные
-  // выше, никогда не запускавшиеся остаются в конце в порядке каталога.
+  // Сначала закреплённые (в порядке PINNED), дальше — чаще всего запускаемые; при равном
+  // счёте выше та, в которую играли недавнее, никогда не запускавшиеся идут в конце.
   const sortedApps = useMemo(() => {
+    const pinRank = (to: string) => {
+      const i = PINNED.indexOf(to);
+      return i === -1 ? PINNED.length : i;
+    };
     return [...CATALOG].sort((a, b) => {
-      // Последний релиз должен быть виден на первом экране GamePass сразу.
-      if (a.to === "/scene") return -1;
-      if (b.to === "/scene") return 1;
-      if (a.to === "/alibi") return -1;
-      if (b.to === "/alibi") return 1;
-      if (a.to === "/neon-trail") return -1;
-      if (b.to === "/neon-trail") return 1;
+      const pinDiff = pinRank(a.to) - pinRank(b.to);
+      if (pinDiff !== 0) return pinDiff;
       const countDiff = (stats.launchCount[b.to] ?? 0) - (stats.launchCount[a.to] ?? 0);
       if (countDiff !== 0) return countDiff;
       return (stats.lastPlayedAt[b.to] ?? 0) - (stats.lastPlayedAt[a.to] ?? 0);
