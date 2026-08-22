@@ -19,6 +19,32 @@ type AppEntry = {
   badge?: "NEW" | "BETA";        // угловой бейдж
 };
 
+// Аудит каталога 22 августа 2026 («Тиндер GamePass»): эти игры убраны с главного экрана.
+// Роуты в App.tsx и код игр на месте — чтобы вернуть игру в хаб, достаточно убрать строку отсюда.
+const HIDDEN_ROUTES = new Set<string>([
+  "/dark-dungeon",
+  "/sugar-strike",
+  "/beat-maker",
+  "/neon-requiem",
+  "/volt-runner",
+  "/neon-blade",
+  "/fable-world",
+  "/ticket-to-sonnet",
+  "/carcassonne",
+  "/monopoly-hp",
+  "/bunker",
+  "/overquest",
+  "/machkin",
+  "/garridoku",
+  "/murdoku",
+  "/force-deflector",
+  "/neurogrid",
+  "/webgrid",
+  "/nebula-drift",
+  "/reader",
+  "/pdf-studio",
+]);
+
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
@@ -26,7 +52,9 @@ const ALL_APPS: AppEntry[] = [
   { key: "card", icon: "🔦", title: "АЛИБИ", to: "/alibi", grad: ["#4a5a72", "#c1322f"], badge: "NEW" },
   { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"], badge: "NEW" },
   { key: "card", icon: "⚔️", title: "DARK DUNGEON", to: "/dark-dungeon", grad: ["#8b0000", "#ff4500"], badge: "NEW" },
+  // на доработку по итогам аудита 22.08.2026
   { key: "card", icon: "🏗️", title: "БЛОК ЗА БЛОКОМ", to: "/block-tower", grad: ["#ffb52e", "#ff643d"], badge: "NEW" },
+  // на доработку по итогам аудита 22.08.2026
   { key: "card", icon: "🚙", title: "Холм Драйв", to: "/hill-drive", grad: ["#62c7f2", "#ffb13b"], badge: "NEW" },
   { key: "card", icon: "🚩", title: "Передел", to: "/peredel", grad: ["#2979ff", "#ff526e"], badge: "NEW" },
   { key: "card", icon: "🍬", title: "SUGAR STRIKE", to: "/sugar-strike", grad: ["#ff9fc4", "#8fd3ff"], badge: "NEW" },
@@ -60,6 +88,10 @@ const ALL_APPS: AppEntry[] = [
   { key: "catan_beta", icon: "/game-icons/256/pdf-studio.png", title: "PDF Studio", to: "/pdf-studio", grad: ["#f43a3a", "#2ea8ff"] },
 ];
 
+// То, что реально показывает главный экран. APP_BY_ROUTE намеренно строится по полному списку:
+// скрытая игра открывается по прямой ссылке, и её запуск должен попасть в статистику.
+const CATALOG = ALL_APPS.filter((app) => !HIDDEN_ROUTES.has(app.to));
+
 const APP_BY_ROUTE = new Map(ALL_APPS.map((app) => [app.to, app]));
 
 function appFor(to: string): AppEntry | undefined {
@@ -80,10 +112,10 @@ export function GamePickerScreen() {
   // Статистика хаба (на текущий аккаунт): сколько раз запускали каждую игру.
   const stats = useSyncExternalStore(subscribe, getView, getView);
   const exploredGames = useMemo(
-    () => ALL_APPS.filter((app) => (stats.launchCount[app.to] ?? 0) > 0).length,
+    () => CATALOG.filter((app) => (stats.launchCount[app.to] ?? 0) > 0).length,
     [stats],
   );
-  const contentProgress = Math.round((exploredGames / ALL_APPS.length) * 100);
+  const contentProgress = Math.round((exploredGames / CATALOG.length) * 100);
   const remainingProgress = Math.max(0, 100 - contentProgress);
 
   useEffect(() => {
@@ -99,7 +131,7 @@ export function GamePickerScreen() {
   // Один плоский список: чаще всего запускаемые — сверху, при равном счёте — недавно запущенные
   // выше, никогда не запускавшиеся остаются в конце в порядке каталога.
   const sortedApps = useMemo(() => {
-    return [...ALL_APPS].sort((a, b) => {
+    return [...CATALOG].sort((a, b) => {
       // Последний релиз должен быть виден на первом экране GamePass сразу.
       if (a.to === "/scene") return -1;
       if (b.to === "/scene") return 1;
@@ -225,7 +257,7 @@ export function GamePickerScreen() {
           <span style={{ width: `${contentProgress}%` }} />
         </div>
         <p>
-          Открыто {exploredGames} из {ALL_APPS.length} игр · до финиша {remainingProgress}%
+          Открыто {exploredGames} из {CATALOG.length} игр · до финиша {remainingProgress}%
         </p>
       </section>
 
