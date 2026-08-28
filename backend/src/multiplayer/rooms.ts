@@ -41,8 +41,10 @@ export interface RoomRegistryOptions<TState> {
   channel: string;
   /** префикс кода комнаты, например "CK" */
   idPrefix: string;
-  /** порядок мест, например ["w", "b"] */
-  seatOrder: SeatId[];
+  /** фиксированные места, например ["w", "b"] — для игр с ролями */
+  seatOrder?: SeatId[];
+  /** либо переменное число мест: p1..pN — для игр со свободным составом */
+  capacity?: number;
   graceMs?: number;
   ttlMs?: number;
   /** место освободилось: игрок не вернулся за отведённое время */
@@ -66,8 +68,17 @@ export class RoomRegistry<TState> {
   private readonly ttlMs: number;
 
   constructor(private readonly options: RoomRegistryOptions<TState>) {
+    if (!options.seatOrder && !options.capacity) {
+      throw new Error("нужен либо seatOrder, либо capacity");
+    }
     this.graceMs = options.graceMs ?? DEFAULT_GRACE_MS;
     this.ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
+  }
+
+  /** Все возможные места комнаты: фиксированный список или p1..pN. */
+  private seatIds(): SeatId[] {
+    if (this.options.seatOrder) return this.options.seatOrder;
+    return Array.from({ length: this.options.capacity! }, (_, i) => `p${i + 1}`);
   }
 
   roomName(id: string): string {
@@ -97,11 +108,18 @@ export class RoomRegistry<TState> {
     return `${this.options.idPrefix}${Date.now().toString(36).slice(-5).toUpperCase()}`;
   }
 
-  create(ownerId: number, state: TState, password?: string | null): Room<TState> {
-    const id = this.makeId();
+  create(
+    ownerId: number,
+    state: TState,
+    password?: string | null,
+    opts?: { id?: string },
+  ): Room<TState> {
+    // Код комнаты либо задаёт игра (Бункер), либо генерируем сами (шашки).
+    const id = opts?.id ? this.normalizeId(opts.id) : this.makeId();
+    const order = this.seatIds();
     const seats = new Map<SeatId, number | null>();
-    for (const seat of this.options.seatOrder) seats.set(seat, null);
-    seats.set(this.options.seatOrder[0], ownerId);
+    for (const seat of order) seats.set(seat, null);
+    seats.set(order[0], ownerId);
 
     const room: Room<TState> = {
       id,
@@ -141,14 +159,51 @@ export class RoomRegistry<TState> {
   }
 
   freeSeat(room: Room<TState>): SeatId | null {
-    for (const seat of this.options.seatOrder) {
+    for (const seat of this.seatIds()) {
       if (room.seats.get(seat) === null) return seat;
     }
     return null;
   }
 
   occupiedSeats(room: Room<TState>): SeatId[] {
-    return this.options.seatOrder.filter((seat) => room.seats.get(seat) !== null);
+    return this.seatIds().filter((seat) => room.seats.get(seat) !== null);
+  }
+
+  /** Сажает участника без сокета — ботов и заранее заведённых игроков. */
+  claimSeat(room: Room<TState>, userId: number): SeatId | null {
+    const existing = this.seatOf(room, userId);
+    if (existing) return existing;
+    const seat = this.freeSeat(room);
+    if (!seat) return null;
+    room.seats.set(seat, userId);
+    room.updatedAt = Date.now();
+    return seat;
+  }
+
+  /** Освобождает место совсем: выход по своей воле, без удержания. */
+  release(room: Room<TState>, userId: number): void {
+    const seat = this.seatOf(room, userId);
+    if (seat) room.seats.set(seat, null);
+    this.cancelGrace(room, userId);
+    room.connections.delete(userId);
+    room.updatedAt = Date.now();
+  }
+
+  /** Активные сокеты игрока — для личных сообщений вроде карт на руках. */
+  socketsOf(room: Room<TState>, userId: number): string[] {
+    return [...(room.connections.get(userId) ?? [])];
+  }
+
+  isUserOnline(room: Room<TState>, userId: number): boolean {
+    return room.connections.has(userId);
+  }
+
+  /** Комната, в которой сидит игрок (Бункер держит игрока в одной комнате). */
+  roomOf(userId: number): Room<TState> | undefined {
+    for (const room of this.rooms.values()) {
+      if (this.seatOf(room, userId) !== null) return room;
+    }
+    return undefined;
   }
 
   /**
@@ -246,7 +301,7 @@ export class RoomRegistry<TState> {
     online: boolean;
     reconnectDeadline: number | null;
   }> {
-    return this.options.seatOrder.map((seat) => {
+    return this.seatIds().map((seat) => {
       const userId = room.seats.get(seat) ?? null;
       const pending = userId === null ? undefined : room.grace.get(userId);
       return {
