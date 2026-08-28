@@ -9,3 +9,5 @@ frontend/dist
 *.tsbuildinfo
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
+.vercel
+.env*
