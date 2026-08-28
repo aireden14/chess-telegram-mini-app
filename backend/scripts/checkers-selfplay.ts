@@ -100,6 +100,30 @@ function checkRoomCore(): void {
   }
   console.log("room core: места, заполненность и возврат в окне — ок");
 
+  // Комната под паролем.
+  const locked = registry.create(20, { n: 0 }, "  hunter2 ");
+  if (!registry.hasPassword(locked)) throw new Error("пароль не выставился");
+  if ((locked as any).password?.hash === "hunter2") throw new Error("пароль не должен храниться открытым текстом");
+  registry.join(locked.id, 20, fakeSocket("o1") as any);
+
+  const wrong = registry.join(locked.id, 21, fakeSocket("w1") as any, "hunter3");
+  if (wrong?.error !== "wrong_password" || wrong.seat !== null) throw new Error("неверный пароль должен отклоняться");
+  const empty = registry.join(locked.id, 21, fakeSocket("w2") as any);
+  if (empty?.error !== "wrong_password") throw new Error("вход без пароля должен отклоняться");
+  const right = registry.join(locked.id, 21, fakeSocket("w3") as any, "hunter2");
+  if (right?.error !== null || right.seat !== "b") throw new Error("верный пароль должен пускать");
+
+  // Вернувшийся игрок пароль не вводит заново.
+  registry.detach(21, "w3", fakeIo as any);
+  const backLocked = registry.join(locked.id, 21, fakeSocket("w4") as any);
+  if (backLocked?.error !== null || !backLocked.reconnected) throw new Error("возврат не должен требовать пароль");
+
+  // Открытая комната пускает без пароля.
+  const open = registry.create(30, { n: 0 });
+  if (registry.hasPassword(open)) throw new Error("открытая комната не должна иметь пароль");
+  if (registry.join(open.id, 31, fakeSocket("f1") as any)?.error !== null) throw new Error("открытая комната должна пускать");
+  console.log("room core: пароль комнаты — ок");
+
   // Невозврат: место освобождается по истечении окна.
   const late = registry.create(10, { n: 0 });
   registry.join(late.id, 10, fakeSocket("a") as any);

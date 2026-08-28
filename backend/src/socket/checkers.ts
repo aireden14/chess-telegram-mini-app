@@ -57,6 +57,7 @@ function publicGame(room: Room<CheckersState>) {
       b: room.seats.get("b") ?? null,
     },
     presence: registry.presence(room),
+    hasPassword: registry.hasPassword(room),
   };
 }
 
@@ -87,20 +88,26 @@ export function registerCheckersSocket(io: IOServer): void {
     const socket = raw as AuthedSocket;
     const userId = socket.data.userId;
 
-    socket.on("CHECKERS_CREATE", (_payload, ack) => {
-      const room = registry.create(userId, initialState());
+    socket.on("CHECKERS_CREATE", ({ password }: { password?: string } = {}, ack) => {
+      const room = registry.create(userId, initialState(), password);
       registry.join(room.id, userId, socket);
       socket.emit("CHECKERS_STATE", { game: publicGame(room) });
       ack?.({ ok: true, game: publicGame(room) });
     });
 
-    socket.on("CHECKERS_JOIN", ({ gameId }: { gameId: string }, ack) => {
-      const result = registry.join(gameId, userId, socket);
+    socket.on(
+      "CHECKERS_JOIN",
+      ({ gameId, password }: { gameId: string; password?: string }, ack) => {
+      const result = registry.join(gameId, userId, socket, password);
       if (!result) {
         ack?.({ ok: false, error: "game not found" });
         return socket.emit("CHECKERS_ERROR", { message: "Игра не найдена" });
       }
       const { room, seat, reconnected } = result;
+      if (result.error === "wrong_password") {
+        ack?.({ ok: false, error: "wrong password" });
+        return socket.emit("CHECKERS_ERROR", { message: "Неверный пароль" });
+      }
       if (!seat) {
         ack?.({ ok: false, error: "game full" });
         return socket.emit("CHECKERS_ERROR", { message: "Игра уже заполнена" });
@@ -112,7 +119,8 @@ export function registerCheckersSocket(io: IOServer): void {
       registry.touch(room);
       emitState(io, room);
       ack?.({ ok: true, game: publicGame(room), reconnected });
-    });
+    },
+    );
 
     socket.on("CHECKERS_MOVE", ({ gameId, move }: { gameId: string; move: Move }, ack) => {
       const room = registry.get(gameId);

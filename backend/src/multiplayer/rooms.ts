@@ -2,6 +2,7 @@
 // Игровая логика сюда не попадает — реестр знает только про участников и снапшот состояния.
 
 import { Server as IOServer, Socket } from "socket.io";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const DEFAULT_GRACE_MS = 2 * 60 * 1000; // держим место 2 минуты после обрыва
 const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
@@ -20,6 +21,19 @@ export interface Room<TState> {
   connections: Map<number, Set<string>>;
   /** userId -> когда истекает удержание места */
   grace: Map<number, { deadline: number; timer: ReturnType<typeof setTimeout> }>;
+  /** пароль хранится только хешем; null — комната открытая */
+  password: { salt: string; hash: string } | null;
+}
+
+function hashPassword(password: string, salt: string): string {
+  return createHash("sha256").update(`${salt}:${password}`).digest("hex");
+}
+
+function passwordMatches(stored: { salt: string; hash: string }, candidate: string): boolean {
+  const actual = Buffer.from(hashPassword(candidate, stored.salt), "hex");
+  const expected = Buffer.from(stored.hash, "hex");
+  if (actual.length !== expected.length) return false;
+  return timingSafeEqual(actual, expected);
 }
 
 export interface RoomRegistryOptions<TState> {
@@ -35,11 +49,15 @@ export interface RoomRegistryOptions<TState> {
   onSeatAbandoned?: (room: Room<TState>, seat: SeatId, userId: number) => void;
 }
 
+export type JoinError = "wrong_password";
+
 export interface JoinResult<TState> {
   room: Room<TState>;
   seat: SeatId | null;
   /** true, если игрок вернулся в уже занятое им место */
   reconnected: boolean;
+  /** заполнено, когда войти нельзя по причине, не связанной с местами */
+  error: JoinError | null;
 }
 
 export class RoomRegistry<TState> {
@@ -79,7 +97,7 @@ export class RoomRegistry<TState> {
     return `${this.options.idPrefix}${Date.now().toString(36).slice(-5).toUpperCase()}`;
   }
 
-  create(ownerId: number, state: TState): Room<TState> {
+  create(ownerId: number, state: TState, password?: string | null): Room<TState> {
     const id = this.makeId();
     const seats = new Map<SeatId, number | null>();
     for (const seat of this.options.seatOrder) seats.set(seat, null);
@@ -93,9 +111,26 @@ export class RoomRegistry<TState> {
       updatedAt: Date.now(),
       connections: new Map(),
       grace: new Map(),
+      password: null,
     };
+    this.setPassword(room, password);
     this.rooms.set(id, room);
     return room;
+  }
+
+  /** Ставит или снимает пароль комнаты. Пустая строка и null означают «открытая». */
+  setPassword(room: Room<TState>, password?: string | null): void {
+    const value = typeof password === "string" ? password.trim() : "";
+    if (!value) {
+      room.password = null;
+      return;
+    }
+    const salt = randomBytes(8).toString("hex");
+    room.password = { salt, hash: hashPassword(value, salt) };
+  }
+
+  hasPassword(room: Room<TState>): boolean {
+    return room.password !== null;
   }
 
   seatOf(room: Room<TState>, userId: number): SeatId | null {
@@ -120,12 +155,25 @@ export class RoomRegistry<TState> {
    * Подключает игрока к комнате: возвращает его место, сажает на свободное
    * или сообщает, что мест нет (seat === null и игрок ещё не за столом).
    */
-  join(id: string, userId: number, socket: Socket): JoinResult<TState> | null {
+  join(
+    id: string,
+    userId: number,
+    socket: Socket,
+    password?: string | null,
+  ): JoinResult<TState> | null {
     const room = this.get(id);
     if (!room) return null;
 
     let seat = this.seatOf(room, userId);
     const reconnected = seat !== null;
+
+    // Пароль спрашиваем только у новых игроков: вернувшийся уже за столом.
+    if (!reconnected && room.password) {
+      const candidate = typeof password === "string" ? password.trim() : "";
+      if (!candidate || !passwordMatches(room.password, candidate)) {
+        return { room, seat: null, reconnected: false, error: "wrong_password" };
+      }
+    }
     if (!seat) {
       seat = this.freeSeat(room);
       if (seat) room.seats.set(seat, userId);
@@ -135,7 +183,7 @@ export class RoomRegistry<TState> {
     this.attach(room, userId, socket);
     socket.join(this.roomName(room.id));
     room.updatedAt = Date.now();
-    return { room, seat, reconnected };
+    return { room, seat, reconnected, error: null };
   }
 
   private attach(room: Room<TState>, userId: number, socket: Socket): void {
