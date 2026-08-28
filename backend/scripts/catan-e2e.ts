@@ -2,7 +2,8 @@
 // из docker-compose, боевая Neon не трогается). Проверяем то, что не видит движок:
 // подключение к партии, ход по сокету, отказ чужому, обрыв связи и возврат.
 //
-// Запуск: DATABASE_URL=postgresql://user:password@localhost:5432/chess_db npx tsx scripts/catan-e2e.ts
+// Запуск: подними базу через `docker compose up -d postgres`, задай DATABASE_URL
+// из docker-compose.yml и выполни `npx tsx scripts/catan-e2e.ts`.
 
 import { createServer } from "node:http";
 import { io as connect, Socket as ClientSocket } from "socket.io-client";
