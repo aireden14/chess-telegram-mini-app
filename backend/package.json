@@ -12,7 +12,8 @@
     "catan:selfplay": "tsx scripts/catan-selfplay.ts",
     "telegram:webhook:set": "tsx scripts/set-telegram-webhook.ts",
     "checkers:selfplay": "tsx scripts/checkers-selfplay.ts",
-    "bunker:selfplay": "tsx scripts/bunker-selfplay.ts"
+    "bunker:selfplay": "tsx scripts/bunker-selfplay.ts",
+    "tabletop:selfplay": "tsx scripts/tabletop-selfplay.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

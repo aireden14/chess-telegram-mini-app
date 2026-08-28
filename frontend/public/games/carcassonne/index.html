@@ -570,7 +570,7 @@ function drawForCurrent(){
   G.drawn=tile; ui.rot=0; ui.placedKey=null; ui.best=null;
   ui.valid=allPlacements(G,tile);
   ui.phase = G.players[G.cur].ai ? 'ai' : 'place';
-  saveSession(); render();
+  saveSession(); render(); mpPublish(false);
   if(G.players[G.cur].ai){ setTimeout(aiTurn, 620); }
   else { const v=ui.valid[0]; if(v) centerOn(v.x,v.y); }
 }
@@ -586,6 +586,13 @@ function onRotate(){
 function currentRotValid(){ return allPlacements(G,G.drawn).filter(v=>v.rot===ui.rot); }
 function onPlaceAt(x,y){
   if(ui.phase!=='place') return;
+  if(MP.active){
+    if(G.cur!==MP.seat) return;                       // не мой ход
+    let rot=ui.rot;
+    if(!canPlace(G,x,y,G.drawn,rot)){ for(let r=0;r<4;r++) if(canPlace(G,x,y,G.drawn,r)){ rot=r; break; } }
+    if(!canPlace(G,x,y,G.drawn,rot)) return;
+    if(!MP.isHost){ mpSend({type:'mp:intent',intent:{kind:'place',x:x,y:y,rot:rot}}); return; }
+  }
   if(!canPlace(G,x,y,G.drawn,ui.rot)){
     // попробуем найти поворот, подходящий сюда
     for(let r=0;r<4;r++) if(canPlace(G,x,y,G.drawn,r)){ ui.rot=r; break; }
@@ -602,12 +609,23 @@ function placeTile(x,y,rot){
 }
 function onPlaceMeeple(kind,ci){
   if(ui.phase!=='meeple') return;
+  if(MP.active){
+    if(G.cur!==MP.seat) return;
+    if(!MP.isHost){ mpSend({type:'mp:intent',intent:{kind:'meeple',what:kind,ci:ci}}); return; }
+  }
   if(kind==='monastery') G.monMeeples[ui.placedKey]=G.cur;
   else G.meeplePlacements.push({key:ui.placedKey,ci:ci,kind:kind,player:G.cur});
   G.meeplesLeft[G.cur]--;
   finishTurn();
 }
-function onSkipMeeple(){ if(ui.phase==='meeple') finishTurn(); }
+function onSkipMeeple(){
+  if(ui.phase!=='meeple') return;
+  if(MP.active){
+    if(G.cur!==MP.seat) return;
+    if(!MP.isHost){ mpSend({type:'mp:intent',intent:{kind:'skip'}}); return; }
+  }
+  finishTurn();
+}
 function finishTurn(){
   const ev=resolveCompletions(G, ui.placedKey);
   ui.phase='between';
@@ -710,6 +728,7 @@ function doHint(){
 function endGame(){
   finalScore(G);
   ui.phase='end';
+  mpPublish(true);
   const order=G.players.map((p,i)=>({i,name:p.name,ai:p.ai,score:G.scores[i]})).sort((a,b)=>b.score-a.score);
   const win=order[0].score;
   clearSession();
@@ -838,6 +857,79 @@ $('btnZoomIn').addEventListener('click',()=>{ zoom=Math.min(1.4,zoom+0.15); rend
 $('btnZoomOut').addEventListener('click',()=>{ zoom=Math.max(0.45,zoom-0.15); render(); });
 $('btnCenter').addEventListener('click',()=>{ if(ui.placedKey){const[x,y]=parseKey(ui.placedKey);centerOn(x,y);}else centerOn(0,0); });
 renderSeats(); renderResume();
+
+/* ===================== MULTIPLAYER BRIDGE =====================
+   Правила считает клиент-ведущий: он применяет ходы и рассылает снапшот.
+   Остальные шлют намерения и накатывают присланное состояние. */
+const MP={active:false,isHost:false,seat:0,players:[]};
+function mpSend(msg){ try{ parent.postMessage(Object.assign({source:'carcassonne'},msg),'*'); }catch(e){} }
+function mpPublish(finished){
+  if(!MP.active||!MP.isHost||!G) return;
+  mpSend({type:'mp:snapshot',snapshot:snapshot(),turnIndex:G.cur,finished:finished===true});
+}
+function mpApplySnapshot(raw){
+  if(!G) return;
+  let s; try{ s=JSON.parse(raw); }catch(e){ return; }
+  G.board=s.board; G.deck=s.deck; G.scores=s.scores; G.meeplesLeft=s.meeplesLeft;
+  G.meeplePlacements=s.meeplePlacements; G.monMeeples=s.monMeeples; G.cur=s.cur; G.drawn=s.drawn;
+  undoStack=[];                                      // чужую партию откатывать нельзя
+  ui.rot=0; ui.placedKey=null; ui.best=null; ui.meepleOpts=[];
+  if(G.drawn){ ui.valid=allPlacements(G,G.drawn); ui.phase='place'; }
+  else { ui.valid=[]; ui.phase='between'; }
+  render();
+}
+function mpHandleIntent(from,intent){
+  if(!MP.isHost||!G||!intent) return;
+  if(G.cur!==from) return;                           // ходит не он — молча игнорируем
+  if(intent.kind==='place'){
+    if(ui.phase!=='place') return;
+    if(!canPlace(G,intent.x,intent.y,G.drawn,intent.rot)) return;
+    placeTile(intent.x,intent.y,intent.rot);
+  } else if(intent.kind==='meeple'){
+    if(ui.phase!=='meeple') return;
+    if(intent.what==='monastery') G.monMeeples[ui.placedKey]=G.cur;
+    else G.meeplePlacements.push({key:ui.placedKey,ci:intent.ci,kind:intent.what,player:G.cur});
+    G.meeplesLeft[G.cur]--;
+    finishTurn();
+  } else if(intent.kind==='skip'){
+    if(ui.phase!=='meeple') return;
+    finishTurn();
+  }
+}
+function mpStart(){
+  G={
+    players:MP.players.map(p=>({name:p.name,ai:p.bot===true})),
+    board:{ '0,0':{type:START_TYPE,rot:0} },
+    deck:buildDeck(),
+    scores:MP.players.map(()=>0),
+    meeplesLeft:MP.players.map(()=>MEEPLES_PER),
+    meeplePlacements:[],
+    monMeeples:{},
+    cur:-1, drawn:null,
+  };
+  undoStack=[];
+  $('scrSetup').classList.add('hidden'); $('scrGame').classList.remove('hidden');
+  setTimeout(()=>centerOn(0,0),60);
+  if(MP.isHost) nextTurn();                          // колоду тасует ведущий, остальные ждут снапшот
+  else render();
+}
+window.addEventListener('message',function(e){
+  const d=e.data;
+  if(!d||typeof d!=='object'||d.source==='carcassonne') return;
+  if(d.type==='mp:init'){
+    MP.active=true; MP.isHost=d.isHost===true; MP.seat=d.seat|0; MP.players=d.players||[];
+    mpStart();
+    if(d.snapshot) mpApplySnapshot(d.snapshot);      // вернулись в идущую партию
+  } else if(d.type==='mp:host'){
+    MP.isHost=d.isHost===true;                       // ведущий сменился — подхватываем роль
+    if(MP.isHost&&G&&!G.drawn&&ui.phase!=='end') nextTurn();
+  } else if(d.type==='mp:snapshot'){
+    if(!MP.isHost) mpApplySnapshot(d.snapshot);
+  } else if(d.type==='mp:intent'){
+    mpHandleIntent(d.from|0,d.intent);
+  }
+});
+mpSend({type:'mp:ready'});
 
 /* ===================== SELF-TEST (для проверки движка) ===================== */
 window.CARC={
