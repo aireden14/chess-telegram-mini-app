@@ -5,13 +5,14 @@ import {
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
   setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn,
-} from "./core.js?v=1.4.0";
+} from "./core.js?v=1.5.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.4.0";
-import { haptic } from "./tg.js?v=1.4.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.4.0";
+} from "./ui.js?v=1.5.0";
+import { haptic } from "./tg.js?v=1.5.0";
+import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.5.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.5.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -246,6 +247,26 @@ export function viewSettings(app) {
         onChange: (v) => { s.haptics = v; app.applyPreferences(); app.save(); },
       }),
       switchRow({
+        title: "Звуки",
+        subtitle: soundHint(),
+        value: s.sound === true,
+        onChange: (v) => {
+          s.sound = v;
+          app.applyPreferences();
+          app.save();
+          if (v) { primeAudio(); playSound("goal"); }
+          app.render();
+        },
+      }),
+      s.sound === true ? volumeRow(app) : null,
+      s.sound === true
+        ? navRow({
+            title: "Проверить звук",
+            subtitle: "включи свою музыку и послушай, не перебивает ли",
+            onClick: () => soundCheck(),
+          })
+        : null,
+      switchRow({
         title: "Конфетти на финише",
         value: s.confetti,
         onChange: (v) => { s.confetti = v; app.applyPreferences(); app.save(); },
@@ -336,6 +357,70 @@ export function viewSettings(app) {
     ),
     exercisesCard, levelsCard, trainCard, dataCard, aboutCard, sign,
   );
+}
+
+/* ------------------------------------------------------------------- звук */
+
+// Честно объясняем, что будет с чужой музыкой на этом устройстве.
+function soundHint() {
+  switch (audioMixMode()) {
+    case "ambient":
+      return "подмешиваются к музыке, не прерывают её";
+    case "mixes":
+      return "играют поверх музыки, не прерывая её";
+    default:
+      return "на этом iOS нет режима подмешивания — музыка может прерваться";
+  }
+}
+
+function volumeRow(app) {
+  const s = app.state.settings;
+  return h("div.row.is-stacked", {},
+    h("div.row-main", { style: { width: "100%" } },
+      h("div.row-title", { text: "Громкость" }),
+      h("div", { style: { "margin-top": "10px" } },
+        segmented(
+          [
+            { value: "low", label: "Тихо" },
+            { value: "mid", label: "Средне" },
+            { value: "high", label: "Громко" },
+          ],
+          s.soundVolume ?? "mid",
+          (v) => {
+            s.soundVolume = v;
+            app.applyPreferences();
+            app.save();
+            primeAudio();
+            playSound("set", { index: 2 });
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+// Проигрывает основные звуки по очереди — можно проверить прямо под музыку,
+// не начиная тренировку.
+function soundCheck() {
+  primeAudio();
+  const script = [
+    [0, "set", { index: 0 }],
+    [420, "set", { index: 1 }],
+    [840, "set", { index: 2 }],
+    [1400, "goal", undefined],
+    [2300, "finish", undefined],
+  ];
+  script.forEach(([delay, name, opts]) => {
+    setTimeout(() => playSound(name, opts), delay);
+  });
+  toast({
+    icon: "🔊",
+    title: "Играю: подход, подход, подход, цель, финиш",
+    subtitle: audioMixMode() === "risky"
+      ? "Если музыка встала — выключи звуки"
+      : "Музыка должна продолжать играть",
+    duration: 4200,
+  });
 }
 
 /* ------------------------------------------------------------ часовой пояс */

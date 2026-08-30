@@ -4,12 +4,13 @@ import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
   levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
   setTimeZone,
-} from "./core.js?v=1.4.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.4.0";
-import { setConfettiEnabled } from "./fx.js?v=1.4.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.4.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.4.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.4.0";
+} from "./core.js?v=1.5.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.5.0";
+import { setConfettiEnabled } from "./fx.js?v=1.5.0";
+import { configureSound, primeAudio, playSound, audioMixMode } from "./sound.js?v=1.5.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.5.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.5.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.5.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -67,6 +68,20 @@ export const app = {
     setConfettiEnabled(this.state.settings.confetti !== false);
     // Пояс задаёт границы суток, поэтому применяется до первого расчёта дня.
     setTimeZone(this.state.settings.timeZone ?? null);
+    configureSound({
+      enabled: this.state.settings.sound === true,
+      volume: this.state.settings.soundVolume ?? "mid",
+    });
+  },
+
+  // Звук включаем сами только там, где он гарантированно подмешивается к
+  // чужой музыке. Где это не гарантировано — оставляем выключенным: молчащее
+  // приложение лучше, чем приложение, оборвавшее музыку на первом же подходе.
+  decideInitialSound() {
+    if (this.state.settings.sound !== null && this.state.settings.sound !== undefined) return;
+    // Включаем сами везде, кроме старого iOS, где звук может оборвать музыку.
+    this.state.settings.sound = audioMixMode() !== "risky";
+    this.save();
   },
 
   setAccent(accentKey) {
@@ -183,6 +198,7 @@ export const app = {
 
     if (justReached) {
       haptic("success");
+      playSound("goal");
       toast({
         icon: "✓",
         title: `Цель взята — ${total} из ${session.target}`,
@@ -191,6 +207,8 @@ export const app = {
       });
     } else {
       haptic("heavy");
+      // Нота ползёт вверх с каждым подходом — серия слышна, а не только видна.
+      playSound("set", { index: session.done.length - 1 });
     }
 
     // Сначала обновляем экран тренировки, потом накрываем его таймером:
@@ -278,6 +296,7 @@ export const app = {
     this.forgetUnreachedMilestones();
     this.save();
     this.render();
+    playSound("erase");
 
     toast({
       icon: "🧹",
@@ -292,6 +311,7 @@ export const app = {
           this.forgetUnreachedMilestones();
           this.save();
           this.render();
+          playSound("undo");
           toast({ icon: "↩️", title: "Возвращено" });
         },
       },
@@ -354,6 +374,14 @@ export const app = {
   boot() {
     this.applyPreferences();
     initTelegram();
+    this.decideInitialSound();
+    this.applyPreferences();
+
+    // AudioContext на iOS создаётся только из жеста — цепляемся за первое
+    // касание, а не за загрузку страницы.
+    const prime = () => primeAudio();
+    window.addEventListener("pointerdown", prime, { once: true, passive: true });
+    window.addEventListener("touchstart", prime, { once: true, passive: true });
 
     // Тренировка, прерванная сворачиванием Telegram, продолжается с того же места.
     const active = this.state.active;

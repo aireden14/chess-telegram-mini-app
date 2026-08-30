@@ -435,6 +435,10 @@ export function defaultState() {
     settings: {
       // null — сутки считаются по часовому поясу устройства.
       timeZone: null,
+      // null = ещё не решали. Значение проставляется при первом запуске:
+      // включаем звук только там, где он точно не прервёт чужую музыку.
+      sound: null,
+      soundVolume: "mid",
       restEnabled: true,
       restSeconds: 75,
       haptics: true,

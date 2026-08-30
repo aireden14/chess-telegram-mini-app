@@ -869,6 +869,12 @@ body {
 }
 
 .row:last-child { border-bottom: 0; }
+
+/* Строка, где под заголовком идёт свой контрол во всю ширину. */
+.row.is-stacked {
+  display: block;
+  padding: 14px 0 16px;
+}
 .row-main { flex: 1; min-width: 0; }
 .row-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
 .row-sub { font-size: 13px; color: var(--text-3); margin-top: 2px; }

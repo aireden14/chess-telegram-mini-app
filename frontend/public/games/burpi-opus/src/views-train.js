@@ -9,11 +9,12 @@ import {
   ACCENTS, dayKey, humanDate, humanWeekday, suggestPlan, forecast, stats,
   lastDays, WEEKDAYS_SHORT, flameStage, STREAK_MILESTONES, levelCompletions,
   carryOverToday, goalReachedToday, dayTotal, levelTarget,
-} from "./core.js?v=1.4.0";
-import { h, plural, toast } from "./ui.js?v=1.4.0";
-import { daySheet } from "./views-data.js?v=1.4.0";
-import { haptic } from "./tg.js?v=1.4.0";
-import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.4.0";
+} from "./core.js?v=1.5.0";
+import { h, plural, toast } from "./ui.js?v=1.5.0";
+import { daySheet } from "./views-data.js?v=1.5.0";
+import { haptic } from "./tg.js?v=1.5.0";
+import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.5.0";
+import { playSound } from "./sound.js?v=1.5.0";
 
 const FLAMES = ["🔥", "✨", "🔥", "🔥", "🌟", "💎"];
 
@@ -271,11 +272,11 @@ export function viewWorkout(app) {
     h("div.stepper", {},
       h("button.btn.stepper-btn", {
         type: "button", "aria-label": "Меньше", text: "−",
-        on: { click: () => { haptic("light"); setReps(session.currentReps - 1); } },
+        on: { click: () => { haptic("light"); playSound("tap"); setReps(session.currentReps - 1); } },
       }),
       h("button.btn.stepper-btn", {
         type: "button", "aria-label": "Больше", text: "+",
-        on: { click: () => { haptic("light"); setReps(session.currentReps + 1); } },
+        on: { click: () => { haptic("light"); playSound("tap"); setReps(session.currentReps + 1); } },
       }),
     ),
     h("div.quick-row", {},
@@ -410,9 +411,12 @@ export function restOverlay(app, seconds, onDone) {
     left -= 1;
     if (left <= 0) {
       haptic("success");
+      playSound("restDone");
       finish();
       return;
     }
+    // Последние три секунды — тихий отсчёт, чтобы успеть собраться.
+    if (left <= 3) playSound("tick");
     timeNode.textContent = formatTime(left);
     setRingProgress(ring, left / total);
   }, 1000);
@@ -494,14 +498,17 @@ export function celebrate(app, result) {
   const accent = ACCENTS[app.level(result.levelId).accent] ?? ACCENTS.crimson;
 
   // Закончил раньше — это тоже тренировка, но без салюта: салют за взятую цель.
+  // Звук тут тёплый и нейтральный: за честное «сегодня хватит» не наказываем.
   if (!result.goalReached) {
     haptic("light");
+    playSound("partial");
     toast({ icon: "📝", title: "Записано в дневник", subtitle: "Цель осталась прежней" });
     return;
   }
 
   confetti({ colors: [accent.c1, accent.c2, "#ffffff", "#ffd166"], power: result.isRecord ? 1.4 : 1 });
   haptic("success");
+  playSound(result.isRecord ? "record" : "finish");
 
   const seen = app.state.settings.seenMilestones ?? [];
   const hit = STREAK_MILESTONES.filter((m) => st.streak.current >= m && !seen.includes(m));
@@ -512,6 +519,7 @@ export function celebrate(app, result) {
     setTimeout(() => {
       confetti({ colors: [accent.c1, "#ffd166", "#ffffff"], power: 1.2 });
       haptic("heavy");
+      playSound("milestone");
       toast({
         icon: FLAMES[flameStage(top)] || "🔥",
         title: `${top} ${plural(top, "день", "дня", "дней")} подряд`,

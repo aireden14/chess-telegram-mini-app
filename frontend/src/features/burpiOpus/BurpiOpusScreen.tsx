@@ -65,6 +65,28 @@ export function BurpiOpusScreen() {
     return () => window.removeEventListener("message", onMessage);
   }, [nav, postSafeArea]);
 
+  // Звуки приложения не должны ставить музыку пользователя на паузу. На iOS
+  // аудиосессия принадлежит документу верхнего уровня, а приложение живёт в
+  // iframe — поэтому режим «ambient» выставляет оболочка, и обязательно
+  // возвращает прежний на выходе, чтобы не менять поведение остального хаба.
+  useEffect(() => {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (!session) return undefined;
+    const previous = session.type;
+    try {
+      session.type = "ambient";
+    } catch {
+      return undefined;
+    }
+    return () => {
+      try {
+        session.type = previous;
+      } catch {
+        /* нечего откатывать */
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const tg = getTelegram();
     if (!tg) return undefined;
