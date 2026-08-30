@@ -50,6 +50,7 @@ const HIDDEN_ROUTES = new Set<string>([
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
+  { key: "card", icon: "🔥", title: "BurpiOpus", to: "/burpi-opus", grad: ["#ff4d6d", "#d81b60"] },
   { key: "card", icon: "🩸", title: "Мурдоку Алины", to: "/scene", grad: ["#7a4a2a", "#a32b25"] },
   { key: "card", icon: "🔦", title: "Детектив", to: "/alibi", grad: ["#4a5a72", "#c1322f"] },
   { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"] },

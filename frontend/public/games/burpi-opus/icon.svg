@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BurpiOpus">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#2a0d16"/>
+      <stop offset="1" stop-color="#05050a"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ff6b84"/>
+      <stop offset="1" stop-color="#d81b60"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.12" r="0.7">
+      <stop offset="0" stop-color="#ff4d6d" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff4d6d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="114" fill="url(#glow)"/>
+  <rect x="1.5" y="1.5" width="509" height="509" rx="112.5" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/>
+  <path d="M256 92c0 58-46 74-46 128a46 46 0 0 0 92 0c0-54-46-70-46-128Z" fill="url(#mark)" opacity="0.9"/>
+  <g fill="#fff" font-family="-apple-system, SF Pro Display, Helvetica Neue, sans-serif" font-weight="700" text-anchor="middle">
+    <text x="256" y="392" font-size="152" letter-spacing="-8">+1</text>
+  </g>
+  <rect x="150" y="418" width="212" height="10" rx="5" fill="rgba(255,255,255,0.22)"/>
+  <rect x="150" y="418" width="132" height="10" rx="5" fill="url(#mark)"/>
+</svg>

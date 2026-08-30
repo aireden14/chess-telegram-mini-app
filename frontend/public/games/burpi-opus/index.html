@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<meta name="color-scheme" content="dark" />
+<meta name="description" content="BurpiOpus — дневник тренировок: цель растёт на +1, подходы считаются сами, остаётся только отметить выполненное." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>BurpiOpus</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="styles.css?v=1.0.0" />
+<script>
+  // SDK Telegram имеет смысл только в окне верхнего уровня (отдельный Mini App).
+  // Внутри GamePass приложение живёт в iframe, где SDK всё равно нерабочий, —
+  // не грузим его и не шлём лишних сообщений наверх.
+  (function () {
+    var top = true;
+    try { top = window.self === window.top; } catch (e) { top = false; }
+    if (top) {
+      document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
+    }
+  })();
+</script>
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+
+  <div id="app">
+    <main id="view" role="main"></main>
+    <nav id="tabbar" class="tabbar" aria-label="Разделы"></nav>
+  </div>
+
+  <noscript>
+    <p style="padding:24px;font-family:system-ui;color:#fff">
+      BurpiOpus работает на JavaScript — включи его, чтобы вести дневник тренировок.
+    </p>
+  </noscript>
+
+  <script type="module" src="src/app.js?v=1.0.0"></script>
+</body>
+</html>

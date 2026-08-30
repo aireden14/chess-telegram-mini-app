@@ -1435,6 +1435,32 @@ body {
   box-shadow: none;
 }
 
+/* BurpiOpus — дневник тренировок, а не карточка в хабе: iframe занимает весь
+   viewport, а выход в GamePass приложение рисует у себя внутри (оболочка шлёт
+   ему безопасные отступы Telegram, см. BurpiOpusScreen). */
+.app-screen.burpi-opus-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  background: #000;
+}
+
+.burpi-opus-screen .force-deflector-frame-shell {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* WAVE FORGE (beat-maker) uses the default framed shell: a normal TopNav bar
    above a full-height iframe that scrolls internally. Just theme the frame. */
 .beat-maker-screen .force-deflector-frame-shell {
