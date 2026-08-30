@@ -289,6 +289,22 @@ body {
 
 .set-chip.is-extra { border-style: dashed; }
 
+/* Подсказка по разбивке. Это именно подсказка, поэтому она подчёркнуто тихая:
+   подходов можно делать сколько угодно, цель закрывается суммой. */
+.hint-caption {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* «Всё оставшееся» — закрыть цель одним подходом в один тап. */
+.quick-chip.is-strong {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent-1) 52%, transparent);
+  background: color-mix(in srgb, var(--accent-1) 18%, transparent);
+}
+
 /* Прогноз целей — одна строка, которая при нехватке места листается вбок,
    а не разваливается на второй ряд. */
 .sets-strip.is-scroll {

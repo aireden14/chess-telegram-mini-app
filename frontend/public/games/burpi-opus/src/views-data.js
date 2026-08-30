@@ -2,15 +2,15 @@
 
 import {
   ACCENTS, ACCENT_KEYS, dayKey, humanDate, keyToDate, weekdayIndex,
-  WEEKDAYS_SHORT, stats, sessionsByDay, planFor, uid, defaultState,
+  WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
-} from "./core.js?v=1.0.0";
+} from "./core.js?v=1.1.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.0.0";
-import { haptic } from "./tg.js?v=1.0.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.0.0";
+} from "./ui.js?v=1.1.0";
+import { haptic } from "./tg.js?v=1.1.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.1.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -81,14 +81,18 @@ export function viewDiary(app) {
       : h("div.log-list", {},
           log.map((s) => {
             const level = app.level(s.levelId);
-            const over = s.doneTotal - s.target;
+            const hit = goalReached(s);
+            const over = (s.carry ?? 0) + s.doneTotal - s.target;
+            const tail = hit
+              ? over > 0 ? ` · сверху ${over}` : " · цель взята"
+              : " · цель не взята";
             return h("div.log-row", { style: levelStyle(level) },
               h("div.log-badge", { text: String(s.doneTotal) }),
               h("div.log-main", {},
-                h("div.log-title", { text: `${s.levelName} · ${s.sets.join(" · ")}` }),
-                h("div.log-sub", {
-                  text: `${humanDate(s.dayKey)} · план ${s.target}${over > 0 ? ` · сверху ${over}` : ""}`,
+                h("div.log-title", {
+                  text: `${s.levelName} · ${(s.sets ?? []).join(" · ") || s.doneTotal}`,
                 }),
+                h("div.log-sub", { text: `${humanDate(s.dayKey)} · цель ${s.target}${tail}` }),
               ),
               s.isRecord ? h("div.log-tag.is-record", { text: "рекорд" }) : null,
             );
@@ -185,13 +189,13 @@ export function viewSettings(app) {
     h("div.card-title", { text: `Уровни · ${ex.name}` }),
     h("div.rows", {},
       ex.levels.map((level) => {
-        const plan = planFor(app.state, ex.id, level);
+        const plan = suggestPlan(app.state, ex.id, level);
         const desc = level.mode === "progressive"
-          ? `растёт: ${level.base} и +${level.step} за тренировку`
+          ? `растёт: ${level.base} и +${level.step} за взятую цель`
           : `фиксировано: ${level.total}`;
         return navRow({
           title: level.name,
-          subtitle: `${desc} · сейчас ${plan.sets.join("·")}`,
+          subtitle: `${desc} · подсказка ${plan.sets.join("·")}`,
           onClick: () => levelSheet(app, ex, level),
         });
       }),
@@ -454,7 +458,7 @@ function levelSheet(app, exercise, level) {
 
   sheet({
     title: isNew ? "Новый уровень" : draft.name,
-    subtitle: "Подходы считаются сами: первый самый большой, дальше по убыванию.",
+    subtitle: "Разбивка — только подсказка. Подходов можно сделать сколько угодно: задание закрывается по сумме повторов.",
     body: h("div.sheet-fields", {},
       labeledField("Название", nameInput),
       labeledField("Подпись", taglineInput),
@@ -464,7 +468,7 @@ function levelSheet(app, exercise, level) {
         (v) => { draft.mode = v; paintMode(); },
       )),
       modeBox,
-      labeledField("Подходов (0 — подобрать самому)", setsInput),
+      labeledField("Подсказка: на сколько подходов делить (0 — авто)", setsInput),
       labeledField("Цвет", accentRow),
       canDelete
         ? h("button.btn.btn-ghost.btn-danger", {

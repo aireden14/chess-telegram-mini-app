@@ -1,14 +1,14 @@
 // Контроллер: состояние, маршруты между экранами и жизненный цикл тренировки.
 
 import {
-  loadState, saveState, defaultState, findExercise, findLevel, planFor,
-  levelTarget, personalBest, dayKey, uid, ACCENTS,
-} from "./core.js?v=1.0.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.0.0";
-import { setConfettiEnabled } from "./fx.js?v=1.0.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast, confirmSheet } from "./ui.js?v=1.0.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.0.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.0.0";
+  loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
+  levelTarget, personalBest, carryOverToday, dayKey, uid, ACCENTS,
+} from "./core.js?v=1.1.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.1.0";
+import { setConfettiEnabled } from "./fx.js?v=1.1.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast, confirmSheet } from "./ui.js?v=1.1.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.1.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.1.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -133,7 +133,11 @@ export const app = {
   startWorkout(levelId) {
     const ex = this.exercise();
     const level = findLevel(ex, levelId);
-    const plan = planFor(this.state, ex.id, level);
+    const target = levelTarget(this.state, ex.id, level);
+    // Незакрытая работа за сегодня переносится в эту тренировку: сделал 10 из
+    // 31 утром — вечером добиваешь 21, а не начинаешь цель заново.
+    const carry = carryOverToday(this.state, ex.id, level.id);
+    const plan = suggestPlan(this.state, ex.id, level, Math.max(1, target - carry));
 
     this.session = {
       id: uid("s"),
@@ -141,9 +145,9 @@ export const app = {
       exerciseId: ex.id,
       levelId: level.id,
       levelName: level.name,
-      target: plan.target,
-      planned: [...plan.sets],
-      plannedBase: plan.sets.length,
+      target,
+      carry,
+      suggestion: [...plan.sets],
       done: [],
       currentReps: null,
       startedAt: new Date().toISOString(),
@@ -168,8 +172,10 @@ export const app = {
     this.save();
     haptic("heavy");
 
-    const planExhausted = session.done.length >= session.planned.length;
-    if (planExhausted) {
+    // Тренировка заканчивается по СУММЕ, а не по числу подходов: закрыл цель
+    // одним подходом — значит всё, дальше приложение не гоняет.
+    const total = session.carry + session.done.reduce((a, b) => a + b, 0);
+    if (total >= session.target) {
       this.finishWorkout();
       return;
     }
@@ -178,10 +184,9 @@ export const app = {
     // при закрытии отдыха под ним уже правильный подход, без мигания.
     this.render();
 
-    const nextReps = session.planned[session.done.length];
     const rest = this.state.settings;
     if (rest.restEnabled && rest.restSeconds > 0) {
-      this.rest = restOverlay(this, rest.restSeconds, nextReps, () => {
+      this.rest = restOverlay(this, rest.restSeconds, () => {
         this.rest = null;
       });
     }
@@ -200,27 +205,36 @@ export const app = {
       return;
     }
 
-    // Рекорд считаем ДО записи — иначе свежая тренировка сравнивалась бы сама с собой.
+    // Рекорд считаем ДО записи — иначе свежая тренировка сравнивалась бы сама
+    // с собой. Рекорд дневной, поэтому в bestBefore уже входит утренний заход.
     const bestBefore = personalBest(this.state, session.exerciseId);
+    const dayTotalNow = session.carry + doneTotal;
 
     const record = {
       ...session,
       finishedAt: new Date().toISOString(),
       doneTotal,
       sets: [...session.done],
-      isRecord: doneTotal > bestBefore,
+      // Цель засчитана только если сумма (с учётом сделанного раньше сегодня)
+      // добралась до плана. Закончил раньше — тренировка есть, цели нет.
+      goalReached: dayTotalNow >= session.target,
     };
     delete record.currentReps;
 
     this.state.sessions.push(record);
+    // Рекорд — только за взятую цель. Закончил раньше — результат в дневнике
+    // есть и в лучший день он войдёт, но как рекорд не празднуется.
+    record.isRecord = record.goalReached
+      && personalBest(this.state, record.exerciseId) > bestBefore;
     this.state.active = null;
     this.session = null;
     this.save();
 
-    // Цель уровня уже пересчиталась: закрытая тренировка вошла в счётчик.
+    // Цель уровня пересчитана: она сдвигается только за ВЗЯТУЮ цель.
     const level = findLevel(findExercise(this.state, record.exerciseId), record.levelId);
     this.lastResult = {
       ...record,
+      dayTotal: dayTotalNow,
       nextTarget: levelTarget(this.state, record.exerciseId, level),
     };
 
@@ -246,9 +260,14 @@ export const app = {
       return;
     }
 
+    const total = session.carry + doneTotal;
+    const short = Math.max(0, session.target - total);
+
     sheet({
-      title: "Закончить тренировку?",
-      subtitle: `Сделано ${doneTotal} из ${session.target}. Записать результат в дневник?`,
+      title: "Хватит на сегодня?",
+      subtitle: short > 0
+        ? `Сделано ${total} из ${session.target}. Запишем в дневник, но цель не засчитается — до неё ещё ${short}.`
+        : `Сделано ${total} из ${session.target}. Цель взята.`,
       actions: [
         { label: "Записать и выйти", kind: "primary", onClick: () => this.finishWorkout() },
         { label: "Выбросить", danger: true, onClick: () => this.discardWorkout() },

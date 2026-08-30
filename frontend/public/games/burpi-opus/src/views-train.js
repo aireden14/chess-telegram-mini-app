@@ -1,23 +1,24 @@
 // Экраны тренировочного цикла: задание на день → выбор уровня → подходы → финиш.
+//
+// Главный принцип: подходы НЕ ограничены. Приложение подсказывает разумную
+// разбивку, но закрывает задание только по сумме повторов. Один подход на всю
+// цель — норм. Десять маленьких — тоже. Закончить раньше можно всегда:
+// тренировка попадёт в дневник и в серию, но цель не будет засчитана.
 
 import {
-  ACCENTS, dayKey, humanDate, humanWeekday, planFor, forecast, stats,
-  lastDays, levelTarget, splitSets, suggestSetCount, WEEKDAYS_SHORT,
-  flameStage, STREAK_MILESTONES, levelCompletions,
-} from "./core.js?v=1.0.0";
-import { h, plural, toast, sheet, closeSheet } from "./ui.js?v=1.0.0";
-import { haptic } from "./tg.js?v=1.0.0";
-import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.0.0";
+  ACCENTS, dayKey, humanDate, humanWeekday, suggestPlan, forecast, stats,
+  lastDays, WEEKDAYS_SHORT, flameStage, STREAK_MILESTONES, levelCompletions,
+  carryOverToday, goalReachedToday, dayTotal, levelTarget,
+} from "./core.js?v=1.1.0";
+import { h, plural, toast } from "./ui.js?v=1.1.0";
+import { haptic } from "./tg.js?v=1.1.0";
+import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.1.0";
 
 const FLAMES = ["🔥", "✨", "🔥", "🔥", "🌟", "💎"];
 
 function levelStyle(level) {
   const a = ACCENTS[level.accent] ?? ACCENTS.crimson;
   return { "--lvl-1": a.c1, "--lvl-2": a.c2 };
-}
-
-function setsLine(sets) {
-  return sets.join(" · ");
 }
 
 /* ============================================================ ЗАДАНИЕ НА ДЕНЬ */
@@ -27,13 +28,13 @@ export function viewToday(app) {
   const level = app.level();
   const today = dayKey();
   const st = stats(app.state, ex.id);
-  const plan = planFor(app.state, ex.id, level);
 
-  const todaySessions = app.state.sessions.filter(
-    (s) => s.finishedAt && s.exerciseId === ex.id && s.dayKey === today,
-  );
-  const doneToday = todaySessions.reduce((a, s) => a + s.doneTotal, 0);
-  const isDone = todaySessions.length > 0;
+  const target = levelTarget(app.state, ex.id, level);
+  const closed = goalReachedToday(app.state, ex.id, level.id);
+  const carry = carryOverToday(app.state, ex.id, level.id);
+  const doneToday = dayTotal(app.state, ex.id);
+  const left = Math.max(0, target - carry);
+  const hint = suggestPlan(app.state, ex.id, level, left).sets;
 
   app.setAccent(level.accent);
 
@@ -41,7 +42,7 @@ export function viewToday(app) {
   const head = h("div.head", {},
     h("div", {},
       h("div.eyebrow", { text: `${humanWeekday(today)}, ${humanDate(today)}` }),
-      h("h1.head-title", { text: isDone ? "Задание закрыто" : "Задание на день" }),
+      h("h1.head-title", { text: closed ? "Задание закрыто" : "Задание на день" }),
     ),
     h("div.pill-row", {},
       h(`div.pill${st.streak.current > 0 ? ".is-hot" : ".is-muted"}`, {},
@@ -53,28 +54,29 @@ export function viewToday(app) {
 
   /* ---- герой */
   const heroNumber = h("div.hero-number", { text: "0" });
-  const heroValue = isDone ? doneToday : plan.target;
+  const heroValue = closed ? doneToday : target;
+
+  const note = closed
+    ? `Следующая цель — ${levelTarget(app.state, ex.id, level)}`
+    : carry > 0
+      ? `Сегодня уже ${carry} · осталось ${left}`
+      : "Разбей как хочешь — важна только сумма";
 
   const hero = h("div.hero", {},
-    h("div.hero-label", { text: isDone ? "сделано сегодня" : level.name }),
+    h("div.hero-label", { text: closed ? "сделано сегодня" : level.name }),
     heroNumber,
     h("div.hero-unit", { text: ex.name.toLowerCase() }),
-    isDone
-      ? h("div.hero-note", {
-          text: `Следующая цель — ${planFor(app.state, ex.id, level).target}`,
-        })
-      : h("div.hero-note", {
-          text: `${plan.sets.length} ${plural(plan.sets.length, "подход", "подхода", "подходов")} · первый самый большой`,
-        }),
+    h("div.hero-note", { text: note }),
   );
 
-  /* ---- подходы */
-  const strip = h("div.sets-strip", {},
-    plan.sets.flatMap((n, i) => [
-      i > 0 ? h("span.set-dot", { text: "·" }) : null,
-      h("div.set-chip", { text: String(n) }),
-    ]),
-  );
+  /* ---- подсказка по разбивке (именно подсказка, не план) */
+  const strip = closed
+    ? null
+    : h("div", {},
+        h("div.hint-caption", {
+          text: hint.length > 1 ? `можно так: ${hint.join(" · ")}` : "хоть за один подход",
+        }),
+      );
 
   /* ---- неделя */
   const week = h("div.week", {},
@@ -100,7 +102,7 @@ export function viewToday(app) {
     h("div.hero-note", {
       style: { "margin-top": "12px", "text-align": "left" },
       text: level.mode === "progressive"
-        ? `+${level.step} к цели после каждой закрытой тренировки этого уровня`
+        ? `+${level.step} к цели — но только когда цель взята. Закончил раньше — она останется прежней`
         : "Фиксированная цель — растёт только «РЕКОРДСМЕН»",
     }),
   );
@@ -109,13 +111,13 @@ export function viewToday(app) {
   const actions = h("div.actions", {},
     h("button.btn.btn-primary", {
       type: "button",
-      text: isDone ? "Ещё тренировка" : "Начать тренировку",
+      text: closed ? "Ещё тренировка" : carry > 0 ? "Продолжить" : "Начать тренировку",
       on: { click: () => { haptic("medium"); app.go("levels"); } },
     }),
-    isDone
+    doneToday > 0
       ? h("button.btn.btn-quiet", {
           type: "button",
-          text: `Сегодня: ${todaySessions.length} ${plural(todaySessions.length, "тренировка", "тренировки", "тренировок")} · ${doneToday} ${plural(doneToday, "повтор", "повтора", "повторов")}`,
+          text: `Сегодня: ${doneToday} ${plural(doneToday, "повтор", "повтора", "повторов")}`,
           on: { click: () => { haptic("light"); app.go("diary"); } },
         })
       : null,
@@ -124,7 +126,6 @@ export function viewToday(app) {
   const screen = h("div.screen", {}, head, hero, strip, week, forecastCard,
     h("div.spacer"), actions);
 
-  // Число «набирается» — маленькая деталь, из-за которой экран оживает.
   requestAnimationFrame(() => countUp(heroNumber, heroValue, { duration: 640 }));
 
   return screen;
@@ -136,11 +137,19 @@ export function viewLevels(app) {
   const ex = app.exercise();
 
   const cards = ex.levels.map((level) => {
-    const plan = planFor(app.state, ex.id, level);
-    const closed = levelCompletions(app.state, ex.id, level.id);
-    const meta = level.mode === "progressive" && closed > 0
-      ? `${setsLine(plan.sets)} · закрыто ${closed} ${plural(closed, "раз", "раза", "раз")}`
-      : setsLine(plan.sets);
+    const carry = carryOverToday(app.state, ex.id, level.id);
+    const target = levelTarget(app.state, ex.id, level);
+    const left = Math.max(1, target - carry);
+    const plan = suggestPlan(app.state, ex.id, level, left);
+    const closedCount = levelCompletions(app.state, ex.id, level.id);
+
+    const parts = [];
+    if (carry > 0) parts.push(`осталось ${left} из ${target}`);
+    else if (level.tagline) parts.push(level.tagline);
+    if (plan.sets.length > 1) parts.push(`можно ${plan.sets.join("·")}`);
+    if (level.mode === "progressive" && closedCount > 0) {
+      parts.push(`взято ${closedCount} ${plural(closedCount, "раз", "раза", "раз")}`);
+    }
 
     return h(`button.btn.level-card${level.id === app.state.settings.lastLevelByExercise?.[ex.id] ? ".is-active" : ""}`, {
       type: "button",
@@ -152,10 +161,10 @@ export function viewLevels(app) {
         },
       },
     },
-      h("div.level-badge", { text: String(plan.target) }),
+      h("div.level-badge", { text: String(carry > 0 ? left : target) }),
       h("div.level-body", {},
         h("div.level-name", { text: level.name }),
-        h("div.level-meta", { text: level.tagline ? `${level.tagline} · ${meta}` : meta }),
+        h("div.level-meta", { text: parts.join(" · ") }),
       ),
       h("div.level-chevron", { text: "›" }),
     );
@@ -170,7 +179,7 @@ export function viewLevels(app) {
     ),
     h("div.hero-note", {
       style: { "text-align": "left", "margin-top": "-8px" },
-      text: "Всё уже посчитано — выбери самочувствие и просто отмечай подходы.",
+      text: "Цель посчитана. Сколькими подходами её закрыть — решаешь на месте.",
     }),
     h("div.level-list", {}, cards),
     h("div.spacer"),
@@ -190,64 +199,67 @@ export function viewWorkout(app) {
   const session = app.session;
   if (!session) return viewToday(app);
 
-  const ex = app.exercise();
   const level = app.level(session.levelId);
   app.setAccent(level.accent);
 
   const index = session.done.length;
-  const isExtra = index >= session.planned.length;
-  const suggested = isExtra
-    ? Math.max(1, session.planned[session.planned.length - 1])
-    : session.planned[index];
+  const doneHere = session.done.reduce((a, b) => a + b, 0);
+  const total = session.carry + doneHere;
+  const remaining = Math.max(1, session.target - total);
 
-  // Текущее число живёт в сессии: вернулся из отдыха — правка не потерялась.
+  // Подсказка на текущий подход: следующий кусок из разбивки, но не больше,
+  // чем осталось до цели. Число всегда можно переписать.
+  const suggested = Math.min(
+    remaining,
+    Math.max(1, session.suggestion[index] ?? session.suggestion[session.suggestion.length - 1] ?? remaining),
+  );
+
   if (session.currentReps === null || session.currentReps === undefined) {
     session.currentReps = suggested;
   }
 
-  const doneSoFar = session.done.reduce((a, b) => a + b, 0);
-  const remaining = Math.max(0, session.target - doneSoFar);
-
   const repsNode = h("div.hero-number", { text: String(session.currentReps) });
+  const unitNode = h("div.hero-unit", {
+    text: plural(session.currentReps, "повтор", "повтора", "повторов"),
+  });
 
   function setReps(value) {
     session.currentReps = Math.max(1, Math.min(999, Math.round(value)));
     repsNode.textContent = String(session.currentReps);
+    unitNode.textContent = plural(session.currentReps, "повтор", "повтора", "повторов");
     pulse(repsNode);
   }
 
   /* ---- прогресс */
-  const progressValue = h("div.progress-value", {
-    style: { width: `${Math.min(100, (doneSoFar / Math.max(1, session.target)) * 100)}%` },
-  });
-
   const top = h("div", {},
     h("div.head", {},
       h("div", {},
         h("div.eyebrow", { text: level.name }),
-        h("h1.head-title", {
-          text: isExtra ? "Сверх плана" : `Подход ${index + 1} из ${session.planned.length}`,
-        }),
+        h("h1.head-title", { text: `Подход ${index + 1}` }),
       ),
       h("button.btn.btn-icon", {
         type: "button",
-        "aria-label": "Прервать тренировку",
+        "aria-label": "Закончить тренировку",
         text: "✕",
         on: { click: () => { haptic("light"); app.askAbortWorkout(); } },
       }),
     ),
-    h("div.progress-track", { style: { "margin-top": "14px" } }, progressValue),
+    h("div.progress-track", { style: { "margin-top": "14px" } },
+      h("div.progress-value", {
+        style: { width: `${Math.min(100, (total / Math.max(1, session.target)) * 100)}%` },
+      }),
+    ),
     h("div.hero-note", {
       style: { "text-align": "left", "margin-top": "8px" },
-      text: `${doneSoFar} из ${session.target} · осталось ${remaining}`,
+      text: `${total} из ${session.target} · осталось ${remaining}`,
     }),
   );
 
   /* ---- крупное редактируемое число */
   const stage = h("div.rep-stage", {},
-    h("div.hero-label", { text: isExtra ? "дополнительный подход" : "цель подхода" }),
+    h("div.hero-label", { text: "сколько сделал" }),
     repsNode,
-    h("div.hero-unit", { text: plural(session.currentReps, "повтор", "повтора", "повторов") }),
+    unitNode,
     h("div.stepper", {},
       h("button.btn.stepper-btn", {
         type: "button", "aria-label": "Меньше", text: "−",
@@ -265,53 +277,53 @@ export function viewWorkout(app) {
           on: { click: () => { haptic("medium"); setReps(session.currentReps + step); } },
         }),
       ).concat([
-        h("button.btn.quick-chip", {
-          type: "button", text: "по плану",
-          on: { click: () => { haptic("select"); setReps(suggested); } },
+        // Закрыть цель одним подходом — один тап, а не десять нажатий на «+».
+        h("button.btn.quick-chip.is-strong", {
+          type: "button", text: `всё: ${remaining}`,
+          on: { click: () => { haptic("medium"); setReps(remaining); } },
         }),
       ]),
     ),
   );
 
-  /* ---- лента подходов */
-  const strip = h("div.sets-strip", {},
-    session.planned.flatMap((planned, i) => {
-      const value = i < session.done.length ? session.done[i] : planned;
-      const cls = i < session.done.length ? ".is-done" : i === index ? ".is-current" : "";
-      const extra = i >= session.plannedBase ? ".is-extra" : "";
-      return [
-        i > 0 ? h("span.set-dot", { text: "·" }) : null,
-        h(`div.set-chip${cls}${extra}`, { text: String(value) }),
-      ];
-    }),
-  );
+  /* ---- уже сделанные подходы */
+  const strip = session.done.length > 0 || session.carry > 0
+    ? h("div.sets-strip", {},
+        [
+          session.carry > 0
+            ? h("div.set-chip.is-done.is-extra", { text: String(session.carry), title: "сделано раньше сегодня" })
+            : null,
+          ...session.done.flatMap((value, i) => [
+            i > 0 || session.carry > 0 ? h("span.set-dot", { text: "·" }) : null,
+            h("div.set-chip.is-done", { text: String(value) }),
+          ]),
+        ],
+      )
+    : h("div.hint-caption", {
+        text: session.suggestion.length > 1
+          ? `подсказка: ${session.suggestion.join(" · ")}`
+          : "можно закрыть за один подход",
+      });
 
-  /* ---- главная кнопка */
+  /* ---- главные действия */
   const doneBtn = h("button.btn.done-btn", {
     type: "button",
     on: { click: () => app.completeSet(session.currentReps) },
-  }, h("span", { text: "✓" }), h("span", { text: "Выполнил" }));
+  }, h("span", { text: "✓" }), h("span", { text: "Записать подход" }));
 
-  const addSet = h("button.btn.btn-quiet", {
+  const stopBtn = h("button.btn.btn-quiet", {
     type: "button",
-    text: "+ подход сверх плана",
-    on: {
-      click: () => {
-        haptic("light");
-        session.planned.push(Math.max(1, session.planned[session.planned.length - 1]));
-        app.save();
-        app.render();
-      },
-    },
+    text: doneHere > 0 ? "Хватит на сегодня" : "Отменить тренировку",
+    on: { click: () => { haptic("light"); app.askAbortWorkout(); } },
   });
 
   return h("div.screen", {}, top, h("div.spacer"), stage, strip, h("div.spacer"),
-    h("div.actions", {}, doneBtn, addSet));
+    h("div.actions", {}, doneBtn, stopBtn));
 }
 
 /* ------------------------------------------------------------------ отдых */
 
-export function restOverlay(app, seconds, nextReps, onDone) {
+export function restOverlay(app, seconds, onDone) {
   let left = seconds;
   let total = Math.max(1, seconds);
 
@@ -326,9 +338,16 @@ export function restOverlay(app, seconds, nextReps, onDone) {
     ),
   );
 
+  const session = app.session;
+  const leftToGoal = session
+    ? Math.max(0, session.target - session.carry - session.done.reduce((a, b) => a + b, 0))
+    : 0;
+
   const overlay = h("div.rest", {},
     ring,
-    h("div.rest-next", { text: `Дальше — ${nextReps} ${plural(nextReps, "повтор", "повтора", "повторов")}` }),
+    h("div.rest-next", {
+      text: `До цели осталось ${leftToGoal} ${plural(leftToGoal, "повтор", "повтора", "повторов")}`,
+    }),
     h("div.rest-actions", {},
       h("button.btn.btn-ghost", {
         type: "button", text: "+30 сек",
@@ -386,15 +405,16 @@ export function viewFinish(app) {
   const ex = app.exercise();
   const st = stats(app.state, ex.id);
 
-  const isRecord = result.doneTotal >= st.best && result.doneTotal > 0;
-  const overshoot = result.doneTotal - result.target;
+  const overshoot = result.dayTotal - result.target;
+  const mark = result.isRecord ? "🏆" : result.goalReached ? "✓" : "💪";
+  const title = result.isRecord ? "Новый рекорд" : result.goalReached ? "Цель взята" : "Записано";
 
-  let subtitle = `${result.levelName} · план ${result.target}`;
-  if (overshoot > 0) subtitle += ` · сверху ${overshoot}`;
+  let subtitle = `${result.levelName} · ${result.dayTotal} из ${result.target}`;
+  if (result.goalReached && overshoot > 0) subtitle += ` · сверху ${overshoot}`;
 
-  const screen = h("div.screen.finish", {},
-    h("div.finish-mark", { text: isRecord ? "🏆" : "✓" }),
-    h("div.finish-title", { text: isRecord ? "Новый рекорд" : "Готово" }),
+  return h("div.screen.finish", {},
+    h("div.finish-mark", { text: mark }),
+    h("div.finish-title", { text: title }),
     h("div.finish-sub", { text: subtitle }),
     h("div.finish-stats", {},
       h("div.finish-stat", {},
@@ -413,7 +433,9 @@ export function viewFinish(app) {
       ),
     ),
     h("div.hero-note", {
-      text: `Следующая цель этого уровня — ${result.nextTarget}`,
+      text: result.goalReached
+        ? `Следующая цель этого уровня — ${result.nextTarget}`
+        : `Цель не засчитана — она осталась прежней: ${result.target}`,
     }),
     h("div.actions", { style: { "margin-top": "28px", width: "100%" } },
       h("button.btn.btn-primary", {
@@ -421,13 +443,12 @@ export function viewFinish(app) {
         on: { click: () => { haptic("light"); app.go("today"); } },
       }),
       h("button.btn.btn-quiet", {
-        type: "button", text: "Ещё одна тренировка",
+        type: "button",
+        text: result.goalReached ? "Ещё одна тренировка" : "Продолжить тренировку",
         on: { click: () => { haptic("medium"); app.go("levels"); } },
       }),
     ),
   );
-
-  return screen;
 }
 
 /* ------------------------------------------------- награды за серию (Duo) */
@@ -437,10 +458,16 @@ export function celebrate(app, result) {
   const st = stats(app.state, ex.id);
   const accent = ACCENTS[app.level(result.levelId).accent] ?? ACCENTS.crimson;
 
+  // Закончил раньше — это тоже тренировка, но без салюта: салют за взятую цель.
+  if (!result.goalReached) {
+    haptic("light");
+    toast({ icon: "📝", title: "Записано в дневник", subtitle: "Цель осталась прежней" });
+    return;
+  }
+
   confetti({ colors: [accent.c1, accent.c2, "#ffffff", "#ffd166"], power: result.isRecord ? 1.4 : 1 });
   haptic("success");
 
-  // Пороги серии показываем один раз — иначе награда обесценивается.
   const seen = app.state.settings.seenMilestones ?? [];
   const hit = STREAK_MILESTONES.filter((m) => st.streak.current >= m && !seen.includes(m));
   if (hit.length > 0) {

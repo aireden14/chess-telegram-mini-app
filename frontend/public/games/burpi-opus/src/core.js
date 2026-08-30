@@ -123,11 +123,44 @@ export function suggestSetCount(total) {
 
 /* ------------------------------------------------------- цели уровней */
 
-// Сколько раз этот уровень уже закрыт — на этом и растёт «РЕКОРДСМЕН».
+// Взята ли цель в этой тренировке. Записи, сделанные до появления флага,
+// пересчитываем по сумме — так старый дневник не теряет закрытые задания.
+export function goalReached(session) {
+  if (typeof session.goalReached === "boolean") return session.goalReached;
+  return (session.doneTotal ?? 0) >= (session.target ?? Number.POSITIVE_INFINITY);
+}
+
+// Растёт только за ВЗЯТЫЕ цели: закончил раньше — цель осталась прежней.
 export function levelCompletions(state, exerciseId, levelId) {
   return state.sessions.filter(
-    (s) => s.exerciseId === exerciseId && s.levelId === levelId && s.finishedAt,
+    (s) => s.exerciseId === exerciseId && s.levelId === levelId && s.finishedAt && goalReached(s),
   ).length;
+}
+
+/* ------------------------------------------------------- прогресс за день */
+
+// Сколько сделано сегодня по этому упражнению — независимо от уровня.
+export function dayTotal(state, exerciseId, todayK = dayKey()) {
+  return finishedSessions(state, exerciseId)
+    .filter((s) => s.dayKey === todayK)
+    .reduce((a, s) => a + (s.doneTotal ?? 0), 0);
+}
+
+export function goalReachedToday(state, exerciseId, levelId, todayK = dayKey()) {
+  return state.sessions.some(
+    (s) => s.finishedAt && s.exerciseId === exerciseId && s.levelId === levelId
+      && s.dayKey === todayK && goalReached(s),
+  );
+}
+
+// Незакрытая работа за сегодня: сделал 10 из 31 утром — вечером продолжаем
+// с того же места, а не с нуля. Как только цель взята, счёт обнуляется.
+export function carryOverToday(state, exerciseId, levelId, todayK = dayKey()) {
+  const todays = state.sessions.filter(
+    (s) => s.finishedAt && s.exerciseId === exerciseId && s.levelId === levelId && s.dayKey === todayK,
+  );
+  if (todays.some(goalReached)) return 0;
+  return todays.reduce((a, s) => a + (s.doneTotal ?? 0), 0);
 }
 
 // Цель уровня на ближайшую тренировку.
@@ -141,11 +174,15 @@ export function levelTarget(state, exerciseId, level) {
   return Math.max(1, Math.round(level.total));
 }
 
-// План тренировки: цель + разбивка по подходам.
-export function planFor(state, exerciseId, level) {
+// Подсказка к тренировке, а НЕ жёсткий план: сколько подходов делать и по
+// сколько — решает человек. Разбивка нужна только чтобы подставить разумное
+// число в текущий подход и показать примерный расклад.
+// `remaining` — сколько ещё осталось до цели (с учётом сделанного сегодня).
+export function suggestPlan(state, exerciseId, level, remaining) {
   const target = levelTarget(state, exerciseId, level);
-  const count = level.sets && level.sets > 0 ? level.sets : suggestSetCount(target);
-  return { target, sets: splitSets(target, count) };
+  const left = Math.max(1, Math.round(remaining ?? target));
+  const count = level.sets && level.sets > 0 ? level.sets : suggestSetCount(left);
+  return { target, remaining: left, sets: splitSets(left, count) };
 }
 
 // Готовые цели вперёд — «всё уже подсчитано на +1», смотреть и не считать.
@@ -209,14 +246,17 @@ export function computeStreak(state, exerciseId, todayK = dayKey()) {
   };
 }
 
+// Рекорд — лучший ДЕНЬ, а не лучший подход: тренировку можно разбить на
+// несколько заходов, и это не должно занижать личный максимум.
 export function personalBest(state, exerciseId) {
   const ex = state.exercises.find((e) => e.id === exerciseId);
-  const seed = ex?.seedBest ?? 0;
-  const fromLog = finishedSessions(state, exerciseId).reduce(
-    (max, s) => Math.max(max, s.doneTotal ?? 0),
-    0,
-  );
-  return Math.max(seed, fromLog);
+  const byDay = new Map();
+  finishedSessions(state, exerciseId).forEach((s) => {
+    byDay.set(s.dayKey, (byDay.get(s.dayKey) ?? 0) + (s.doneTotal ?? 0));
+  });
+  let best = ex?.seedBest ?? 0;
+  byDay.forEach((total) => { if (total > best) best = total; });
+  return best;
 }
 
 export const RANKS = [
