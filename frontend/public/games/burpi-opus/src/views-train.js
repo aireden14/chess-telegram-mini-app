@@ -9,11 +9,11 @@ import {
   ACCENTS, dayKey, humanDate, humanWeekday, suggestPlan, forecast, stats,
   lastDays, WEEKDAYS_SHORT, flameStage, STREAK_MILESTONES, levelCompletions,
   carryOverToday, goalReachedToday, dayTotal, levelTarget,
-} from "./core.js?v=1.3.0";
-import { h, plural, toast } from "./ui.js?v=1.3.0";
-import { daySheet } from "./views-data.js?v=1.3.0";
-import { haptic } from "./tg.js?v=1.3.0";
-import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.3.0";
+} from "./core.js?v=1.4.0";
+import { h, plural, toast } from "./ui.js?v=1.4.0";
+import { daySheet } from "./views-data.js?v=1.4.0";
+import { haptic } from "./tg.js?v=1.4.0";
+import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.4.0";
 
 const FLAMES = ["🔥", "✨", "🔥", "🔥", "🌟", "💎"];
 
@@ -206,14 +206,19 @@ export function viewWorkout(app) {
   const index = session.done.length;
   const doneHere = session.done.reduce((a, b) => a + b, 0);
   const total = session.carry + doneHere;
-  const remaining = Math.max(1, session.target - total);
+  const left = Math.max(0, session.target - total);
+  const reached = left === 0;
 
   // Подсказка на текущий подход: следующий кусок из разбивки, но не больше,
   // чем осталось до цели. Число всегда можно переписать.
-  const suggested = Math.min(
-    remaining,
-    Math.max(1, session.suggestion[index] ?? session.suggestion[session.suggestion.length - 1] ?? remaining),
-  );
+  // Когда цель уже взята, подсказкой становится прошлый подход — дальше человек
+  // работает сверх плана и сам решает, сколько делать.
+  const fallback = session.done[session.done.length - 1]
+    ?? session.suggestion[session.suggestion.length - 1]
+    ?? 1;
+  const suggested = reached
+    ? Math.max(1, fallback)
+    : Math.min(left, Math.max(1, session.suggestion[index] ?? fallback));
 
   if (session.currentReps === null || session.currentReps === undefined) {
     session.currentReps = suggested;
@@ -240,9 +245,9 @@ export function viewWorkout(app) {
       ),
       h("button.btn.btn-icon", {
         type: "button",
-        "aria-label": "Закончить тренировку",
+        "aria-label": "Завершить тренировку",
         text: "✕",
-        on: { click: () => { haptic("light"); app.askAbortWorkout(); } },
+        on: { click: () => { haptic("light"); app.finishFromWorkout(); } },
       }),
     ),
     h("div.progress-track", { style: { "margin-top": "14px" } },
@@ -252,7 +257,9 @@ export function viewWorkout(app) {
     ),
     h("div.hero-note", {
       style: { "text-align": "left", "margin-top": "8px" },
-      text: `${total} из ${session.target} · осталось ${remaining}`,
+      text: reached
+        ? `${total} из ${session.target} · цель взята${total > session.target ? `, сверху ${total - session.target}` : ""}`
+        : `${total} из ${session.target} · осталось ${left}`,
     }),
   );
 
@@ -277,13 +284,23 @@ export function viewWorkout(app) {
           type: "button", text: `+${step}`,
           on: { click: () => { haptic("medium"); setReps(session.currentReps + step); } },
         }),
-      ).concat([
+      ).concat(
         // Закрыть цель одним подходом — один тап, а не десять нажатий на «+».
-        h("button.btn.quick-chip.is-strong", {
-          type: "button", text: `всё: ${remaining}`,
-          on: { click: () => { haptic("medium"); setReps(remaining); } },
-        }),
-      ]),
+        // После взятия цели остатка нет, и чип уступает место прошлому подходу.
+        reached
+          ? [
+              h("button.btn.quick-chip", {
+                type: "button", text: `как в прошлом: ${fallback}`,
+                on: { click: () => { haptic("medium"); setReps(fallback); } },
+              }),
+            ]
+          : [
+              h("button.btn.quick-chip.is-strong", {
+                type: "button", text: `всё: ${left}`,
+                on: { click: () => { haptic("medium"); setReps(left); } },
+              }),
+            ],
+      ),
     ),
   );
 
@@ -306,20 +323,23 @@ export function viewWorkout(app) {
           : "можно закрыть за один подход",
       });
 
-  /* ---- главные действия */
-  const doneBtn = h("button.btn.done-btn", {
+  /* ---- главные действия
+     Две независимые кнопки. Взятая цель НЕ заканчивает тренировку сама:
+     хочешь пять подходов по 40 при цели 30 — делай, приложение не мешает.
+     И наоборот, завершить можно на 15 из 30 — цель просто не засчитается. */
+  const addBtn = h("button.btn.done-btn", {
     type: "button",
     on: { click: () => app.completeSet(session.currentReps) },
-  }, h("span", { text: "✓" }), h("span", { text: "Записать подход" }));
+  }, h("span", { text: "+" }), h("span", { text: "Добавить подход" }));
 
-  const stopBtn = h("button.btn.btn-quiet", {
+  const finishBtn = h(`button.btn.btn-ghost${reached ? ".is-accent" : ""}`, {
     type: "button",
-    text: doneHere > 0 ? "Хватит на сегодня" : "Отменить тренировку",
-    on: { click: () => { haptic("light"); app.askAbortWorkout(); } },
+    text: doneHere > 0 ? "Завершить тренировку" : "Отменить тренировку",
+    on: { click: () => { haptic("light"); app.finishFromWorkout(); } },
   });
 
   return h("div.screen", {}, top, h("div.spacer"), stage, strip, h("div.spacer"),
-    h("div.actions", {}, doneBtn, stopBtn));
+    h("div.actions", {}, addBtn, finishBtn));
 }
 
 /* ------------------------------------------------------------------ отдых */
@@ -340,14 +360,15 @@ export function restOverlay(app, seconds, onDone) {
   );
 
   const session = app.session;
-  const leftToGoal = session
-    ? Math.max(0, session.target - session.carry - session.done.reduce((a, b) => a + b, 0))
-    : 0;
+  const doneSoFar = session ? session.carry + session.done.reduce((a, b) => a + b, 0) : 0;
+  const leftToGoal = session ? Math.max(0, session.target - doneSoFar) : 0;
 
   const overlay = h("div.rest", {},
     ring,
     h("div.rest-next", {
-      text: `До цели осталось ${leftToGoal} ${plural(leftToGoal, "повтор", "повтора", "повторов")}`,
+      text: leftToGoal > 0
+        ? `До цели осталось ${leftToGoal} ${plural(leftToGoal, "повтор", "повтора", "повторов")}`
+        : `Цель взята — ${doneSoFar} из ${session?.target ?? doneSoFar}`,
     }),
     h("div.rest-actions", {},
       h("button.btn.btn-ghost", {
@@ -367,6 +388,19 @@ export function restOverlay(app, seconds, onDone) {
         on: { click: () => { haptic("medium"); finish(); } },
       }),
     ),
+    // Тренировку можно закончить прямо из отдыха — не заставляем возвращаться
+    // на экран подхода только ради кнопки «Завершить».
+    h("button.btn.btn-quiet", {
+      type: "button",
+      text: "Завершить тренировку",
+      on: {
+        click: () => {
+          haptic("light");
+          finish();
+          app.finishFromWorkout();
+        },
+      },
+    }),
   );
 
   document.body.appendChild(overlay);

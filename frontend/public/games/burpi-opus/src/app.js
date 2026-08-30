@@ -4,12 +4,12 @@ import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
   levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
   setTimeZone,
-} from "./core.js?v=1.3.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.3.0";
-import { setConfettiEnabled } from "./fx.js?v=1.3.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.3.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.3.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.3.0";
+} from "./core.js?v=1.4.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.4.0";
+import { setConfettiEnabled } from "./fx.js?v=1.4.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.4.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.4.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.4.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -172,15 +172,25 @@ export const app = {
     session.done.push(Math.max(1, Math.round(reps)));
     session.currentReps = null;
     this.state.active = session;
-    this.save();
-    haptic("heavy");
 
-    // Тренировка заканчивается по СУММЕ, а не по числу подходов: закрыл цель
-    // одним подходом — значит всё, дальше приложение не гоняет.
+    // Взятая цель НЕ заканчивает тренировку: приложение только подтверждает,
+    // что план закрыт, и оставляет решение человеку — завершить или добавить
+    // ещё подход (например, пять по 40 при цели 30).
     const total = session.carry + session.done.reduce((a, b) => a + b, 0);
-    if (total >= session.target) {
-      this.finishWorkout();
-      return;
+    const justReached = total >= session.target && !session.goalAnnounced;
+    if (justReached) session.goalAnnounced = true;
+    this.save();
+
+    if (justReached) {
+      haptic("success");
+      toast({
+        icon: "✓",
+        title: `Цель взята — ${total} из ${session.target}`,
+        subtitle: "Можно завершить или добавить ещё подход",
+        duration: 4000,
+      });
+    } else {
+      haptic("heavy");
     }
 
     // Сначала обновляем экран тренировки, потом накрываем его таймером:
@@ -308,7 +318,10 @@ export const app = {
     this.go("today");
   },
 
-  askAbortWorkout() {
+  // Единственный выход из тренировки: и кнопка «Завершить», и ✕, и отдых.
+  // Цель взята — заканчиваем молча, без лишнего вопроса. Не взята — коротко
+  // предупреждаем, что она не засчитается, и даём передумать.
+  finishFromWorkout() {
     const session = this.session;
     const doneTotal = session ? session.done.reduce((a, b) => a + b, 0) : 0;
 
@@ -320,14 +333,17 @@ export const app = {
     const total = session.carry + doneTotal;
     const short = Math.max(0, session.target - total);
 
+    if (short === 0) {
+      this.finishWorkout();
+      return;
+    }
+
     sheet({
-      title: "Хватит на сегодня?",
-      subtitle: short > 0
-        ? `Сделано ${total} из ${session.target}. Запишем в дневник, но цель не засчитается — до неё ещё ${short}.`
-        : `Сделано ${total} из ${session.target}. Цель взята.`,
+      title: "Завершить тренировку?",
+      subtitle: `Сделано ${total} из ${session.target}. Запишем в дневник, но цель не засчитается — до неё ещё ${short}.`,
       actions: [
-        { label: "Записать и выйти", kind: "primary", onClick: () => this.finishWorkout() },
-        { label: "Выбросить", danger: true, onClick: () => this.discardWorkout() },
+        { label: "Завершить", kind: "primary", onClick: () => this.finishWorkout() },
+        { label: "Выбросить тренировку", danger: true, onClick: () => this.discardWorkout() },
         { label: "Продолжить" },
       ],
     });
@@ -361,7 +377,7 @@ export const app = {
   },
 
   back() {
-    if (this.view === "workout") this.askAbortWorkout();
+    if (this.view === "workout") this.finishFromWorkout();
     else if (this.view === "levels" || this.view === "finish") this.go("today");
     else if (this.view !== "today") this.go("today");
     else requestExit();
