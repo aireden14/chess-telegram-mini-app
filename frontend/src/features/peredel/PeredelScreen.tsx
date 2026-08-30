@@ -3,7 +3,11 @@ import { TopNav } from "../../components/TopNav";
 import { triggerHaptic } from "../../hooks/useTelegram";
 import { celebrate } from "../../hooks/celebrate";
 import { BOT_LEVELS, botLevelById, usePeredel } from "./peredelStore";
+import { duelView, usePeredelOnline } from "./peredelOnlineStore";
 import { blockEdgeClasses, SUDOKU_VARIANTS } from "../sudoku/sudokuVariants";
+import { useAuthStore } from "../../store/auth";
+import { useSocketStore } from "../../store/socket";
+import "./peredelOnline.css";
 
 function sameBox(a: number, b: number): boolean {
   const rowA = Math.floor(a / 9);
@@ -43,6 +47,23 @@ export function PeredelScreen() {
   const [freezeLeft, setFreezeLeft] = useState(0);
   const celebratedRef = useRef(false);
 
+  // Сетевая дуэль: доска и очки приходят с сервера, локальный бот при этом молчит.
+  const [online, setOnline] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [duelPassword, setDuelPassword] = useState("");
+  const duel = usePeredelOnline();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const socket = useSocketStore((s) => s.socket);
+  const connectSocket = useSocketStore((s) => s.connect);
+  const myName = user?.firstName || user?.username || "Игрок";
+
+  useEffect(() => {
+    if (!online) return;
+    const live = socket ?? (token ? connectSocket(token) : null);
+    if (live && user) duel.attach(live, user.id);
+  }, [online, socket, token, user, connectSocket, duel]);
+
   // Одна партия не переживает перезагрузку, поэтому доску собираем при входе.
   useEffect(() => {
     if (entries.length !== 81) start();
@@ -52,17 +73,19 @@ export function PeredelScreen() {
   useEffect(() => {
     const id = window.setInterval(() => {
       const now = Date.now();
-      tick(now);
-      setFreezeLeft(Math.max(0, Math.ceil((usePeredel.getState().frozenUntil - now) / 1000)));
+      if (!online) tick(now);
+      const until = online ? usePeredelOnline.getState().frozenUntil : usePeredel.getState().frozenUntil;
+      setFreezeLeft(Math.max(0, Math.ceil((until - now) / 1000)));
     }, 200);
     return () => window.clearInterval(id);
-  }, [tick]);
+  }, [tick, online]);
 
+  const activeFlash = online ? duel.flash : flash;
   useEffect(() => {
-    if (!flash) return;
-    const id = window.setTimeout(() => clearFlash(), 700);
+    if (!activeFlash) return;
+    const id = window.setTimeout(() => (online ? duel.clearFlash() : clearFlash()), 700);
     return () => window.clearTimeout(id);
-  }, [flash, clearFlash]);
+  }, [activeFlash, clearFlash, online, duel]);
 
   useEffect(() => {
     if (result && !celebratedRef.current && result.youScore > result.botScore) {
@@ -72,7 +95,7 @@ export function PeredelScreen() {
     if (!result) celebratedRef.current = false;
   }, [result]);
 
-  if (entries.length !== 81) {
+  if (!online && entries.length !== 81) {
     return (
       <div className="center-screen">
         <div className="spinner" />
@@ -82,9 +105,24 @@ export function PeredelScreen() {
 
   const level = botLevelById(levelId);
   const frozen = freezeLeft > 0;
-  const filled = entries.filter((value) => value !== null).length;
-  const total = youScore + botScore;
-  const youShare = total > 0 ? (youScore / total) * 100 : 50;
+
+  // Экран рисует обе партии одним кодом: локальную и сетевую.
+  const net = duelView(duel.room, user?.id ?? -1);
+  const view = online
+    ? net
+    : {
+        givens, entries, owners, candidates,
+        youScore, rivalScore: botScore, rivalName: level.title, rivalOnline: true, status,
+      };
+  const vSelected = online ? duel.selectedIndex : selectedIndex;
+  const vFlash = online ? duel.flash : flash;
+  const vLastRival = online ? duel.lastRivalIndex : lastBotIndex;
+  const doSelect = online ? duel.select : select;
+  const doPlace = online ? duel.place : place;
+
+  const filled = view.entries.filter((value) => value !== null).length;
+  const total = view.youScore + view.rivalScore;
+  const youShare = total > 0 ? (view.youScore / total) * 100 : 50;
 
   const startLevel = (id: string) => {
     start(id);
@@ -93,11 +131,51 @@ export function PeredelScreen() {
   };
 
   const handleNumber = (digit: number) => {
-    const outcome = place(digit);
+    const outcome = doPlace(digit);
     if (outcome === "taken") triggerHaptic("success");
     else if (outcome === "miss") triggerHaptic("warning");
     else triggerHaptic("light");
   };
+
+  // Сетевой режим до входа в комнату: создать дуэль или войти по коду.
+  if (online && !duel.room) {
+    return (
+      <div className="app-screen peredel-screen">
+        <TopNav title="Судоку PVP" backTo="/" />
+        <div className="pd-lobby">
+          <p className="peredel-rules">
+            Доска одна на двоих, и расклад у вас общий. Клетку забирает тот, кто первым поставил
+            в неё верную цифру. Промах морозит на 3 секунды и в сетку ничего не пишет.
+          </p>
+          {duel.error && <div className="pd-error">{duel.error}</div>}
+          <div className="pd-field">
+            <label>Пароль (необязательно)</label>
+            <input
+              type="text" value={duelPassword} placeholder="без пароля"
+              onChange={(e) => setDuelPassword(e.target.value)}
+            />
+          </div>
+          <button className="btn btn-primary" onClick={() => duel.createRoom(myName, duelPassword)}>
+            Создать дуэль
+          </button>
+          <div className="pd-sep">или</div>
+          <div className="pd-field">
+            <label>Код дуэли</label>
+            <input
+              type="text" value={joinCode} placeholder="например SDK7QF"
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            />
+          </div>
+          <button className="btn" onClick={() => duel.joinRoom(joinCode, myName, duelPassword)}>
+            Войти по коду
+          </button>
+          <button className="btn pd-back" onClick={() => { setOnline(false); duel.detach(); }}>
+            Назад к игре с ботом
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-screen peredel-screen">
@@ -106,21 +184,38 @@ export function PeredelScreen() {
       <div className="peredel-scorebar">
         <div className="peredel-side you">
           <span className="peredel-side-name">Ты</span>
-          <strong>{youScore}</strong>
+          <strong>{view.youScore}</strong>
         </div>
         <div className="peredel-bar" aria-hidden="true">
           <div className="peredel-bar-you" style={{ width: `${youShare}%` }} />
         </div>
         <div className="peredel-side bot">
-          <span className="peredel-side-name">{level.title}</span>
-          <strong>{botScore}</strong>
+          <span className="peredel-side-name">{view.rivalName}</span>
+          <strong>{view.rivalScore}</strong>
         </div>
       </div>
 
+      {online && duel.room && (
+        <div className="pd-roombar">
+          <span className="pd-muted">Код дуэли</span>
+          <b className="pd-code">{duel.room.code}</b>
+          {duel.room.hasPassword && <span title="Под паролем">🔒</span>}
+          <span className="pd-muted pd-roombar-status">
+            {duel.room.status === "waiting"
+              ? "ждём соперника"
+              : duel.room.status === "finished"
+                ? "дуэль окончена"
+                : view.rivalOnline
+                  ? "соперник в сети"
+                  : "соперник отвалился, ждём 2 минуты"}
+          </span>
+        </div>
+      )}
+
       <div className="peredel-toolbar">
         <span className="peredel-progress">
-          Клеток закрыто {filled - givens.filter((value) => value !== null).length} из{" "}
-          {81 - givens.filter((value) => value !== null).length}
+          Клеток закрыто {filled - view.givens.filter((value) => value !== null).length} из{" "}
+          {81 - view.givens.filter((value) => value !== null).length}
         </span>
         <div className="peredel-toolbar-actions">
           <button
@@ -156,16 +251,16 @@ export function PeredelScreen() {
           </div>
         )}
         <div className="sudoku-board peredel-board" role="grid" aria-label="Судоку PVP, поле 9 на 9">
-          {entries.map((value, index) => {
-            const given = givens[index] !== null;
-            const owner = owners[index];
-            const isSelected = selectedIndex === index;
+          {view.entries.map((value, index) => {
+            const given = view.givens[index] !== null;
+            const owner = view.owners[index];
+            const isSelected = vSelected === index;
             const isPeer =
-              selectedIndex !== null &&
+              vSelected !== null &&
               !isSelected &&
-              (Math.floor(index / 9) === Math.floor(selectedIndex / 9) ||
-                index % 9 === selectedIndex % 9 ||
-                sameBox(index, selectedIndex));
+              (Math.floor(index / 9) === Math.floor(vSelected / 9) ||
+                index % 9 === vSelected % 9 ||
+                sameBox(index, vSelected));
             const classes = [
               "sudoku-cell",
               blockEdgeClasses(index, SUDOKU_VARIANTS[9]),
@@ -174,19 +269,19 @@ export function PeredelScreen() {
               owner === "bot" ? "peredel-bot" : "",
               isSelected ? "selected" : "",
               isPeer ? "peer" : "",
-              lastBotIndex === index ? "peredel-just-bot" : "",
+              vLastRival === index ? "peredel-just-bot" : "",
             ]
               .filter(Boolean)
               .join(" ");
 
-            const options = candidates[index] || [];
+            const options = view.candidates[index] || [];
 
             return (
               <button
                 key={index}
                 className={classes}
                 onClick={() => {
-                  select(index);
+                  doSelect(index);
                   triggerHaptic("light");
                 }}
                 role="gridcell"
@@ -199,9 +294,9 @@ export function PeredelScreen() {
                 ) : showCandidates && options.length ? (
                   <span className="peredel-price">{options.length}</span>
                 ) : null}
-                {flash?.index === index && (
-                  <span className={`peredel-flash ${flash.owner === "you" ? "you" : "bot"}`}>
-                    +{flash.points}
+                {vFlash?.index === index && (
+                  <span className={`peredel-flash ${vFlash.owner === "you" ? "you" : "bot"}`}>
+                    +{vFlash.points}
                   </span>
                 )}
               </button>
@@ -212,12 +307,12 @@ export function PeredelScreen() {
 
       <div className="peredel-pad">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => {
-          const left = 9 - entries.filter((value) => value === digit).length;
+          const left = 9 - view.entries.filter((value) => value === digit).length;
           return (
             <button
               key={digit}
               className="peredel-key"
-              disabled={status !== "playing" || frozen || selectedIndex === null || left === 0}
+              disabled={view.status !== "playing" || frozen || vSelected === null || left === 0}
               onClick={() => handleNumber(digit)}
             >
               <b>{digit}</b>
@@ -257,6 +352,12 @@ export function PeredelScreen() {
               ))}
             </div>
             <div className="modal-actions">
+              <button
+                className="btn"
+                onClick={() => { setMenuOpen(false); setOnline(true); }}
+              >
+                Играть с человеком
+              </button>
               <button className="btn" onClick={() => setMenuOpen(false)}>
                 Закрыть
               </button>
@@ -268,8 +369,34 @@ export function PeredelScreen() {
         </div>
       )}
 
+      {/* ===== Итог сетевой дуэли ===== */}
+      {online && duel.room?.status === "finished" && (
+        <div className="sudoku-victory" role="dialog" aria-modal="true">
+          <div className="sudoku-victory-card">
+            <div className="sudoku-victory-orb">{duel.room.winner === user?.id ? "★" : "·"}</div>
+            <p className="sudoku-kicker">Доска заполнена</p>
+            <h2>
+              {duel.room.winner === "draw"
+                ? "Ничья"
+                : duel.room.winner === user?.id
+                  ? "Ты забрал больше"
+                  : `${view.rivalName} забрал больше`}
+            </h2>
+            <p>{view.youScore} : {view.rivalScore}</p>
+            <div className="sudoku-victory-actions">
+              <button className="btn btn-primary" onClick={() => { duel.leaveRoom(); }}>
+                Ещё дуэль
+              </button>
+              <button className="btn" onClick={() => { duel.leaveRoom(); setOnline(false); }}>
+                К боту
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== Итог ===== */}
-      {result && (
+      {!online && result && (
         <div className="sudoku-victory" role="dialog" aria-modal="true">
           <div className="sudoku-victory-card">
             <div className="sudoku-victory-orb">{result.youScore > result.botScore ? "★" : "·"}</div>
