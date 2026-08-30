@@ -19,6 +19,7 @@ import {
 } from "./model";
 import {
   completeTraining,
+  deleteTrainingDay,
   fetchTraining,
   readTrainingCache,
   saveTrainingSettings,
@@ -49,6 +50,9 @@ function sessionFromPayload(payload: CompletionPayload): TrainingSession {
     (sum, exercise) => sum + exercise.actualSets.reduce((inner, reps) => inner + reps, 0),
     0,
   );
+  const goalCompleted = payload.exercises.every(
+    (exercise) => sum(exercise.actualSets) >= sum(exercise.plannedSets),
+  );
   return {
     id: `local-${payload.dateKey}`,
     dateKey: payload.dateKey,
@@ -57,6 +61,8 @@ function sessionFromPayload(payload: CompletionPayload): TrainingSession {
     actual: payload.exercises,
     totalPlanned,
     totalActual,
+    goalCompleted,
+    recordProgressApplied: payload.mode === "record" && goalCompleted,
     completedAt: new Date().toISOString(),
   };
 }
@@ -236,6 +242,28 @@ export function TrainingScreen() {
     }
   };
 
+  const clearToday = () => {
+    if (!dashboard?.today) return;
+    const tg = getTelegram();
+    const remove = async (confirmed: boolean) => {
+      if (!confirmed) return;
+      try {
+        const fresh = await deleteTrainingDay(dashboard.today!.dateKey);
+        setDashboard(fresh);
+        setCelebration(null);
+        setOffline(false);
+        writeTrainingCache(userId, { dashboard: fresh, pendingCompletion: null, pendingSettings: readTrainingCache(userId).pendingSettings });
+        triggerHaptic("success");
+      } catch {
+        setOffline(true);
+        tg?.showAlert?.("Не удалось очистить день. Проверь интернет и попробуй ещё раз.");
+      }
+    };
+    const message = `Удалить все подходы за ${formatDate(dashboard.today.dateKey)}? Это действие нельзя отменить.`;
+    if (tg?.showConfirm) tg.showConfirm(message, remove);
+    else void remove(window.confirm(message));
+  };
+
   if (!dashboard) {
     return (
       <main className="training-app training-loading">
@@ -295,7 +323,7 @@ export function TrainingScreen() {
             <ProgressHero dashboard={dashboard} theme={theme} reduceMotion={!!reduceMotion} />
 
             {dashboard.today ? (
-              <CompletedToday session={dashboard.today} state={dashboard.state} onHistory={() => setPage("history")} />
+              <CompletedToday session={dashboard.today} state={dashboard.state} onHistory={() => setPage("history")} onClear={clearToday} />
             ) : (
               <DailyTask
                 dashboard={dashboard}
@@ -532,15 +560,15 @@ function DailyTask({
   );
 }
 
-function CompletedToday({ session, state, onHistory }: { session: TrainingSession; state: TrainingState; onHistory: () => void }) {
+function CompletedToday({ session, state, onHistory, onClear }: { session: TrainingSession; state: TrainingState; onHistory: () => void; onClear: () => void }) {
   const extras = Math.max(0, session.totalActual - session.totalPlanned);
   return (
     <section className="training-task training-complete-card">
       <div className="training-complete-check"><CheckIcon /></div>
       <div className="training-complete-copy">
-        <span>ЗАДАНИЕ ВЫПОЛНЕНО</span>
+        <span>{session.goalCompleted ? "ЗАДАНИЕ ВЫПОЛНЕНО" : "ДЕНЬ ЗАКРЫТ"}</span>
         <h1>{session.totalActual} повторов</h1>
-        <p>{MODE_META[session.mode]?.label || session.mode}{extras ? ` · +${extras} сверх плана` : " · точно по плану"}</p>
+        <p>{MODE_META[session.mode]?.label || session.mode}{session.goalCompleted ? (extras ? ` · +${extras} сверх плана` : " · цель выполнена") : " · без роста рекорда"}</p>
       </div>
       <div className="training-next-targets">
         {activeExercises(state).map((exercise) => (
@@ -548,6 +576,7 @@ function CompletedToday({ session, state, onHistory }: { session: TrainingSessio
         ))}
       </div>
       <button className="training-secondary-button" onClick={onHistory}>Открыть запись дня</button>
+      <button className="training-clear-day" onClick={onClear}>Очистить все подходы за день</button>
     </section>
   );
 }
@@ -774,11 +803,18 @@ function WorkoutFlow({
   }, [plan.length, rest]);
 
   const totalPlan = plan.reduce((total, exercise) => total + sum(exercise.plannedSets), 0);
-  const doneReps = plan.reduce((total, exercise) => total + exercise.plannedSets.reduce(
-    (inner, planned, index) => inner + (checked[exercise.exerciseId]?.[index] ? Math.max(planned, actual[exercise.exerciseId]?.[index] || 0) : 0),
+  const doneReps = plan.reduce((total, exercise) => total + (actual[exercise.exerciseId] || []).reduce(
+    (inner, reps, index) => inner + (checked[exercise.exerciseId]?.[index] ? reps : 0),
     0,
   ), 0);
-  const allDone = plan.every((exercise) => checked[exercise.exerciseId]?.every(Boolean));
+  const hasDoneAny = doneReps > 0;
+  const goalReached = plan.every((exercise) => {
+    const performed = (actual[exercise.exerciseId] || []).reduce(
+      (total, reps, index) => total + (checked[exercise.exerciseId]?.[index] ? reps : 0),
+      0,
+    );
+    return performed >= sum(exercise.plannedSets);
+  });
   const currentChecked = checked[current.exerciseId] || [];
 
   const changeActual = (setIndex: number, value: number) => {
@@ -786,6 +822,24 @@ function WorkoutFlow({
       ...currentActual,
       [current.exerciseId]: currentActual[current.exerciseId].map((reps, index) => index === setIndex ? Math.max(0, Math.min(100000, value)) : reps),
     }));
+  };
+
+  const addSet = () => {
+    const currentDone = (actual[current.exerciseId] || []).reduce(
+      (total, reps, index) => total + (currentChecked[index] ? reps : 0),
+      0,
+    );
+    const nextValue = Math.max(1, sum(current.plannedSets) - currentDone);
+    setActual((value) => ({ ...value, [current.exerciseId]: [...(value[current.exerciseId] || []), nextValue] }));
+    setChecked((value) => ({ ...value, [current.exerciseId]: [...(value[current.exerciseId] || []), false] }));
+    triggerHaptic("light");
+  };
+
+  const removeSet = (setIndex: number) => {
+    if ((actual[current.exerciseId] || []).length <= 1) return;
+    setActual((value) => ({ ...value, [current.exerciseId]: value[current.exerciseId].filter((_, index) => index !== setIndex) }));
+    setChecked((value) => ({ ...value, [current.exerciseId]: value[current.exerciseId].filter((_, index) => index !== setIndex) }));
+    triggerHaptic("light");
   };
 
   const toggleSet = (setIndex: number) => {
@@ -796,9 +850,15 @@ function WorkoutFlow({
     }));
     if (wasChecked) return;
     triggerHaptic("medium");
-    const isLastSet = setIndex === current.plannedSets.length - 1;
+    const currentValues = actual[current.exerciseId] || [];
+    const isLastSet = setIndex === currentValues.length - 1;
     const hasNextExercise = exerciseIndex < plan.length - 1;
-    const shouldRest = !isLastSet || hasNextExercise;
+    const performedAfterCheck = currentValues.reduce(
+      (total, reps, index) => total + ((index === setIndex || currentChecked[index]) ? reps : 0),
+      0,
+    );
+    const exerciseGoalReached = performedAfterCheck >= sum(current.plannedSets);
+    const shouldRest = !exerciseGoalReached && (!isLastSet || hasNextExercise);
     if (shouldRest) {
       const seconds = Math.max(0, (actual[current.exerciseId]?.[setIndex] || current.plannedSets[setIndex]) * current.restSecondsPerRep);
       if (seconds > 0) setRest({ left: seconds, total: seconds, advance: isLastSet && hasNextExercise, label: current.name });
@@ -807,16 +867,15 @@ function WorkoutFlow({
   };
 
   const finish = () => {
-    if (!allDone) return;
+    if (!hasDoneAny) return;
     const exercises: ExerciseSnapshot[] = plan.map((exercise) => ({
       exerciseId: exercise.exerciseId,
       name: exercise.name,
       plannedSets: exercise.plannedSets,
-      actualSets: actual[exercise.exerciseId],
+      actualSets: (actual[exercise.exerciseId] || []).filter((_, index) => checked[exercise.exerciseId]?.[index]),
     }));
-    const planned = exercises.reduce((total, exercise) => total + sum(exercise.plannedSets), 0);
     const performed = exercises.reduce((total, exercise) => total + sum(exercise.actualSets), 0);
-    if (performed < planned) return;
+    if (performed <= 0) return;
     void onComplete({ dateKey, mode, exercises });
   };
 
@@ -835,11 +894,12 @@ function WorkoutFlow({
         animate={{ opacity: 1, x: 0 }}
       >
         <div className="training-workout-step"><span>УПРАЖНЕНИЕ {exerciseIndex + 1} ИЗ {plan.length}</span><strong>{MODE_META[mode].label}</strong></div>
-        <div className="training-workout-title"><span>{current.emoji}</span><div><h1>{current.name}</h1><p>{current.plannedSets.join(" + ")} · отдых считается по факту</p></div></div>
+        <div className="training-workout-title"><span>{current.emoji}</span><div><h1>{current.name}</h1><p>цель {sum(current.plannedSets)} · подходов сколько хочешь</p></div></div>
 
         <div className="training-set-list">
-          {current.plannedSets.map((planned, setIndex) => {
-            const value = actual[current.exerciseId]?.[setIndex] ?? planned;
+          {(actual[current.exerciseId] || []).map((storedValue, setIndex) => {
+            const planned = current.plannedSets[setIndex];
+            const value = storedValue;
             const isChecked = !!currentChecked[setIndex];
             return (
               <article className={`training-set-card${isChecked ? " done" : ""}`} key={setIndex}>
@@ -849,26 +909,30 @@ function WorkoutFlow({
                 <div className="training-set-main">
                   <span>ПОДХОД {String(setIndex + 1).padStart(2, "0")}</span>
                   <div><input type="number" inputMode="numeric" value={value} onChange={(event) => changeActual(setIndex, Number(event.target.value) || 0)} /><em>раз</em></div>
-                  <small>план {planned}{value > planned ? ` · +${value - planned}` : ""}</small>
+                  <small>{planned == null ? "свободный подход" : `вариант ${planned}${value > planned ? ` · +${value - planned}` : ""}`}</small>
                 </div>
                 <div className="training-set-adjust">
                   <button onClick={() => changeActual(setIndex, value - 1)} aria-label="Минус один">−1</button>
                   <button onClick={() => changeActual(setIndex, value + 1)} aria-label="Плюс один">+1</button>
                   <button onClick={() => changeActual(setIndex, value + 5)} aria-label="Плюс пять">+5</button>
+                  <button className="training-remove-set" onClick={() => removeSet(setIndex)} disabled={(actual[current.exerciseId] || []).length <= 1}>Удалить</button>
                 </div>
               </article>
             );
           })}
+          <button className="training-add-set" onClick={addSet}>+ Добавить подход</button>
         </div>
       </motion.section>
 
       <div className="training-workout-bottom">
-        {allDone ? (
-          <button className="training-primary-button" onClick={finish}>Завершить · {plan.reduce((total, exercise) => total + sum(actual[exercise.exerciseId]), 0)} раз</button>
-        ) : exerciseIndex < plan.length - 1 && currentChecked.every(Boolean) && !rest ? (
+        {hasDoneAny ? (
+          <button className={`training-primary-button${goalReached ? "" : " training-partial-button"}`} onClick={finish}>
+            {goalReached ? `Завершить — цель выполнена · ${doneReps}` : `Закончить сегодня · ${doneReps} · без роста рекорда`}
+          </button>
+        ) : exerciseIndex < plan.length - 1 && currentChecked.some(Boolean) && !rest ? (
           <button className="training-secondary-button" onClick={() => setExerciseIndex((value) => value + 1)}>Следующее упражнение</button>
         ) : (
-          <p>Отметь подход большой галочкой. Число можно увеличить без лимита.</p>
+          <p>Сделал подход — отметь галочкой. Можно закончить после любого количества повторов.</p>
         )}
       </div>
 
@@ -932,7 +996,7 @@ function CompletionCelebration({ session, reduceMotion, onClose }: { session: Tr
         <span>ДЕНЬ ЗАКРЫТ</span>
         <strong>{session.totalActual}</strong>
         <h2>Ты сделал тренировку</h2>
-        <p>{extras ? `И ещё ${extras} сверх заявленного.` : "Точно по выбранному плану."} Напоминания на сегодня остановлены.</p>
+        <p>{session.goalCompleted ? (extras ? `И ещё ${extras} сверх заявленного.` : "Цель выполнена.") : "День сохранён без роста рекордной цели."} Напоминания на сегодня остановлены.</p>
         <button className="training-primary-button" onClick={onClose}>Продолжить</button>
       </motion.div>
     </motion.div>

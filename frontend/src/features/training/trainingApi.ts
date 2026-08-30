@@ -58,8 +58,12 @@ export async function completeTraining(payload: CompletionPayload): Promise<Trai
   return response.data;
 }
 
+export async function deleteTrainingDay(dateKey: string): Promise<TrainingDashboard> {
+  const response = await api.delete<TrainingDashboard>(`/training/day/${dateKey}`);
+  return response.data;
+}
+
 export async function saveTrainingSettings(payload: SettingsPayload): Promise<TrainingDashboard> {
   const response = await api.patch<TrainingDashboard>("/training/settings", payload);
   return response.data;
 }
-

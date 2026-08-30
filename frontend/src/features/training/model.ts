@@ -109,7 +109,7 @@ export function optimisticDashboard(
   const previous = dashboard.history.find((item) => item.dateKey === session.dateKey);
   const history = [session, ...dashboard.history.filter((item) => item.dateKey !== session.dateKey)]
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-  const state: TrainingState = session.mode !== "record" || previous
+  const state: TrainingState = !session.recordProgressApplied || previous
     ? dashboard.state
     : {
         ...dashboard.state,
@@ -139,8 +139,7 @@ export function optimisticDashboard(
       bestStreak: Math.max(dashboard.stats.bestStreak, currentStreak),
       totalWorkouts: dashboard.stats.totalWorkouts + (previous ? 0 : 1),
       totalReps: dashboard.stats.totalReps - (previous?.totalActual || 0) + session.totalActual,
-      recordWorkouts: dashboard.stats.recordWorkouts + (!previous && session.mode === "record" ? 1 : 0),
+      recordWorkouts: dashboard.stats.recordWorkouts + (!previous && session.recordProgressApplied ? 1 : 0),
     },
   };
 }
-

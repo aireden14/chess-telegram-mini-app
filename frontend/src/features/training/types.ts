@@ -43,6 +43,8 @@ export interface TrainingSession {
   actual: ExerciseSnapshot[];
   totalPlanned: number;
   totalActual: number;
+  goalCompleted: boolean;
+  recordProgressApplied: boolean;
   completedAt: string;
 }
 
@@ -76,4 +78,3 @@ export interface PreparedLayout {
   hint: string;
   sets: number[];
 }
-

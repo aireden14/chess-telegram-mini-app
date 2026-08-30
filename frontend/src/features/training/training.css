@@ -425,6 +425,11 @@
 .training-set-adjust { display: grid; grid-template-columns: repeat(2, 38px); gap: 5px; }
 .training-set-adjust button { min-height: 34px; padding: 0; border: 0; border-radius: 11px; background: var(--training-line); font-size: 10px; font-weight: 750; }
 .training-set-adjust button:last-child { grid-column: 1 / -1; }
+.training-set-adjust .training-remove-set { grid-column: 1 / -1; color: #d3493f; }
+.training-set-adjust .training-remove-set:disabled { opacity: 0.3; }
+.training-add-set { min-height: 54px; border: 1px dashed color-mix(in srgb, var(--exercise-accent), transparent 42%); border-radius: 20px; background: color-mix(in srgb, var(--exercise-accent), transparent 94%); color: var(--exercise-accent); font-size: 12px; font-weight: 800; }
+.training-partial-button { background: var(--training-text); }
+.training-clear-day { width: 100%; min-height: 44px; margin-top: 8px; border: 0; background: transparent; color: #d3493f; font-size: 11px; font-weight: 750; }
 .training-workout-bottom { width: min(100%, 680px); margin: auto auto 0; padding-top: 24px; }
 .training-workout-bottom > p { margin: 0; color: var(--training-muted); font-size: 11px; line-height: 1.4; text-align: center; }
 
@@ -490,4 +495,3 @@
   }
   .training-loader-orbit span { animation: none; }
 }
-
