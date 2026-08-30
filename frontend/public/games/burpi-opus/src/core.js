@@ -18,8 +18,54 @@ export const ACCENT_KEYS = Object.keys(ACCENTS);
 
 /* ------------------------------------------------------------------ даты */
 
+// Часовой пояс, в котором приложение считает границы суток.
+// null — брать с устройства (обычный случай). Явный выбор нужен тем, кто
+// переезжает или тренируется поздно ночью в поездке: иначе серия может
+// потерять день или, наоборот, засчитать два.
+let activeTimeZone = null;
+
+export function setTimeZone(tz) {
+  activeTimeZone = tz || null;
+}
+
+export function detectedTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+export function effectiveTimeZone() {
+  return activeTimeZone ?? detectedTimeZone();
+}
+
+// Текущее время в зоне — чтобы в настройках было видно, что выбрано верно.
+export function clockIn(tz) {
+  try {
+    return new Intl.DateTimeFormat("ru-RU", {
+      timeZone: tz, hour: "2-digit", minute: "2-digit",
+    }).format(new Date());
+  } catch {
+    return "—";
+  }
+}
+
 export function dayKey(date = new Date()) {
   const d = new Date(date);
+  if (activeTimeZone) {
+    try {
+      // en-CA форматирует ровно как YYYY-MM-DD — то, что нужно для ключа.
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: activeTimeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+    } catch {
+      /* неизвестная зона — тихо падаем на время устройства */
+    }
+  }
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -387,6 +433,8 @@ export function defaultState() {
     ],
     sessions: [],
     settings: {
+      // null — сутки считаются по часовому поясу устройства.
+      timeZone: null,
       restEnabled: true,
       restSeconds: 75,
       haptics: true,

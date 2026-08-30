@@ -4,13 +4,14 @@ import {
   ACCENTS, ACCENT_KEYS, dayKey, humanDate, keyToDate, weekdayIndex,
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
-} from "./core.js?v=1.2.0";
+  setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn,
+} from "./core.js?v=1.3.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.2.0";
-import { haptic } from "./tg.js?v=1.2.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.2.0";
+} from "./ui.js?v=1.3.0";
+import { haptic } from "./tg.js?v=1.3.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.3.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -249,6 +250,14 @@ export function viewSettings(app) {
         value: s.confetti,
         onChange: (v) => { s.confetti = v; app.applyPreferences(); app.save(); },
       }),
+      navRow({
+        title: "Часовой пояс",
+        subtitle: s.timeZone
+          ? `вручную · ${clockIn(s.timeZone)}`
+          : `с устройства · ${clockIn(detectedTimeZone())}`,
+        value: zoneLabel(effectiveTimeZone()),
+        onClick: () => timeZoneSheet(app),
+      }),
     ),
   );
 
@@ -327,6 +336,81 @@ export function viewSettings(app) {
     ),
     exercisesCard, levelsCard, trainCard, dataCard, aboutCard, sign,
   );
+}
+
+/* ------------------------------------------------------------ часовой пояс */
+
+// Пояс определяет, где проходит граница суток: от неё зависят «сегодня»,
+// серия и перенос незакрытой работы. По умолчанию берётся с устройства —
+// список нужен для поездок и для случаев, когда система врёт.
+const TIME_ZONES = [
+  { id: "Asia/Nicosia", name: "Кипр" },
+  { id: "Europe/Kyiv", name: "Киев" },
+  { id: "Europe/Moscow", name: "Москва" },
+  { id: "Asia/Almaty", name: "Алматы" },
+  { id: "Asia/Tbilisi", name: "Тбилиси" },
+  { id: "Europe/Istanbul", name: "Стамбул" },
+  { id: "Asia/Dubai", name: "Дубай" },
+  { id: "Asia/Bangkok", name: "Бангкок" },
+  { id: "Europe/Berlin", name: "Берлин" },
+  { id: "Europe/London", name: "Лондон" },
+  { id: "America/New_York", name: "Нью-Йорк" },
+  { id: "UTC", name: "UTC" },
+];
+
+function zoneLabel(id) {
+  return TIME_ZONES.find((z) => z.id === id)?.name ?? id;
+}
+
+function timeZoneSheet(app) {
+  const s = app.state.settings;
+  const detected = detectedTimeZone();
+
+  // Определённый системой пояс всегда есть в списке, даже если он не из нашего.
+  const options = [
+    { id: null, name: "Как на устройстве", hint: `${zoneLabel(detected)} · ${detected}` },
+    ...(TIME_ZONES.some((z) => z.id === detected) ? [] : [{ id: detected, name: detected }]),
+    ...TIME_ZONES,
+  ];
+
+  const pick = (id) => {
+    s.timeZone = id;
+    setTimeZone(id);
+    app.save();
+    haptic("success");
+    closeSheet();
+    app.render();
+    toast({
+      icon: "🕒",
+      title: id ? `Часовой пояс: ${zoneLabel(id)}` : "Часовой пояс с устройства",
+      subtitle: `Сейчас ${clockIn(id ?? detected)} — от этого зависит, что считается сегодняшним днём`,
+      duration: 4200,
+    });
+  };
+
+  sheet({
+    title: "Часовой пояс",
+    subtitle: "Определяет границу суток: серию, «сегодня» и перенос незакрытого задания. Обычно подходит время устройства.",
+    body: h("div.rows", { style: { "margin-bottom": "20px" } },
+      options.map((opt) =>
+        h("div.row", {
+          style: { cursor: "pointer" },
+          on: { click: () => { haptic("select"); pick(opt.id); } },
+        },
+          h("div.row-main", {},
+            h("div.row-title", { text: opt.name }),
+            opt.hint ? h("div.row-sub", { text: opt.hint }) : null,
+          ),
+          h("div.row-value", { text: clockIn(opt.id ?? detected) }),
+          h("div.level-chevron", {
+            text: (s.timeZone ?? null) === opt.id ? "✓" : "",
+            style: { color: "var(--accent-1)" },
+          }),
+        ),
+      ),
+    ),
+    actions: [{ label: "Закрыть" }],
+  });
 }
 
 /* ------------------------------------------------- карточка дня и удаление */

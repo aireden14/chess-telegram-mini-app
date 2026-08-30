@@ -3,12 +3,13 @@
 import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
   levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
-} from "./core.js?v=1.2.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.2.0";
-import { setConfettiEnabled } from "./fx.js?v=1.2.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.2.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.2.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.2.0";
+  setTimeZone,
+} from "./core.js?v=1.3.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.3.0";
+import { setConfettiEnabled } from "./fx.js?v=1.3.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.3.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.3.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.3.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -64,6 +65,8 @@ export const app = {
   applyPreferences() {
     setHapticsEnabled(this.state.settings.haptics !== false);
     setConfettiEnabled(this.state.settings.confetti !== false);
+    // Пояс задаёт границы суток, поэтому применяется до первого расчёта дня.
+    setTimeZone(this.state.settings.timeZone ?? null);
   },
 
   setAccent(accentKey) {
