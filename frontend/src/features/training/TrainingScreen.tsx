@@ -39,7 +39,7 @@ import type {
 } from "./types";
 import "./training.css";
 
-type Page = "home" | "history" | "settings";
+type Page = "home" | "progress" | "history" | "settings";
 
 function sessionFromPayload(payload: CompletionPayload): TrainingSession {
   const totalPlanned = payload.exercises.reduce(
@@ -304,11 +304,12 @@ export function TrainingScreen() {
         </button>
       </header>
 
-      <AnimatePresence mode="wait">
-        {page === "home" && (
-          <motion.div
+      <div className="training-viewport">
+        <AnimatePresence mode="wait">
+          {page === "home" && (
+            <motion.div
             key="home"
-            className="training-page"
+            className="training-page training-today-page"
             initial={reduceMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
@@ -319,8 +320,6 @@ export function TrainingScreen() {
                 {offline ? "Сохранено на телефоне" : syncing ? "Синхронизация" : "Всё сохранено"}
               </span>
             </div>
-
-            <ProgressHero dashboard={dashboard} theme={theme} reduceMotion={!!reduceMotion} />
 
             {dashboard.today ? (
               <CompletedToday session={dashboard.today} state={dashboard.state} onHistory={() => setPage("history")} onClear={clearToday} />
@@ -342,19 +341,11 @@ export function TrainingScreen() {
               />
             )}
 
-            <WeekChain dashboard={dashboard} />
-
-            <section className="training-stats-grid" aria-label="Статистика тренировок">
-              <article><strong>{dashboard.stats.totalReps}</strong><span>повторов всего</span></article>
-              <article><strong>{dashboard.stats.bestStreak}</strong><span>лучшая серия</span></article>
-              <article><strong>{dashboard.stats.recordWorkouts}</strong><span>рекордных дней</span></article>
-            </section>
-
-            <button className="training-history-link" onClick={() => setPage("history")}>
-              <span><HistoryIcon /> Дневник тренировок</span>
-              <ChevronRight />
-            </button>
           </motion.div>
+        )}
+
+        {page === "progress" && (
+          <ProgressPanel key="progress" dashboard={dashboard} theme={theme} reduceMotion={!!reduceMotion} />
         )}
 
         {page === "history" && (
@@ -369,11 +360,16 @@ export function TrainingScreen() {
             onSave={saveSettings}
           />
         )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </div>
 
-      <footer className="training-powered">
-        Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a>
-      </footer>
+      <nav className="training-tabbar" aria-label="Разделы дневника">
+        <button className={page === "home" ? "active" : ""} onClick={() => setPage("home")}><TodayIcon /><span>Сегодня</span></button>
+        <button className={page === "progress" ? "active" : ""} onClick={() => setPage("progress")}><ProgressIcon /><span>Прогресс</span></button>
+        <button className={page === "history" ? "active" : ""} onClick={() => setPage("history")}><HistoryIcon /><span>Дневник</span></button>
+        <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")}><SlidersIcon /><span>Настройки</span></button>
+        <small>Powered by <a href="https://t.me/Denrech" target="_blank" rel="noopener noreferrer">@Denrech</a></small>
+      </nav>
 
       <AnimatePresence>
         {celebration && (
@@ -385,6 +381,26 @@ export function TrainingScreen() {
         )}
       </AnimatePresence>
     </main>
+  );
+}
+
+function ProgressPanel({ dashboard, theme, reduceMotion }: { dashboard: TrainingDashboard; theme: "light" | "dark"; reduceMotion: boolean }) {
+  return (
+    <motion.section
+      className="training-page training-progress-page"
+      initial={reduceMotion ? false : { opacity: 0, x: 18 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={reduceMotion ? undefined : { opacity: 0, x: -14 }}
+    >
+      <div className="training-page-title training-progress-title"><span>ТВОЙ РИТМ</span><h1>Прогресс</h1></div>
+      <ProgressHero dashboard={dashboard} theme={theme} reduceMotion={reduceMotion} />
+      <WeekChain dashboard={dashboard} />
+      <section className="training-stats-grid" aria-label="Статистика тренировок">
+        <article><strong>{dashboard.stats.totalReps}</strong><span>повторов всего</span></article>
+        <article><strong>{dashboard.stats.bestStreak}</strong><span>лучшая серия</span></article>
+        <article><strong>{dashboard.stats.recordWorkouts}</strong><span>рекордных дней</span></article>
+      </section>
+    </motion.section>
   );
 }
 
@@ -576,7 +592,11 @@ function CompletedToday({ session, state, onHistory, onClear }: { session: Train
         ))}
       </div>
       <button className="training-secondary-button" onClick={onHistory}>Открыть запись дня</button>
-      <button className="training-clear-day" onClick={onClear}>Очистить все подходы за день</button>
+      <button className="training-clear-day" onClick={onClear}>
+        <span className="training-clear-icon"><TrashIcon /></span>
+        <span className="training-clear-copy"><strong>Очистить тренировку</strong><small>Удалить все подходы за этот день</small></span>
+        <ChevronRight />
+      </button>
     </section>
   );
 }
@@ -820,16 +840,12 @@ function WorkoutFlow({
   const changeActual = (setIndex: number, value: number) => {
     setActual((currentActual) => ({
       ...currentActual,
-      [current.exerciseId]: currentActual[current.exerciseId].map((reps, index) => index === setIndex ? Math.max(0, Math.min(100000, value)) : reps),
+      [current.exerciseId]: currentActual[current.exerciseId].map((reps, index) => index === setIndex ? Math.max(5, Math.min(100000, value)) : reps),
     }));
   };
 
   const addSet = () => {
-    const currentDone = (actual[current.exerciseId] || []).reduce(
-      (total, reps, index) => total + (currentChecked[index] ? reps : 0),
-      0,
-    );
-    const nextValue = Math.max(1, sum(current.plannedSets) - currentDone);
+    const nextValue = 5;
     setActual((value) => ({ ...value, [current.exerciseId]: [...(value[current.exerciseId] || []), nextValue] }));
     setChecked((value) => ({ ...value, [current.exerciseId]: [...(value[current.exerciseId] || []), false] }));
     triggerHaptic("light");
@@ -912,6 +928,7 @@ function WorkoutFlow({
                   <small>{planned == null ? "свободный подход" : `вариант ${planned}${value > planned ? ` · +${value - planned}` : ""}`}</small>
                 </div>
                 <div className="training-set-adjust">
+                  <button onClick={() => changeActual(setIndex, value - 5)} aria-label="Минус пять">−5</button>
                   <button onClick={() => changeActual(setIndex, value - 1)} aria-label="Минус один">−1</button>
                   <button onClick={() => changeActual(setIndex, value + 1)} aria-label="Плюс один">+1</button>
                   <button onClick={() => changeActual(setIndex, value + 5)} aria-label="Плюс пять">+5</button>
@@ -1032,3 +1049,6 @@ function CheckIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M5 1
 function CloseIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>; }
 function HistoryIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M4 12a8 8 0 108-8 8.8 8.8 0 00-6.2 2.6L4 8.5M4 4v4.5h4.5M12 7v5l3 2" /></svg>; }
 function SlidersIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M4 7h10M18 7h2M4 17h3M11 17h9M14 4v6M8 14v6" /></svg>; }
+function TodayIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 011 1v14H4V6a1 1 0 011-1zM8 13h3v3H8z" /></svg>; }
+function ProgressIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M4 19V9M10 19V5M16 19v-7M22 19V3" /></svg>; }
+function TrashIcon() { return <svg viewBox="0 0 24 24" aria-hidden><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></svg>; }
