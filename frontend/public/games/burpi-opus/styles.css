@@ -441,6 +441,15 @@ body {
 
 .btn-danger { color: #ff5a5f; }
 
+/* Разрушающее действие главной кнопкой: акцент уровня тут не годится (у
+   «БОЛЕЮ» он мятный), а красный текст на красном градиенте не читается —
+   поэтому собственный сплошной красный с белым текстом. */
+.btn-primary.btn-danger {
+  background: linear-gradient(160deg, #ff5247, #d92216);
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(217, 34, 22, 0.28);
+}
+
 .btn-icon {
   width: 40px;
   height: 40px;
@@ -772,6 +781,28 @@ body {
 
 .cal-cell.is-today { outline: 1.5px solid color-mix(in srgb, var(--accent-1) 70%, transparent); }
 
+/* Дни с тренировками и строки истории открывают карточку дня — оттуда день
+   можно очистить. */
+.cal-cell.is-done,
+.log-row.is-tappable { cursor: pointer; }
+
+.cal-cell.is-done:active { transform: scale(0.92); }
+.log-row.is-tappable:active { opacity: 0.6; }
+
+.day-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--hairline-soft);
+  font-size: 15px;
+}
+
+.day-line:last-child { border-bottom: 0; }
+.day-line-sub { color: var(--text-3); font-size: 13px; }
+.day-line-num { font-variant-numeric: tabular-nums; font-weight: 660; }
+
 .log-list { display: flex; flex-direction: column; }
 
 .log-row {
@@ -1040,6 +1071,17 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
 }
 
 .toast-icon { font-size: 24px; }
+
+.toast-action {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  border: 1px solid var(--hairline);
+  color: color-mix(in srgb, var(--accent-1) 82%, white);
+  font-size: 14px;
+  font-weight: 660;
+}
 .toast-title { font-size: 15px; font-weight: 680; letter-spacing: -0.01em; }
 .toast-sub { font-size: 13px; color: var(--text-2); margin-top: 1px; }
 

@@ -2,13 +2,13 @@
 
 import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
-  levelTarget, personalBest, carryOverToday, dayKey, uid, ACCENTS,
-} from "./core.js?v=1.1.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.1.0";
-import { setConfettiEnabled } from "./fx.js?v=1.1.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast, confirmSheet } from "./ui.js?v=1.1.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.1.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.1.0";
+  levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
+} from "./core.js?v=1.2.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.2.0";
+import { setConfettiEnabled } from "./fx.js?v=1.2.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.2.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.2.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.2.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -240,6 +240,60 @@ export const app = {
 
     this.go("finish");
     celebrate(this, record);
+  },
+
+  /* -------------------------------------------------------- удаление записей */
+
+  // Удаление сразу применяется и предлагает отмену в тосте: так не приходится
+  // переспрашивать «вы уверены?» на каждое действие, а ошибиться нельзя.
+  removeSessions(ids, { title, subtitle }) {
+    const set = new Set(ids);
+    const removed = this.state.sessions.filter((s) => set.has(s.id));
+    if (removed.length === 0) return;
+
+    this.state.sessions = this.state.sessions.filter((s) => !set.has(s.id));
+    // Прерванная тренировка того же дня тоже уходит — иначе она «воскреснет».
+    if (this.state.active && removed.some((s) => s.dayKey === this.state.active.dayKey)) {
+      this.state.active = null;
+      if (this.session && removed.some((s) => s.dayKey === this.session.dayKey)) {
+        this.rest?.close?.();
+        this.rest = null;
+        this.session = null;
+        if (this.view === "workout") this.view = "diary";
+      }
+    }
+    this.forgetUnreachedMilestones();
+    this.save();
+    this.render();
+
+    toast({
+      icon: "🧹",
+      title,
+      subtitle,
+      duration: 6000,
+      action: {
+        label: "Вернуть",
+        onClick: () => {
+          this.state.sessions = [...this.state.sessions, ...removed]
+            .sort((a, b) => (a.finishedAt < b.finishedAt ? -1 : 1));
+          this.forgetUnreachedMilestones();
+          this.save();
+          this.render();
+          toast({ icon: "↩️", title: "Возвращено" });
+        },
+      },
+    });
+  },
+
+  // После удаления серия могла упасть: снимаем отметки о наградах, которых
+  // больше нет, иначе они не покажутся при повторном достижении.
+  forgetUnreachedMilestones() {
+    const best = this.state.exercises.reduce(
+      (max, ex) => Math.max(max, computeStreak(this.state, ex.id).best),
+      0,
+    );
+    this.state.settings.seenMilestones =
+      (this.state.settings.seenMilestones ?? []).filter((m) => m <= best);
   },
 
   discardWorkout() {

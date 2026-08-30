@@ -16,6 +16,7 @@ let canvas = null;
 let ctx = null;
 let particles = [];
 let raf = 0;
+let sweepTimer = 0;
 
 function ensureCanvas() {
   if (canvas) return;
@@ -102,6 +103,16 @@ export function confetti({ colors = ["#ff4d6d", "#ffb340", "#4aa4ff", "#3ddcac",
   });
 
   if (!raf) raf = requestAnimationFrame(tick);
+
+  // requestAnimationFrame замирает, когда приложение свёрнуто. Без страховки
+  // вернувшийся пользователь увидел бы конфетти, застывшее в воздухе.
+  clearTimeout(sweepTimer);
+  sweepTimer = setTimeout(() => {
+    particles = [];
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    if (ctx) ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  }, 5000);
 }
 
 /* --------------------------------------------------------- анимация числа */

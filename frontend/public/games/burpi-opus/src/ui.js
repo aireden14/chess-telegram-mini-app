@@ -1,7 +1,7 @@
 // Мини-слой над DOM: гиперскрипт, нижние листы, тосты, переключатели.
 // Без фреймворка — приложение должно оставаться набором статических файлов.
 
-import { haptic } from "./tg.js?v=1.1.0";
+import { haptic } from "./tg.js?v=1.2.0";
 
 /**
  * h("button.btn.btn-primary", { text: "Начать", on: { click } })
@@ -129,23 +129,45 @@ export function confirmSheet({ title, subtitle, confirmLabel = "Да", danger = 
 
 let toastTimer = 0;
 
-export function toast({ icon = "✨", title, subtitle, duration = 2600 }) {
+/**
+ * @param {{icon?: string, title: string, subtitle?: string, duration?: number,
+ *          action?: {label: string, onClick: () => void}}} options
+ * `action` превращает тост в отмену действия — так удаление можно делать сразу,
+ * не переспрашивая «вы уверены?».
+ */
+export function toast({ icon = "✨", title, subtitle, duration = 2600, action }) {
   document.querySelectorAll(".toast").forEach((t) => t.remove());
   clearTimeout(toastTimer);
 
+  const close = () => {
+    clearTimeout(toastTimer);
+    node.classList.add("is-out");
+    setTimeout(() => node.remove(), 320);
+  };
+
   const node = h("div.toast", {},
     h("div.toast-icon", { text: icon }),
-    h("div", {},
+    h("div", { style: { flex: "1", "min-width": "0" } },
       h("div.toast-title", { text: title }),
       subtitle ? h("div.toast-sub", { text: subtitle }) : null,
     ),
+    action
+      ? h("button.btn.toast-action", {
+          type: "button",
+          text: action.label,
+          on: {
+            click: () => {
+              haptic("medium");
+              close();
+              action.onClick();
+            },
+          },
+        })
+      : null,
   );
   document.body.appendChild(node);
 
-  toastTimer = setTimeout(() => {
-    node.classList.add("is-out");
-    setTimeout(() => node.remove(), 320);
-  }, duration);
+  toastTimer = setTimeout(close, duration);
 }
 
 /* --------------------------------------------------------------- элементы */

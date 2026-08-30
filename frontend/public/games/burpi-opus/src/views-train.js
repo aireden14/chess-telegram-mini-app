@@ -9,10 +9,11 @@ import {
   ACCENTS, dayKey, humanDate, humanWeekday, suggestPlan, forecast, stats,
   lastDays, WEEKDAYS_SHORT, flameStage, STREAK_MILESTONES, levelCompletions,
   carryOverToday, goalReachedToday, dayTotal, levelTarget,
-} from "./core.js?v=1.1.0";
-import { h, plural, toast } from "./ui.js?v=1.1.0";
-import { haptic } from "./tg.js?v=1.1.0";
-import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.1.0";
+} from "./core.js?v=1.2.0";
+import { h, plural, toast } from "./ui.js?v=1.2.0";
+import { daySheet } from "./views-data.js?v=1.2.0";
+import { haptic } from "./tg.js?v=1.2.0";
+import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.2.0";
 
 const FLAMES = ["🔥", "✨", "🔥", "🔥", "🌟", "💎"];
 
@@ -118,7 +119,7 @@ export function viewToday(app) {
       ? h("button.btn.btn-quiet", {
           type: "button",
           text: `Сегодня: ${doneToday} ${plural(doneToday, "повтор", "повтора", "повторов")}`,
-          on: { click: () => { haptic("light"); app.go("diary"); } },
+          on: { click: () => { haptic("light"); daySheet(app, today); } },
         })
       : null,
   );

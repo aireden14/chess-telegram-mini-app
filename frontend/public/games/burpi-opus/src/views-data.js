@@ -4,13 +4,13 @@ import {
   ACCENTS, ACCENT_KEYS, dayKey, humanDate, keyToDate, weekdayIndex,
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
-} from "./core.js?v=1.1.0";
+} from "./core.js?v=1.2.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.1.0";
-import { haptic } from "./tg.js?v=1.1.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.1.0";
+} from "./ui.js?v=1.2.0";
+import { haptic } from "./tg.js?v=1.2.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.2.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -60,13 +60,18 @@ export function viewDiary(app) {
 
   /* ---- календарь месяца */
   const cursor = app.diaryMonth ?? new Date();
-  const calendar = monthCalendar(cursor, byDay, (delta) => {
-    const next = new Date(cursor);
-    next.setMonth(next.getMonth() + delta, 1);
-    app.diaryMonth = next;
-    haptic("select");
-    app.render();
-  });
+  const calendar = monthCalendar(
+    cursor,
+    byDay,
+    (delta) => {
+      const next = new Date(cursor);
+      next.setMonth(next.getMonth() + delta, 1);
+      app.diaryMonth = next;
+      haptic("select");
+      app.render();
+    },
+    (key) => { haptic("light"); daySheet(app, key); },
+  );
 
   /* ---- журнал */
   const log = [...app.state.sessions]
@@ -86,7 +91,10 @@ export function viewDiary(app) {
             const tail = hit
               ? over > 0 ? ` · сверху ${over}` : " · цель взята"
               : " · цель не взята";
-            return h("div.log-row", { style: levelStyle(level) },
+            return h("div.log-row.is-tappable", {
+              style: levelStyle(level),
+              on: { click: () => { haptic("light"); sessionSheet(app, s); } },
+            },
               h("div.log-badge", { text: String(s.doneTotal) }),
               h("div.log-main", {},
                 h("div.log-title", {
@@ -121,7 +129,7 @@ function statCard(value, label) {
   );
 }
 
-function monthCalendar(cursor, byDay, onNav) {
+function monthCalendar(cursor, byDay, onNav, onPickDay) {
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const first = new Date(year, month, 1);
@@ -139,6 +147,7 @@ function monthCalendar(cursor, byDay, onNav) {
       h(`div.cal-cell${done ? ".is-done" : ""}${key === todayK ? ".is-today" : ""}${future ? ".is-future" : ""}`, {
         text: String(d),
         title: done ? `${byDay.get(key).reduce((a, s) => a + s.doneTotal, 0)} повторов` : "",
+        on: done ? { click: () => onPickDay(key) } : undefined,
       }),
     );
   }
@@ -258,6 +267,18 @@ export function viewSettings(app) {
         onClick: () => importSheet(app),
       }),
       navRow({
+        title: "Очистить сегодняшний день",
+        subtitle: "убрать тренировки за сегодня — например, тестовые",
+        onClick: () => {
+          const key = dayKey();
+          if (sessionsOfDay(app, key).length === 0) {
+            toast({ icon: "🗓", title: "Сегодня ещё пусто" });
+            return;
+          }
+          daySheet(app, key);
+        },
+      }),
+      navRow({
         title: "Сбросить всё",
         subtitle: "история, уровни и настройки вернутся к исходным",
         danger: true,
@@ -306,6 +327,91 @@ export function viewSettings(app) {
     ),
     exercisesCard, levelsCard, trainCard, dataCard, aboutCard, sign,
   );
+}
+
+/* ------------------------------------------------- карточка дня и удаление */
+
+function sessionsOfDay(app, key) {
+  const ex = app.exercise();
+  return app.state.sessions
+    .filter((s) => s.finishedAt && s.exerciseId === ex.id && s.dayKey === key)
+    .sort((a, b) => (a.finishedAt < b.finishedAt ? -1 : 1));
+}
+
+function timeOf(session) {
+  const d = new Date(session.finishedAt);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// Карточка дня: что сделано и кнопка всё это стереть. Открывается тапом по дню
+// календаря, по строке истории и по счётчику «Сегодня» на главной.
+export function daySheet(app, key) {
+  const sessions = sessionsOfDay(app, key);
+  if (sessions.length === 0) return;
+  const total = sessions.reduce((a, s) => a + s.doneTotal, 0);
+
+  sheet({
+    title: humanDate(key),
+    subtitle: `${sessions.length} ${plural(sessions.length, "тренировка", "тренировки", "тренировок")} · ${total} ${plural(total, "повтор", "повтора", "повторов")}`,
+    body: h("div", { style: { "margin-bottom": "20px" } },
+      sessions.map((s) =>
+        h("div.day-line", {},
+          h("div", {},
+            h("div", { text: `${s.levelName} · ${(s.sets ?? []).join(" · ") || s.doneTotal}` }),
+            h("div.day-line-sub", {
+              text: `${timeOf(s)} · цель ${s.target} · ${goalReached(s) ? "взята" : "не взята"}`,
+            }),
+          ),
+          h("div.day-line-num", { text: String(s.doneTotal) }),
+        ),
+      ),
+    ),
+    actions: [
+      {
+        label: "Очистить день",
+        kind: "primary",
+        danger: true,
+        onClick: () => app.removeSessions(sessions.map((s) => s.id), {
+          title: `${humanDate(key)} очищен`,
+          subtitle: `Убрано ${total} ${plural(total, "повтор", "повтора", "повторов")}`,
+        }),
+      },
+      { label: "Закрыть" },
+    ],
+  });
+}
+
+// Одна тренировка: удалить только её или сразу весь день.
+function sessionSheet(app, session) {
+  const daySessions = sessionsOfDay(app, session.dayKey);
+  const dayTotalReps = daySessions.reduce((a, s) => a + s.doneTotal, 0);
+
+  sheet({
+    title: `${session.levelName} · ${session.doneTotal}`,
+    subtitle: `${humanDate(session.dayKey)}, ${timeOf(session)} · цель ${session.target} · ${goalReached(session) ? "взята" : "не взята"}`,
+    actions: [
+      {
+        label: "Удалить эту тренировку",
+        kind: "primary",
+        danger: true,
+        onClick: () => app.removeSessions([session.id], {
+          title: "Тренировка удалена",
+          subtitle: `${session.doneTotal} ${plural(session.doneTotal, "повтор", "повтора", "повторов")}`,
+        }),
+      },
+      daySessions.length > 1
+        ? {
+            label: `Очистить весь день (${dayTotalReps})`,
+            danger: true,
+            onClick: () => app.removeSessions(daySessions.map((s) => s.id), {
+              title: `${humanDate(session.dayKey)} очищен`,
+              subtitle: `Убрано ${dayTotalReps} ${plural(dayTotalReps, "повтор", "повтора", "повторов")}`,
+            }),
+          }
+        : null,
+      { label: "Отмена" },
+    ].filter(Boolean),
+  });
 }
 
 /* --------------------------------------------------------- листы настроек */
