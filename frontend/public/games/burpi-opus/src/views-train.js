@@ -9,12 +9,12 @@ import {
   ACCENTS, dayKey, humanDate, humanWeekday, suggestPlan, forecast, stats,
   lastDays, WEEKDAYS_SHORT, flameStage, STREAK_MILESTONES, levelCompletions,
   carryOverToday, goalReachedToday, dayTotal, levelTarget,
-} from "./core.js?v=1.5.0";
-import { h, plural, toast } from "./ui.js?v=1.5.0";
-import { daySheet } from "./views-data.js?v=1.5.0";
-import { haptic } from "./tg.js?v=1.5.0";
-import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.5.0";
-import { playSound } from "./sound.js?v=1.5.0";
+} from "./core.js?v=1.5.1";
+import { h, plural, toast } from "./ui.js?v=1.5.1";
+import { daySheet } from "./views-data.js?v=1.5.1";
+import { haptic } from "./tg.js?v=1.5.1";
+import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.5.1";
+import { playSound } from "./sound.js?v=1.5.1";
 
 const FLAMES = ["🔥", "✨", "🔥", "🔥", "🌟", "💎"];
 
@@ -114,7 +114,7 @@ export function viewToday(app) {
     h("button.btn.btn-primary", {
       type: "button",
       text: closed ? "Ещё тренировка" : carry > 0 ? "Продолжить" : "Начать тренировку",
-      on: { click: () => { haptic("medium"); app.go("levels"); } },
+      on: { click: () => { haptic("medium"); playSound("tap"); app.go("levels"); } },
     }),
     doneToday > 0
       ? h("button.btn.btn-quiet", {
@@ -159,6 +159,7 @@ export function viewLevels(app) {
       on: {
         click: () => {
           haptic("medium");
+          playSound("tap");
           app.startWorkout(level.id);
         },
       },
@@ -283,7 +284,7 @@ export function viewWorkout(app) {
       [5, 10].map((step) =>
         h("button.btn.quick-chip", {
           type: "button", text: `+${step}`,
-          on: { click: () => { haptic("medium"); setReps(session.currentReps + step); } },
+          on: { click: () => { haptic("medium"); playSound("tap"); setReps(session.currentReps + step); } },
         }),
       ).concat(
         // Закрыть цель одним подходом — один тап, а не десять нажатий на «+».
@@ -292,13 +293,13 @@ export function viewWorkout(app) {
           ? [
               h("button.btn.quick-chip", {
                 type: "button", text: `как в прошлом: ${fallback}`,
-                on: { click: () => { haptic("medium"); setReps(fallback); } },
+                on: { click: () => { haptic("medium"); playSound("tap"); setReps(fallback); } },
               }),
             ]
           : [
               h("button.btn.quick-chip.is-strong", {
                 type: "button", text: `всё: ${left}`,
-                on: { click: () => { haptic("medium"); setReps(left); } },
+                on: { click: () => { haptic("medium"); playSound("tap"); setReps(left); } },
               }),
             ],
       ),
@@ -386,7 +387,7 @@ export function restOverlay(app, seconds, onDone) {
       }),
       h("button.btn.btn-ghost", {
         type: "button", text: "Готов",
-        on: { click: () => { haptic("medium"); finish(); } },
+        on: { click: () => { haptic("medium"); playSound("restDone"); finish(); } },
       }),
     ),
     // Тренировку можно закончить прямо из отдыха — не заставляем возвращаться

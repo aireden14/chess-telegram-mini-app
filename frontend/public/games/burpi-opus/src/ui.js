@@ -1,7 +1,8 @@
 // Мини-слой над DOM: гиперскрипт, нижние листы, тосты, переключатели.
 // Без фреймворка — приложение должно оставаться набором статических файлов.
 
-import { haptic } from "./tg.js?v=1.5.0";
+import { haptic } from "./tg.js?v=1.5.1";
+import { playSound } from "./sound.js?v=1.5.1";
 
 /**
  * h("button.btn.btn-primary", { text: "Начать", on: { click } })
@@ -184,6 +185,7 @@ export function switchRow({ title, subtitle, value, onChange }) {
         btn.classList.toggle("is-on", next);
         btn.setAttribute("aria-checked", next ? "true" : "false");
         haptic("select");
+        playSound("tap");
         onChange(next);
       },
     },
@@ -201,7 +203,7 @@ export function switchRow({ title, subtitle, value, onChange }) {
 export function navRow({ title, subtitle, value, onClick, danger = false }) {
   return h("div.row", {
     style: { cursor: "pointer" },
-    on: { click: () => { haptic("light"); onClick?.(); } },
+    on: { click: () => { haptic("light"); playSound("tap"); onClick?.(); } },
   },
     h("div.row-main", {},
       h("div.row-title", { text: title, class: danger ? "btn-danger" : "" }),
@@ -221,6 +223,7 @@ export function segmented(options, value, onChange) {
       on: {
         click: () => {
           haptic("select");
+          playSound("tap");
           wrap.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("is-on"));
           btn.classList.add("is-on");
           onChange(opt.value);

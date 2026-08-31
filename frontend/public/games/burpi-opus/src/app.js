@@ -4,13 +4,13 @@ import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
   levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
   setTimeZone,
-} from "./core.js?v=1.5.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.5.0";
-import { setConfettiEnabled } from "./fx.js?v=1.5.0";
-import { configureSound, primeAudio, playSound, audioMixMode } from "./sound.js?v=1.5.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.5.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.5.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.5.0";
+} from "./core.js?v=1.5.1";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.5.1";
+import { setConfettiEnabled } from "./fx.js?v=1.5.1";
+import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.5.1";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.5.1";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.5.1";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.5.1";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -135,6 +135,7 @@ export const app = {
             click: () => {
               if (this.view === tab.id) return;
               haptic("select");
+              playSound("tap");
               this.go(tab.id);
             },
           },
@@ -377,11 +378,10 @@ export const app = {
     this.decideInitialSound();
     this.applyPreferences();
 
-    // AudioContext на iOS создаётся только из жеста — цепляемся за первое
-    // касание, а не за загрузку страницы.
-    const prime = () => primeAudio();
-    window.addEventListener("pointerdown", prime, { once: true, passive: true });
-    window.addEventListener("touchstart", prime, { once: true, passive: true });
+    // AudioContext создаётся только из жеста, а система усыпляет его когда
+    // угодно — сворачивание, звонок, чужое аудио. Поэтому слушатели постоянные,
+    // а не одноразовые: иначе звук пропадает после первого же возврата в апп.
+    installAudioUnlock();
 
     // Тренировка, прерванная сворачиванием Telegram, продолжается с того же места.
     const active = this.state.active;

@@ -67,33 +67,88 @@ export function configureSound({ enabled: on, volume: level }) {
   if (master) master.gain.value = volume;
 }
 
-// AudioContext на iOS создаётся только из жеста, поэтому подготовку вызываем
-// из первого касания, а не при загрузке.
-export function primeAudio() {
-  if (ctx) {
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
-    return;
-  }
+// Запас перед планированием. Без него события ложатся ровно на currentTime и
+// при малейшей задержке оказываются в прошлом — звук просто не звучит.
+const LOOKAHEAD = 0.03;
+
+let unlocked = false;
+
+function createContext() {
+  if (ctx && ctx.state !== "closed") return;
   const Ctor = window.AudioContext || window.webkitAudioContext;
   if (!Ctor) return;
-
   applyAudioSession();
   try {
     ctx = new Ctor({ latencyHint: "interactive" });
     master = ctx.createGain();
     master.gain.value = volume;
     master.connect(ctx.destination);
+    unlocked = false;
   } catch {
     ctx = null;
   }
 }
 
-function ready() {
-  if (!enabled) return false;
-  if (!ctx) primeAudio();
-  if (!ctx) return false;
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
-  return ctx.state !== "closed";
+// Классический разлочиватель WebKit: проиграть пустой буфер внутри жеста.
+// Без него первый настоящий звук после старта часто пропадает.
+function unlockSilently() {
+  if (unlocked || !ctx) return;
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    src.connect(ctx.destination);
+    src.start(0);
+    unlocked = true;
+  } catch {
+    /* не вышло — попробуем на следующем жесте */
+  }
+}
+
+// Вызывается из каждого жеста и при возврате в приложение: iOS усыпляет
+// контекст сам (сворачивание, звонок, чужое аудио), и без пробуждения звук
+// молча пропадает.
+export function primeAudio() {
+  createContext();
+  if (!ctx) return;
+  if (ctx.state !== "running") ctx.resume().catch(() => {});
+  unlockSilently();
+}
+
+// Слушатели ставятся один раз и живут всё время работы приложения — именно
+// поэтому они НЕ `once`: усыпить контекст система может когда угодно.
+let unlockInstalled = false;
+export function installAudioUnlock() {
+  if (unlockInstalled) return;
+  unlockInstalled = true;
+  const kick = () => primeAudio();
+  ["pointerdown", "touchstart", "click", "keydown"].forEach((type) => {
+    window.addEventListener(type, kick, { passive: true, capture: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) primeAudio();
+  });
+}
+
+/**
+ * Проигрывает звук, дождавшись живого контекста. Если контекст усыплён,
+ * планировать НЕЛЬЗЯ: его currentTime заморожен, и события уедут в прошлое.
+ * Поэтому сначала resume, и только в его колбэке — синтез.
+ */
+function withContext(fn) {
+  if (!enabled) return;
+  createContext();
+  if (!ctx) return;
+
+  if (ctx.state === "running") {
+    fn();
+    return;
+  }
+  // Safari умеет ещё и "interrupted" — например, после звонка.
+  ctx.resume()
+    .then(() => {
+      if (ctx && ctx.state === "running") fn();
+    })
+    .catch(() => {});
 }
 
 /* --------------------------------------------------------------- примитивы */
@@ -106,7 +161,7 @@ function tone({
   freq, dur = 0.18, type = "triangle", gain = 0.5,
   delay = 0, attack = 0.006, sweepTo = null, detune = 0,
 }) {
-  const t0 = ctx.currentTime + delay;
+  const t0 = ctx.currentTime + LOOKAHEAD + delay;
   const osc = ctx.createOscillator();
   const env = ctx.createGain();
 
@@ -223,10 +278,11 @@ const SOUNDS = {
  */
 export function playSound(name, opts) {
   if (!SOUNDS[name]) return;
-  if (!ready()) return;
-  try {
-    SOUNDS[name](opts);
-  } catch {
-    /* сессия отвалилась — звук не критичен, молчим */
-  }
+  withContext(() => {
+    try {
+      SOUNDS[name](opts);
+    } catch {
+      /* сессия отвалилась — звук не критичен, молчим */
+    }
+  });
 }
