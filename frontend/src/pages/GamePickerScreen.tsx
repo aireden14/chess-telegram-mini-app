@@ -45,12 +45,13 @@ const HIDDEN_ROUTES = new Set<string>([
   "/nebula-drift",
   "/reader",
   "/pdf-studio",
+  "/training",
 ]);
 
 // Все игры каталога одним списком — порядок здесь это лишь дефолт для новых игр (счёт 0),
 // реальную сортировку на экране задаёт частота запусков (см. sortedApps ниже).
 const ALL_APPS: AppEntry[] = [
-  { key: "card", icon: "◎", title: "Ритм", to: "/training", grad: ["#ff7954", "#5c7cff"], badge: "NEW" },
+  { key: "card", icon: "◎", title: "БРАКОВАНЫЙ РИТМ но симпитаичный дизайн", to: "/training", grad: ["#ff7954", "#5c7cff"] },
   { key: "card", icon: "🔥", title: "BurpiOpus", to: "/burpi-opus", grad: ["#ff4d6d", "#d81b60"] },
   { key: "card", icon: "🩸", title: "Мурдоку Алины", to: "/scene", grad: ["#7a4a2a", "#a32b25"] },
   { key: "card", icon: "🔦", title: "Детектив", to: "/alibi", grad: ["#4a5a72", "#c1322f"] },
@@ -95,7 +96,7 @@ const ALL_APPS: AppEntry[] = [
 const CATALOG = ALL_APPS.filter((app) => !HIDDEN_ROUTES.has(app.to));
 
 // Всегда первыми на главной, в этом порядке — независимо от того, что запускают чаще.
-const PINNED = ["/sudoku", "/catan", "/training"];
+const PINNED = ["/sudoku", "/catan"];
 
 const APP_BY_ROUTE = new Map(ALL_APPS.map((app) => [app.to, app]));
 

@@ -114,7 +114,7 @@
 
 .training-brand { text-align: center; line-height: 1; }
 .training-brand span { display: block; margin-bottom: 5px; color: var(--training-muted); font-size: 9px; font-weight: 800; letter-spacing: 0.2em; }
-.training-brand strong { font-size: 20px; letter-spacing: -0.03em; }
+.training-brand strong { display: block; max-width: 210px; margin: 0 auto; font-size: 10px; font-weight: 780; letter-spacing: -0.015em; line-height: 1.08; }
 
 .training-viewport { width: 100%; min-height: 0; flex: 1 1 auto; overflow: hidden; }
 .training-page { width: min(100%, 680px); height: 100%; margin: 0 auto; overflow: hidden; }

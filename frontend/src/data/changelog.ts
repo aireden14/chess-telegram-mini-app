@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.54.0",
+    date: "31 августа 2026, 11:06 (EEST)",
+    title: "БРАКОВАНЫЙ РИТМ но симпитаичный дизайн: скрыт",
+    items: [
+      "🙈 Проект убран с главного экрана GamePass, но сохранён по прямой ссылке вместе с дневником",
+      "🔕 Почасовые напоминания @Liquid_Chess_bot полностью отключены на сервере",
+      "✏️ Экран переименован в «БРАКОВАНЫЙ РИТМ но симпитаичный дизайн»",
+    ],
+  },
+  {
     version: "3.53.0",
     date: "31 августа 2026, 00:58 EEST",
     title: "BurpiOpus: звуки действий",

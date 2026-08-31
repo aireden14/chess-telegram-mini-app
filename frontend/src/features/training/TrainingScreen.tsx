@@ -296,8 +296,8 @@ export function TrainingScreen() {
           <ChevronLeft />
         </button>
         <div className="training-brand">
-          <span>ДНЕВНИК ДВИЖЕНИЯ</span>
-          <strong>Ритм</strong>
+          <span>СКРЫТЫЙ ПРОЕКТ</span>
+          <strong>БРАКОВАНЫЙ РИТМ но симпитаичный дизайн</strong>
         </div>
         <button className="training-icon-button" onClick={() => setPage("settings")} aria-label="Настройки">
           <SlidersIcon />
@@ -570,7 +570,7 @@ function DailyTask({
         <strong>{totalTarget} повторов</strong>
       </button>
       <p className="training-reminder-note">
-        {dashboard.settings.reminderEnabled ? "До выполнения GamePass напомнит через час." : "Напоминания выключены в настройках."}
+        Напоминания бота отключены.
       </p>
     </section>
   );
@@ -769,20 +769,6 @@ function SettingsPanel({
         </div>
         <p className="training-settings-help">Новое упражнение добавляется в конец одной тренировки. Его цель растёт независимо от берпи.</p>
       </section>
-
-      {dashboard.remindersPrivate && (
-        <section className="training-settings-section">
-          <div className="training-section-minihead"><span>НАПОМИНАНИЯ @DENRECH</span><strong>раз в час</strong></div>
-          <label className="training-switch-row">
-            <div><strong>Писать, пока день не закрыт</strong><span>После тренировки сообщения сразу остановятся</span></div>
-            <input type="checkbox" checked={settings.reminderEnabled} onChange={(event) => setSettings((current) => ({ ...current, reminderEnabled: event.target.checked }))} />
-          </label>
-          <div className="training-reminder-hours">
-            <label><span>Начинать</span><input type="number" min="0" max="23" value={settings.reminderStartHour} onChange={(event) => setSettings((current) => ({ ...current, reminderStartHour: Math.max(0, Math.min(23, Number(event.target.value) || 0)) }))} /></label>
-            <label><span>Заканчивать</span><input type="number" min="1" max="24" value={settings.reminderEndHour} onChange={(event) => setSettings((current) => ({ ...current, reminderEndHour: Math.max(1, Math.min(24, Number(event.target.value) || 1)) }))} /></label>
-          </div>
-        </section>
-      )}
 
       <button className="training-primary-button training-save-button" onClick={() => onSave(state, settings)}>Сохранить настройки</button>
     </motion.section>
@@ -1013,7 +999,7 @@ function CompletionCelebration({ session, reduceMotion, onClose }: { session: Tr
         <span>ДЕНЬ ЗАКРЫТ</span>
         <strong>{session.totalActual}</strong>
         <h2>Ты сделал тренировку</h2>
-        <p>{session.goalCompleted ? (extras ? `И ещё ${extras} сверх заявленного.` : "Цель выполнена.") : "День сохранён без роста рекордной цели."} Напоминания на сегодня остановлены.</p>
+        <p>{session.goalCompleted ? (extras ? `И ещё ${extras} сверх заявленного.` : "Цель выполнена.") : "День сохранён без роста рекордной цели."}</p>
         <button className="training-primary-button" onClick={onClose}>Продолжить</button>
       </motion.div>
     </motion.div>
