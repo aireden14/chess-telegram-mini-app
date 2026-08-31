@@ -5,14 +5,14 @@ import {
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
   setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn,
-} from "./core.js?v=1.5.1";
+} from "./core.js?v=1.6.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.5.1";
-import { haptic } from "./tg.js?v=1.5.1";
-import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.5.1";
-import { WHATS_NEW } from "./whats-new.js?v=1.5.1";
+} from "./ui.js?v=1.6.0";
+import { haptic } from "./tg.js?v=1.6.0";
+import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.6.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.6.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",

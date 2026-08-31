@@ -4,13 +4,13 @@ import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
   levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
   setTimeZone,
-} from "./core.js?v=1.5.1";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.5.1";
-import { setConfettiEnabled } from "./fx.js?v=1.5.1";
-import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.5.1";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.5.1";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.5.1";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.5.1";
+} from "./core.js?v=1.6.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded, reportDayComplete } from "./tg.js?v=1.6.0";
+import { setConfettiEnabled } from "./fx.js?v=1.6.0";
+import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.6.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.6.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.6.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.6.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -261,6 +261,7 @@ export const app = {
     this.state.active = null;
     this.session = null;
     this.save();
+    reportDayComplete();
 
     // Цель уровня пересчитана: она сдвигается только за ВЗЯТУЮ цель.
     const level = findLevel(findExercise(this.state, record.exerciseId), record.levelId);
@@ -394,6 +395,12 @@ export const app = {
     }
 
     this.render();
+
+    // После обновления напоминаний ранее закрытая тренировка тоже должна
+    // остановить сообщения сразу при первом открытии приложения.
+    if (this.state.sessions.some((item) => item.finishedAt && item.dayKey === dayKey())) {
+      reportDayComplete();
+    }
 
     // Аппаратная «назад» и Escape ведут себя предсказуемо: закрыть лист,
     // иначе вернуться на шаг назад по потоку тренировки.

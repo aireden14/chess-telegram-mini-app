@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTelegram, triggerHaptic } from "../../hooks/useTelegram";
+import { api } from "../../api/client";
 
 /**
  * BurpiOpus — дневник тренировок. Внутри GamePass это standalone-приложение в
@@ -55,10 +56,11 @@ export function BurpiOpusScreen() {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const data = event.data as { source?: string; type?: string; kind?: string } | null;
-      if (!data || data.source !== "burpi-opus") return;
+      if (!data || data.source !== "burpi-opus" || event.source !== frameRef.current?.contentWindow) return;
       if (data.type === "haptic") triggerHaptic(mapHaptic(data.kind));
       else if (data.type === "exit") nav("/");
       else if (data.type === "ready") postSafeArea();
+      else if (data.type === "day-complete") void api.post("/burpi-reminders/complete").catch(() => undefined);
     };
 
     window.addEventListener("message", onMessage);

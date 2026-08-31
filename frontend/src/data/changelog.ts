@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.56.0",
+    date: "31 августа 2026, 14:24 (EEST)",
+    title: "BurpiOpus: личные напоминания",
+    items: [
+      "⏰ Только @denrech бот напоминает каждый час начиная с 12:00 по времени Кипра — и только пока тренировка за сегодня не завершена",
+      "🚀 Кнопка в сообщении открывает сразу BurpiOpus, без лишнего экрана",
+      "✅ Сохранил тренировку — даже если закончил раньше цели — напоминания до завтра прекращаются",
+    ],
+  },
+  {
     version: "3.55.0",
     date: "31 августа 2026, 11:09 EEST",
     title: "BurpiOpus: звуки перестали пропадать",

@@ -9,12 +9,12 @@ import {
   ACCENTS, dayKey, humanDate, humanWeekday, suggestPlan, forecast, stats,
   lastDays, WEEKDAYS_SHORT, flameStage, STREAK_MILESTONES, levelCompletions,
   carryOverToday, goalReachedToday, dayTotal, levelTarget,
-} from "./core.js?v=1.5.1";
-import { h, plural, toast } from "./ui.js?v=1.5.1";
-import { daySheet } from "./views-data.js?v=1.5.1";
-import { haptic } from "./tg.js?v=1.5.1";
-import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.5.1";
-import { playSound } from "./sound.js?v=1.5.1";
+} from "./core.js?v=1.6.0";
+import { h, plural, toast } from "./ui.js?v=1.6.0";
+import { daySheet } from "./views-data.js?v=1.6.0";
+import { haptic } from "./tg.js?v=1.6.0";
+import { confetti, countUp, ringSvg, setRingProgress, pulse } from "./fx.js?v=1.6.0";
+import { playSound } from "./sound.js?v=1.6.0";
 
 const FLAMES = ["🔥", "✨", "🔥", "🔥", "🌟", "💎"];
 

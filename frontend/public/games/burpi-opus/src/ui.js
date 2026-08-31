@@ -1,8 +1,8 @@
 // Мини-слой над DOM: гиперскрипт, нижние листы, тосты, переключатели.
 // Без фреймворка — приложение должно оставаться набором статических файлов.
 
-import { haptic } from "./tg.js?v=1.5.1";
-import { playSound } from "./sound.js?v=1.5.1";
+import { haptic } from "./tg.js?v=1.6.0";
+import { playSound } from "./sound.js?v=1.6.0";
 
 /**
  * h("button.btn.btn-primary", { text: "Начать", on: { click } })
