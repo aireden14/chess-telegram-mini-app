@@ -1461,6 +1461,31 @@ body {
   box-shadow: none;
 }
 
+/* Читопус (трекер чтения) — такой же полноэкранный standalone-документ, как
+   BurpiOpus: свои табы, своя шапка, свой выход в хаб. */
+.app-screen.chitopus-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  background: #000;
+}
+
+.chitopus-screen .force-deflector-frame-shell {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* WAVE FORGE (beat-maker) uses the default framed shell: a normal TopNav bar
    above a full-height iframe that scrolls internally. Just theme the frame. */
 .beat-maker-screen .force-deflector-frame-shell {

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Читопус">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#2c1a09"/>
+      <stop offset="0.55" stop-color="#120c14"/>
+      <stop offset="1" stop-color="#05050a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.1" r="0.78">
+      <stop offset="0" stop-color="#ffb340" stop-opacity="0.5"/>
+      <stop offset="0.55" stop-color="#ff7a45" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ff7a45" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#fffaf0"/>
+      <stop offset="1" stop-color="#e6d6ba"/>
+    </linearGradient>
+    <linearGradient id="paperDim" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#f2e6d2"/>
+      <stop offset="1" stop-color="#cdb896"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ffc04d"/>
+      <stop offset="0.5" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#ff2d6d"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="spine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffd58a" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ff7a45" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+
+  <!-- подложка: тёплое стекло, свет сверху -->
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="114" fill="url(#glow)"/>
+
+  <!-- раскрытая книга: левая страница чуть темнее — так виден объём -->
+  <g transform="translate(256 262) scale(1.05) translate(-256 -270)">
+    <path d="M250 190 C216 165, 165 154, 94 163 L94 353 C165 344, 216 355, 250 380 Z" fill="url(#paperDim)"/>
+    <path d="M262 190 C296 165, 347 154, 418 163 L418 353 C347 344, 296 355, 262 380 Z" fill="url(#paper)"/>
+
+    <!-- строки текста: на маленьком размере сливаются в фактуру бумаги -->
+    <g stroke="#9c8969" stroke-width="9" stroke-linecap="round" opacity="0.55">
+      <path d="M128 208 H214"/>
+      <path d="M128 246 H222"/>
+      <path d="M128 284 H206"/>
+      <path d="M298 208 H384"/>
+      <path d="M290 246 H386"/>
+      <path d="M298 284 H370"/>
+    </g>
+
+    <!-- свет по сгибу -->
+    <path d="M256 186 V382" stroke="url(#spine)" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <!-- закладка: единственный неоновый акцент, он же смысл трекера -->
+  <g transform="translate(256 262) scale(1.05) translate(-256 -270)">
+  <path d="M318 150 H372 V300 L345 274 L318 300 Z" fill="url(#ribbon)"/>
+  <path d="M318 150 H372 V300 L345 274 L318 300 Z" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
+  </g>
+
+  <!-- стеклянные блики -->
+  <rect width="512" height="512" rx="114" fill="url(#gloss)"/>
+  <rect x="1.5" y="1.5" width="509" height="509" rx="112.5" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/>
+</svg>

@@ -52,6 +52,7 @@ import { AlibiScreen } from "./features/alibi/AlibiScreen";
 import { SceneScreen } from "./features/scene/SceneScreen";
 import { TrainingScreen } from "./features/training/TrainingScreen";
 import { BurpiOpusScreen } from "./features/burpiOpus/BurpiOpusScreen";
+import { ChitopusScreen } from "./features/chitopus/ChitopusScreen";
 import { useAuthStore } from "./store/auth";
 import { usePieceStyleStore } from "./store/pieceStyle";
 import { useThemeStore } from "./store/theme";
@@ -135,6 +136,7 @@ export function App() {
         <Route path="/alibi" element={<Protected><AlibiScreen /></Protected>} />
         <Route path="/scene" element={<Protected><SceneScreen /></Protected>} />
         <Route path="/burpi-opus" element={<Protected><BurpiOpusScreen /></Protected>} />
+        <Route path="/chitopus" element={<Protected><ChitopusScreen /></Protected>} />
         <Route path="/training" element={<Protected><TrainingScreen /></Protected>} />
         <Route path="*" element={<Navigate to="/loading" replace />} />
       </Routes>

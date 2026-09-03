@@ -53,6 +53,7 @@ const HIDDEN_ROUTES = new Set<string>([
 const ALL_APPS: AppEntry[] = [
   { key: "card", icon: "◎", title: "БРАКОВАНЫЙ РИТМ но симпитаичный дизайн", to: "/training", grad: ["#ff7954", "#5c7cff"] },
   { key: "card", icon: "🔥", title: "BurpiOpus", to: "/burpi-opus", grad: ["#ff4d6d", "#d81b60"] },
+  { key: "card", icon: "/game-icons/chitopus.svg", title: "Читопус", to: "/chitopus", grad: ["#ffb340", "#7c3aed"], badge: "NEW" },
   { key: "card", icon: "🩸", title: "Мурдоку Алины", to: "/scene", grad: ["#7a4a2a", "#a32b25"] },
   { key: "card", icon: "🔦", title: "Детектив", to: "/alibi", grad: ["#4a5a72", "#c1322f"] },
   { key: "card", icon: "🟢", title: "NEON TRAIL", to: "/neon-trail", grad: ["#50f29a", "#087f61"] },
@@ -163,7 +164,7 @@ export function GamePickerScreen() {
   };
 
   const renderAppButton = (a: AppEntry, i: number) => {
-    const isImg = a.icon.includes(".png") || a.icon.includes(".jpg");
+    const isImg = a.icon.includes(".png") || a.icon.includes(".jpg") || a.icon.includes(".svg");
     const iconSrc = a.icon.startsWith("/") ? a.icon : `/images/${a.icon}`;
     const isFeatured = a.to === "/neon-trail";
     const icon = (
