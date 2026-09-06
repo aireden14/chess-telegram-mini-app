@@ -55,12 +55,12 @@ export function BurpiOpusScreen() {
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      const data = event.data as { source?: string; type?: string; kind?: string } | null;
+      const data = event.data as { source?: string; type?: string; kind?: string; dateKey?: string } | null;
       if (!data || data.source !== "burpi-opus" || event.source !== frameRef.current?.contentWindow) return;
       if (data.type === "haptic") triggerHaptic(mapHaptic(data.kind));
       else if (data.type === "exit") nav("/");
       else if (data.type === "ready") postSafeArea();
-      else if (data.type === "day-complete") void api.post("/burpi-reminders/complete").catch(() => undefined);
+      else if (data.type === "day-complete") void api.post("/burpi-reminders/complete", { dateKey: data.dateKey }).catch(() => undefined);
     };
 
     window.addEventListener("message", onMessage);

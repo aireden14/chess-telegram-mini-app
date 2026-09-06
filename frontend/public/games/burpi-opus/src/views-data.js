@@ -5,14 +5,14 @@ import {
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
   setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn,
-} from "./core.js?v=1.6.0";
+} from "./core.js?v=1.7.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.6.0";
-import { haptic } from "./tg.js?v=1.6.0";
-import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.6.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.6.0";
+} from "./ui.js?v=1.7.0";
+import { haptic } from "./tg.js?v=1.7.0";
+import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.7.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.7.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -142,7 +142,7 @@ function monthCalendar(cursor, byDay, onNav, onPickDay) {
   const cells = [];
   for (let i = 0; i < offset; i += 1) cells.push(h("div.cal-cell.is-empty"));
   for (let d = 1; d <= daysInMonth; d += 1) {
-    const key = dayKey(new Date(year, month, d));
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const done = byDay.has(key);
     const future = key > todayK;
     cells.push(
@@ -174,6 +174,7 @@ function monthCalendar(cursor, byDay, onNav, onPickDay) {
 export function viewSettings(app) {
   const ex = app.exercise();
   const s = app.state.settings;
+  const st = stats(app.state, ex.id);
   app.setAccent(app.level().accent);
 
   /* ---- упражнения */
@@ -274,8 +275,8 @@ export function viewSettings(app) {
       navRow({
         title: "Часовой пояс",
         subtitle: s.timeZone
-          ? `вручную · ${clockIn(s.timeZone)}`
-          : `с устройства · ${clockIn(detectedTimeZone())}`,
+          ? `вручную · ${clockIn(s.timeZone)} · новый день в 05:00`
+          : `с устройства · ${clockIn(detectedTimeZone())} · новый день в 05:00`,
         value: zoneLabel(effectiveTimeZone()),
         onClick: () => timeZoneSheet(app),
       }),
@@ -286,6 +287,24 @@ export function viewSettings(app) {
   const dataCard = h("div.card", {},
     h("div.card-title", { text: "Данные" }),
     h("div.rows", {},
+      navRow({
+        title: "Серия дней",
+        subtitle: "скорректировать серию вручную, если сбилась",
+        value: `${st.streak.current} ${plural(st.streak.current, "день", "дня", "дней")}`,
+        onClick: () => numberSheet(app, {
+          title: "Серия дней",
+          subtitle: "Число дней подряд. Если серия сбилась из-за времени или пояса, здесь можно вернуть своё значение.",
+          value: st.streak.current,
+          min: 0,
+          max: 1000,
+          onSave: (v) => {
+            s.streakFloor = v;
+            app.save();
+            app.render();
+            toast({ icon: "🔥", title: `Серия: ${v} ${plural(v, "день", "дня", "дней")}` });
+          },
+        }),
+      }),
       navRow({
         title: "Экспорт",
         subtitle: "весь дневник одним текстом",

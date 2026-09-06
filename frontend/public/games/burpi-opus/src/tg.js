@@ -158,6 +158,6 @@ export function isEmbedded() {
 
 // Родительский GamePass имеет авторизацию и передаёт серверу факт закрытого
 // дня. Внешнему standalone-документу токен не нужен и он его никогда не видит.
-export function reportDayComplete() {
-  toParent({ type: "day-complete" });
+export function reportDayComplete(dateKey) {
+  toParent({ type: "day-complete", dateKey });
 }

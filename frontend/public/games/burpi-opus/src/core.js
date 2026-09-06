@@ -51,8 +51,15 @@ export function clockIn(tz) {
   }
 }
 
+// Граница суток: новый день начинается в 05:00 утра.
+// Время с 00:00 до 04:59 считается частью предыдущего тренировочного дня,
+// поэтому ночная тренировка закрывает текущий день и серия не сгорает в полночь.
+export const CYCLE_START_HOUR = 5;
+
 export function dayKey(date = new Date()) {
   const d = new Date(date);
+  // Сдвиг на 5 часов назад переносит ночные часы (00:00–04:59) в предыдущий календарный день.
+  const shifted = new Date(d.getTime() - CYCLE_START_HOUR * 3600 * 1000);
   if (activeTimeZone) {
     try {
       // en-CA форматирует ровно как YYYY-MM-DD — то, что нужно для ключа.
@@ -61,14 +68,14 @@ export function dayKey(date = new Date()) {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-      }).format(d);
+      }).format(shifted);
     } catch {
       /* неизвестная зона — тихо падаем на время устройства */
     }
   }
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const y = shifted.getFullYear();
+  const m = String(shifted.getMonth() + 1).padStart(2, "0");
+  const day = String(shifted.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
@@ -78,15 +85,17 @@ export function keyToDate(key) {
 }
 
 export function shiftKey(key, deltaDays) {
-  const d = keyToDate(key);
-  d.setDate(d.getDate() + deltaDays);
-  return dayKey(d);
+  const [y, m, d] = key.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return target.toISOString().slice(0, 10);
 }
 
 // Разница в календарных днях (b - a), без часовых поясов и летнего времени.
 export function daysBetween(aKey, bKey) {
-  const a = keyToDate(aKey);
-  const b = keyToDate(bKey);
+  const [ay, am, ad] = aKey.split("-").map(Number);
+  const [by, bm, bd] = bKey.split("-").map(Number);
+  const a = Date.UTC(ay, am - 1, ad);
+  const b = Date.UTC(by, bm - 1, bd);
   return Math.round((b - a) / 86400000);
 }
 
@@ -261,17 +270,28 @@ export function daysWithWork(state, exerciseId) {
   return set;
 }
 
-// Серия — календарные дни подряд. Вчерашняя серия ещё жива: сегодняшний день
-// не считается пропуском, пока он не закончился.
+// Серия — календарные дни подряд (граница суток 05:00 утра). Вчерашняя серия ещё жива:
+// сегодняшний день не считается пропуском, пока не наступили 05:00 следующего утра.
 export function computeStreak(state, exerciseId, todayK = dayKey()) {
   const days = daysWithWork(state, exerciseId);
-  if (days.size === 0) return { current: 0, best: 0, doneToday: false, atRisk: false };
+  const floor = Number(state?.settings?.streakFloor) || 0;
+  if (days.size === 0) {
+    return { current: floor, best: floor, doneToday: false, atRisk: false };
+  }
 
   let cursor = days.has(todayK) ? todayK : shiftKey(todayK, -1);
   let current = 0;
   while (days.has(cursor)) {
     current += 1;
     cursor = shiftKey(cursor, -1);
+  }
+
+  // Если задан минимальный уровень серии (ручная корректировка) и серия жива
+  if (floor > current) {
+    const alive = days.has(todayK) || days.has(shiftKey(todayK, -1));
+    if (alive || current > 0) {
+      current = floor;
+    }
   }
 
   const sorted = [...days].sort();
@@ -284,9 +304,11 @@ export function computeStreak(state, exerciseId, todayK = dayKey()) {
     prev = k;
   });
 
+  best = Math.max(best, current, floor);
+
   return {
     current,
-    best: Math.max(best, current),
+    best,
     doneToday: days.has(todayK),
     atRisk: current > 0 && !days.has(todayK),
   };
@@ -446,6 +468,7 @@ export function defaultState() {
       lastLevelByExercise: { burpee: "record" },
       seenMilestones: [],
       seenVersion: null,
+      streakFloor: 0,
     },
   };
 }
@@ -459,10 +482,33 @@ function migrate(raw) {
     ...raw,
     settings: { ...base.settings, ...(raw.settings ?? {}) },
   };
+  if (state.settings.timeZone) {
+    setTimeZone(state.settings.timeZone);
+  }
   if (!Array.isArray(state.exercises) || state.exercises.length === 0) {
     state.exercises = base.exercises;
   }
   if (!Array.isArray(state.sessions)) state.sessions = [];
+  // Пересчитываем dayKey у сессий по фактическому времени с учётом границы 05:00 утра
+  state.sessions.forEach((s) => {
+    if (s.finishedAt || s.startedAt) {
+      try {
+        const key = dayKey(new Date(s.finishedAt || s.startedAt));
+        if (key && /^\d{4}-\d{2}-\d{2}$/.test(key)) {
+          s.dayKey = key;
+        }
+      } catch {
+        /* оставляем прежний dayKey */
+      }
+    }
+  });
+  if (state.active && (state.active.startedAt || state.active.finishedAt)) {
+    try {
+      state.active.dayKey = dayKey(new Date(state.active.startedAt));
+    } catch {
+      /* оставляем прежний dayKey */
+    }
+  }
   state.exercises.forEach((ex) => {
     if (!Array.isArray(ex.levels)) ex.levels = [];
     ex.levels.forEach((lvl) => {
