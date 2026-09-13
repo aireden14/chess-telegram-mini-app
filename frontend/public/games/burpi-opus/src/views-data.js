@@ -5,14 +5,17 @@ import {
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
   setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn,
-} from "./core.js?v=1.7.0";
+} from "./core.js?v=1.8.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.7.0";
-import { haptic } from "./tg.js?v=1.7.0";
-import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.7.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.7.0";
+} from "./ui.js?v=1.8.0";
+import { haptic } from "./tg.js?v=1.8.0";
+import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.8.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.8.0";
+import {
+  syncAvailable, syncStatus, syncNow, pendingCount, requestPairCode, unlinkWatches,
+} from "./sync.js?v=1.8.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -346,6 +349,52 @@ export function viewSettings(app) {
     ),
   );
 
+  /* ---- Apple Watch и общий дневник */
+  const online = syncAvailable();
+  const watchCard = h("div.card", {},
+    h("div.card-title", { text: "Apple Watch" }),
+    h("div.rows", {},
+      navRow({
+        title: "Синхронизация",
+        subtitle: syncSubtitle(app),
+        value: !online ? "" : syncStatus.state === "error" ? "!" : syncStatus.state === "syncing" ? "…" : "✓",
+        onClick: () => {
+          if (!online) return;
+          syncNow();
+          toast({ icon: "🔄", title: "Синхронизирую" });
+        },
+      }),
+      online
+        ? navRow({
+            title: "Привязать часы",
+            subtitle: "код для BurpiOpus на Apple Watch",
+            onClick: () => pairSheet(),
+          })
+        : null,
+      online
+        ? navRow({
+            title: "Отвязать часы",
+            subtitle: "часы перестанут видеть дневник",
+            danger: true,
+            onClick: () => confirmSheet({
+              title: "Отвязать все часы?",
+              subtitle: "Записанное с часов останется в дневнике. Чтобы вернуть часы, понадобится новый код.",
+              confirmLabel: "Отвязать",
+              danger: true,
+              onConfirm: async () => {
+                try {
+                  const res = await unlinkWatches();
+                  toast({ icon: "⌚️", title: res?.removed ? "Часы отвязаны" : "Привязанных часов не было" });
+                } catch {
+                  toast({ icon: "⚠️", title: "Сервер не ответил", subtitle: "Попробуй ещё раз через минуту" });
+                }
+              },
+            }),
+          })
+        : null,
+    ),
+  );
+
   /* ---- о приложении */
   const aboutCard = h("div.card", {},
     h("div.card-title", { text: "О приложении" }),
@@ -374,8 +423,59 @@ export function viewSettings(app) {
         h("h1.head-title", { text: "Под себя" }),
       ),
     ),
-    exercisesCard, levelsCard, trainCard, dataCard, aboutCard, sign,
+    exercisesCard, levelsCard, trainCard, watchCard, dataCard, aboutCard, sign,
   );
+}
+
+/* ----------------------------------------------------------- Apple Watch */
+
+function syncSubtitle(app) {
+  if (!syncAvailable()) return "работает, когда BurpiOpus открыт внутри GamePass";
+  const pending = pendingCount(app.state);
+  if (syncStatus.state === "syncing") return "синхронизирую…";
+  if (syncStatus.state === "error") {
+    return pending > 0
+      ? `нет связи с сервером · ждёт отправки: ${pending}`
+      : "нет связи с сервером — повторю сам";
+  }
+  const last = app.state.sync?.lastOkAt;
+  if (!last) return "общий дневник с часами";
+  const time = new Date(last).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return pending > 0 ? `ждёт отправки: ${pending}` : `общий дневник с часами · ${time}`;
+}
+
+function pairSheet() {
+  const code = h("div", {
+    text: "··· ···",
+    style: {
+      "font-size": "46px",
+      "font-weight": "800",
+      "letter-spacing": "0.12em",
+      "text-align": "center",
+      padding: "14px 0 4px",
+      "font-variant-numeric": "tabular-nums",
+      color: "var(--accent-1)",
+    },
+  });
+  const hint = h("div.row-sub", { text: "Получаю код…", style: { "text-align": "center" } });
+  sheet({
+    title: "Привязать Apple Watch",
+    subtitle: "Открой BurpiOpus на часах и введи этот код. Он одноразовый и действует 10 минут.",
+    body: h("div", {}, code, hint),
+    actions: [{ label: "Готово", kind: "primary" }],
+  });
+  requestPairCode()
+    .then((res) => {
+      const value = String(res?.code ?? "");
+      if (!/^\d{6}$/.test(value)) throw new Error("bad code");
+      code.textContent = `${value.slice(0, 3)} ${value.slice(3)}`;
+      const until = new Date(res.expiresAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      hint.textContent = `действует до ${until}`;
+      haptic("success");
+    })
+    .catch(() => {
+      hint.textContent = "Сервер не ответил. Он мог спать — попробуй ещё раз через минуту.";
+    });
 }
 
 /* ------------------------------------------------------------------- звук */

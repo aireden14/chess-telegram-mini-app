@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.59.0",
+    date: "13 сентября 2026, 23:45 (EEST)",
+    title: "BurpiOpus: общий дневник с Apple Watch",
+    items: [
+      "⌚️ BurpiOpus появился на Apple Watch: часы сами считают бёрпи, а подход с часов сразу виден в дневнике здесь",
+      "☁️ Дневник BurpiOpus хранится на сервере GamePass и не теряется при смене телефона; перед первой отправкой делается резервная копия",
+      "🔗 В настройках BurpiOpus новый раздел «Apple Watch»: код привязки часов и статус синхронизации",
+    ],
+  },
+  {
     version: "3.58.0",
     date: "7 сентября 2026, 02:00 (EEST)",
     title: "BurpiOpus: граница суток в 05:00 утра",

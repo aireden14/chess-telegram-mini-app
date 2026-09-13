@@ -53,19 +53,51 @@ export function BurpiOpusScreen() {
     );
   }, []);
 
+  // Общий дневник с Apple Watch: приложение просит, оболочка ходит в API со
+  // своим токеном и возвращает ответ. Токен внутрь iframe не передаётся.
+  const handleSync = useCallback(async (reqId: string, op: string, payload: unknown) => {
+    const reply = (body: Record<string, unknown>) =>
+      frameRef.current?.contentWindow?.postMessage(
+        { source: "gamepass-shell", type: "burpi-sync-result", reqId, ...body },
+        window.location.origin,
+      );
+    const slow = { timeout: 75_000 };
+    try {
+      let data: unknown;
+      if (op === "state") {
+        const since = Number((payload as { since?: unknown } | null)?.since) || 0;
+        data = (await api.get("/burpi-opus/state", { ...slow, params: { since } })).data;
+      } else if (op === "push") data = (await api.post("/burpi-opus/sync", payload ?? {}, slow)).data;
+      else if (op === "pair-code") data = (await api.post("/burpi-opus/pair-code", {}, slow)).data;
+      else if (op === "links") data = (await api.get("/burpi-opus/watch-links", slow)).data;
+      else if (op === "unlink") data = (await api.delete("/burpi-opus/watch-links", slow)).data;
+      else throw new Error("unknown op");
+      reply({ ok: true, data });
+    } catch (error) {
+      const err = error as { response?: { status?: number }; message?: string };
+      reply({ ok: false, status: err.response?.status ?? 0, error: err.message || "network error" });
+    }
+  }, []);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      const data = event.data as { source?: string; type?: string; kind?: string; dateKey?: string } | null;
+      const data = event.data as {
+        source?: string; type?: string; kind?: string; dateKey?: string;
+        reqId?: string; op?: string; payload?: unknown;
+      } | null;
       if (!data || data.source !== "burpi-opus" || event.source !== frameRef.current?.contentWindow) return;
       if (data.type === "haptic") triggerHaptic(mapHaptic(data.kind));
       else if (data.type === "exit") nav("/");
       else if (data.type === "ready") postSafeArea();
       else if (data.type === "day-complete") void api.post("/burpi-reminders/complete", { dateKey: data.dateKey }).catch(() => undefined);
+      else if (data.type === "burpi-sync" && typeof data.reqId === "string" && typeof data.op === "string") {
+        void handleSync(data.reqId, data.op, data.payload);
+      }
     };
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [nav, postSafeArea]);
+  }, [nav, postSafeArea, handleSync]);
 
   // Звуки приложения не должны ставить музыку пользователя на паузу. На iOS
   // аудиосессия принадлежит документу верхнего уровня, а приложение живёт в
