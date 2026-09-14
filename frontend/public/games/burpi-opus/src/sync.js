@@ -10,8 +10,8 @@
 // каждом месте, где меняются записи. Запись, которая пропала из дневника, но
 // есть в known, уходит на сервер как удалённая, и часы её не воскрешают.
 
-import { isEmbedded } from "./tg.js?v=1.8.0";
-import { saveState, STORAGE_KEY } from "./core.js?v=1.8.0";
+import { isEmbedded } from "./tg.js?v=1.9.0";
+import { saveState, STORAGE_KEY } from "./core.js?v=1.9.0";
 
 const BACKUP_KEY = `${STORAGE_KEY}.backup-before-sync`;
 const DEBOUNCE_MS = 1200;
@@ -333,4 +333,17 @@ export function fetchWatchLinks() {
 
 export function unlinkWatches() {
   return request("unlink");
+}
+
+// Друзья: мой код-приглашение и недельный рейтинг.
+export function fetchFriends() {
+  return request("friends");
+}
+
+export function addFriend(code) {
+  return request("friend-add", { code });
+}
+
+export function removeFriend(id) {
+  return request("friend-remove", { id });
 }

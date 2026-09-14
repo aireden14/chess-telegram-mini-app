@@ -71,6 +71,15 @@ export function BurpiOpusScreen() {
       else if (op === "pair-code") data = (await api.post("/burpi-opus/pair-code", {}, slow)).data;
       else if (op === "links") data = (await api.get("/burpi-opus/watch-links", slow)).data;
       else if (op === "unlink") data = (await api.delete("/burpi-opus/watch-links", slow)).data;
+      else if (op === "friends") data = (await api.get("/burpi-opus/friends", slow)).data;
+      else if (op === "friend-add") {
+        const code = String((payload as { code?: unknown } | null)?.code ?? "");
+        data = (await api.post("/burpi-opus/friends", { code }, slow)).data;
+      } else if (op === "friend-remove") {
+        const id = Number((payload as { id?: unknown } | null)?.id);
+        if (!Number.isInteger(id)) throw new Error("bad id");
+        data = (await api.delete(`/burpi-opus/friends/${id}`, slow)).data;
+      }
       else throw new Error("unknown op");
       reply({ ok: true, data });
     } catch (error) {

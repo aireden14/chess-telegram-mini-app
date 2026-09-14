@@ -4,14 +4,14 @@ import {
   loadState, saveState, defaultState, findExercise, findLevel, suggestPlan,
   levelTarget, personalBest, carryOverToday, computeStreak, dayKey, uid, ACCENTS,
   setTimeZone,
-} from "./core.js?v=1.8.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded, reportDayComplete } from "./tg.js?v=1.8.0";
-import { setConfettiEnabled } from "./fx.js?v=1.8.0";
-import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.8.0";
-import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.8.0";
-import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.8.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.8.0";
-import { initSync, scheduleSync } from "./sync.js?v=1.8.0";
+} from "./core.js?v=1.9.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded, reportDayComplete } from "./tg.js?v=1.9.0";
+import { setConfettiEnabled } from "./fx.js?v=1.9.0";
+import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.9.0";
+import { h, clear, tabIcon, sheet, closeSheet, isSheetOpen, toast } from "./ui.js?v=1.9.0";
+import { viewToday, viewLevels, viewWorkout, viewFinish, restOverlay, celebrate } from "./views-train.js?v=1.9.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.9.0";
+import { initSync, scheduleSync } from "./sync.js?v=1.9.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },

@@ -5,17 +5,18 @@ import {
   WEEKDAYS_SHORT, stats, sessionsByDay, suggestPlan, uid, defaultState, goalReached,
   levelCompletions, suggestSetCount, splitSets,
   setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn,
-} from "./core.js?v=1.8.0";
+} from "./core.js?v=1.9.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, labeledField,
   confirmSheet,
-} from "./ui.js?v=1.8.0";
-import { haptic } from "./tg.js?v=1.8.0";
-import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.8.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.8.0";
+} from "./ui.js?v=1.9.0";
+import { haptic } from "./tg.js?v=1.9.0";
+import { playSound, primeAudio, audioMixMode, isAppleWebKit } from "./sound.js?v=1.9.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.9.0";
 import {
   syncAvailable, syncStatus, syncNow, pendingCount, requestPairCode, unlinkWatches,
-} from "./sync.js?v=1.8.0";
+  fetchFriends, addFriend, removeFriend,
+} from "./sync.js?v=1.9.0";
 
 const MONTHS_NOM = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -395,6 +396,25 @@ export function viewSettings(app) {
     ),
   );
 
+  /* ---- друзья */
+  const friendsCard = online
+    ? h("div.card", {},
+        h("div.card-title", { text: "Друзья" }),
+        h("div.rows", {},
+          navRow({
+            title: "Рейтинг недели",
+            subtitle: "повторы за 7 дней — ты и друзья",
+            onClick: () => friendsSheet(),
+          }),
+          navRow({
+            title: "Добавить друга",
+            subtitle: "по его коду-приглашению",
+            onClick: () => addFriendSheet(),
+          }),
+        ),
+      )
+    : null;
+
   /* ---- о приложении */
   const aboutCard = h("div.card", {},
     h("div.card-title", { text: "О приложении" }),
@@ -423,7 +443,7 @@ export function viewSettings(app) {
         h("h1.head-title", { text: "Под себя" }),
       ),
     ),
-    exercisesCard, levelsCard, trainCard, watchCard, dataCard, aboutCard, sign,
+    exercisesCard, levelsCard, trainCard, watchCard, friendsCard, dataCard, aboutCard, sign,
   );
 }
 
@@ -476,6 +496,92 @@ function pairSheet() {
     .catch(() => {
       hint.textContent = "Сервер не ответил. Он мог спать — попробуй ещё раз через минуту.";
     });
+}
+
+/* ------------------------------------------------------------------ друзья */
+
+function friendsSheet() {
+  const list = h("div.rows", {}, h("div.row-sub", { text: "Загружаю…", style: { padding: "12px 0" } }));
+  const codeLine = h("div.row-sub", { text: "", style: { "text-align": "center", padding: "4px 0 10px" } });
+  sheet({
+    title: "Рейтинг недели",
+    subtitle: "Повторы за последние 7 дней. Поделись своим кодом, чтобы друг тебя добавил.",
+    body: h("div", {}, codeLine, list),
+    actions: [{ label: "Готово", kind: "primary" }],
+  });
+  fetchFriends()
+    .then((res) => {
+      codeLine.textContent = `Твой код: ${res?.code ?? "—"}`;
+      const board = Array.isArray(res?.board) ? res.board : [];
+      list.replaceChildren(
+        ...board.map((row, i) => navRow({
+          title: `${i + 1}. ${row.name}${row.me ? " (ты)" : ""}`,
+          subtitle: row.doneToday ? `сегодня ${row.today} · день закрыт ✓` : `сегодня ${row.today}`,
+          value: String(row.week),
+          onClick: row.me ? undefined : () => confirmSheet({
+            title: `Убрать ${row.name} из друзей?`,
+            subtitle: "Вы перестанете видеть друг друга в рейтинге.",
+            confirmLabel: "Убрать",
+            danger: true,
+            onConfirm: async () => {
+              try {
+                await removeFriend(row.id);
+                toast({ icon: "👋", title: "Убрано" });
+              } catch {
+                toast({ icon: "⚠️", title: "Сервер не ответил" });
+              }
+            },
+          }),
+        })),
+      );
+      if (board.length <= 1) {
+        list.append(h("div.row-sub", { text: "Пока только ты. Добавь друга по коду.", style: { padding: "10px 0" } }));
+      }
+    })
+    .catch(() => {
+      list.replaceChildren(h("div.row-sub", { text: "Сервер не ответил. Он мог спать — попробуй через минуту." }));
+    });
+}
+
+function addFriendSheet() {
+  const input = h("input.input", {
+    type: "text", placeholder: "Например, K7M2QX", maxlength: "6",
+    autocapitalize: "characters", autocomplete: "off", spellcheck: "false",
+  });
+  sheet({
+    title: "Добавить друга",
+    subtitle: "Попроси у друга код: BurpiOpus → Настройки → Друзья → Рейтинг недели.",
+    body: labeledField("Код друга", input),
+    actions: [
+      {
+        label: "Добавить",
+        kind: "primary",
+        onClick: () => {
+          const code = input.value.trim().toUpperCase();
+          if (!/^[A-Z0-9]{6}$/.test(code)) {
+            toast({ icon: "⚠️", title: "Код из 6 символов" });
+            return true;
+          }
+          addFriend(code)
+            .then((res) => {
+              haptic("success");
+              toast({ icon: "🤝", title: res?.name ? `${res.name} теперь в друзьях` : "Друг добавлен" });
+            })
+            .catch((error) => {
+              toast({
+                icon: "⚠️",
+                title: error?.status === 404 ? "Такого кода нет"
+                  : error?.status === 400 ? "Это твой собственный код"
+                  : error?.status === 429 ? "Слишком много попыток — подожди 10 минут"
+                  : "Сервер не ответил",
+              });
+            });
+          return false;
+        },
+      },
+      { label: "Отмена" },
+    ],
+  });
 }
 
 /* ------------------------------------------------------------------- звук */
