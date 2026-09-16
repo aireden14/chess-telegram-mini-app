@@ -140,7 +140,7 @@ export function countUp(node, to, { from = 0, duration = 700 } = {}) {
 const RING_R = 54;
 const RING_C = 2 * Math.PI * RING_R;
 
-export function ringSvg(progress, { accent = "var(--accent-1)", track = "rgba(255,255,255,.09)" } = {}) {
+export function ringSvg(progress, { accent = "var(--accent-1)", track = "rgb(var(--ink) / .09)" } = {}) {
   const p = Math.max(0, Math.min(1, progress));
   return `
     <svg class="ring" viewBox="0 0 128 128" aria-hidden="true">

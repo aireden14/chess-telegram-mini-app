@@ -10,7 +10,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Читопус</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="styles.css?v=1.0.0" />
+<link rel="stylesheet" href="styles.css?v=1.2.0" />
+<script>
+  // Тема до первой отрисовки, чтобы не мигал чёрный экран.
+  (function () {
+    var bg = { black: "#000000", gray: "#1f1f22", navy: "#0e1627", light: "#f2f2f7" };
+    var theme = "gray";
+    try {
+      var saved = JSON.parse(localStorage.getItem("chitopus.v1") || "{}");
+      if (saved.settings && bg[saved.settings.theme]) theme = saved.settings.theme;
+    } catch (e) {}
+    document.documentElement.setAttribute("data-theme", theme);
+    document.querySelector('meta[name="theme-color"]').setAttribute("content", bg[theme]);
+  })();
+</script>
 <script>
   // SDK Telegram имеет смысл только в окне верхнего уровня (отдельный Mini App).
   // Внутри GamePass приложение живёт в iframe, где SDK всё равно нерабочий, —
@@ -38,6 +51,6 @@
     </p>
   </noscript>
 
-  <script type="module" src="src/app.js?v=1.0.0"></script>
+  <script type="module" src="src/app.js?v=1.2.0"></script>
 </body>
 </html>

@@ -7,13 +7,13 @@
 import {
   ACCENTS, ACCENT_KEYS, bookProgress, bookSpan, bookPace,
   humanDateYear, readingBooks, shelfBooks, uid, nextAccent,
-} from "./core.js?v=1.0.0";
+} from "./core.js?v=1.2.0";
 import {
   h, plural, sheet, closeSheet, toast, segmented, labeledField, confirmSheet,
   scaleRow, starsRow, stars,
-} from "./ui.js?v=1.0.0";
-import { haptic } from "./tg.js?v=1.0.0";
-import { playSound } from "./sound.js?v=1.0.0";
+} from "./ui.js?v=1.2.0";
+import { haptic } from "./tg.js?v=1.2.0";
+import { playSound } from "./sound.js?v=1.2.0";
 
 function bookStyle(book) {
   const a = ACCENTS[book?.accent] ?? ACCENTS.amber;

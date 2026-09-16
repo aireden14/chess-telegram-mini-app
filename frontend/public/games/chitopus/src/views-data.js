@@ -1,16 +1,20 @@
 // Экраны данных: дневник (календарь, статистика, история) и настройки.
 
 import {
-  ACCENTS, dayKey, dayPages, dailyGoal, humanDate, humanDateYear,
+  ACCENTS, DAY_START_HOUR, calendarKey, dayKey, keyToDate, dayPages, dailyGoal, humanDate, humanDateYear,
   WEEKDAYS_SHORT, MONTHS_NOM, stats, sessionsByDay, defaultState, findBook,
-  setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn, DEFAULT_GOAL,
-} from "./core.js?v=1.0.0";
+  THEMES, applyTheme, setTimeZone, detectedTimeZone, effectiveTimeZone, clockIn, DEFAULT_GOAL,
+} from "./core.js?v=1.2.0";
 import {
   h, plural, sheet, closeSheet, toast, switchRow, navRow, segmented, confirmSheet,
-} from "./ui.js?v=1.0.0";
-import { haptic } from "./tg.js?v=1.0.0";
-import { playSound, primeAudio, audioMixMode } from "./sound.js?v=1.0.0";
-import { WHATS_NEW } from "./whats-new.js?v=1.0.0";
+} from "./ui.js?v=1.2.0";
+import { haptic } from "./tg.js?v=1.2.0";
+import { playSound, primeAudio, audioMixMode } from "./sound.js?v=1.2.0";
+import { WHATS_NEW } from "./whats-new.js?v=1.2.0";
+import { isEmbedded } from "./tg.js?v=1.2.0";
+import {
+  syncStatus, syncNow, requestPairCode, signIn, signOut, accountInfo, pendingCount,
+} from "./sync.js?v=1.2.0";
 
 function bookStyle(book) {
   const a = ACCENTS[book?.accent] ?? ACCENTS.amber;
@@ -55,7 +59,7 @@ export function viewDiary(app) {
   );
 
   /* ---- календарь месяца */
-  const cursor = app.diaryMonth ?? new Date();
+  const cursor = app.diaryMonth ?? keyToDate(dayKey());
   const calendar = monthCalendar(
     app,
     cursor,
@@ -135,7 +139,7 @@ function monthCalendar(app, cursor, byDay, goal, onNav, onPickDay) {
   const cells = [];
   for (let i = 0; i < offset; i += 1) cells.push(h("div.cal-cell.is-empty"));
   for (let d = 1; d <= daysInMonth; d += 1) {
-    const key = dayKey(new Date(year, month, d));
+    const key = calendarKey(new Date(year, month, d));
     const pages = byDay.has(key) ? byDay.get(key).reduce((a, s) => a + s.pages, 0) : 0;
     const full = pages >= goal;
     const part = pages > 0 && !full;
@@ -275,11 +279,21 @@ export function viewSettings(app) {
       navRow({
         title: "Часовой пояс",
         subtitle: s.timeZone
-          ? `вручную · ${clockIn(s.timeZone)}`
-          : `с устройства · ${clockIn(detectedTimeZone())}`,
+          ? `вручную · ${clockIn(s.timeZone)} · новый день в ${DAY_START_HOUR}:00`
+          : `с устройства · ${clockIn(detectedTimeZone())}` + ` · новый день в ${DAY_START_HOUR}:00`,
         value: zoneLabel(effectiveTimeZone()),
         onClick: () => timeZoneSheet(app),
       }),
+    ),
+  );
+
+  /* ---- оформление */
+  const lookCard = h("div.card", {},
+    h("div.card-title", { text: "Оформление" }),
+    segmented(
+      THEMES.map((t) => ({ value: t.value, label: t.label })),
+      THEMES.some((t) => t.value === s.theme) ? s.theme : "gray",
+      (v) => { s.theme = v; applyTheme(v); app.save(); },
     ),
   );
 
@@ -289,7 +303,7 @@ export function viewSettings(app) {
     h("div.rows", {},
       switchRow({
         title: "Вибро-отклик",
-        subtitle: "родная тактильная отдача Telegram",
+        subtitle: "лёгкая отдача на касания",
         value: s.haptics,
         onChange: (v) => { s.haptics = v; app.applyPreferences(); app.save(); },
       }),
@@ -395,8 +409,158 @@ export function viewSettings(app) {
         h("h1.head-title", { text: "Под себя" }),
       ),
     ),
-    readCard, feelCard, dataCard, aboutCard, sign,
+    readCard, lookCard, syncCard(app), feelCard, dataCard, aboutCard, sign,
   );
+}
+
+/* ------------------------------------------------------------ синхронизация */
+
+function syncLine(app) {
+  const st = syncStatus;
+  if (st.state === "syncing") return "синхронизируется…";
+  if (st.state === "error") return `нет связи с сервером — повторю позже`;
+  const last = app.state.sync?.lastOkAt;
+  if (!last) return "ещё не синхронизировался";
+  const d = new Date(last);
+  const pending = pendingCount(app.state);
+  return `синхронизирован в ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
+    + (pending ? ` · ждут отправки: ${pending}` : "");
+}
+
+// Один дневник на GamePass и браузер. В GamePass — выдать код, в браузере —
+// войти по нему.
+function syncCard(app) {
+  const name = syncStatus.account?.name || accountInfo()?.name || "";
+
+  if (isEmbedded()) {
+    return h("div.card", {},
+      h("div.card-title", { text: "Один дневник везде" }),
+      h("div.rows", {},
+        navRow({
+          title: "Синхронизация",
+          subtitle: syncLine(app),
+          onClick: () => { syncNow(); },
+        }),
+        navRow({
+          title: "Войти в браузере",
+          subtitle: "код для aireden14.github.io/chitopus — тот же дневник на телефоне без Telegram",
+          onClick: () => pairCodeSheet(),
+        }),
+      ),
+    );
+  }
+
+  if (!accountInfo()) {
+    return h("div.card", {},
+      h("div.card-title", { text: "Аккаунт GamePass" }),
+      h("div.rows", {},
+        navRow({
+          title: "Войти",
+          subtitle: syncStatus.error && syncStatus.state === "signed-out"
+            ? syncStatus.error
+            : "один дневник с Читопусом в GamePass — код берётся там в настройках",
+          onClick: () => signInSheet(app),
+        }),
+      ),
+    );
+  }
+
+  return h("div.card", {},
+    h("div.card-title", { text: "Аккаунт GamePass" }),
+    h("div.rows", {},
+      navRow({
+        title: name ? `Вход выполнен: ${name}` : "Вход выполнен",
+        subtitle: syncLine(app),
+        onClick: () => { syncNow(); },
+      }),
+      navRow({
+        title: "Выйти",
+        subtitle: "дневник на этом устройстве останется, но перестанет синхронизироваться",
+        danger: true,
+        onClick: () => confirmSheet({
+          title: "Выйти из аккаунта?",
+          subtitle: "Записи на этом устройстве сохранятся. Войти снова можно новым кодом из GamePass.",
+          confirmLabel: "Выйти",
+          danger: true,
+          onConfirm: () => {
+            signOut().then(() => {
+              app.render();
+              toast({ icon: "👋", title: "Вышел из аккаунта" });
+            });
+          },
+        }),
+      }),
+    ),
+  );
+}
+
+function pairCodeSheet() {
+  const codeEl = h("div.pair-code", { text: "······" });
+  const hint = h("p.sheet-sub", { text: "Получаю код…" });
+  sheet({
+    title: "Вход в браузере",
+    subtitle: "Открой aireden14.github.io/chitopus на телефоне → Настройки → Войти и введи код. Код живёт 10 минут.",
+    body: h("div.sheet-fields", {}, codeEl, hint),
+    actions: [{ label: "Готово" }],
+  });
+  requestPairCode()
+    .then((res) => {
+      codeEl.textContent = `${res.code.slice(0, 3)} ${res.code.slice(3)}`;
+      hint.textContent = "Код одноразовый: после входа он сгорает.";
+      haptic("success");
+    })
+    .catch(() => {
+      codeEl.textContent = "—";
+      hint.textContent = "Сервер не ответил. Попробуй ещё раз через минуту — он мог спать.";
+      haptic("error");
+    });
+}
+
+function signInSheet(app) {
+  const input = h("input.input.pair-input", {
+    inputmode: "numeric",
+    autocomplete: "one-time-code",
+    maxlength: "7",
+    placeholder: "123 456",
+  });
+  sheet({
+    title: "Вход через GamePass",
+    subtitle: "Открой Читопус в GamePass → Настройки → «Войти в браузере» и введи код. То, что уже записано здесь, не пропадёт — дневники сольются.",
+    body: h("div.sheet-fields", {}, input),
+    actions: [
+      {
+        label: "Войти",
+        kind: "primary",
+        onClick: () => {
+          const code = input.value.replace(/\D/g, "");
+          if (code.length !== 6) {
+            haptic("error");
+            toast({ icon: "🔢", title: "Нужно 6 цифр" });
+            return true;
+          }
+          toast({ icon: "⏳", title: "Вхожу…", subtitle: "сервер может просыпаться до минуты" });
+          signIn(code)
+            .then((acc) => {
+              closeSheet();
+              haptic("success");
+              app.render();
+              toast({ icon: "📚", title: acc.name ? `Привет, ${acc.name}` : "Вход выполнен", subtitle: "Дневник теперь общий с GamePass" });
+            })
+            .catch((error) => {
+              haptic("error");
+              toast({
+                icon: "⚠️",
+                title: error?.status === 404 ? "Код не подошёл" : "Не получилось",
+                subtitle: error?.status === 404 ? "Возьми новый код в GamePass" : "Проверь интернет и попробуй ещё раз",
+              });
+            });
+          return true;
+        },
+      },
+      { label: "Отмена" },
+    ],
+  });
+  setTimeout(() => input.focus(), 250);
 }
 
 /* ------------------------------------------------------------------- звук */
@@ -509,7 +673,7 @@ function timeZoneSheet(app) {
 
   sheet({
     title: "Часовой пояс",
-    subtitle: "Определяет границу суток: «сегодня» и серию. Если читаешь заполночь, это важнее, чем кажется.",
+    subtitle: "Определяет границу суток: «сегодня» и серию. Новый день начинается в 5:00 — чтение заполночь засчитывается во вчерашний день.",
     body: h("div.rows", { style: { "margin-bottom": "20px" } },
       options.map((opt) =>
         h("div.row", {

@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 // Newest first. Bump the top version when you ship user-visible features.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "3.60.0",
+    date: "16 сентября 2026, 19:41 (EEST)",
+    title: "Читопус: один дневник в GamePass и в браузере",
+    items: [
+      "🌐 Читопус открывается и без Telegram — aireden14.github.io/chitopus; вход кодом из настроек Читопуса, дневник общий и синхронизируется сам",
+      "🌙 Новый день в Читопусе начинается в 5:00: чтение после полуночи засчитывается во вчерашний день",
+      "🎨 Темы оформления: чёрная, серая, синяя и светлая",
+    ],
+  },
+  {
     version: "3.59.0",
     date: "13 сентября 2026, 23:45 (EEST)",
     title: "BurpiOpus: общий дневник с Apple Watch",

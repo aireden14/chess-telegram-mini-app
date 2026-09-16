@@ -12,11 +12,17 @@
   --safe-left: max(env(safe-area-inset-left, 0px), var(--tg-safe-left, 0px));
   --safe-right: max(env(safe-area-inset-right, 0px), var(--tg-safe-right, 0px));
 
+  --ink: 255 255 255;
   --bg: #000000;
-  --surface: rgba(255, 255, 255, 0.055);
-  --surface-strong: rgba(255, 255, 255, 0.10);
-  --hairline: rgba(255, 255, 255, 0.11);
-  --hairline-soft: rgba(255, 255, 255, 0.07);
+  --sheet-bg: #121214;
+  --toast-bg: rgba(28, 28, 32, 0.92);
+  --bar-bg: rgba(8, 8, 10, 0.72);
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --aurora-opacity: 0.75;
+  --surface: rgb(var(--ink) / 0.055);
+  --surface-strong: rgb(var(--ink) / 0.10);
+  --hairline: rgb(var(--ink) / 0.11);
+  --hairline-soft: rgb(var(--ink) / 0.07);
 
   --text: #ffffff;
   --text-2: rgba(235, 235, 245, 0.60);
@@ -77,6 +83,9 @@ body {
 #app {
   position: fixed;
   inset: 0;
+  /* iOS в режиме «на экран Домой» отдаёт окно короче экрана на высоту
+     статус-бара — tg.js тогда задаёт --app-height по размеру экрана. */
+  height: var(--app-height, auto);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -95,7 +104,7 @@ body {
     radial-gradient(58% 46% at 50% 0%, color-mix(in srgb, var(--accent-1) 34%, transparent) 0%, transparent 72%),
     radial-gradient(42% 34% at 78% 12%, color-mix(in srgb, var(--accent-2) 24%, transparent) 0%, transparent 70%);
   filter: blur(28px);
-  opacity: 0.75;
+  opacity: var(--aurora-opacity);
   transition: background 620ms var(--ease), opacity 620ms var(--ease);
 }
 
@@ -232,7 +241,7 @@ body {
   line-height: 0.88;
   letter-spacing: -0.055em;
   font-variant-numeric: tabular-nums;
-  background: linear-gradient(178deg, #ffffff 8%, color-mix(in srgb, var(--accent-1) 62%, #ffffff) 100%);
+  background: linear-gradient(178deg, var(--text) 8%, color-mix(in srgb, var(--accent-1) 62%, var(--text)) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -279,7 +288,7 @@ body {
 .set-chip.is-done {
   background: color-mix(in srgb, var(--accent-1) 20%, transparent);
   border-color: color-mix(in srgb, var(--accent-1) 52%, transparent);
-  color: #fff;
+  color: var(--text);
 }
 
 .set-chip.is-current {
@@ -301,7 +310,7 @@ body {
 
 /* «Всё оставшееся» — закрыть цель одним подходом в один тап. */
 .quick-chip.is-strong {
-  color: #fff;
+  color: var(--text);
   border-color: color-mix(in srgb, var(--accent-1) 52%, transparent);
   background: color-mix(in srgb, var(--accent-1) 18%, transparent);
 }
@@ -573,7 +582,7 @@ body {
 .progress-track {
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.10);
+  background: rgb(var(--ink) / 0.10);
   overflow: hidden;
 }
 
@@ -698,7 +707,7 @@ body {
 .cal-cell {
   aspect-ratio: 1;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.045);
+  background: rgb(var(--ink) / 0.045);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -814,7 +823,7 @@ body {
   width: 51px;
   height: 31px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgb(var(--ink) / 0.16);
   border: 0;
   flex: 0 0 auto;
   transition: background 260ms var(--ease);
@@ -847,7 +856,7 @@ body {
   min-height: 46px;
   padding: 11px 14px;
   border-radius: var(--radius-s);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(var(--ink) / 0.07);
   border: 1px solid var(--hairline-soft);
   color: var(--text);
   font-family: inherit;
@@ -875,7 +884,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   padding: 3px;
   gap: 3px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgb(var(--ink) / 0.08);
 }
 
 .seg-btn {
@@ -891,7 +900,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   transition: background 220ms var(--ease), color 220ms var(--ease);
 }
 
-.seg-btn.is-on { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.seg-btn.is-on { background: rgb(var(--ink) / 0.16); color: var(--text); }
 
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -903,7 +912,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   padding: 0;
 }
 
-.swatch.is-on { border-color: #fff; }
+.swatch.is-on { border-color: var(--text); }
 
 .link {
   color: color-mix(in srgb, var(--accent-1) 82%, white);
@@ -924,7 +933,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--backdrop);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;
@@ -940,7 +949,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   max-width: 520px;
   max-height: 86vh;
   overflow-y: auto;
-  background: #121214;
+  background: var(--sheet-bg);
   border: 1px solid var(--hairline);
   border-bottom: 0;
   border-radius: 30px 30px 0 0;
@@ -960,7 +969,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   width: 38px;
   height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+  background: rgb(var(--ink) / 0.22);
   margin: 6px auto 14px;
 }
 
@@ -995,7 +1004,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   gap: 11px;
   padding: 13px 18px;
   border-radius: 20px;
-  background: rgba(28, 28, 32, 0.92);
+  background: var(--toast-bg);
   border: 1px solid var(--hairline);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
@@ -1042,7 +1051,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   padding: 8px calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 8px)
            calc(var(--gutter) + var(--safe-left));
   border-top: 1px solid var(--hairline-soft);
-  background: rgba(8, 8, 10, 0.72);
+  background: var(--bar-bg);
   backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
 }
@@ -1064,7 +1073,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
 
 .tab svg { width: 26px; height: 26px; }
 .tab-label { font-size: 10.5px; font-weight: 620; letter-spacing: 0.01em; }
-.tab.is-on { color: #fff; }
+.tab.is-on { color: var(--text); }
 .tab.is-on svg { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent-1) 55%, transparent)); }
 .tab:active { transform: scale(0.93); }
 
@@ -1214,7 +1223,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   bottom: 8px;
   width: 1.5px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.32);
+  background: rgb(var(--ink) / 0.32);
 }
 
 .book-body { position: relative; flex: 1; min-width: 0; }
@@ -1242,7 +1251,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
 .book-bar {
   height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.10);
+  background: rgb(var(--ink) / 0.10);
   overflow: hidden;
   margin-top: 9px;
 }
@@ -1311,7 +1320,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   height: 38px;
   padding: 0;
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(var(--ink) / 0.07);
   border: 1px solid var(--hairline-soft);
   color: var(--text-3);
   font-size: 13.5px;
@@ -1322,7 +1331,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
 .scale-dot.is-on {
   background: color-mix(in srgb, var(--accent-1) 20%, transparent);
   border-color: color-mix(in srgb, var(--accent-1) 34%, transparent);
-  color: #fff;
+  color: var(--text);
 }
 
 .scale-dot.is-pick {
@@ -1338,7 +1347,7 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgb(var(--ink) / 0.06);
   border: 1px solid var(--hairline-soft);
   color: var(--text-3);
   font-size: 21px;
@@ -1367,3 +1376,67 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
 
 .arrowed b { font-size: 17px; font-weight: 700; }
 .arrowed span { color: var(--text-3); }
+
+/* ------------------------------------------------------------------ темы */
+/* Тема выбирается в настройках и живёт только на этом устройстве.
+   По умолчанию серая: чёрный холст слишком контрастен для чтения вечером. */
+
+:root[data-theme="gray"] {
+  --ink: 255 255 255;
+  --bg: #1f1f22;
+  --sheet-bg: #2a2a2e;
+  --toast-bg: rgba(54, 54, 60, 0.95);
+  --bar-bg: rgba(31, 31, 34, 0.8);
+  --text: #f2f2f4;
+  --text-2: rgba(235, 235, 245, 0.62);
+  --text-3: rgba(235, 235, 245, 0.36);
+  --aurora-opacity: 0.6;
+}
+
+:root[data-theme="navy"] {
+  --ink: 220 232 255;
+  --bg: #0e1627;
+  --sheet-bg: #17223a;
+  --toast-bg: rgba(32, 45, 72, 0.95);
+  --bar-bg: rgba(14, 22, 39, 0.8);
+  --text: #eef3ff;
+  --text-2: rgba(210, 222, 250, 0.62);
+  --text-3: rgba(210, 222, 250, 0.36);
+  --aurora-opacity: 0.65;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: 0 0 0;
+  --bg: #f2f2f7;
+  --sheet-bg: #ffffff;
+  --toast-bg: rgba(255, 255, 255, 0.96);
+  --bar-bg: rgba(248, 248, 250, 0.84);
+  --backdrop: rgba(0, 0, 0, 0.32);
+  --surface: #ffffff;
+  --surface-strong: rgba(0, 0, 0, 0.08);
+  --hairline: rgba(0, 0, 0, 0.1);
+  --hairline-soft: rgba(0, 0, 0, 0.07);
+  --text: #111114;
+  --text-2: rgba(60, 60, 67, 0.64);
+  --text-3: rgba(60, 60, 67, 0.36);
+  --aurora-opacity: 0.4;
+}
+
+:root[data-theme="light"] .toast { box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14); }
+
+/* Код входа в браузере */
+.pair-code {
+  text-align: center;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  padding: 10px 0 2px;
+}
+.pair-input {
+  text-align: center;
+  font-size: 26px;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}

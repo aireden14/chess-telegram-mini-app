@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTelegram, triggerHaptic } from "../../hooks/useTelegram";
+import { api } from "../../api/client";
 
 /**
  * Читопус — трекер чтения. Внутри GamePass это standalone-приложение в iframe,
- * поэтому оболочка берёт на себя ровно три вещи, которых у вложенного документа
- * нет: тактильную отдачу Telegram, безопасные отступы и выход в хаб.
+ * поэтому оболочка берёт на себя то, чего у вложенного документа нет:
+ * тактильную отдачу Telegram, безопасные отступы, выход в хаб и запросы к API
+ * (общий дневник с веб-версией в браузере — токен в iframe не передаётся).
  *
  * Source of truth приложения — apps/chitopus в корне воркспейса.
  */
@@ -52,18 +54,45 @@ export function ChitopusScreen() {
     );
   }, []);
 
+  const handleSync = useCallback(async (reqId: string, op: string, payload: unknown) => {
+    const reply = (body: Record<string, unknown>) =>
+      frameRef.current?.contentWindow?.postMessage(
+        { source: "gamepass-shell", type: "chitopus-sync-result", reqId, ...body },
+        window.location.origin,
+      );
+    const slow = { timeout: 75_000 };
+    try {
+      let data: unknown;
+      if (op === "state") {
+        const since = Number((payload as { since?: unknown } | null)?.since) || 0;
+        data = (await api.get("/chitopus/state", { ...slow, params: { since } })).data;
+      } else if (op === "push") data = (await api.post("/chitopus/sync", payload ?? {}, slow)).data;
+      else if (op === "pair-code") data = (await api.post("/chitopus/pair-code", {}, slow)).data;
+      else throw new Error("unknown op");
+      reply({ ok: true, data });
+    } catch (error) {
+      const err = error as { response?: { status?: number }; message?: string };
+      reply({ ok: false, status: err.response?.status ?? 0, error: err.message || "network error" });
+    }
+  }, []);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      const data = event.data as { source?: string; type?: string; kind?: string } | null;
+      const data = event.data as {
+        source?: string; type?: string; kind?: string; reqId?: string; op?: string; payload?: unknown;
+      } | null;
       if (!data || data.source !== "chitopus" || event.source !== frameRef.current?.contentWindow) return;
       if (data.type === "haptic") triggerHaptic(mapHaptic(data.kind));
       else if (data.type === "exit") nav("/");
       else if (data.type === "ready") postSafeArea();
+      else if (data.type === "chitopus-sync" && typeof data.reqId === "string" && typeof data.op === "string") {
+        void handleSync(data.reqId, data.op, data.payload);
+      }
     };
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [nav, postSafeArea]);
+  }, [nav, postSafeArea, handleSync]);
 
   // Звуки приложения не должны ставить музыку пользователя на паузу. На iOS
   // аудиосессия принадлежит документу верхнего уровня, а приложение живёт в

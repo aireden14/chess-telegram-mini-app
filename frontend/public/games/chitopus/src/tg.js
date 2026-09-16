@@ -96,10 +96,33 @@ function readSafeAreaFromSdk() {
   });
 }
 
+/* ------------------------------------------------ окно «на экране Домой» */
+
+// iOS в режиме веб-приложения (добавлено на экран «Домой») иногда отдаёт окно
+// короче экрана ровно на высоту статус-бара: снизу остаётся пустая полоса, и
+// нижняя панель висит над ней. Растягиваем приложение на весь экран сами.
+// navigator.standalone есть только у iOS — Android и десктоп не трогаем.
+function fitStandaloneHeight() {
+  if (embedded || navigator.standalone !== true) return;
+  const root = document.documentElement.style;
+  const portrait = window.innerHeight >= window.innerWidth;
+  const full = portrait
+    ? Math.max(screen.width, screen.height)
+    : Math.min(screen.width, screen.height);
+  const gap = full - window.innerHeight;
+  if (gap > 4 && gap < 90) root.setProperty("--app-height", `${full}px`);
+  else root.removeProperty("--app-height");
+}
+
 /* ------------------------------------------------------------- инициализация */
 
 export function initTelegram() {
   const tg = liveSdk();
+
+  fitStandaloneHeight();
+  window.addEventListener("resize", fitStandaloneHeight);
+  window.addEventListener("orientationchange", () => setTimeout(fitStandaloneHeight, 300));
+  setTimeout(fitStandaloneHeight, 400);
 
   if (tg) {
     try {
@@ -112,8 +135,9 @@ export function initTelegram() {
       // ошибку в консоль — поэтому спрашиваем версию заранее.
       if (atLeast("8.0")) tg.requestFullscreen?.();
       if (atLeast("7.7")) tg.disableVerticalSwipes?.();
-      tg.setHeaderColor?.("#000000");
-      tg.setBackgroundColor?.("#000000");
+      const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#000000";
+      tg.setHeaderColor?.(bg);
+      tg.setBackgroundColor?.(bg);
       tg.onEvent?.("safeAreaChanged", readSafeAreaFromSdk);
       tg.onEvent?.("contentSafeAreaChanged", readSafeAreaFromSdk);
       tg.onEvent?.("fullscreenChanged", readSafeAreaFromSdk);

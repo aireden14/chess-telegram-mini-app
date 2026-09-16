@@ -56,8 +56,14 @@ export function clockIn(tz) {
   }
 }
 
+// Новый день начинается не в полночь, а в 5 утра: чтение перед сном в час
+// ночи — это всё ещё «вчера», и серия не рвётся из-за позднего вечера.
+export const DAY_START_HOUR = 5;
+
+// Ключ дня YYYY-MM-DD для момента времени (запись, «сегодня»): с учётом
+// часового пояса и сдвига границы суток на DAY_START_HOUR.
 export function dayKey(date = new Date()) {
-  const d = new Date(date);
+  const d = new Date(new Date(date).getTime() - DAY_START_HOUR * 3600000);
   if (activeTimeZone) {
     try {
       // en-CA форматирует ровно как YYYY-MM-DD — то, что нужно для ключа.
@@ -71,6 +77,12 @@ export function dayKey(date = new Date()) {
       /* неизвестная зона — тихо падаем на время устройства */
     }
   }
+  return calendarKey(d);
+}
+
+// Ключ календарной даты без сдвигов и поясов — для арифметики по датам
+// (сетка месяца, «вчера», «неделю назад»).
+export function calendarKey(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -85,7 +97,7 @@ export function keyToDate(key) {
 export function shiftKey(key, deltaDays) {
   const d = keyToDate(key);
   d.setDate(d.getDate() + deltaDays);
-  return dayKey(d);
+  return calendarKey(d);
 }
 
 // Разница в календарных днях (b - a), без часовых поясов и летнего времени.
@@ -365,6 +377,22 @@ export function stats(state) {
 
 /* ------------------------------------------------------- начальное состояние */
 
+export const THEMES = [
+  { value: "black", label: "Чёрная", bg: "#000000" },
+  { value: "gray", label: "Серая", bg: "#1f1f22" },
+  { value: "navy", label: "Синяя", bg: "#0e1627" },
+  { value: "light", label: "Светлая", bg: "#f2f2f7" },
+];
+
+export function applyTheme(theme) {
+  const t = THEMES.find((x) => x.value === theme) ?? THEMES[1];
+  document.documentElement.dataset.theme = t.value;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t.bg);
+  document.querySelector('meta[name="color-scheme"]')
+    ?.setAttribute("content", t.value === "light" ? "light" : "dark");
+  return t;
+}
+
 export function defaultState() {
   return {
     version: 1,
@@ -387,6 +415,8 @@ export function defaultState() {
       seenMilestones: [],
       seenVersion: null,
       accentCursor: 0,
+      // Оформление этого устройства: black | gray | navy | light.
+      theme: "gray",
     },
   };
 }

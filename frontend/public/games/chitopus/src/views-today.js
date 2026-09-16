@@ -7,13 +7,13 @@
 import {
   bookProgress, dayKey, dayPages, humanDate, humanWeekday,
   lastDays, WEEKDAYS_SHORT, readingBooks, stats, flameIcon,
-} from "./core.js?v=1.0.0";
-import { h, plural } from "./ui.js?v=1.0.0";
-import { bookCard, bookSheet, finishFlow } from "./views-books.js?v=1.0.0";
-import { daySheet } from "./views-data.js?v=1.0.0";
-import { haptic } from "./tg.js?v=1.0.0";
-import { countUp, pulse } from "./fx.js?v=1.0.0";
-import { playSound } from "./sound.js?v=1.0.0";
+} from "./core.js?v=1.2.0";
+import { h, plural } from "./ui.js?v=1.2.0";
+import { bookCard, bookSheet, finishFlow } from "./views-books.js?v=1.2.0";
+import { daySheet } from "./views-data.js?v=1.2.0";
+import { haptic } from "./tg.js?v=1.2.0";
+import { countUp, pulse } from "./fx.js?v=1.2.0";
+import { playSound } from "./sound.js?v=1.2.0";
 
 /* ================================================================= СЕГОДНЯ */
 

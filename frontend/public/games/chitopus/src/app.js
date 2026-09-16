@@ -2,16 +2,17 @@
 
 import {
   loadState, saveState, activeBook, findBook, readingBooks,
-  bookProgress, dayKey, dayPages, dailyGoal, computeStreak, uid, ACCENTS,
+  applyTheme, bookProgress, dayKey, dayPages, dailyGoal, computeStreak, uid, ACCENTS,
   ACCENT_KEYS, setTimeZone, nextAccent, STREAK_MILESTONES, flameIcon,
-} from "./core.js?v=1.0.0";
-import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.0.0";
-import { setConfettiEnabled, confetti } from "./fx.js?v=1.0.0";
-import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.0.0";
-import { h, clear, tabIcon, closeSheet, isSheetOpen, toast, plural } from "./ui.js?v=1.0.0";
-import { viewToday, viewLog, viewFinish } from "./views-today.js?v=1.0.0";
-import { viewBooks } from "./views-books.js?v=1.0.0";
-import { viewDiary, viewSettings } from "./views-data.js?v=1.0.0";
+} from "./core.js?v=1.2.0";
+import { initTelegram, haptic, setHapticsEnabled, requestExit, isEmbedded } from "./tg.js?v=1.2.0";
+import { setConfettiEnabled, confetti } from "./fx.js?v=1.2.0";
+import { configureSound, installAudioUnlock, playSound, audioMixMode } from "./sound.js?v=1.2.0";
+import { h, clear, tabIcon, closeSheet, isSheetOpen, toast, plural } from "./ui.js?v=1.2.0";
+import { viewToday, viewLog, viewFinish } from "./views-today.js?v=1.2.0";
+import { viewBooks } from "./views-books.js?v=1.2.0";
+import { viewDiary, viewSettings } from "./views-data.js?v=1.2.0";
+import { initSync, scheduleSync } from "./sync.js?v=1.2.0";
 
 const TABS = [
   { id: "today", label: "Сегодня", icon: "today" },
@@ -51,9 +52,13 @@ export const app = {
 
   save() {
     saveState(this.state);
+    scheduleSync();
   },
 
   replaceState(next) {
+    // Отметки синхронизации принадлежат устройству, а не дневнику: с ними
+    // замена данных уходит на сервер как обычная правка.
+    next.sync = this.state.sync;
     this.state = next;
     this.draft = null;
     this.lastResult = null;
@@ -67,6 +72,7 @@ export const app = {
     setConfettiEnabled(this.state.settings.confetti !== false);
     // Пояс задаёт границы суток, поэтому применяется до первого расчёта дня.
     setTimeZone(this.state.settings.timeZone ?? null);
+    applyTheme(this.state.settings.theme);
     configureSound({
       enabled: this.state.settings.sound === true,
       volume: this.state.settings.soundVolume ?? "mid",
@@ -443,6 +449,17 @@ export const app = {
     }
 
     this.render();
+
+    // Приложение могли оставить открытым на ночь: вернулись после 5:00 —
+    // «сегодня» уже другое, перерисовываем.
+    initSync(this);
+
+    let shownDay = dayKey();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible" || dayKey() === shownDay) return;
+      shownDay = dayKey();
+      this.render();
+    });
 
     // Аппаратная «назад» и Escape ведут себя предсказуемо: закрыть лист,
     // иначе вернуться на шаг назад.
