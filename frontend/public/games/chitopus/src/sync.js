@@ -16,7 +16,14 @@
 import { isEmbedded } from "./tg.js?v=1.2.0";
 import { saveState, STORAGE_KEY, readingBooks, findBook } from "./core.js?v=1.2.0";
 
-const API = "https://gamepass-all-in-one.onrender.com/api/chitopus";
+const API = (() => {
+  // Для проверки против локального сервера: localStorage["chitopus.apiBase"].
+  try {
+    const custom = localStorage.getItem("chitopus.apiBase");
+    if (custom && /^http:\/\/localhost:\d+\//.test(custom)) return custom;
+  } catch { /* нет хранилища */ }
+  return "https://gamepass-all-in-one.onrender.com/api/chitopus";
+})();
 const ACCOUNT_KEY = "chitopus.account";
 const BACKUP_KEY = `${STORAGE_KEY}.backup-before-sync`;
 const DEBOUNCE_MS = 1500;

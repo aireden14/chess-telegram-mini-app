@@ -1440,3 +1440,6 @@ textarea.input { min-height: 120px; resize: none; line-height: 1.45; }
   letter-spacing: 0.12em;
   font-variant-numeric: tabular-nums;
 }
+:root[data-theme="light"] .seg { background: rgba(118, 118, 128, 0.12); }
+:root[data-theme="light"] .seg-btn.is-on { background: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+:root[data-theme="light"] .switch:not(.is-on) { background: rgba(120, 120, 128, 0.2); }
